@@ -250,9 +250,11 @@ export function DocumentScreen() {
               const hidden = !matchesScope('adults', scope);
               toast.show({
                 message: 'Документ доступен взрослым',
+                detail: hidden
+                  ? `Кто видит: Взрослые. Режим «${SCOPE_LABELS[scope]}» его не показывает.`
+                  : 'Кто видит: Взрослые',
                 ...(hidden
                   ? {
-                      detail: `Режим «${SCOPE_LABELS[scope]}» скрывает его в списках.`,
                       action: { label: 'Показать всё', onClick: () => setScope('all') },
                       durationMs: 10_000,
                     }

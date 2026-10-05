@@ -22,6 +22,12 @@ interface AccessActionsProps {
 
 const SHARED_OPTIONS: readonly Visibility[] = ['adults', 'household'];
 
+const ACCESS_CHANGED: Readonly<Record<Visibility, string>> = {
+  personal: 'Запись стала личной',
+  adults: 'Запись видят взрослые',
+  household: 'Запись видит вся семья',
+};
+
 function names(members: readonly { name: string }[]): string {
   return members.map((member) => member.name).join(' и ');
 }
@@ -55,10 +61,10 @@ export function AccessActions({ id, visibility, what }: AccessActionsProps) {
     dispatch({ type: 'setVisibility', id, visibility: next });
     const hidden = !matchesScope(next, scope);
     toast.show({
-      message: `Теперь ${what}: ${VISIBILITY_LABELS[next]}`,
-      ...(hidden
-        ? { detail: `Сейчас включён режим «${SCOPE_LABELS[scope]}» — в списках записи не видно.` }
-        : {}),
+      message: ACCESS_CHANGED[next],
+      detail: hidden
+        ? `Кто видит: ${VISIBILITY_LABELS[next]}. Режим «${SCOPE_LABELS[scope]}» её не показывает.`
+        : `Кто видит: ${VISIBILITY_LABELS[next]}`,
       ...(hidden ? { action: { label: 'Показать всё', onClick: () => setScope('all') } } : {}),
       durationMs: hidden ? 10_000 : 7000,
     });

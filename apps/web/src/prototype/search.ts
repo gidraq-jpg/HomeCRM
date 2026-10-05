@@ -58,6 +58,9 @@ export function stem(word: string): string {
 
 const digitsOf = (text: string) => text.replace(/\D/g, '');
 
+/** С какой длины основы слово ищется не только с начала, но и внутри («загранпаспорт»). */
+const MIN_INNER_MATCH = 4;
+
 function makeEntry(
   entry: Omit<SearchEntry, 'tokens' | 'digits'>,
   texts: readonly (string | undefined)[],
@@ -73,7 +76,10 @@ export function matches(entry: SearchEntry, query: string): boolean {
   return words.every((word) => {
     if (/\d/.test(word)) return entry.digits.includes(digitsOf(word));
     const root = stem(word);
-    return entry.tokens.some((token) => token.startsWith(root));
+    // По части слова: «паспорт» находит и «загранпаспорт». Совсем короткие основы — только с начала.
+    return entry.tokens.some(
+      (token) => token.startsWith(root) || (root.length >= MIN_INNER_MATCH && token.includes(root)),
+    );
   });
 }
 

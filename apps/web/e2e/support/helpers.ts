@@ -128,6 +128,13 @@ interface CheckOptions {
   shot?: 'page' | 'viewport';
 }
 
+/** Ждёт конца анимаций: пока панель выезжает и проявляется, цвета смешаны и контраст не тот. */
+export async function settle(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await Promise.allSettled(document.getAnimations().map((animation) => animation.finished));
+  });
+}
+
 /** Всё, что проверяется на каждом экране: прокрутка, цели нажатия, axe и скриншот. */
 export async function checkScreen(
   page: Page,
@@ -135,6 +142,7 @@ export async function checkScreen(
   name: string,
   options: CheckOptions = {},
 ): Promise<void> {
+  await settle(page);
   await expectNoHorizontalScroll(page);
   await expectTouchTargets(page, options.targetsRoot);
   await expectAccessible(page, `${name} (${widthOf(testInfo)} px)`);
