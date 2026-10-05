@@ -12,7 +12,7 @@
 | [docs/adr/](docs/adr/README.md) | Архитектурные решения | 17 приняты, 2 ждут проверок этапа 0 |
 | [docs/backlog.md](docs/backlog.md) | Замечания и идеи вне текущих задач | Ведёт ведущий агент |
 | [docs/runbook.md](docs/runbook.md) | Подготовка компьютера, заглушка этапа 0, вход через VPS | Этап 0 |
-| [docs/stage0/access-measurements.md](docs/stage0/access-measurements.md) | Замеры доступа и push с телефонов | Ждёт домена и VPS |
+| [docs/stage0/access-measurements.md](docs/stage0/access-measurements.md) | Замеры доступа и push с телефонов | Отложено до настройки VPS |
 | [AGENTS.md](AGENTS.md) | Правила для ИИ-агентов | Действуют |
 
 ## Быстрый старт для разработки
@@ -27,4 +27,4 @@ pnpm dev
 
 `pnpm check` — то же, что проверяет CI: кодировка, формат и линтер, типы, тесты.
 
-Предыдущая система, из которой переносим принципы и данные: `E:\LifeOS_Codex_Project`.
+Репозиторий — приватный, [github.com/gidraq-jpg/HomeCRM](https://github.com/gidraq-jpg/HomeCRM). Предыдущая система, из которой переносим принципы и данные: `E:\LifeOS_Codex_Project`.
