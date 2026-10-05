@@ -141,20 +141,18 @@ describe('защита от CSRF: маршруты библиотеки', () => 
   });
 
   it('форма с чужого сайта (Fetch Metadata: cross-site navigate) не входит', async () => {
-    const reply = await world
-      .device()
-      .post(
-        '/api/auth/sign-in/username',
-        { username: 'boris', password: world.boris.password },
-        {
-          origin: null,
-          headers: {
-            'sec-fetch-site': 'cross-site',
-            'sec-fetch-mode': 'navigate',
-            'sec-fetch-dest': 'document',
-          },
+    const reply = await world.device().post(
+      '/api/auth/sign-in/username',
+      { username: 'boris', password: world.boris.password },
+      {
+        origin: null,
+        headers: {
+          'sec-fetch-site': 'cross-site',
+          'sec-fetch-mode': 'navigate',
+          'sec-fetch-dest': 'document',
         },
-      );
+      },
+    );
     expect(reply.status).toBe(403);
     expect(reply.setCookies).toEqual([]);
   });

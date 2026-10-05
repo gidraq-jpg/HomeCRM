@@ -192,12 +192,10 @@ describe('журналы без секретов (AGENTS.md, правило 1)',
 
     // Восстановление по почте: токен в адресе из письма.
     world.mailbox.length = 0;
-    await world
-      .device()
-      .post('/api/auth/request-password-reset', {
-        email: 'boris@family.test',
-        redirectTo: '/reset-password',
-      });
+    await world.device().post('/api/auth/request-password-reset', {
+      email: 'boris@family.test',
+      redirectTo: '/reset-password',
+    });
     const emailUrl = new URL(/(https?:\/\/\S+)/.exec(world.mailbox[0]?.text ?? '')?.[1] ?? '');
     const emailToken = emailUrl.pathname.split('/').pop() ?? '';
     track('токен сброса из письма', emailToken);
