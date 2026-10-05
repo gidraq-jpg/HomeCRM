@@ -10,6 +10,7 @@
   top: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 8px;
@@ -22,7 +23,8 @@
 
 /* Переключатель «Всё · Общее · Личное» */
 .scope-switch {
-  flex: 1;
+  /* При увеличении текста до 200% переключатель занимает всю строку, а поиск уходит ниже. */
+  flex: 1 1 10.5rem;
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
