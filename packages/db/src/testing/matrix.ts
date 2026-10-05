@@ -14,7 +14,13 @@ import { eq } from 'drizzle-orm';
 import { RECORD_TYPES, type RecordType } from '../access-sql.ts';
 import type { AppDatabase, Transaction } from '../client.ts';
 import { RECORD_TABLES } from '../schema.ts';
-import { type Family, type Person, placementColumns, type SeededRecord } from './family.ts';
+import {
+  type Family,
+  type Person,
+  placementColumns,
+  type SeededRecord,
+  TYPE_LABELS,
+} from './family.ts';
 
 export const OPERATIONS = [
   'view',
@@ -234,7 +240,9 @@ async function listMismatches(
         }
       }
       if (visible.size > family.records.filter((record) => record.type === type).length) {
-        mismatches.push(`${viewer.name} · список ${type}: база вернула лишние строки`);
+        mismatches.push(
+          `${viewer.name} · список (${TYPE_LABELS[type]}): база вернула лишние строки`,
+        );
       }
     }
   }

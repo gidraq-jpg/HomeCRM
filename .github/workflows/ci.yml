@@ -18,6 +18,21 @@ jobs:
     name: pnpm check
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Одноразовая PostgreSQL 18 для тестов пакета db и матрицы доступа (ADR-0004, ADR-0013).
+    # Пароль не нужен: контейнер живёт один прогон и доступен только внутри этого задания.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+          --tmpfs /var/lib/postgresql
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -27,3 +42,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+        env:
+          HOMECRM_TEST_PG_ADMIN_URL: postgres://postgres@localhost:${{ job.services.postgres.ports['5432'] }}/postgres
