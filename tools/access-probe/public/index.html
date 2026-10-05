@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2f6b4f" />
+    <title>HomeCRM · проверка связи</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon-192.png" />
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>Проверка связи</h1>
+      <p class="lead">
+        Помогает выбрать, через какой сервер телефоны будут открывать HomeCRM. Ничего личного не
+        собирает: только скорость и время доставки уведомлений.
+      </p>
+
+      <section aria-labelledby="who">
+        <h2 id="who">1. Чей телефон и какая сеть</h2>
+        <label class="field">
+          <span>Чей телефон</span>
+          <input id="label" maxlength="40" autocomplete="off" placeholder="Например, телефон мамы" />
+        </label>
+        <fieldset id="network">
+          <legend>Через что телефон сейчас в интернете</legend>
+        </fieldset>
+      </section>
+
+      <section aria-labelledby="speed">
+        <h2 id="speed">2. Скорость</h2>
+        <button id="run" type="button" class="primary">Проверить</button>
+        <ol id="steps" class="steps" aria-live="polite"></ol>
+        <p id="summary" role="status"></p>
+      </section>
+
+      <section aria-labelledby="push">
+        <h2 id="push">3. Уведомления</h2>
+        <p>
+          Включите уведомления и попросите прислать тестовое. Для проверки «через 10 минут»
+          заблокируйте экран и отложите телефон.
+        </p>
+        <button id="subscribe" type="button" class="primary">Включить уведомления</button>
+        <div class="row">
+          <button type="button" data-delay="0" disabled>Прислать сейчас</button>
+          <button type="button" data-delay="60" disabled>Через 1 минуту</button>
+          <button type="button" data-delay="600" disabled>Через 10 минут</button>
+        </div>
+        <p id="push-status" role="status"></p>
+      </section>
+
+      <footer><small id="info">Связываемся с сервером…</small></footer>
+    </main>
+  </body>
+</html>

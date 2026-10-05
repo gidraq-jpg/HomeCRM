@@ -1,0 +1,73 @@
+# HomeCRM: один compose-файл для этого компьютера и VPS (ADR-0015).
+# Сейчас здесь только заглушка этапа 0 и туннели; приложение, обработчик и база появятся в R0.
+#
+# Заглушка:                 docker compose -f deploy/compose.yaml --profile probe up -d --build
+# Заглушка + туннель (А1):  docker compose -f deploy/compose.yaml --profile probe --profile tunnel-ru up -d --build
+# Подробно — docs/runbook.md.
+name: homecrm
+
+services:
+  probe:
+    profiles: [probe]
+    build:
+      context: ..
+      dockerfile: tools/access-probe/Dockerfile
+    image: homecrm-access-probe:local
+    restart: unless-stopped
+    env_file:
+      - path: ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/vapid.env
+        required: false
+    environment:
+      DISPLAY_TZ: ${HOMECRM_TZ:-Asia/Yekaterinburg}
+    ports:
+      # Наружу ничего не публикуется: только 127.0.0.1 этого компьютера.
+      - "127.0.0.1:8300:8300" # страница проверки; её же пробрасывают туннели
+      - "127.0.0.1:8309:8309" # результаты; туннели её не пробрасывают
+    volumes:
+      - probe-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8300/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Вариант А1: российский VPS. Настройки — в secrets/tunnel/ru.env (SSH_HOST, SSH_PORT).
+  tunnel-ru:
+    profiles: [tunnel-ru]
+    build: ./tunnel
+    image: homecrm-tunnel:local
+    restart: unless-stopped
+    env_file:
+      - path: ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/tunnel/ru.env
+    environment:
+      TARGET: probe:8300
+    volumes:
+      - ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/tunnel:/secrets:ro
+
+  # Вариант А2: зарубежный VPS. Настройки — в secrets/tunnel/alt.env.
+  tunnel-alt:
+    profiles: [tunnel-alt]
+    build: ./tunnel
+    image: homecrm-tunnel:local
+    restart: unless-stopped
+    env_file:
+      - path: ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/tunnel/alt.env
+    environment:
+      TARGET: probe:8300
+    volumes:
+      - ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/tunnel:/secrets:ro
+
+  # Вариант Б: временный Cloudflare Tunnel со случайным адресом *.trycloudflare.com.
+  # Только для сравнения; адрес — в журнале: docker compose -f deploy/compose.yaml logs tunnel-cf
+  tunnel-cf:
+    profiles: [tunnel-cf]
+    image: cloudflare/cloudflared:latest
+    restart: "no"
+    command: tunnel --no-autoupdate --url http://probe:8300
+
+volumes:
+  probe-data:

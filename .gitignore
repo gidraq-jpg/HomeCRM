@@ -7,6 +7,9 @@ coverage/
 playwright-report/
 test-results/
 
+# Журнал заглушки при запуске без Docker
+tools/access-probe/data/
+
 # Журналы и системные файлы
 *.log
 .DS_Store

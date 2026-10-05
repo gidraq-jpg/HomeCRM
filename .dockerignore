@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+**/coverage
+.git
+.github
+docs
+tools/access-probe/data
+*.log

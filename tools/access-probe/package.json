@@ -1,0 +1,19 @@
+{
+  "name": "@homecrm/access-probe",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Заглушка этапа 0: замеры доступа и push с телефонов. Удаляется после R0.",
+  "scripts": {
+    "dev": "node --watch src/server.ts",
+    "start": "node src/server.ts",
+    "icons": "node scripts/make-icons.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@types/web-push": "^3.6.4"
+  }
+}
