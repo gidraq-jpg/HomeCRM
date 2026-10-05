@@ -84,3 +84,29 @@ export function canRestore(viewer: Viewer, record: RecordFacts): boolean {
   const role = roleIn(viewer, placement.spaceId);
   return role === 'admin' || (role === 'adult' && record.authorId === viewer.accountId);
 }
+
+// Правила входа и учётных записей — PRD, раздел 10.1 (AUTH-2, AUTH-5, AUTH-8). Это не записи
+// пользователя, а служебные сведения о входе, но правило «кто что видит и делает» то же:
+// политики базы и проверки сервера обязаны совпадать с этими функциями (ADR-0005).
+
+/** Может ли участник пригласить в дом с любой ролью: только администратор этого дома (AUTH-2). */
+export function canInvite(viewer: Viewer, houseId: string): boolean {
+  return roleIn(viewer, houseId) === 'admin';
+}
+
+/**
+ * Может ли участник выдать ссылку сброса пароля участнику target (AUTH-5): администратор — только
+ * ребёнку своего дома. Ребёнок — тот, кто во всех своих домах ребёнок: если где-то target взрослый
+ * или администратор, его пароль сбросить нельзя. Свой пароль так не сбрасывают.
+ */
+export function canResetPassword(viewer: Viewer, target: Viewer): boolean {
+  if (viewer.accountId === target.accountId) return false;
+  const roles = [...target.memberships.values()];
+  if (roles.length === 0 || roles.some((role) => role !== 'child')) return false;
+  return [...target.memberships.keys()].some((houseId) => roleIn(viewer, houseId) === 'admin');
+}
+
+/** Журнал входов и отметку о сбросе пароля видит только владелец учётной записи (AUTH-5, AUTH-8). */
+export function canViewAccountJournal(viewer: Viewer, ownerAccountId: string): boolean {
+  return viewer.accountId === ownerAccountId;
+}

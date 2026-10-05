@@ -29,6 +29,20 @@
       "when": 1791205698858,
       "tag": "0003_trash_time",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791207243548,
+      "tag": "0004_auth_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791207251090,
+      "tag": "0005_auth_force_rls_and_grants",
+      "breakpoints": true
     }
   ]
 }

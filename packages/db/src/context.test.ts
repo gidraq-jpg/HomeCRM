@@ -14,13 +14,37 @@ const anna = family.person('anna');
 let database: TestDatabase;
 let tables: string[];
 
+// Таблицы входа, которых у приложения нет вовсе: пароли, секреты, сессии, счётчики (ADR-0005).
+const AUTH_ONLY = [
+  'credentials',
+  'login_locks',
+  'rate_limits',
+  'sessions',
+  'two_factors',
+  'verifications',
+];
+// Данные и сведения, которые приложение читает под контекстом участника.
+const APP_TABLES = [
+  'accounts',
+  'invitations',
+  'login_events',
+  'notes',
+  'password_resets',
+  'shopping_items',
+  'space_members',
+  'spaces',
+  'tasks',
+];
+// Эти таблицы наполняет seedFamily: проверка «без контекста пусто» не вырождена.
+const SEEDED = new Set(['accounts', 'notes', 'shopping_items', 'space_members', 'spaces', 'tasks']);
+
 beforeAll(async () => {
   database = await createTestDatabase(inject('pgAdminUrl'));
   await seedFamily(database.admin, family);
   const { rows } = await database.admin.query<{ name: string }>(
     `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
   );
-  tables = rows.map((row) => row.name);
+  tables = rows.map((row) => row.name).sort();
 });
 
 afterAll(async () => {
@@ -41,23 +65,20 @@ async function countIn(tx: Transaction, table: string): Promise<number> {
 
 describe('контекст запроса', () => {
   it('без контекста роль приложения не видит ни одной строки ни в одной таблице', async () => {
-    expect(tables).toEqual([
-      'accounts',
-      'notes',
-      'shopping_items',
-      'space_members',
-      'spaces',
-      'tasks',
-    ]);
-    for (const table of tables) {
-      expect(await count(database.admin, table), table).toBeGreaterThan(0);
+    expect(tables).toEqual([...APP_TABLES, ...AUTH_ONLY].sort());
+    for (const table of APP_TABLES) {
+      if (SEEDED.has(table)) expect(await count(database.admin, table), table).toBeGreaterThan(0);
       expect(await count(database.app, table), table).toBe(0);
+    }
+    // Таблицы входа приложению не выданы: не «пусто», а отказ.
+    for (const table of AUTH_ONLY) {
+      await expect(count(database.app, table), table).rejects.toMatchObject({ code: '42501' });
     }
     // И внутри транзакции, где set_config не вызывали.
     const client = await database.app.connect();
     try {
       await client.query('BEGIN');
-      for (const table of tables) expect(await count(client, table), table).toBe(0);
+      for (const table of APP_TABLES) expect(await count(client, table), table).toBe(0);
       await client.query('ROLLBACK');
     } finally {
       client.release();
@@ -67,7 +88,7 @@ describe('контекст запроса', () => {
   it('учётная запись без личного пространства и членств не видит ничего', async () => {
     const app = createAppDatabase(database.app);
     const stranger = randomUUID();
-    for (const table of tables) {
+    for (const table of APP_TABLES) {
       expect(await app.withAccount(stranger, (tx) => countIn(tx, table)), table).toBe(0);
     }
   });

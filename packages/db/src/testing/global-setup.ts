@@ -1,4 +1,4 @@
-// Глобальная подготовка тестов пакета db: один сервер PostgreSQL 18 на прогон и роли HomeCRM на нём.
+// Глобальная подготовка тестов пакетов db и server: один сервер PostgreSQL 18 на прогон пакета и роли HomeCRM на нём.
 // Каждый файл тестов затем создаёт себе отдельную базу со случайным именем (database.ts).
 import pg from 'pg';
 import type { TestProject } from 'vitest/node';
@@ -13,7 +13,8 @@ declare module 'vitest' {
 }
 
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
-  const server = await startPostgres();
+  // У пакета db имя проекта без суффикса, у остальных — свой суффикс (см. postgres.ts).
+  const server = await startPostgres(project.name === 'db' ? undefined : project.name);
   try {
     const admin = new pg.Client({ connectionString: server.adminUrl });
     await admin.connect();

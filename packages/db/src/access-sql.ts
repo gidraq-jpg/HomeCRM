@@ -97,3 +97,41 @@ export function recordPolicySql(type: RecordType): {
  * Дате можно верить: её ставит база, а не приложение.
  */
 export const EXPIRED_TRASH_SQL = `deleted_at < now() - interval '${TRASH_RETENTION}'`;
+
+// Правила входа (ADR-0005): двойники canInvite, canResetPassword и canViewAccountJournal из access.ts.
+// Их сверяет identity-matrix.test.ts.
+
+/** Приглашение живёт 72 часа (PRD, AUTH-2); срок проверяет и CHECK таблицы invitations. */
+export const INVITATION_TTL = '72 hours';
+
+/** Строка привязана к учётной записи текущей транзакции: журнал входов и отметка о сбросе — только свои. */
+export function ownAccountSql(column = 'account_id'): string {
+  return `${column} = ${ME}`;
+}
+
+/** canInvite: приглашение в дом, где текущая учётная запись — администратор. Для строки с household_id. */
+export function canInviteSql(): string {
+  return `household_id IN ${housesWhere(['admin'])}`;
+}
+
+/**
+ * canResetPassword для строки password_resets: requested_by — администратор дома, где account_id — ребёнок,
+ * и account_id нигде не взрослый и не администратор. Службе входа контекст пользователя не задаётся,
+ * поэтому условие смотрит на requested_by в самой строке, а не на current_account_id().
+ * Имена колонок строки квалифицированы: в подзапросах у space_members есть свои account_id.
+ */
+export function canResetPasswordSql(): string {
+  return `(
+    password_resets.requested_by <> password_resets.account_id
+    AND EXISTS (
+      SELECT 1 FROM space_members admin_m
+      JOIN space_members child_m ON child_m.space_id = admin_m.space_id
+      WHERE admin_m.account_id = password_resets.requested_by AND admin_m.role = 'admin'
+        AND child_m.account_id = password_resets.account_id AND child_m.role = 'child'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM space_members other
+      WHERE other.account_id = password_resets.account_id AND other.role <> 'child'
+    )
+  )`;
+}

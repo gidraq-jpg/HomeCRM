@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   AUDIENCES,
+  canInvite,
+  canResetPassword,
   canRestore,
   canTrash,
   canView,
+  canViewAccountJournal,
   canWrite,
   type Placement,
   type RecordFacts,
@@ -111,5 +114,60 @@ describe('canTrash и canRestore', () => {
     expect(canRestore(adult, mine)).toBe(true);
     expect(canTrash(admin, mine)).toBe(false);
     expect(canRestore(admin, mine)).toBe(false);
+  });
+});
+
+describe('canInvite (AUTH-2)', () => {
+  it('приглашает только администратор этого дома', () => {
+    expect(everyone.map((v) => canInvite(v, HOUSE))).toEqual([true, false, false, false]);
+  });
+
+  it('администратор соседнего дома в этот дом не приглашает', () => {
+    const neighbour = { accountId: 'n-1', memberships: new Map([['house-2', 'admin' as const]]) };
+    expect(canInvite(neighbour, HOUSE)).toBe(false);
+    expect(canInvite(neighbour, 'house-2')).toBe(true);
+  });
+});
+
+describe('canResetPassword (AUTH-5)', () => {
+  it('администратор сбрасывает пароль только ребёнку своего дома', () => {
+    expect(everyone.map((target) => canResetPassword(admin, target))).toEqual([
+      false, // себе — нет
+      false, // взрослый — нет
+      true, // ребёнок — да
+      false, // посторонний без дома — нет
+    ]);
+  });
+
+  it('взрослый, ребёнок и посторонний не сбрасывают никому', () => {
+    for (const viewer of [adult, child, outsider]) {
+      for (const target of everyone) expect(canResetPassword(viewer, target)).toBe(false);
+    }
+  });
+
+  it('администратор соседнего дома чужого ребёнка не сбрасывает', () => {
+    const neighbour = { accountId: 'n-1', memberships: new Map([['house-2', 'admin' as const]]) };
+    expect(canResetPassword(neighbour, child)).toBe(false);
+  });
+
+  it('кто где-то взрослый или администратор — не ребёнок, даже если в этом доме он ребёнок', () => {
+    const both = {
+      accountId: 'both-1',
+      memberships: new Map<string, Role>([
+        [HOUSE, 'child'],
+        ['house-2', 'adult'],
+      ]),
+    };
+    expect(canResetPassword(admin, both)).toBe(false);
+  });
+});
+
+describe('canViewAccountJournal (AUTH-8)', () => {
+  it('журнал входов видит только владелец, администратор тоже нет', () => {
+    for (const owner of everyone) {
+      for (const viewer of everyone) {
+        expect(canViewAccountJournal(viewer, owner.accountId)).toBe(viewer === owner);
+      }
+    }
   });
 });

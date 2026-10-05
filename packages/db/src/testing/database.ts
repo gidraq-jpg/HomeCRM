@@ -11,6 +11,7 @@ export interface TestDatabase {
   owner: pg.Pool;
   app: pg.Pool;
   worker: pg.Pool;
+  auth: pg.Pool;
   /** Пул заданного размера для роли — например, из одного соединения. */
   pool(role: keyof typeof DB_ROLES, max: number): pg.Pool;
   drop(): Promise<void>;
@@ -46,6 +47,7 @@ export async function createTestDatabase(adminUrl: string): Promise<TestDatabase
     owner,
     app: open(DB_ROLES.app, 8),
     worker: open(DB_ROLES.worker, 1),
+    auth: open(DB_ROLES.auth, 8),
     pool: (role, max) => open(DB_ROLES[role], max),
     async drop() {
       await Promise.all(pools.map((created) => created.end()));

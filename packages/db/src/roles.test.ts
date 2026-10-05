@@ -67,13 +67,14 @@ describe('роли базы', () => {
     }
   });
 
-  it('политики выданы только приложению и обработчику; обработчику — только очистка корзины', async () => {
+  it('политики выданы приложению, обработчику и службе входа; обработчику — только очистка корзины', async () => {
     const { rows } = await database.admin.query<{ policyname: string; roles: string[] }>(
       `SELECT policyname, roles::text[] AS roles FROM pg_policies WHERE schemaname = 'public'`,
     );
     for (const { policyname, roles } of rows) {
       expect(roles, policyname).toHaveLength(1);
       if (roles[0] === DB_ROLES.worker) expect(policyname).toMatch(/_purge(_select)?$/);
+      else if (roles[0] === DB_ROLES.auth) expect(policyname).toMatch(/_auth_/);
       else expect(roles[0], policyname).toBe(DB_ROLES.app);
     }
   });
@@ -117,16 +118,13 @@ describe('обойти RLS нельзя', () => {
       await client.query(`SELECT set_config('app.account_id', $1, true)`, [
         family.person('anna').id,
       ]);
-      for (const table of [
-        'accounts',
-        'spaces',
-        'space_members',
-        'notes',
-        'shopping_items',
-        'tasks',
-      ]) {
-        const { rows } = await client.query(`SELECT count(*)::int AS n FROM ${table}`);
-        expect(rows[0], table).toEqual({ n: 0 });
+      const tables = await client.query<{ tablename: string }>(
+        `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
+      );
+      expect(tables.rows.length).toBeGreaterThanOrEqual(15);
+      for (const { tablename } of tables.rows) {
+        const { rows } = await client.query(`SELECT count(*)::int AS n FROM ${tablename}`);
+        expect(rows[0], tablename).toEqual({ n: 0 });
       }
       await client.query('ROLLBACK');
     } finally {

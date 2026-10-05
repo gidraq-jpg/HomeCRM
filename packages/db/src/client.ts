@@ -43,3 +43,13 @@ export function createAppDatabase(pool: Pool): AppDatabase {
 export function createWorkerDatabase(pool: Pool): Database {
   return drizzle({ client: pool, schema });
 }
+
+/**
+ * База для службы входа (ADR-0005): пул ролью homecrm_auth. Роль видит таблицы входа — учётные
+ * записи, сессии, пароли, приглашения — и состав домов, но не данные семьи; контекста участника
+ * у неё нет. Использовать только там, где без этой роли не обойтись: Better Auth, приглашения,
+ * сброс пароля. Данные семьи — только через `createAppDatabase`.
+ */
+export function createAuthDatabase(pool: Pool): Database {
+  return drizzle({ client: pool, schema });
+}
