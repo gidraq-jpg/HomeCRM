@@ -21,7 +21,7 @@ HomeCRM — семейное веб-приложение (PWA): дом и ком
 | `pnpm format` | Исправляет формат и порядок импортов |
 | `pnpm test`, `pnpm test:watch` | Все тесты Vitest |
 
-Окружение: Node 24, pnpm 12 (версия закреплена в `package.json`). У владельца — Windows 10 и PowerShell 7, в CI — Linux.
+Окружение: Node 24, pnpm 12 (версия закреплена в `package.json`), GitHub CLI `gh` — для запросов на слияние и результатов проверок. У владельца — Windows 10 и PowerShell 7, в CI — Linux.
 
 ## Карта репозитория
 
