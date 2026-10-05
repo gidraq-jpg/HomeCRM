@@ -9,7 +9,8 @@
 | [docs/01-research-brainstorm.md](docs/01-research-brainstorm.md) | Диагноз LifeOS, аналоги, боли пользователей, карта модулей, варианты MVP | Обсуждён, решения от 5 октября 2026 |
 | [docs/02-prd.md](docs/02-prd.md) | Требования к MVP «Дом и сроки», модель «личное и общее» | v0.3 — основа для разработки |
 | [docs/03-dev-plan.md](docs/03-dev-plan.md) | План разработки: стек, архитектура, этапы, сроки, эксплуатация | v0.2 — принят, этап 0 начат |
-| [docs/adr/](docs/adr/README.md) | Архитектурные решения | 16 приняты, 2 ждут проверок этапа 0 |
+| [docs/adr/](docs/adr/README.md) | Архитектурные решения | 17 приняты, 2 ждут проверок этапа 0 |
+| [docs/backlog.md](docs/backlog.md) | Замечания и идеи вне текущих задач | Ведёт ведущий агент |
 | [docs/runbook.md](docs/runbook.md) | Подготовка компьютера, заглушка этапа 0, вход через VPS | Этап 0 |
 | [docs/stage0/access-measurements.md](docs/stage0/access-measurements.md) | Замеры доступа и push с телефонов | Ждёт домена и VPS |
 | [AGENTS.md](AGENTS.md) | Правила для ИИ-агентов | Действуют |

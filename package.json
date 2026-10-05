@@ -16,6 +16,7 @@
     "format": "biome check --write .",
     "typecheck": "tsc -p tsconfig.json && pnpm -r --parallel typecheck",
     "test": "vitest run",
+    "test:changed": "vitest run --changed main",
     "test:watch": "vitest"
   },
   "devDependencies": {
