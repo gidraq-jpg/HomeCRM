@@ -1,10 +1,14 @@
 // Роли базы и защита от обхода RLS (ADR-0004): кто владеет таблицами, кому выданы политики,
 // что приложение не может отключить защиту, а владелец и обработчик видят только положенное.
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { DB_ROLES } from './bootstrap.ts';
+import { createAppDatabase } from './client.ts';
+import { notes } from './schema.ts';
 import { createTestDatabase, type TestDatabase } from './testing/database.ts';
 import { buildFamily, seedFamily } from './testing/family.ts';
+import { isDenied } from './testing/matrix.ts';
 
 const family = buildFamily();
 let database: TestDatabase;
@@ -161,5 +165,65 @@ describe('обойти RLS нельзя', () => {
         code: '42501',
       });
     }
+  });
+});
+
+describe('корзину нельзя обойти датой (DATA-1)', () => {
+  const longAgo = new Date('2000-01-01T00:00:00Z');
+
+  /** Общая заметка Анны «Вся семья»: Борис может убрать её в корзину, но не восстановить. */
+  async function insertNote(deletedAt: 'now' | 'day ago' | null): Promise<string> {
+    const [home] = family.houses;
+    const id = randomUUID();
+    await database.admin.query(
+      `INSERT INTO notes (id, space_id, space_kind, audience, author_id, title, deleted_at)
+       VALUES ($1, $2, 'household', 'household', $3, 'общая заметка',
+         CASE $4::text WHEN 'now' THEN now() WHEN 'day ago' THEN now() - interval '1 day' END)`,
+      [id, home?.id, family.person('anna').id, deletedAt],
+    );
+    return id;
+  }
+
+  async function worker(statement: string, id: string): Promise<number> {
+    return (await database.worker.query(statement, [id])).rowCount ?? 0;
+  }
+
+  it('перенос в корзину с прошедшей датой: дату ставит база, обработчик запись не видит и не удаляет', async () => {
+    const id = await insertNote(null);
+    const app = createAppDatabase(database.app);
+    const moved = await app.withAccount(family.person('boris').id, (tx) =>
+      tx.update(notes).set({ deletedAt: longAgo }).where(eq(notes.id, id)),
+    );
+    expect(moved.rowCount).toBe(1); // в корзину — можно
+    const { rows } = await database.admin.query(
+      `SELECT deleted_at > now() - interval '1 minute' AS fresh FROM notes WHERE id = $1`,
+      [id],
+    );
+    expect(rows).toEqual([{ fresh: true }]);
+    expect(await worker('SELECT id FROM notes WHERE id = $1', id)).toBe(0);
+    expect(await worker('DELETE FROM notes WHERE id = $1', id)).toBe(0);
+  });
+
+  it('дату записи в корзине переписать нельзя — только восстановить', async () => {
+    const id = await insertNote('day ago');
+    const app = createAppDatabase(database.app);
+    const anna = family.person('anna').id; // администратор: ей можно восстанавливать
+    for (const date of [longAgo, new Date()]) {
+      await expect(
+        app.withAccount(anna, (tx) =>
+          tx.update(notes).set({ deletedAt: date }).where(eq(notes.id, id)),
+        ),
+      ).rejects.toSatisfy(isDenied);
+    }
+    const { rows } = await database.admin.query(
+      `SELECT deleted_at BETWEEN now() - interval '25 hours' AND now() - interval '23 hours' AS untouched
+       FROM notes WHERE id = $1`,
+      [id],
+    );
+    expect(rows).toEqual([{ untouched: true }]);
+    const restored = await app.withAccount(anna, (tx) =>
+      tx.update(notes).set({ deletedAt: null }).where(eq(notes.id, id)),
+    );
+    expect(restored.rowCount).toBe(1);
   });
 });

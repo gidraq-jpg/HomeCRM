@@ -10,8 +10,8 @@ import {
   type Placement,
   type RecordFacts,
 } from '@homecrm/shared';
-import { eq } from 'drizzle-orm';
-import { RECORD_TYPES, type RecordType } from '../access-sql.ts';
+import { eq, sql } from 'drizzle-orm';
+import { EXPIRED_TRASH_SQL, RECORD_TYPES, type RecordType } from '../access-sql.ts';
 import type { AppDatabase, Transaction } from '../client.ts';
 import { RECORD_TABLES } from '../schema.ts';
 import {
@@ -42,7 +42,7 @@ export const OPERATION_LABELS: Readonly<Record<Operation, string>> = {
   trash: 'удаление в корзину',
   restore: 'восстановление из корзины',
   move: 'перенос в другое место',
-  delete: 'удаление мимо корзины',
+  delete: 'удаление мимо корзины: DELETE или дата корзины задним числом',
 };
 
 export interface MatrixReport {
@@ -162,14 +162,31 @@ function attemptsFor(
         ),
       );
     case 'delete':
-      // Удаление — только через корзину: права DELETE у приложения нет ни на что.
-      return each(live, (_viewer, record) => ({
+      // Удаление — только через корзину на 30 дней. Мимо неё два пути, и оба закрыты для всех:
+      // DELETE (права нет ни на что) и дата корзины задним числом — запись сразу стала бы
+      // просроченной и ушла бы обработчику. Дату при переносе ставит база, в корзине её не изменить.
+      return each(inScope, (_viewer, record) => ({
         label: record.label,
         expected: false,
         run: async (tx) => {
           const table = RECORD_TABLES[record.type];
-          const result = await tx.delete(table).where(eq(table.id, record.id));
-          return result.rowCount === 1;
+          const deleted = await tx
+            .transaction(async (savepoint) => {
+              const result = await savepoint.delete(table).where(eq(table.id, record.id));
+              return result.rowCount === 1;
+            })
+            .catch((error: unknown) => {
+              if (isDenied(error)) return false;
+              throw error;
+            });
+          if (deleted) return true;
+          const backdated = await tx
+            .update(table)
+            .set({ deletedAt: new Date('2000-01-01T00:00:00Z') })
+            .where(eq(table.id, record.id))
+            // То же условие, по которому запись видит политика очистки обработчика.
+            .returning({ expired: sql<boolean>`${sql.raw(EXPIRED_TRASH_SQL)}` });
+          return backdated[0]?.expired === true;
         },
       }));
     case 'create':

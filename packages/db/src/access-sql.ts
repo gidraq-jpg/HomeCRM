@@ -73,6 +73,8 @@ export function canRestoreSql(): string {
  * старая строка живая — нужно canWrite, в корзине — canRestore;
  * новая строка живая — canWrite, в корзине — canTrash.
  * Физическое удаление приложению не выдано вовсе: очистку корзины делает обработчик.
+ * Время в deleted_at ставит база (триггер app.guard_trash_time, миграция 0003): иначе
+ * прошедшая дата сразу отдала бы запись обработчику в обход 30 дней корзины.
  */
 export function recordPolicySql(type: RecordType): {
   select: string;
@@ -90,5 +92,8 @@ export function recordPolicySql(type: RecordType): {
   };
 }
 
-/** Узкая политика обработчика: только записи, пролежавшие в корзине дольше срока хранения. */
+/**
+ * Узкая политика обработчика: только записи, пролежавшие в корзине дольше срока хранения.
+ * Дате можно верить: её ставит база, а не приложение.
+ */
 export const EXPIRED_TRASH_SQL = `deleted_at < now() - interval '${TRASH_RETENTION}'`;
