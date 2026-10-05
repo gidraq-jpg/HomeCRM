@@ -123,7 +123,7 @@ export function AccessActions({ id, visibility, what }: AccessActionsProps) {
         ) : null}
         {losers.length > 0 ? (
           <p className="warning-box" role="alert">
-            Доступ потеряет: {names(losers)}. Они больше не увидят {what}.
+            Доступ потеряет: {names(losers)}.
           </p>
         ) : null}
         <button

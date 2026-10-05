@@ -38,6 +38,7 @@ export function NotesScreen() {
                 icon={<Note size={22} aria-hidden />}
                 title={note.title}
                 meta={`${formatShortDate(note.created, TODAY)}${note.text ? ` · ${note.text}` : ''}`}
+                clampMeta
                 badge={note.visibility}
               />
             ))}

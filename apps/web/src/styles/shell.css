@@ -153,6 +153,11 @@
   font-weight: 700;
 }
 
+/* Пока открыта экранная клавиатура (см. useKeyboardAttribute), меню и «+» не занимают место. */
+html[data-keyboard="open"] .chrome {
+  display: none;
+}
+
 /* Сообщения */
 .toast-region {
   width: 100%;

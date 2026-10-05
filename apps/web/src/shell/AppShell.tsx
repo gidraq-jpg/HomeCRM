@@ -4,6 +4,7 @@ import { useLocation } from 'react-router';
 import { ToastRegion } from '../ui/Toast.tsx';
 import { BottomNav, type ShellSection } from './BottomNav.tsx';
 import { TopBar } from './TopBar.tsx';
+import { useKeyboardAttribute } from './useKeyboardAttribute.ts';
 
 interface AppShellProps {
   sections: readonly ShellSection[];
@@ -20,6 +21,7 @@ interface AppShellProps {
  */
 export function AppShell({ sections, onAdd, overlays, children }: AppShellProps) {
   const { pathname } = useLocation();
+  useKeyboardAttribute();
 
   // Новый экран открывается сверху, как после перехода по ссылке.
   // biome-ignore lint/correctness/useExhaustiveDependencies: прокрутка зависит от адреса, а не от значения внутри эффекта

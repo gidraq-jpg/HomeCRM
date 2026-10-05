@@ -189,6 +189,14 @@
   line-height: 1.4;
 }
 
+.row__meta--clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
 .row__chevron {
   flex: none;
   color: var(--muted);

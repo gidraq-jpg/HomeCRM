@@ -18,6 +18,8 @@ interface RowContentProps {
   iconTone?: 'warning';
   title: ReactNode;
   meta?: ReactNode;
+  /** Длинный текст в пояснении (заметка) обрезается до двух строк. */
+  clampMeta?: boolean;
   badge?: Visibility;
   chevron?: boolean;
   aside?: ReactNode;
@@ -29,6 +31,7 @@ export function RowContent({
   iconTone,
   title,
   meta,
+  clampMeta = false,
   badge,
   chevron = false,
   aside,
@@ -40,7 +43,9 @@ export function RowContent({
       ) : null}
       <span className="row__body">
         <span className="row__title">{title}</span>
-        {meta ? <span className="row__meta">{meta}</span> : null}
+        {meta ? (
+          <span className={clampMeta ? 'row__meta row__meta--clamp' : 'row__meta'}>{meta}</span>
+        ) : null}
       </span>
       {aside}
       {badge ? <AccessBadge visibility={badge} /> : null}

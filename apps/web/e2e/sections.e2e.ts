@@ -93,3 +93,25 @@ test('шапка и «+» есть на каждом экране', async ({ pag
     ).toBeVisible();
   }
 });
+
+test('когда окно сжимает экранная клавиатура, меню и «+» прячутся, потом возвращаются', async ({
+  page,
+}) => {
+  await openApp(page, '/search');
+  const add = page.getByRole('button', { name: 'Добавить', exact: true });
+  const nav = page.getByRole('navigation', { name: 'Основные разделы' });
+
+  // Фокус в поле сам по себе меню не прячет: оно уходит, только если окно действительно сжалось.
+  await expect(page.getByRole('searchbox', { name: 'Что найти' })).toBeFocused();
+  await expect(add).toBeVisible();
+
+  const size = page.viewportSize();
+  if (size === null) throw new Error('У окна нет размера');
+  await page.setViewportSize({ width: size.width, height: Math.round(size.height * 0.55) });
+  await expect(add).toBeHidden();
+  await expect(nav).toBeHidden();
+
+  await page.setViewportSize(size);
+  await expect(add).toBeVisible();
+  await expect(nav).toBeVisible();
+});

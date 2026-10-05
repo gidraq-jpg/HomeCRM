@@ -463,6 +463,7 @@ export function PropertyFeed() {
             {...(item.to ? { to: item.to } : {})}
             icon={item.icon}
             title={item.title}
+            clampMeta
             meta={
               <>
                 {formatShortDate(item.date, TODAY)}
