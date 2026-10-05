@@ -33,6 +33,10 @@ export async function createTestDatabase(adminUrl: string): Promise<TestDatabase
   const pools: pg.Pool[] = [];
   const open = (user: string | undefined, max: number): pg.Pool => {
     const created = new pg.Pool({ connectionString: urlFor(user), max });
+    // DROP DATABASE ... WITH FORCE в drop() может оборвать соединение, которое пул ещё закрывает;
+    // под нагрузкой (CI, два пакета на одном сервере) это приходит как событие error пула.
+    // Тестам такая ошибка при уборке не нужна; в самих запросах ошибки по-прежнему видны.
+    created.on('error', () => {});
     pools.push(created);
     return created;
   };
