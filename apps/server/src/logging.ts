@@ -1,0 +1,31 @@
+// Журнал запросов без секретов (AGENTS.md, правило 1). Ссылки-приглашения и сброса пароля несут
+// одноразовый токен прямо в адресе: `/invite/<токен>`, `/reset-password?token=…`, а ссылка из письма
+// библиотеки — `/api/auth/reset-password/<токен>`. В журнал Fastify адрес попадает на каждый запрос,
+// поэтому токен вырезается до записи.
+import type { FastifyRequest } from 'fastify';
+
+const SECRET_PATHS = [
+  /^(\/invite\/)[^/?#]+/,
+  /^(\/reset-password\/)[^/?#]+/,
+  /^(\/api\/auth\/reset-password\/)[^/?#]+/,
+];
+const SECRET_QUERY = /([?&]token=)[^&#]*/gi;
+
+export const REDACTED = '[redacted]';
+
+export function redactUrl(url: string): string {
+  let result = url;
+  for (const pattern of SECRET_PATHS) result = result.replace(pattern, `$1${REDACTED}`);
+  return result.replace(SECRET_QUERY, `$1${REDACTED}`);
+}
+
+/** Сериализатор запроса для pino: то же, что в Fastify по умолчанию, но с вырезанным токеном в адресе. */
+export function serializeRequest(request: FastifyRequest): Record<string, unknown> {
+  return {
+    method: request.method,
+    url: redactUrl(request.url),
+    host: request.host,
+    remoteAddress: request.ip,
+    remotePort: request.socket?.remotePort,
+  };
+}

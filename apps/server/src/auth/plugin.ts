@@ -52,6 +52,17 @@ const SECOND_FACTOR_PATHS: ReadonlySet<string> = new Set([
   '/two-factor/verify-totp',
   '/two-factor/verify-backup-code',
 ]);
+/**
+ * Маршруты библиотеки, где человек повторно вводит пароль (AUTH-7). Тот, кто украл cookie, может
+ * подбирать пароль и здесь, поэтому неверный пароль считается попыткой так же, как при входе.
+ */
+const PASSWORD_CONFIRM_PATHS: ReadonlySet<string> = new Set([
+  '/change-password',
+  '/two-factor/enable',
+  '/two-factor/disable',
+  '/two-factor/get-totp-uri',
+  '/two-factor/generate-backup-codes',
+]);
 /** Имя cookie незавершённого входа со вторым фактором в библиотеке (без префикса). */
 const TWO_FACTOR_COOKIE = 'two_factor';
 
@@ -290,6 +301,32 @@ export function homecrm(deps: PluginDeps) {
     hooks: {
       before: [
         {
+          // Библиотека сверяет Origin, только когда в запросе есть cookie, а вход идёт без неё:
+          // страница на чужом сайте могла бы войти в браузере человека под чужой учётной записью
+          // (login CSRF). Поэтому присланный Origin проверяется всегда, как и заголовки Fetch Metadata.
+          matcher: (context) => context.request !== undefined && context.request.method !== 'GET',
+          handler: createAuthMiddleware(async (ctx) => {
+            const headers = ctx.request?.headers;
+            if (headers === undefined) return;
+            const origin = headers.get('origin');
+            if (origin !== null && !ctx.context.isTrustedOrigin(origin)) {
+              throw APIError.from('FORBIDDEN', {
+                code: 'INVALID_ORIGIN',
+                message: 'Request origin is not allowed',
+              });
+            }
+            if (
+              headers.get('sec-fetch-site') === 'cross-site' &&
+              headers.get('sec-fetch-mode') === 'navigate'
+            ) {
+              throw APIError.from('FORBIDDEN', {
+                code: 'CROSS_SITE_NAVIGATION_BLOCKED',
+                message: 'Cross-site navigation is not allowed',
+              });
+            }
+          }),
+        },
+        {
           matcher: (context) => SIGN_IN_PATHS.has(context.path ?? ''),
           handler: createAuthMiddleware(async (ctx) => {
             const body = (ctx.body ?? {}) as { username?: unknown; email?: unknown };
@@ -310,6 +347,22 @@ export function homecrm(deps: PluginDeps) {
               outcome: 'locked',
               ...clientInfo(ctx),
             });
+            const seconds = retryAfterSeconds(until);
+            throw new APIError(
+              'TOO_MANY_REQUESTS',
+              { code: 'ACCOUNT_TEMPORARILY_LOCKED', message: 'Too many attempts, try later' },
+              { 'Retry-After': seconds, 'X-Retry-After': seconds },
+            );
+          }),
+        },
+        {
+          // Заблокированная учётная запись не проверяет пароль ни при входе, ни при подтверждении.
+          matcher: (context) => PASSWORD_CONFIRM_PATHS.has(context.path ?? ''),
+          handler: createAuthMiddleware(async (ctx) => {
+            const session = await getSessionFromCtx(ctx);
+            if (!session) return;
+            const until = await lockedUntil(deps.db, session.user.id);
+            if (until === null) return;
             const seconds = retryAfterSeconds(until);
             throw new APIError(
               'TOO_MANY_REQUESTS',
@@ -368,6 +421,19 @@ export function homecrm(deps: PluginDeps) {
               outcome: pending ? 'second_factor_required' : 'success',
               ...info,
             });
+          }),
+        },
+        {
+          matcher: (context) => PASSWORD_CONFIRM_PATHS.has(context.path ?? ''),
+          handler: createAuthMiddleware(async (ctx) => {
+            const returned = ctx.context.returned;
+            const userId = ctx.context.session?.user.id;
+            if (userId === undefined) return;
+            if (!isAPIError(returned)) {
+              await clearFailures(deps.db, userId); // пароль подтверждён: счётчик неудач сброшен
+            } else if (returned.body?.code === 'INVALID_PASSWORD') {
+              await recordFailure(deps.db, userId);
+            }
           }),
         },
         {

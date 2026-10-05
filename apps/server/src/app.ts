@@ -1,18 +1,33 @@
 import { type FastifyInstance, fastify } from 'fastify';
 import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
+import { serializeRequest } from './logging.ts';
 
 export interface AppDependencies {
   /** Вход и учётные записи (ADR-0005). Пока подключается только в тестах: в main.ts — вместе с базой в R0.1. */
   auth?: AuthModule;
+  /** Куда писать журнал вместо стандартного вывода: нужно тестам, которые читают журнал. */
+  logStream?: { write(line: string): void };
 }
 
 export function buildApp(
   config: Pick<Config, 'LOG_LEVEL' | 'APP_VERSION'>,
   dependencies: AppDependencies = {},
 ): FastifyInstance {
-  const app = fastify({ logger: { level: config.LOG_LEVEL } });
+  const app = fastify({
+    logger: {
+      level: config.LOG_LEVEL,
+      serializers: { req: serializeRequest },
+      ...(dependencies.logStream ? { stream: dependencies.logStream } : {}),
+    },
+  });
   const startedAt = Date.now();
+
+  // Стандартный ответ Fastify пишет в журнал Route GET:<адрес> not found с полным адресом, а в адресе
+  // ссылок-приглашений и сброса пароля — токен. Свой обработчик журнал адресом не засоряет.
+  app.setNotFoundHandler((_request, reply) =>
+    reply.code(404).send({ code: 'NOT_FOUND', message: 'Not found' }),
+  );
 
   // Позже сюда добавятся база, пульс обработчика, возраст копии и ошибки push (план, раздел 7.3).
   app.get('/health', async () => ({

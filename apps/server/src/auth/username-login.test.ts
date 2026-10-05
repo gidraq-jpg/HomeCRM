@@ -72,12 +72,10 @@ describe('вход по имени пользователя (AUTH-9)', () => {
   });
 
   it('взрослый входит и по e-mail (AUTH-1), а служебный адрес ребёнка входом не служит', async () => {
-    const byEmail = await world
-      .device()
-      .post('/api/auth/sign-in/email', {
-        email: 'boris@family.test',
-        password: world.boris.password,
-      });
+    const byEmail = await world.device().post('/api/auth/sign-in/email', {
+      email: 'boris@family.test',
+      password: world.boris.password,
+    });
     expect(byEmail.status).toBe(200);
 
     const { rows } = await world.database.admin.query<{ email: string }>(

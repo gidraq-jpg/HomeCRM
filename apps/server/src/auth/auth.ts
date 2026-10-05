@@ -175,6 +175,7 @@ export function createAuth(options: AuthOptions) {
       '/is-username-available',
       '/two-factor/send-otp',
       '/two-factor/verify-otp',
+      '/error',
     ],
 
     plugins: [

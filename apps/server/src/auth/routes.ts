@@ -84,6 +84,10 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
       handler: async (request, reply) => {
         // Адрес берём из настроек, а не из заголовка Host: подмена Host не меняет ссылки библиотеки.
         const url = new URL(request.url, module.baseURL);
+        // Возвраты от внешних поставщиков входа не нужны, а disabledPaths маршруты с параметрами не закрывает.
+        if (url.pathname.startsWith('/api/auth/callback/')) {
+          return reply.code(404).send({ code: 'NOT_FOUND', message: 'Not found' });
+        }
         const headers = fromNodeHeaders(request.headers);
         // Адрес клиента — единственный заголовок, которому доверяет библиотека; его значение
         // всегда наше (request.ip учитывает trustProxy Fastify), присланное клиентом затирается.

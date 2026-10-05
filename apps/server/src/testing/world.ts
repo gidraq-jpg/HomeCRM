@@ -39,11 +39,15 @@ export interface World {
   vera: Person;
   /** Сообщения библиотеки: на уровне debug, чтобы проверить, что в них нет секретов. */
   logs: string[];
+  /** Журнал запросов Fastify (pino): строки JSON, как они ушли бы на стандартный вывод. */
+  requestLog: string[];
   /** Письма, которые «отправил» сервер. */
   mailbox: Mail[];
   /** Секрет Better Auth этого прогона — для проверки, что он нигде не всплывает. */
   secret: string;
   device(options?: { userAgent?: string; ip?: string }): Device;
+  /** Сбросить счётчики ограничения запросов по адресу: время в тестах не ждём, а переводим. */
+  clearRateLimits(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -83,6 +87,7 @@ export async function createWorld(options: WorldOptions = {}): Promise<World> {
   const database = await createTestDatabase(inject('pgAdminUrl'));
   const secret = randomBytes(32).toString('base64url');
   const logs: string[] = [];
+  const requestLog: string[] = [];
   const mailbox: Mail[] = [];
   const mailer: Mailer = async (message) => {
     mailbox.push(message);
@@ -100,7 +105,10 @@ export async function createWorld(options: WorldOptions = {}): Promise<World> {
     },
     ...(options.mail ? { mailer } : {}),
   });
-  const app = buildApp({ LOG_LEVEL: 'silent', APP_VERSION: 'test' }, { auth: module });
+  const app = buildApp(
+    { LOG_LEVEL: 'info', APP_VERSION: 'test' },
+    { auth: module, logStream: { write: (line) => void requestLog.push(line) } },
+  );
   await app.ready();
 
   const houseId = await createHousehold(module.db, 'Дом');
@@ -140,9 +148,13 @@ export async function createWorld(options: WorldOptions = {}): Promise<World> {
       return byKey('vera');
     },
     logs,
+    requestLog,
     mailbox,
     secret,
     device: (deviceOptions) => new Device(app, deviceOptions),
+    async clearRateLimits() {
+      await database.admin.query('DELETE FROM rate_limits');
+    },
     async close() {
       await app.close();
       await database.drop();
