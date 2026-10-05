@@ -8,6 +8,9 @@ const webPort = Number(env.WEB_PORT ?? 5173);
 const api = `http://127.0.0.1:${env.PORT ?? 8310}`;
 
 export default defineConfig({
+  // Относительные пути в сборке: прототип открывается из любой подпапки статического сервера,
+  // без привязки к корню сайта (задача 0.5).
+  base: './',
   plugins: [react()],
   server: {
     host: '127.0.0.1',

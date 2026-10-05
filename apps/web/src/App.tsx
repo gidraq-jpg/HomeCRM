@@ -1,15 +1,39 @@
-import { AUDIENCE_LABELS, AUDIENCES } from '@homecrm/shared';
+import { ScopeProvider } from './access/ScopeContext.tsx';
+import { AddSheet } from './prototype/AddSheet.tsx';
+import { AddRequestContext, useAddController } from './prototype/add-request.tsx';
+import { PrototypeRoutes } from './prototype/routes.tsx';
+import { PrototypeProvider } from './prototype/store.tsx';
+import { AppShell } from './shell/AppShell.tsx';
+import { SECTIONS } from './shell/sections.ts';
+import { ToastProvider } from './ui/Toast.tsx';
 
-// Заглушка до R0.3: каркас PWA, навигация и переключатель пространств появятся там.
+// Каркас приложения (шапка, нижнее меню, «+», переключатель) остаётся и в R0.3.
+// Всё из папки prototype/ — вымышленные данные и экраны на них — потом заменят настоящие.
+
+function PrototypeApp() {
+  const add = useAddController();
+  return (
+    <AddRequestContext.Provider value={add.request}>
+      <AppShell
+        sections={SECTIONS}
+        onAdd={() => add.request()}
+        overlays={<AddSheet controller={add} />}
+      >
+        <PrototypeRoutes />
+      </AppShell>
+    </AddRequestContext.Provider>
+  );
+}
+
+/** Приложение без маршрутизатора: его подключает `main.tsx` (hash) или тест (в памяти). */
 export function App() {
   return (
-    <main className="placeholder">
-      <h1>HomeCRM</h1>
-      <p>Каркас приложения. Этап 0 — проверка рисков.</p>
-      <p>
-        Аудитории общего пространства:{' '}
-        {AUDIENCES.map((audience) => AUDIENCE_LABELS[audience]).join(', ')}.
-      </p>
-    </main>
+    <ScopeProvider>
+      <PrototypeProvider>
+        <ToastProvider>
+          <PrototypeApp />
+        </ToastProvider>
+      </PrototypeProvider>
+    </ScopeProvider>
   );
 }

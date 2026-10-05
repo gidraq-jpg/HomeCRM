@@ -1,0 +1,533 @@
+/* Общие компоненты. Размеры нажимаемого — не меньше 44 px (--tap). */
+
+/* Кнопки */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 11px 18px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+}
+
+.btn--block {
+  display: flex;
+  width: 100%;
+}
+
+.btn--primary {
+  background: var(--green);
+  color: #fff;
+}
+
+.btn--primary:active {
+  background: var(--green-strong);
+}
+
+.btn--secondary {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--green);
+}
+
+.btn--danger {
+  border-color: var(--danger);
+  background: transparent;
+  color: var(--danger);
+}
+
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.btn-row > .btn {
+  flex: 1 1 140px;
+}
+
+.icon-button {
+  display: inline-grid;
+  flex: 0 0 var(--tap);
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.icon-button--soft {
+  background: var(--soft);
+}
+
+.text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+/* Значки доступа */
+.access-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.access-badge--personal {
+  color: var(--ink);
+}
+
+.access-badge--adults,
+.access-badge--household {
+  color: var(--green);
+}
+
+.access-badge--labeled {
+  padding: 4px 12px 4px 9px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.access-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.access-caption p {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+/* Строки списков */
+.row-list {
+  border-top: 1px solid var(--line);
+}
+
+.row-list > li {
+  border-bottom: 1px solid var(--line);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+}
+
+.row__icon {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--green);
+}
+
+.row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.row__title {
+  display: block;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.row__meta {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.row__chevron {
+  flex: none;
+  color: var(--muted);
+}
+
+/* Статусы: текст и значок, не только цвет */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--green);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.status--warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.status--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.status--neutral {
+  color: var(--muted);
+}
+
+/* Карточки */
+.card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.card + .card,
+.card + .btn-row {
+  margin-top: 10px;
+}
+
+.card__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.card__meta {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.card__line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.9375rem;
+}
+
+.card--link {
+  display: block;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.card-list {
+  display: grid;
+  gap: 10px;
+}
+
+/* Описание «поле — значение» */
+.facts {
+  display: grid;
+  gap: 0;
+}
+
+.facts__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  min-height: 52px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.facts__item:first-child {
+  border-top: 1px solid var(--line);
+}
+
+.facts dt {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.facts dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* Фильтры */
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+}
+
+.chip input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.chip__label {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.chip input:checked + .chip__label {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+}
+
+.chip input:focus-visible + .chip__label {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+}
+
+.filters {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.filters__selects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* Формы */
+.field {
+  display: block;
+  min-width: 0;
+  margin-top: 16px;
+}
+
+.filters .field {
+  margin-top: 0;
+}
+
+.field__label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.input,
+.select,
+.textarea {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.field__error {
+  margin-top: 6px;
+  color: var(--danger);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.field__hint {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* Строка «Кто видит» */
+.visibility {
+  margin: 18px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.visibility__legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.visibility__options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.visibility__option {
+  position: relative;
+  display: block;
+}
+
+.visibility__option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.visibility__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 64px;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.visibility__option input:checked + .visibility__label {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+}
+
+.visibility__option input:focus-visible + .visibility__label {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+}
+
+.visibility__hint {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* Пустые состояния */
+.empty-state {
+  padding: 20px 18px;
+  border-radius: 16px;
+  background: var(--soft);
+}
+
+.empty-state__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--green);
+}
+
+.empty-state__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.empty-state__text {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.empty-state__actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.prototype-note {
+  margin-top: 22px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}

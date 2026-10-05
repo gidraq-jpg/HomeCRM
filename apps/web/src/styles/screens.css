@@ -1,0 +1,447 @@
+/* Экраны прототипа. Остаётся то, что относится к каркасу; остальное уйдёт вместе с prototype/. */
+
+/* Главное дело и дела (LifeOS: .focus-section, .task-row) */
+.focus__title {
+  margin: 4px 0 6px;
+  font-size: 1.4375rem;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.focus__meta {
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.focus__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.focus__actions .btn {
+  flex: 1;
+}
+
+.task-list {
+  border-top: 1px solid var(--line);
+}
+
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 64px;
+  border-bottom: 1px solid var(--line);
+}
+
+.check-toggle {
+  position: relative;
+  display: grid;
+  flex: 0 0 var(--tap);
+  place-items: center;
+  width: var(--tap);
+  height: 52px;
+  margin-left: -8px;
+  cursor: pointer;
+}
+
+.check-toggle input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.check-toggle__circle {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  color: #fff;
+}
+
+.check-toggle input:checked + .check-toggle__circle {
+  border-color: var(--green);
+  background: var(--green);
+}
+
+.check-toggle input:focus-visible + .check-toggle__circle {
+  outline: 3px solid var(--green);
+  outline-offset: 3px;
+}
+
+.task-row--done .row__title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.task-row__body {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 9px 8px 9px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.task-row__body--static {
+  display: block;
+}
+
+.task-row > .access-badge {
+  margin-right: 4px;
+}
+
+.done-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.done-toggle .turned {
+  transform: rotate(90deg);
+}
+
+.list-action {
+  margin-top: 16px;
+}
+
+.empty-inline {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 8px 0;
+}
+
+.empty-inline svg {
+  color: var(--green);
+}
+
+/* Окно показаний на «Сегодня» */
+.window-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.window-card__deadline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.window-card__deadline svg {
+  flex: none;
+  color: var(--warning);
+}
+
+.window-card__action {
+  margin-top: 14px;
+}
+
+/* Дом */
+.month-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.property-card {
+  display: grid;
+  gap: 12px;
+}
+
+.property-card__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.property-card__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.property-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.overview__action {
+  margin-top: 14px;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.amount {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.amount--due {
+  color: var(--warning);
+}
+
+.facts--compact .facts__item {
+  min-height: 44px;
+}
+
+.row__status {
+  display: block;
+  margin-top: 4px;
+}
+
+.radar-action {
+  color: var(--green);
+  font-weight: 650;
+}
+
+.month__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Показания */
+.reading-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.reading {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.reading__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 10px;
+}
+
+.reading__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.reading__serial,
+.reading__prev {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.reading__prev {
+  margin: 2px 0 12px;
+}
+
+.reading__prev strong {
+  color: var(--ink);
+}
+
+.reading__input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.reading__input-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.reading__photo {
+  flex: none;
+  min-height: 48px;
+  padding: 0 12px;
+  gap: 6px;
+}
+
+.reading__photo[aria-pressed="true"] {
+  border-color: var(--green);
+  background: var(--soft);
+}
+
+.reading__note {
+  display: grid;
+  gap: 2px;
+  min-height: 1.45em;
+  margin-top: 6px;
+  font-size: 0.875rem;
+}
+
+.reading__consumption {
+  color: var(--muted);
+}
+
+.reading__warning {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.reading__save {
+  margin-top: 16px;
+}
+
+.transfer__list {
+  margin: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.transfer__list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9375rem;
+}
+
+/* Карточки доступа и действия */
+.access-card {
+  margin-top: 22px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--soft);
+}
+
+.access-card__title {
+  margin-bottom: 8px;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.access-card .access-badge--labeled {
+  background: var(--surface);
+}
+
+.share-card {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  background: var(--soft);
+  border-color: transparent;
+}
+
+.warning-box {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.sheet__block {
+  margin: 12px 0 16px;
+}
+
+.sheet__next {
+  margin-top: 14px;
+}
+
+.btn-row--first {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+/* Люди, поиск, заметки */
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--green);
+  font-weight: 700;
+}
+
+.row__icon:has(.avatar) {
+  background: transparent;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.result .row {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.search-field {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.note-text {
+  margin-bottom: 12px;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.bullets {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+  list-style: disc;
+}
+
+.spaces-list {
+  display: grid;
+  gap: 14px;
+}
+
+.spaces-list li {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.spaces-list p {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
