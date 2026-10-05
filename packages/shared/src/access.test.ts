@@ -8,6 +8,7 @@ import {
   canView,
   canViewAccountJournal,
   canWrite,
+  mustUseSecondFactor,
   type Placement,
   type RecordFacts,
   type Role,
@@ -159,6 +160,23 @@ describe('canResetPassword (AUTH-5)', () => {
       ]),
     };
     expect(canResetPassword(admin, both)).toBe(false);
+  });
+});
+
+describe('mustUseSecondFactor (AUTH-3)', () => {
+  it('обязателен администратору; взрослому и ребёнку — нет', () => {
+    expect(everyone.map(mustUseSecondFactor)).toEqual([true, false, false, false]);
+  });
+
+  it('администратор хотя бы одного дома — администратор', () => {
+    const both = {
+      accountId: 'both-1',
+      memberships: new Map<string, Role>([
+        [HOUSE, 'adult'],
+        ['house-2', 'admin'],
+      ]),
+    };
+    expect(mustUseSecondFactor(both)).toBe(true);
   });
 });
 

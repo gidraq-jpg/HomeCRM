@@ -181,6 +181,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@homecrm/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@homecrm/shared':
         specifier: workspace:*
         version: link:../../packages/shared

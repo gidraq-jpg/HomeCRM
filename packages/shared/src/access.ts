@@ -106,6 +106,11 @@ export function canResetPassword(viewer: Viewer, target: Viewer): boolean {
   return [...target.memberships.keys()].some((houseId) => roleIn(viewer, houseId) === 'admin');
 }
 
+/** Обязателен ли второй фактор (AUTH-3): администратору любого дома — да; взрослым он лишь рекомендован. */
+export function mustUseSecondFactor(viewer: Viewer): boolean {
+  return [...viewer.memberships.values()].includes('admin');
+}
+
 /** Журнал входов и отметку о сбросе пароля видит только владелец учётной записи (AUTH-5, AUTH-8). */
 export function canViewAccountJournal(viewer: Viewer, ownerAccountId: string): boolean {
   return viewer.accountId === ownerAccountId;
