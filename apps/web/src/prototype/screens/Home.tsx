@@ -37,10 +37,8 @@ import { useAllRecords, usePrototype, useRecord, useRecords } from '../store.tsx
 
 const NBSP = String.fromCodePoint(0xa0);
 
-function statusTone(status: PropertyRecord['status']): 'ok' | 'neutral' | 'warning' {
-  if (status === 'live') return 'ok';
-  if (status === 'rent') return 'warning';
-  return 'neutral';
+function statusTone(status: PropertyRecord['status']): 'ok' | 'neutral' {
+  return status === 'live' ? 'ok' : 'neutral';
 }
 
 function windowMeta(propertyId: string, windows: ReturnType<typeof openWindows>) {

@@ -164,6 +164,11 @@
   color: var(--green);
 }
 
+.row__icon--warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
 .row__body {
   flex: 1;
   min-width: 0;
@@ -285,6 +290,12 @@
 .facts dt {
   color: var(--muted);
   font-size: 0.9375rem;
+}
+
+.facts dd a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
 }
 
 .facts dd {

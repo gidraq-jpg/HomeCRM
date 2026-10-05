@@ -238,6 +238,10 @@
   margin-bottom: 22px;
 }
 
+.row-list + .section {
+  margin-top: 22px;
+}
+
 .section__head {
   display: flex;
   align-items: center;

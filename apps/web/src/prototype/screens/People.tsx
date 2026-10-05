@@ -234,9 +234,9 @@ export function ContactScreen() {
       ) : null}
 
       <AccessActions id={contact.id} visibility={contact.visibility} what="контакт" />
-      <p className="prototype-note">
-        <Link to="/more/spaces">Как устроены личное и общее</Link>
-      </p>
+      <Link className="text-button" to="/more/spaces">
+        Как устроены личное и общее
+      </Link>
     </Page>
   );
 }

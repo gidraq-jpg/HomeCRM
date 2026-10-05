@@ -74,9 +74,14 @@ export function NoteScreen() {
       </p>
       {note.text ? <p className="note-text">{note.text}</p> : <p className="muted">Текста нет.</p>}
       {property ? (
-        <p className="muted">
-          Связана с объектом: <Link to={`/home/${property.id}`}>{property.title}</Link>
-        </p>
+        <dl className="facts">
+          <div className="facts__item">
+            <dt>Связана с объектом</dt>
+            <dd>
+              <Link to={`/home/${property.id}`}>{property.title}</Link>
+            </dd>
+          </div>
+        </dl>
       ) : null}
       <AccessActions id={note.id} visibility={note.visibility} what="заметку" />
     </Page>

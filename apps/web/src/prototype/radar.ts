@@ -32,6 +32,9 @@ export interface RadarItem {
   kind: RadarKind;
   group: RadarGroup;
   title: string;
+  /** Где: объект или владелец документа. У дня рождения места нет. */
+  place?: string;
+  /** Срок и сумма: «до 25 окт.», «1 480 ₽ · срок 20 окт.». */
   detail: string;
   visibility: Visibility;
   /** Куда ведёт пункт. */
@@ -132,7 +135,8 @@ export function buildRadar(
       kind: 'window',
       group: 'now',
       title: `Окно показаний: ${window.resources.join(' и ')}`,
-      detail: `${window.propertyTitle} · до ${formatShortDate(window.until)}`,
+      place: window.propertyTitle,
+      detail: `до ${formatShortDate(window.until)}`,
       visibility: window.visibility,
       to: `/home/${window.propertyId}/readings`,
       action: 'Внести показания',
@@ -154,7 +158,8 @@ export function buildRadar(
       kind: 'window',
       group: 'week',
       title: `Откроется окно показаний: ${account.short}`,
-      detail: `${property.title} · с ${formatShortDate(opens)}`,
+      place: property.title,
+      detail: `с ${formatShortDate(opens)}`,
       visibility: property.visibility,
       to: `/home/${property.id}/meters`,
       action: 'Открыть счётчики',
@@ -172,7 +177,8 @@ export function buildRadar(
       kind: 'payment',
       group,
       title: `Оплата: ${charge.title.toLowerCase()}`,
-      detail: `${property.title} · ${formatRub(charge.amount)} · срок ${formatShortDate(charge.due)}`,
+      place: property.title,
+      detail: `${formatRub(charge.amount)} · срок ${formatShortDate(charge.due)}`,
       visibility: property.visibility,
       to: `/home/${property.id}/utilities`,
       action: 'Отметить оплату',
@@ -191,7 +197,8 @@ export function buildRadar(
       kind: 'document',
       group,
       title: record.title,
-      detail: `${record.owner} · ${days < 0 ? 'срок истёк' : 'действует до'} ${formatShortDate(record.expires, today)}`,
+      place: record.owner,
+      detail: `${days < 0 ? 'действовал до' : 'действует до'} ${formatShortDate(record.expires, today)}`,
       visibility: record.visibility,
       to: `/documents/${record.id}`,
       action: 'Продлить',

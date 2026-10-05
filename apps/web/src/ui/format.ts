@@ -152,9 +152,14 @@ export function formatRub(kopecks: number): string {
   return `${kopecks < 0 ? MINUS : ''}${grouped}${tail}${NBSP}₽`;
 }
 
-/** Число с запятой как десятичным разделителем: `147,512`. */
-export function formatDecimal(value: number, fractionDigits: number): string {
-  return value.toFixed(fractionDigits).replace('.', ',');
+/**
+ * Число с запятой как десятичным разделителем и, по умолчанию, пробелами между тысячами:
+ * `14 827`, `147,512`. Для текста, который копируют в другое приложение, группы отключают.
+ */
+export function formatDecimal(value: number, fractionDigits: number, group = true): string {
+  const [integer = '', fraction] = value.toFixed(fractionDigits).split('.');
+  const grouped = group ? integer.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP) : integer;
+  return fraction === undefined ? grouped : `${grouped},${fraction}`;
 }
 
 /**

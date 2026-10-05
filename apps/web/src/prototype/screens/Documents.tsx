@@ -32,23 +32,33 @@ const GROUP_ICONS: Readonly<Record<DocGroup, ReactNode>> = {
 
 interface Expiry {
   tone: StatusTone;
+  /** Полный статус для карточки: «Истекает через 23 дня · 14 нояб.». */
   text: string;
+  /** Короткий статус для списка; у обычных и бессрочных документов его нет. */
+  short: string | null;
+  /** Срок для строки списка: «до 14 нояб.» или «бессрочно». */
+  dateText: string;
   /** Дней до окончания; `null` — бессрочно. */
   days: number | null;
 }
 
 /** Срок действия словами и цветом, но не только цветом: текст и значок идут вместе. */
 export function expiryOf(doc: DocumentRecord): Expiry {
-  if (doc.expires === null) return { tone: 'neutral', text: 'Бессрочно', days: null };
+  if (doc.expires === null) {
+    return { tone: 'neutral', text: 'Бессрочно', short: null, dateText: 'бессрочно', days: null };
+  }
   const days = daysBetween(TODAY, doc.expires);
   const date = formatShortDate(doc.expires, TODAY);
+  const dateText = `до ${date}`;
   if (days < 0) {
-    return { tone: 'danger', text: `Просрочен ${formatRelativeDays(days)} · ${date}`, days };
+    const short = `Просрочен ${formatRelativeDays(days)}`;
+    return { tone: 'danger', text: `${short} · ${date}`, short, dateText, days };
   }
   if (days <= 90) {
-    return { tone: 'warning', text: `Истекает ${formatRelativeDays(days)} · ${date}`, days };
+    const short = `Истекает ${formatRelativeDays(days)}`;
+    return { tone: 'warning', text: `${short} · ${date}`, short, dateText, days };
   }
-  return { tone: 'ok', text: `Действует до ${date}`, days };
+  return { tone: 'ok', text: `Действует ${dateText}`, short: null, dateText, days };
 }
 
 type GroupFilter = 'all' | DocGroup;
@@ -154,10 +164,12 @@ export function DocumentsScreen() {
                     title={doc.title}
                     meta={
                       <>
-                        {doc.owner}
-                        <span className="row__status">
-                          <Status tone={expiry.tone}>{expiry.text}</Status>
-                        </span>
+                        {doc.owner} · {expiry.dateText}
+                        {expiry.short ? (
+                          <span className="row__status">
+                            <Status tone={expiry.tone}>{expiry.short}</Status>
+                          </span>
+                        ) : null}
                       </>
                     }
                     badge={doc.visibility}
@@ -217,7 +229,11 @@ export function DocumentScreen() {
   const property = properties.find((item) => item.id === doc.propertyId);
 
   return (
-    <Page title={doc.title} eyebrow={doc.docType} back={{ to: '/documents', label: 'Документы' }}>
+    <Page
+      title={doc.title}
+      {...(doc.docType !== doc.title ? { eyebrow: doc.docType } : {})}
+      back={{ to: '/documents', label: 'Документы' }}
+    >
       <p className="property-meta">
         <Status tone={expiry.tone}>{expiry.text}</Status>
         <AccessBadge visibility={doc.visibility} showLabel />

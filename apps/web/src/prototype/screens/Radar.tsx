@@ -51,7 +51,7 @@ export function RadarScreen() {
                     title={item.title}
                     meta={
                       <>
-                        {item.detail}
+                        {[item.place, item.detail].filter(Boolean).join(' · ')}
                         <span className="row__status radar-action">{item.action}</span>
                       </>
                     }

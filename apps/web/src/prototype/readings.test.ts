@@ -63,7 +63,9 @@ describe('проверка показания (UTIL-5)', () => {
 
   it('форматирует значение со знаками счётчика и единицей', () => {
     expect(formatReading(coldKitchen, 150.3)).toBe('150,300 м³');
-    expect(formatReading(power, 15_000)).toBe('15000 кВт·ч');
+    expect(formatReading(power, 15_000).replace(String.fromCodePoint(0xa0), ' ')).toBe(
+      '15 000 кВт·ч',
+    );
   });
 });
 

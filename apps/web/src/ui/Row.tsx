@@ -14,6 +14,8 @@ export function RowList({ children, label }: { children: ReactNode; label?: stri
 
 interface RowContentProps {
   icon?: ReactNode;
+  /** Цвет значка слева: для срочного. */
+  iconTone?: 'warning';
   title: ReactNode;
   meta?: ReactNode;
   badge?: Visibility;
@@ -22,10 +24,20 @@ interface RowContentProps {
 }
 
 /** Содержимое строки списка: значок раздела, название, пояснение, значок доступа, стрелка. */
-export function RowContent({ icon, title, meta, badge, chevron = false, aside }: RowContentProps) {
+export function RowContent({
+  icon,
+  iconTone,
+  title,
+  meta,
+  badge,
+  chevron = false,
+  aside,
+}: RowContentProps) {
   return (
     <>
-      {icon ? <span className="row__icon">{icon}</span> : null}
+      {icon ? (
+        <span className={iconTone ? `row__icon row__icon--${iconTone}` : 'row__icon'}>{icon}</span>
+      ) : null}
       <span className="row__body">
         <span className="row__title">{title}</span>
         {meta ? <span className="row__meta">{meta}</span> : null}

@@ -107,6 +107,9 @@ describe('числа из полей ввода', () => {
   it('печатают с десятичной запятой', () => {
     expect(formatDecimal(147.512, 3)).toBe('147,512');
     expect(formatDecimal(3.4, 1)).toBe('3,4');
+    expect(asText(formatDecimal(14_827, 0))).toBe('14 827');
+    expect(formatDecimal(14_827, 0, false)).toBe('14827');
+    expect(asText(formatDecimal(1234.5, 1))).toBe('1 234,5');
   });
 });
 

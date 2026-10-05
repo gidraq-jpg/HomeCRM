@@ -56,7 +56,7 @@ export function buildTransferText(
       const check = checkReading(meter, values[meter.id] ?? '');
       return check.status === 'ok'
         ? [
-            `${meter.resource}, ${meter.place.toLowerCase()}: ${formatDecimal(check.value, meter.digits)}`,
+            `${meter.resource}, ${meter.place.toLowerCase()}: ${formatDecimal(check.value, meter.digits, false)}`,
           ]
         : [];
     });

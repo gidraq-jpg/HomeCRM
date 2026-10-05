@@ -276,7 +276,10 @@ export function TodayScreen() {
         {main ? (
           <div className="focus">
             <h3 className="focus__title">{main.title}</h3>
-            <p className="focus__meta">{meta(main) || 'Одно дело для фокуса'}</p>
+            {meta(main) ? <p className="focus__meta">{meta(main)}</p> : null}
+            <p className="focus__access">
+              <AccessBadge visibility={main.visibility} showLabel />
+            </p>
             <div className="focus__actions">
               <button type="button" className="btn btn--primary" onClick={() => open(main.id)}>
                 Открыть дело
@@ -312,8 +315,11 @@ export function TodayScreen() {
                 key={item.id}
                 to={item.to}
                 icon={<WarningCircle size={22} weight="fill" aria-hidden />}
+                iconTone="warning"
                 title={item.title}
-                meta={`${item.group === 'overdue' ? 'Просрочено · ' : 'Сегодня · '}${item.detail}`}
+                meta={[item.group === 'overdue' ? 'Просрочено' : 'Сегодня', item.place, item.detail]
+                  .filter(Boolean)
+                  .join(' · ')}
                 badge={item.visibility}
               />
             ))}

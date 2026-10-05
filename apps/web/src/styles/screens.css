@@ -10,9 +10,13 @@
 }
 
 .focus__meta {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   color: var(--muted);
   font-size: 0.9375rem;
+}
+
+.focus__access {
+  margin-bottom: 12px;
 }
 
 .focus__actions {
@@ -302,8 +306,8 @@
 .reading__note {
   display: grid;
   gap: 2px;
-  min-height: 1.45em;
-  margin-top: 6px;
+  min-height: 1.4em;
+  margin-top: 4px;
   font-size: 0.875rem;
 }
 
@@ -346,6 +350,10 @@
   margin-bottom: 8px;
   font-size: 1.0625rem;
   font-weight: 700;
+}
+
+.access-card .btn-row > .btn {
+  flex-basis: 100%;
 }
 
 .access-card .access-badge--labeled {

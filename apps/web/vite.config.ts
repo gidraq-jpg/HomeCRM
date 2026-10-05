@@ -12,6 +12,11 @@ export default defineConfig({
   // без привязки к корню сайта (задача 0.5).
   base: './',
   plugins: [react()],
+  build: {
+    // Значки Phosphor тянут все начертания, сборка больше 500 КБ; для прототипа это терпимо
+    // (около 155 КБ после сжатия), а предупреждение только шумит.
+    chunkSizeWarningLimit: 700,
+  },
   server: {
     host: '127.0.0.1',
     port: webPort,

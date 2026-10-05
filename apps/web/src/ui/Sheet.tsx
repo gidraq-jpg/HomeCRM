@@ -1,6 +1,6 @@
 import { X } from '@phosphor-icons/react';
 import * as Dialog from '@radix-ui/react-dialog';
-import type { ReactNode } from 'react';
+import { type ReactNode, useRef } from 'react';
 
 // Нижняя панель на основе Radix Dialog: фокус не уходит за панель, Esc закрывает,
 // заголовок и описание читаются как у диалога (WCAG 2.2 AA).
@@ -17,11 +17,26 @@ interface SheetProps {
 }
 
 export function Sheet({ open, onOpenChange, title, description, children, role }: SheetProps) {
+  // Панели открываются не через Dialog.Trigger, поэтому Radix не знает, куда вернуть фокус:
+  // запоминаем элемент, с которого панель открыли, и возвращаем фокус на него при закрытии.
+  const opener = useRef<HTMLElement | null>(null);
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="sheet-overlay" />
-        <Dialog.Content className="sheet" role={role}>
+        <Dialog.Content
+          className="sheet"
+          {...(role ? { role } : {})}
+          onOpenAutoFocus={() => {
+            opener.current =
+              document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (opener.current?.isConnected) opener.current.focus();
+          }}
+        >
           <div className="sheet__header">
             <Dialog.Title className="sheet__title">{title}</Dialog.Title>
             <Dialog.Close className="icon-button icon-button--soft" aria-label="Закрыть">

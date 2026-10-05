@@ -32,9 +32,9 @@ function MeterField({ meter, value, photo, forceError, onChange, onPhoto }: Mete
   return (
     <div className="reading">
       <div className="reading__head">
-        <h3 className="reading__title">
+        <h2 className="reading__title">
           {meter.resource} · {meter.place}
-        </h3>
+        </h2>
         <span className="reading__serial">№ {meter.serial}</span>
       </div>
       <p className="reading__prev">
@@ -143,11 +143,7 @@ export function ReadingsScreen() {
   if (showSummary) {
     const transferText = buildTransferText(meters, accountTitles, saved.values);
     return (
-      <Page
-        title="Показания"
-        eyebrow={property.title}
-        back={{ to: `/home/${propertyId}`, label: property.title }}
-      >
+      <Page title="Показания" back={{ to: `/home/${propertyId}`, label: property.title }}>
         <section className="card transfer">
           <h2 className="card__title">
             {saved.transmitted ? 'Показания переданы' : 'Показания сохранены'}
@@ -228,11 +224,7 @@ export function ReadingsScreen() {
   }
 
   return (
-    <Page
-      title="Показания"
-      eyebrow={property.title}
-      back={{ to: `/home/${propertyId}`, label: property.title }}
-    >
+    <Page title="Показания" back={{ to: `/home/${propertyId}`, label: property.title }}>
       <p className="muted">
         Введите текущие значения. Цифры принимаются и с запятой, и с точкой{NBSP}— как удобнее.
       </p>
