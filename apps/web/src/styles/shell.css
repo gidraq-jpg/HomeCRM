@@ -1,0 +1,385 @@
+/* Каркас: шапка, нижнее меню, кнопка «+», сообщения. */
+.app {
+  min-height: 100dvh;
+  max-width: var(--column);
+  margin: 0 auto;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 8px;
+  background: var(--paper);
+}
+
+.main {
+  display: block;
+}
+
+/* Переключатель «Всё · Общее · Личное» */
+.scope-switch {
+  /* При увеличении текста до 200% переключатель занимает всю строку, а поиск уходит ниже. */
+  flex: 1 1 10.5rem;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--soft);
+}
+
+.scope-switch__option {
+  position: relative;
+  display: block;
+}
+
+.scope-switch__option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.scope-switch__label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  border-radius: 11px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.scope-switch__option input:checked + .scope-switch__label {
+  background: var(--green);
+  color: #fff;
+}
+
+.scope-switch__option input:focus-visible + .scope-switch__label {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* Нижнее меню и кнопка «+» */
+.chrome {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.chrome > * {
+  width: 100%;
+  max-width: var(--column);
+}
+
+.chrome__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 0 var(--gutter) 14px;
+}
+
+.fab {
+  display: grid;
+  place-items: center;
+  width: var(--fab-size);
+  height: var(--fab-size);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 6px 16px rgb(35 45 40 / 0.28);
+  pointer-events: auto;
+}
+
+.fab:active {
+  background: var(--green-strong);
+}
+
+.bottom-nav {
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  padding: 7px 8px calc(5px + env(safe-area-inset-bottom));
+  pointer-events: auto;
+}
+
+.bottom-nav__list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.bottom-nav__link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 54px;
+  padding: 1px 0;
+  border-radius: 8px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.bottom-nav__label {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.bottom-nav__link[aria-current="page"] {
+  color: var(--green);
+}
+
+.bottom-nav__link[aria-current="page"] .bottom-nav__label {
+  font-weight: 700;
+}
+
+/* Пока открыта экранная клавиатура (см. useKeyboardAttribute), меню и «+» не занимают место. */
+html[data-keyboard="open"] .chrome {
+  display: none;
+}
+
+/* Сообщения */
+.toast-region {
+  width: 100%;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 6px 10px 14px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.9375rem;
+  box-shadow: 0 6px 16px rgb(35 45 40 / 0.28);
+  pointer-events: auto;
+}
+
+.toast__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toast__detail {
+  color: #d3dfd6;
+  font-size: 0.8125rem;
+}
+
+.toast__action {
+  flex: none;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #cfe9d8;
+  font-weight: 650;
+}
+
+/* Страница */
+.page {
+  padding: 4px var(--gutter)
+    calc(var(--nav-height) + var(--fab-size) + 56px + env(safe-area-inset-bottom));
+}
+
+.page-heading {
+  margin: 4px 0 14px;
+}
+
+.page-heading__eyebrow {
+  margin-bottom: 2px;
+  color: var(--green);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.page-heading h1 {
+  font-family: var(--font-serif);
+  font-size: clamp(1.75rem, 8.4vw, 2.1875rem);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--tap);
+  margin-left: -6px;
+  padding: 0 8px 0 2px;
+  color: var(--green);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.section {
+  margin-bottom: 22px;
+}
+
+.row-list + .section {
+  margin-top: 22px;
+}
+
+.section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.section__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.section__title--eyebrow {
+  padding-left: 11px;
+  border-left: 4px solid var(--green);
+  color: var(--green);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  line-height: 1.7;
+  text-transform: uppercase;
+}
+
+/* Вкладки внутри раздела */
+.tabs {
+  margin: 0 calc(-1 * var(--gutter)) 14px;
+  padding: 0 var(--gutter);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs__list {
+  display: flex;
+  gap: 6px;
+  width: max-content;
+  min-width: 100%;
+}
+
+.tabs__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 15px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tabs__link[aria-current="page"] {
+  background: var(--green);
+  color: #fff;
+}
+
+/* Нижняя панель */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--overlay);
+}
+
+.sheet {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--column);
+  max-height: 92dvh;
+  border-radius: 20px 20px 0 0;
+  background: var(--paper);
+  transform: translateX(-50%);
+}
+
+.sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 12px 0 var(--gutter);
+}
+
+.sheet__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.sheet__description {
+  padding: 2px var(--gutter) 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.sheet__body {
+  overflow-y: auto;
+  padding: 8px var(--gutter) calc(20px + env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translate(-50%, 24px);
+    opacity: 0;
+  }
+}
+
+/* Анимации — только если человек не просил убрать движение (WCAG 2.3.3). */
+@media (prefers-reduced-motion: no-preference) {
+  .sheet-overlay {
+    animation: fade-in 160ms ease-out;
+  }
+
+  .sheet {
+    animation: sheet-in 200ms ease-out;
+  }
+}

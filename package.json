@@ -17,7 +17,8 @@
     "typecheck": "tsc -p tsconfig.json && pnpm -r --parallel typecheck",
     "test": "vitest run",
     "test:changed": "vitest run --changed main",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "pnpm --filter @homecrm/web test:e2e"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
