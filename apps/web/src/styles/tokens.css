@@ -1,0 +1,31 @@
+/* Calm Focus: токены из мобильного прототипа LifeOS (src/prototype.css).
+   Шрифты системные, без загрузки: на Android это Roboto и Noto Serif. */
+:root {
+  --paper: #f7f7f2;
+  --surface: #ffffff;
+  --ink: #232d28;
+  --muted: #59645e;
+  --green: #345d48;
+  --green-strong: #284a38;
+  --soft: #e9eee7;
+  --line: #dde1d9;
+  /* Границы полей ввода: контраст не меньше 3:1 с фоном (WCAG 1.4.11). */
+  --border: #7d887f;
+  --warning: #9a5b18;
+  --warning-soft: #f9f0e2;
+  --danger: #9b332b;
+  --danger-soft: #f7e3e0;
+  --overlay: rgb(35 45 40 / 0.5);
+
+  --font-sans: Roboto, "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-serif: "Noto Serif", Georgia, "Times New Roman", serif;
+
+  /* Цели нажатия — от 44 px (PRD, раздел 13). */
+  --tap: 44px;
+  --gutter: 20px;
+  --column: 560px;
+  --nav-height: 66px;
+  --fab-size: 56px;
+
+  color-scheme: light;
+}
