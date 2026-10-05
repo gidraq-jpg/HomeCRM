@@ -1,0 +1,23 @@
+# Зависимости и сборка
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Журналы и системные файлы
+*.log
+.DS_Store
+Thumbs.db
+
+# Секреты и рабочие данные живут вне репозитория, в E:\HomeCRM-data
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+id_ed25519*
+id_rsa*

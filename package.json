@@ -1,0 +1,27 @@
+{
+  "name": "homecrm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.9.1",
+  "engines": {
+    "node": ">=24.11.0 <25"
+  },
+  "scripts": {
+    "prepare": "node scripts/install-git-hooks.ts",
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "check": "pnpm check:encoding && pnpm lint && pnpm typecheck && pnpm test",
+    "check:encoding": "node scripts/check-encoding.ts",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc -p tsconfig.json && pnpm -r --parallel typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "^24.19.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

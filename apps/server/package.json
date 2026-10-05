@@ -1,0 +1,16 @@
+{
+  "name": "@homecrm/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env src/main.ts",
+    "start": "node src/main.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@homecrm/shared": "workspace:*",
+    "fastify": "^5.12.5",
+    "zod": "^4.6.5"
+  }
+}

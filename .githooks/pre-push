@@ -1,0 +1,3 @@
+#!/bin/sh
+# Перед отправкой — те же проверки, что в CI. Обходить через --no-verify запрещено (AGENTS.md).
+exec pnpm check

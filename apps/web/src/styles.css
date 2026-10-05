@@ -1,0 +1,26 @@
+/* Временные токены. Полная тема Calm Focus переносится из мобильного прототипа LifeOS в R0.3. */
+:root {
+  --color-bg: #f4f1e8;
+  --color-surface: #fffdf7;
+  --color-text: #1f2a24;
+  --color-muted: #5b675f;
+  --color-accent: #2f6b4f;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+}
+
+.placeholder {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.placeholder h1 {
+  color: var(--color-accent);
+}
