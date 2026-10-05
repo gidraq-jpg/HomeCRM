@@ -135,6 +135,23 @@ describe('администратор сбрасывает пароль ребё�
     );
   });
 
+  it('действует только последняя выданная ссылка: прежние отзываются', async () => {
+    const first = await issueLink();
+    const second = await issueLink();
+    expect(second.token).not.toBe(first.token);
+    const stale = await world
+      .device()
+      .post('/api/auth/reset-password', { token: first.token, newPassword: newPassword() });
+    expect(stale.status).toBe(400);
+    expect(stale.json()).toMatchObject({ code: 'INVALID_TOKEN' });
+    const password = newPassword();
+    const fresh = await world
+      .device()
+      .post('/api/auth/reset-password', { token: second.token, newPassword: password });
+    expect(fresh.status, fresh.text).toBe(200);
+    world.vera.password = password;
+  });
+
   it('второй фактор ребёнка не сбрасывается: войти по новому паролю без кода нельзя', async () => {
     const vera = world.device();
     await vera.signIn(world.vera.username, world.vera.password);

@@ -24,6 +24,8 @@ import {
   isPlaceholderEmail,
   isValidUsername,
   normalizeUsername,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
   USERNAME_MAX,
   USERNAME_MIN,
 } from './identity.ts';
@@ -104,8 +106,8 @@ export function createAuth(options: AuthOptions) {
       enabled: true,
       // Открытой регистрации нет: в дом приглашают (AUTH-2), учётную запись создаёт плагин homecrm.
       disableSignUp: true,
-      minPasswordLength: 10,
-      maxPasswordLength: 128,
+      minPasswordLength: PASSWORD_MIN_LENGTH,
+      maxPasswordLength: PASSWORD_MAX_LENGTH,
       password: { hash: hashPassword, verify: verifyPassword },
       revokeSessionsOnPasswordReset: true,
       resetPasswordTokenExpiresIn: 60 * 60,

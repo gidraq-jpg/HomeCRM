@@ -12,7 +12,12 @@ import {
   type Transaction,
 } from '@homecrm/db';
 import type { Role, Viewer } from '@homecrm/shared';
-import { normalizeUsername, placeholderEmail } from './identity.ts';
+import {
+  normalizeUsername,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  placeholderEmail,
+} from './identity.ts';
 import { hashPassword } from './password.ts';
 
 export interface NewAccount {
@@ -89,6 +94,11 @@ export async function provisionAccount(
   input: Omit<NewAccount, 'passwordHash'> & { password: string },
 ): Promise<CreatedAccount> {
   const { password, ...rest } = input;
+  if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+    throw new RangeError(
+      `Password must be ${PASSWORD_MIN_LENGTH}–${PASSWORD_MAX_LENGTH} characters`,
+    );
+  }
   const passwordHash = await hashPassword(password);
   return db.transaction((tx) => insertAccount(tx, { ...rest, passwordHash }));
 }

@@ -153,4 +153,20 @@ describe('длина пароля (AUTH-1): не короче 10 символо�
     });
     expect(ok.status).toBe(200);
   });
+
+  it('и при первой настройке: первый администратор тоже с паролем не короче десяти символов', async () => {
+    await expect(
+      provisionAccount(world.module.db, {
+        username: 'short-pass',
+        displayName: 'Короткий',
+        password: '123456789',
+        householdId: world.houseId,
+        role: 'admin',
+      }),
+    ).rejects.toThrow(RangeError);
+    const { rows } = await world.database.admin.query(
+      `SELECT 1 FROM accounts WHERE username = 'short-pass'`,
+    );
+    expect(rows).toEqual([]);
+  });
 });

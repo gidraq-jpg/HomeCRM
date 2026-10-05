@@ -7,7 +7,7 @@
 // Маршруты плагина живут в маршрутизаторе библиотеки (/api/auth/homecrm/...), поэтому на них
 // действуют её защита от CSRF, ограничение запросов и проверка сессии.
 import { randomBytes } from 'node:crypto';
-import { type Database, eq, invitations, passwordResets, sql } from '@homecrm/db';
+import { type Database, eq, invitations, passwordResets, sql, type Transaction } from '@homecrm/db';
 import { canResetPassword, mustUseSecondFactor } from '@homecrm/shared';
 import type { BetterAuthPlugin } from 'better-auth';
 import {
@@ -107,6 +107,26 @@ function clientInfo(ctx: {
   };
 }
 
+/** Приглашение по хэшу ссылки; если его нельзя принять, говорит почему. */
+async function readLiveInvitation(db: Database | Transaction, tokenHash: string) {
+  const [invitation] = await db
+    .select({
+      id: invitations.id,
+      householdId: invitations.householdId,
+      role: invitations.role,
+      accepted: sql<boolean>`${invitations.acceptedAt} IS NOT NULL`,
+      revoked: sql<boolean>`${invitations.revokedAt} IS NOT NULL`,
+      expired: sql<boolean>`${invitations.expiresAt} <= now()`,
+    })
+    .from(invitations)
+    .where(eq(invitations.tokenHash, tokenHash));
+  if (invitation === undefined) throw new InvitationError('INVITATION_NOT_FOUND');
+  if (invitation.accepted) throw new InvitationError('INVITATION_USED');
+  if (invitation.revoked) throw new InvitationError('INVITATION_REVOKED');
+  if (invitation.expired) throw new InvitationError('INVITATION_EXPIRED');
+  return invitation;
+}
+
 /** Журнал не должен ломать вход: сбой записи попадает в журнал сервера, а не к пользователю. */
 async function journal(
   deps: PluginDeps,
@@ -160,27 +180,15 @@ export function homecrm(deps: PluginDeps) {
             throw APIError.from('BAD_REQUEST', { code: 'INVALID_EMAIL', message: 'Invalid email' });
           }
 
-          const passwordHash = await ctx.context.password.hash(password);
           const tokenHash = hashToken(token);
           let created: { id: string; householdId: string; role: string };
           try {
+            // Сначала дешёвая проверка: на выдуманную ссылку не тратим 64 МиБ и 90 мс на хэш пароля.
+            await readLiveInvitation(deps.db, tokenHash);
+            const passwordHash = await ctx.context.password.hash(password);
             created = await deps.db.transaction(async (tx) => {
-              const [invitation] = await tx
-                .select({
-                  id: invitations.id,
-                  householdId: invitations.householdId,
-                  role: invitations.role,
-                  accepted: sql<boolean>`${invitations.acceptedAt} IS NOT NULL`,
-                  revoked: sql<boolean>`${invitations.revokedAt} IS NOT NULL`,
-                  expired: sql<boolean>`${invitations.expiresAt} <= now()`,
-                })
-                .from(invitations)
-                .where(eq(invitations.tokenHash, tokenHash));
-              if (invitation === undefined) throw new InvitationError('INVITATION_NOT_FOUND');
-              if (invitation.accepted) throw new InvitationError('INVITATION_USED');
-              if (invitation.revoked) throw new InvitationError('INVITATION_REVOKED');
-              if (invitation.expired) throw new InvitationError('INVITATION_EXPIRED');
-
+              // Ещё раз внутри транзакции: пока считался хэш, приглашение могли принять или отозвать.
+              const invitation = await readLiveInvitation(tx, tokenHash);
               const account = await insertAccount(tx, {
                 username,
                 displayName,
@@ -282,6 +290,14 @@ export function homecrm(deps: PluginDeps) {
             }
             throw error;
           }
+          // Действует только последняя выданная ссылка: прежние отзываются, чтобы не копились живые.
+          await ctx.context.adapter.deleteMany({
+            model: 'verification',
+            where: [
+              { field: 'value', value: target.accountId },
+              { field: 'identifier', operator: 'starts_with', value: 'reset-password:' },
+            ],
+          });
           // Саму ссылку и её одноразовость обслуживает библиотека: её POST /reset-password.
           const resetToken = randomBytes(24).toString('base64url');
           await ctx.context.internalAdapter.createVerificationValue({

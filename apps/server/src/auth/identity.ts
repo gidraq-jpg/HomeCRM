@@ -2,6 +2,10 @@
 // настроек библиотеки и собственных маршрутов.
 import { createHash, randomBytes } from 'node:crypto';
 
+/** Пароль не короче 10 символов (AUTH-1); верхняя граница — защита от огромного тела запроса. */
+export const PASSWORD_MIN_LENGTH = 10;
+export const PASSWORD_MAX_LENGTH = 128;
+
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 30;
 

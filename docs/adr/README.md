@@ -7,8 +7,8 @@
 | [0001](0001-monorepo-pnpm.md) | Монорепозиторий pnpm | Принято |
 | [0002](0002-node-fastify.md) | Node 24 LTS и Fastify 5 | Принято |
 | [0003](0003-postgresql-drizzle.md) | PostgreSQL 18 и Drizzle ORM | Принято |
-| [0004](0004-access-code-and-rls.md) | Двойная защита доступа: проверка в коде и RLS | Принято, подтверждено проверкой 0.4 |
-| [0005](0005-better-auth.md) | Авторизация на Better Auth | Предложено, ждёт проверки 0.3 |
+| [0004](0004-access-code-and-rls.md) | Двойная защита доступа: проверка в коде и RLS | Принято, подтверждено проверкой 0.4, дополнено ролью `homecrm_auth` (0.3) |
+| [0005](0005-better-auth.md) | Авторизация на Better Auth | Принято, подтверждено проверкой 0.3 |
 | [0006](0006-pg-boss.md) | Фоновые задачи на pg-boss | Принято |
 | [0007](0007-client-stack.md) | Клиент: React 19, Vite и библиотеки интерфейса | Принято |
 | [0008](0008-pwa-offline.md) | PWA: свой service worker, офлайн в IndexedDB | Принято |
