@@ -7,7 +7,13 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/dist", "!**/coverage", "!pnpm-lock.yaml"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/coverage",
+      "!pnpm-lock.yaml",
+      "!packages/db/migrations/meta"
+    ]
   },
   "formatter": {
     "enabled": true,

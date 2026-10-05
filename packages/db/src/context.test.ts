@@ -1,0 +1,135 @@
+// Контекст запроса (ADR-0004): без него роль приложения не видит ни одной строки,
+// и он не переживает свою транзакцию — даже на том же соединении пула.
+import { randomUUID } from 'node:crypto';
+import { sql } from 'drizzle-orm';
+import type pg from 'pg';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { createAppDatabase, type Transaction } from './client.ts';
+import { notes, shoppingItems, tasks } from './schema.ts';
+import { createTestDatabase, type TestDatabase } from './testing/database.ts';
+import { buildFamily, seedFamily } from './testing/family.ts';
+
+const family = buildFamily();
+const anna = family.person('anna');
+let database: TestDatabase;
+let tables: string[];
+
+beforeAll(async () => {
+  database = await createTestDatabase(inject('pgAdminUrl'));
+  await seedFamily(database.admin, family);
+  const { rows } = await database.admin.query<{ name: string }>(
+    `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
+  );
+  tables = rows.map((row) => row.name);
+});
+
+afterAll(async () => {
+  await database?.drop();
+});
+
+async function count(pool: pg.Pool | pg.PoolClient, table: string): Promise<number> {
+  const { rows } = await pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM "${table}"`);
+  return rows[0]?.n ?? Number.NaN;
+}
+
+async function countIn(tx: Transaction, table: string): Promise<number> {
+  const { rows } = await tx.execute<{ n: number }>(
+    sql.raw(`SELECT count(*)::int AS n FROM "${table}"`),
+  );
+  return rows[0]?.n ?? Number.NaN;
+}
+
+describe('контекст запроса', () => {
+  it('без контекста роль приложения не видит ни одной строки ни в одной таблице', async () => {
+    expect(tables).toEqual([
+      'accounts',
+      'notes',
+      'shopping_items',
+      'space_members',
+      'spaces',
+      'tasks',
+    ]);
+    for (const table of tables) {
+      expect(await count(database.admin, table), table).toBeGreaterThan(0);
+      expect(await count(database.app, table), table).toBe(0);
+    }
+    // И внутри транзакции, где set_config не вызывали.
+    const client = await database.app.connect();
+    try {
+      await client.query('BEGIN');
+      for (const table of tables) expect(await count(client, table), table).toBe(0);
+      await client.query('ROLLBACK');
+    } finally {
+      client.release();
+    }
+  });
+
+  it('учётная запись без личного пространства и членств не видит ничего', async () => {
+    const app = createAppDatabase(database.app);
+    const stranger = randomUUID();
+    for (const table of tables) {
+      expect(await app.withAccount(stranger, (tx) => countIn(tx, table)), table).toBe(0);
+    }
+  });
+
+  it('контекст действует только до конца своей транзакции', async () => {
+    // Одно соединение: следующий запрос гарантированно идёт по тому же.
+    const single = database.pool('app', 1);
+    const app = createAppDatabase(single);
+    expect(await app.withAccount(anna.id, (tx) => countIn(tx, 'notes'))).toBeGreaterThan(0);
+
+    const { rows } = await single.query(
+      `SELECT current_setting('app.account_id', true) AS setting, app.current_account_id() AS account,
+        (SELECT count(*)::int FROM notes) AS notes`,
+    );
+    // Параметр остался на соединении пустой строкой — поэтому в app.current_account_id() есть nullif.
+    expect(rows[0]).toEqual({ setting: '', account: null, notes: 0 });
+  });
+
+  it('после ошибки внутри транзакции контекст тоже сброшен', async () => {
+    const single = database.pool('app', 1);
+    const app = createAppDatabase(single);
+    await expect(
+      app.withAccount(anna.id, async (tx) => {
+        expect(await countIn(tx, 'notes')).toBeGreaterThan(0);
+        throw new Error('сбой в коде приложения');
+      }),
+    ).rejects.toThrow('сбой в коде приложения');
+    expect(await count(single, 'notes')).toBe(0);
+  });
+
+  it('withAccount принимает только UUID', async () => {
+    const app = createAppDatabase(database.app);
+    for (const bad of ['', 'anna', `${anna.id}' OR true --`]) {
+      await expect(app.withAccount(bad, async () => 1)).rejects.toThrow(TypeError);
+    }
+  });
+
+  it('запрос без фильтра в коде не возвращает чужое личное', async () => {
+    const app = createAppDatabase(database.app);
+    for (const viewer of family.people) {
+      // Никакого where: защищает только RLS.
+      const rows = await app.withAccount(viewer.id, async (tx) => [
+        ...(await tx.select().from(notes)),
+        ...(await tx.select().from(shoppingItems)),
+        ...(await tx.select().from(tasks)),
+      ]);
+      const personal = rows.filter((row) => row.spaceKind === 'personal');
+      expect(
+        personal.every((row) => row.spaceId === viewer.personalSpaceId),
+        viewer.name,
+      ).toBe(true);
+      const ownPersonal = family.records.filter(
+        (record) =>
+          record.facts.placement.kind === 'personal' &&
+          record.facts.placement.ownerId === viewer.id,
+      );
+      expect(personal, viewer.name).toHaveLength(ownPersonal.length);
+      for (const row of rows.filter((candidate) => candidate.spaceKind === 'household')) {
+        const role = viewer.viewer.memberships.get(row.spaceId);
+        expect(role, viewer.name).toBeDefined();
+        if (role === 'child') expect(row.audience, viewer.name).toBe('household');
+      }
+    }
+  });
+});
