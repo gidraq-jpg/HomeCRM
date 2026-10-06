@@ -31,9 +31,7 @@ export async function checkAuth(page: Page, info: TestInfo, name: string) {
   const directory = resolve(SCREENSHOT_DIR, String(widthOf(info)));
   mkdirSync(directory, { recursive: true });
   // Даже вымышленные секреты не записываются в скриншоты. Пустые поля остаются видимыми.
-  const mask = [
-    page.locator('.auth-secret, .backup-grid code, .authenticator img, textarea[readonly]'),
-  ];
+  const mask = [page.locator('.auth-secret, .backup-grid, .authenticator img, textarea[readonly]')];
   for (const input of await page.locator('input[name*="assword"], input[name="code"]').all()) {
     if (await input.inputValue()) mask.push(input);
   }
