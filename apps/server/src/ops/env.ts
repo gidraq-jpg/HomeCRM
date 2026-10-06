@@ -30,12 +30,12 @@ export const OpsEnvSchema = z.object({
   BACKUP_ENABLED: Flag,
   /** Локальное хранилище restic: папка внутри контейнера, снаружи — E:\HomeCRM-data\backups\restic. */
   BACKUP_LOCAL_REPOSITORY: z.string().min(1).default('/backups/restic'),
-  /** Второе хранилище: `rclone:<remote>:<папка>`, например `rclone:gdrive:HomeCRM-backups`. Не задано — копия одна. */
+  /** Второе хранилище: `rclone:<remote>:<папка>`, например `rclone:yadisk:HomeCRM-backups`. Не задано — копия одна. */
   BACKUP_CLOUD_REPOSITORY: z
     .string()
     .regex(/^rclone:[A-Za-z0-9_.-]+:.*$/, 'must look like rclone:<remote>:<path>')
     .optional(),
-  /** Конфигурация rclone с токеном Google: смонтирована только для чтения. */
+  /** Конфигурация rclone с токеном Яндекса: смонтирована только для чтения. */
   RCLONE_CONFIG_SOURCE: z.string().min(1).default('/run/rclone/rclone.conf'),
   RESTIC_PASSWORD_FILE: z.string().min(1).default('/run/secrets/restic-password'),
   /** Отметки о последней копии и проверке восстановления; снаружи — E:\HomeCRM-data\backups\status. */

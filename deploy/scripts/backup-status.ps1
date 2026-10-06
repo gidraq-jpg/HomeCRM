@@ -23,7 +23,7 @@ $ErrorActionPreference = 'Stop'
 $env:HOMECRM_DATA = $DataDir -replace '\\', '/'
 $statusDir = Join-Path $DataDir 'backups\status'
 $problems = 0
-$names = @{ local = 'на этом компьютере'; cloud = 'на Google Диске' }
+$names = @{ local = 'на этом компьютере'; cloud = 'на Яндекс Диске' }
 
 function Format-Age($at) {
   $span = Get-AgeSpan $at
@@ -47,7 +47,7 @@ else {
   foreach ($repo in 'local', 'cloud') {
     $result = $backup.repos.$repo
     if ($null -eq $result) {
-      if ($repo -eq 'cloud') { Write-Host "  $($names[$repo]): не настроено (pwsh deploy/scripts/connect-google-drive.ps1)"; $problems++ }
+      if ($repo -eq 'cloud') { Write-Host "  $($names[$repo]): не настроено (pwsh deploy/scripts/connect-yandex-disk.ps1)"; $problems++ }
       continue
     }
     $mark = if ($result.ok) { 'ок' } else { "ОШИБКА: $($result.error)" }

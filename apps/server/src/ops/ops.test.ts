@@ -36,7 +36,7 @@ describe('настройки эксплуатации', () => {
   });
 
   it('второе хранилище — только через rclone; ошибка называет переменную, а не значение', () => {
-    const withCloud = loadOpsEnv({ BACKUP_CLOUD_REPOSITORY: 'rclone:gdrive:HomeCRM-backups' });
+    const withCloud = loadOpsEnv({ BACKUP_CLOUD_REPOSITORY: 'rclone:yadisk:HomeCRM-backups' });
     expect(configuredRepos(withCloud).map((repo) => repo.name)).toEqual(['local', 'cloud']);
     let message = '';
     try {

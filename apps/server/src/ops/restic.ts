@@ -1,4 +1,4 @@
-// restic: два хранилища — локальная папка и Google Диск через rclone (ADR-0021, ADR-0014).
+// restic: два хранилища — локальная папка и Яндекс Диск через rclone (ADR-0021, ADR-0014).
 import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { OpsEnv } from './env.ts';
@@ -42,7 +42,7 @@ async function exists(path: string): Promise<boolean> {
 }
 
 /**
- * Окружение для запуска restic. Для хранилища на Google Диске rclone читает копию конфигурации
+ * Окружение для запуска restic. Для хранилища на Яндекс Диске rclone читает копию конфигурации
  * из /tmp: при обновлении токена он пишет в неё, а не в файл, смонтированный только для чтения.
  */
 export async function resticEnv(env: OpsEnv, repo: Repo): Promise<Record<string, string>> {
@@ -53,7 +53,7 @@ export async function resticEnv(env: OpsEnv, repo: Repo): Promise<Record<string,
   };
   if (repo.repository.startsWith('rclone:')) {
     if (!(await exists(env.RCLONE_CONFIG_SOURCE))) {
-      throw new OpsError('rclone configuration is missing: connect Google Drive (docs/runbook.md)');
+      throw new OpsError('rclone configuration is missing: connect Yandex Disk (docs/runbook.md)');
     }
     await mkdir(dirname(RCLONE_WORKING_CONFIG), { recursive: true });
     await copyFile(env.RCLONE_CONFIG_SOURCE, RCLONE_WORKING_CONFIG);
@@ -70,8 +70,8 @@ const RESTIC_HINTS: Readonly<Record<number, string>> = {
   12: 'wrong repository password',
 };
 
-/** Параметры rclone при работе restic: удалённое не уходит в корзину Google Диска и не съедает объём. */
-const RCLONE_OPTIONS = ['-o', 'rclone.args=serve restic --stdio --drive-use-trash=false'];
+/** Параметры rclone при работе restic: удалённое не уходит в корзину Яндекс Диска и не съедает объём (--yandex-hard-delete). */
+const RCLONE_OPTIONS = ['-o', 'rclone.args=serve restic --stdio --yandex-hard-delete'];
 
 /** Выполняет команду restic; ненулевой код — ошибка с хвостом вывода (без секретов). */
 export type Restic = (
