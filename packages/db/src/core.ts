@@ -37,6 +37,15 @@ export const SPACE_KINDS = [
 
 export const spaceKindEnum = pgEnum('space_kind', SPACE_KINDS);
 export const memberRoleEnum = pgEnum('member_role', ROLES);
+/** Условие вставки пространства службой входа (миграция 0004). */
+export const SPACES_AUTH_INSERT_SQL = `(spaces.kind = 'household' OR (spaces.kind = 'personal' AND EXISTS (SELECT 1 FROM accounts a WHERE a.id = spaces.owner_account_id AND a.created_at = now())))`;
+
+/** Условие вставки участника службой входа: приглашение принято сейчас этим участником на эту роль. */
+export const MEMBERS_AUTH_INSERT_SQL = `(space_members.space_kind = 'household' AND (
+  EXISTS (SELECT 1 FROM invitations i WHERE i.household_id = space_members.space_id AND i.accepted_by = space_members.account_id AND i.role = space_members.role AND i.accepted_at = now() AND i.revoked_at IS NULL)
+  OR (space_members.role = 'admin' AND NOT EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = space_members.space_id))
+))`;
+
 export const audienceEnum = pgEnum('audience', AUDIENCES);
 
 export const id = () => uuid('id').primaryKey().default(sql`uuidv7()`);
@@ -130,8 +139,15 @@ export const spaces = pgTable(
       sql.raw(`(kind = 'personal') = (owner_account_id IS NOT NULL)`),
     ),
     pgPolicy('spaces_select', { for: 'select', to: appRole, using: sql.raw(SPACES_SELECT_SQL) }),
-    // Служба входа создаёт личное пространство вместе с учётной записью (SPACE-1) и дом при первой настройке.
-    ...authPolicies('spaces', ['select', 'insert']),
+    ...authPolicies('spaces', ['select']),
+    // Служба входа создаёт личное пространство вместе с учётной записью (SPACE-1) и дом при первой
+    // настройке. Личное — только учётной записи, созданной в этой же транзакции: чужому личному
+    // пространству службой входа не обзавестись.
+    pgPolicy('spaces_auth_insert', {
+      for: 'insert',
+      to: authRole,
+      withCheck: sql.raw(SPACES_AUTH_INSERT_SQL),
+    }),
   ],
 );
 
@@ -179,7 +195,14 @@ export const spaceMembers = pgTable(
     }),
     // Служба входа добавляет участника по приглашению и проверяет, чьим администратором является
     // тот, кто просит сбросить пароль (AUTH-5); данных семьи у неё нет.
-    ...authPolicies('space_members', ['select', 'insert']),
+    ...authPolicies('space_members', ['select']),
+    // Новый участник — только по принятому в этой транзакции приглашению (дом, роль и участник
+    // совпадают с ним) либо первый администратор пустого дома при первой настройке (SPACE-2).
+    pgPolicy('space_members_auth_insert', {
+      for: 'insert',
+      to: authRole,
+      withCheck: sql.raw(MEMBERS_AUTH_INSERT_SQL),
+    }),
     // Уход и исключение: право UPDATE выдано только на left_at и left_by, строка — только действующая.
     pgPolicy('space_members_auth_leave', {
       for: 'update',

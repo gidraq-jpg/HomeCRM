@@ -42,6 +42,7 @@ beforeAll(async () => {
   ]);
   await seed(`INSERT INTO rate_limits (key, count, last_request) VALUES ('k', 1, 1)`);
   await seed(`INSERT INTO login_locks (account_id, failures) VALUES ($1, 1)`, [anna.id]);
+  await seed(`INSERT INTO login_name_attempts (name_hash, failures) VALUES ('hash', 1)`);
 });
 
 afterAll(async () => {
@@ -56,6 +57,7 @@ const AUTH_ONLY: Record<string, string> = {
   two_factors: 'secret',
   rate_limits: 'count',
   login_locks: 'failures',
+  login_name_attempts: 'failures',
 };
 
 /** Выполняет запрос от имени участника; отказ в праве — это 42501. */

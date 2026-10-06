@@ -26,9 +26,10 @@ import {
   findAccountByLogin,
   type LoginKind,
   type LoginOutcome,
-  lockedUntil,
-  recordFailure,
+  loginInput,
   recordLoginEvent,
+  reserveAttempt,
+  unknownLoginSubject,
 } from './attempts.ts';
 import {
   hashToken,
@@ -40,6 +41,7 @@ import {
   USERNAME_MIN,
 } from './identity.ts';
 import { insertAccount, loadViewer, pgError } from './provision.ts';
+import { claimTotpCode } from './totp-replay.ts';
 
 /** Заголовок с адресом клиента: его ставит только наш Fastify (fastify.ts), чужой заголовок затирается. */
 export const CLIENT_IP_HEADER = 'x-homecrm-client-ip';
@@ -140,8 +142,13 @@ async function journal(
   }
 }
 
-function retryAfterSeconds(until: Date): string {
-  return String(Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000)));
+export function lockedError(until: Date): APIError {
+  const seconds = String(Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000)));
+  return new APIError(
+    'TOO_MANY_REQUESTS',
+    { code: 'ACCOUNT_TEMPORARILY_LOCKED', message: 'Too many attempts, try later' },
+    { 'Retry-After': seconds, 'X-Retry-After': seconds },
+  );
 }
 
 export function homecrm(deps: PluginDeps) {
@@ -196,14 +203,17 @@ export function homecrm(deps: PluginDeps) {
                 email,
                 householdId: invitation.householdId,
                 role: invitation.role,
+                // Политика службы входа разрешает отметить только живое приглашение: если соседний
+                // запрос успел раньше, строк не найдётся, а вся транзакция откатится. Отметка идёт
+                // до вставки участника: база сверяет с ней дом и роль нового участника.
+                beforeMembership: async (inner, accountId) => {
+                  const accepted = await inner
+                    .update(invitations)
+                    .set({ acceptedAt: sql`now()`, acceptedBy: accountId })
+                    .where(eq(invitations.id, invitation.id));
+                  if (accepted.rowCount !== 1) throw new InvitationError('INVITATION_USED');
+                },
               });
-              // Политика службы входа разрешает отметить только живое приглашение: если соседний
-              // запрос успел раньше, строк не найдётся, а вся транзакция откатится.
-              const accepted = await tx
-                .update(invitations)
-                .set({ acceptedAt: sql`now()`, acceptedBy: account.id })
-                .where(eq(invitations.id, invitation.id));
-              if (accepted.rowCount !== 1) throw new InvitationError('INVITATION_USED');
               return {
                 id: account.id,
                 householdId: invitation.householdId,
@@ -345,30 +355,32 @@ export function homecrm(deps: PluginDeps) {
         {
           matcher: (context) => SIGN_IN_PATHS.has(context.path ?? ''),
           handler: createAuthMiddleware(async (ctx) => {
-            const body = (ctx.body ?? {}) as { username?: unknown; email?: unknown };
+            const login = loginInput(ctx.path, ctx.body);
+            if (login === null) return;
             // Служебный адрес ребёнка — не способ входа: ответ такой же, как на неверный пароль.
-            if (typeof body.email === 'string' && isPlaceholderEmail(body.email)) {
+            if (login.kind === 'email' && isPlaceholderEmail(login.value)) {
               throw APIError.from('UNAUTHORIZED', {
                 code: 'INVALID_EMAIL_OR_PASSWORD',
                 message: 'Invalid email or password',
               });
             }
-            const account = await findAccountByLogin(deps.db, body);
-            if (account === null) return;
-            const until = await lockedUntil(deps.db, account.id);
-            if (until === null) return;
-            await journal(deps, ctx.context.logger, {
-              accountId: account.id,
-              kind: 'sign_in',
-              outcome: 'locked',
-              ...clientInfo(ctx),
-            });
-            const seconds = retryAfterSeconds(until);
-            throw new APIError(
-              'TOO_MANY_REQUESTS',
-              { code: 'ACCOUNT_TEMPORARILY_LOCKED', message: 'Too many attempts, try later' },
-              { 'Retry-After': seconds, 'X-Retry-After': seconds },
-            );
+            // Попытка занимается до проверки пароля: параллельные запросы выстраиваются в очередь
+            // на строке счётчика. Для имени, которого нет, счётчик свой — отказ приходит так же,
+            // и по блокировке нельзя узнать, есть ли такое имя (AUTH-8).
+            const account = await findAccountByLogin(deps.db, login);
+            const subject =
+              account === null ? unknownLoginSubject(login) : { accountId: account.id };
+            const reservation = await reserveAttempt(deps.db, subject);
+            if (reservation.allowed) return;
+            if (account !== null) {
+              await journal(deps, ctx.context.logger, {
+                accountId: account.id,
+                kind: 'sign_in',
+                outcome: 'locked',
+                ...clientInfo(ctx),
+              });
+            }
+            throw lockedError(reservation.lockedUntil);
           }),
         },
         {
@@ -380,9 +392,9 @@ export function homecrm(deps: PluginDeps) {
             const path = ctx.path ?? '';
             let accountId: string | undefined;
             if (SIGN_IN_PATHS.has(path)) {
-              accountId = (
-                await findAccountByLogin(deps.db, (ctx.body ?? {}) as Record<string, unknown>)
-              )?.id;
+              const login = loginInput(path, ctx.body);
+              if (login === null) return;
+              accountId = (await findAccountByLogin(deps.db, login))?.id;
             } else {
               accountId = (await getSessionFromCtx(ctx))?.user.id;
               if (accountId === undefined) {
@@ -411,19 +423,42 @@ export function homecrm(deps: PluginDeps) {
           }),
         },
         {
+          // Код TOTP принимается один раз: повтор в том же окне — отказ (RFC 6238, п. 5.2).
+          matcher: (context) => context.path === '/two-factor/verify-totp',
+          handler: createAuthMiddleware(async (ctx) => {
+            const code = (ctx.body as { code?: unknown } | undefined)?.code;
+            if (typeof code !== 'string') return;
+            let accountId = (await getSessionFromCtx(ctx))?.user.id;
+            if (accountId === undefined) {
+              const cookie = ctx.context.createAuthCookie(TWO_FACTOR_COOKIE);
+              const challenge = await ctx.getSignedCookie(cookie.name, ctx.context.secret);
+              if (challenge) {
+                accountId = (await ctx.context.internalAdapter.findVerificationValue(challenge))
+                  ?.value;
+              }
+            }
+            if (accountId === undefined) return;
+            if (await claimTotpCode(deps.db, accountId, code, ctx.context.secret)) return;
+            throw APIError.from('UNAUTHORIZED', {
+              code: 'INVALID_CODE',
+              message: 'Invalid code',
+            });
+          }),
+        },
+        {
           // Заблокированная учётная запись не проверяет пароль ни при входе, ни при подтверждении.
           matcher: (context) => PASSWORD_CONFIRM_PATHS.has(context.path ?? ''),
           handler: createAuthMiddleware(async (ctx) => {
+            // Неверный пароль на этих путях копится в блокировку, как при входе: тот, кто украл
+            // cookie, не должен подбирать пароль без ограничений. Считается только запрос с паролем.
+            // Пароль приходит в поле password, а при смене пароля — в currentPassword.
+            const body = (ctx.body ?? {}) as { password?: unknown; currentPassword?: unknown };
+            if (typeof body.password !== 'string' && typeof body.currentPassword !== 'string')
+              return;
             const session = await getSessionFromCtx(ctx);
             if (!session) return;
-            const until = await lockedUntil(deps.db, session.user.id);
-            if (until === null) return;
-            const seconds = retryAfterSeconds(until);
-            throw new APIError(
-              'TOO_MANY_REQUESTS',
-              { code: 'ACCOUNT_TEMPORARILY_LOCKED', message: 'Too many attempts, try later' },
-              { 'Retry-After': seconds, 'X-Retry-After': seconds },
-            );
+            const reservation = await reserveAttempt(deps.db, { accountId: session.user.id });
+            if (!reservation.allowed) throw lockedError(reservation.lockedUntil);
           }),
         },
         {
@@ -446,17 +481,15 @@ export function homecrm(deps: PluginDeps) {
         {
           matcher: (context) => SIGN_IN_PATHS.has(context.path ?? ''),
           handler: createAuthMiddleware(async (ctx) => {
-            const account = await findAccountByLogin(
-              deps.db,
-              (ctx.body ?? {}) as { username?: unknown; email?: unknown },
-            );
+            const login = loginInput(ctx.path, ctx.body);
+            if (login === null) return;
+            const account = await findAccountByLogin(deps.db, login);
             if (account === null) return;
             const returned = ctx.context.returned;
             const info = clientInfo(ctx);
             if (isAPIError(returned)) {
-              // Блокировка и сбои сервера подбором не считаются: только неверные учётные данные.
+              // Попытка уже посчитана до проверки; в журнал идут только неверные учётные данные.
               if (returned.statusCode !== 401) return;
-              await recordFailure(deps.db, account.id);
               await journal(deps, ctx.context.logger, {
                 accountId: account.id,
                 kind: 'sign_in',
@@ -465,7 +498,7 @@ export function homecrm(deps: PluginDeps) {
               });
               return;
             }
-            await clearFailures(deps.db, account.id);
+            await clearFailures(deps.db, { accountId: account.id });
             const pending =
               typeof returned === 'object' &&
               returned !== null &&
@@ -484,11 +517,8 @@ export function homecrm(deps: PluginDeps) {
             const returned = ctx.context.returned;
             const userId = ctx.context.session?.user.id;
             if (userId === undefined) return;
-            if (!isAPIError(returned)) {
-              await clearFailures(deps.db, userId); // пароль подтверждён: счётчик неудач сброшен
-            } else if (returned.body?.code === 'INVALID_PASSWORD') {
-              await recordFailure(deps.db, userId);
-            }
+            // Пароль подтверждён: счётчик попыток сброшен. Неверный остаётся посчитанным.
+            if (!isAPIError(returned)) await clearFailures(deps.db, { accountId: userId });
           }),
         },
         {

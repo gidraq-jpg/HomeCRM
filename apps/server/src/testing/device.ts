@@ -49,19 +49,29 @@ function uniqueAddress(): string {
   return `198.18.${(nextAddress >> 8) & 255}.${nextAddress & 255}`;
 }
 
+export interface DeviceOptions {
+  userAgent?: string;
+  ip?: string;
+  /** Вызывается перед каждым запросом: мир тестов снимает отметки об использованных кодах TOTP. */
+  beforeRequest?: (url: string) => Promise<void>;
+}
+
 export class Device {
   readonly cookies = new Map<string, string>();
   userAgent: string;
   ip: string;
   private readonly app: FastifyInstance;
+  private readonly beforeRequest: ((url: string) => Promise<void>) | undefined;
 
-  constructor(app: FastifyInstance, options: { userAgent?: string; ip?: string } = {}) {
+  constructor(app: FastifyInstance, options: DeviceOptions = {}) {
     this.app = app;
+    this.beforeRequest = options.beforeRequest;
     this.userAgent = options.userAgent ?? 'TestBrowser/1.0';
     this.ip = options.ip ?? uniqueAddress();
   }
 
   async request(method: 'GET' | 'POST', url: string, options: RequestOptions = {}): Promise<Reply> {
+    await this.beforeRequest?.(url);
     const headers: Record<string, string> = {
       'user-agent': this.userAgent,
       ...(options.origin === null ? {} : { origin: options.origin ?? BASE_URL }),

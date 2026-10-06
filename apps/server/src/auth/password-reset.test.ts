@@ -6,6 +6,7 @@ import type { Device } from '../testing/device.ts';
 import { enrollTotp, signedInAdmin } from '../testing/flows.ts';
 import { currentCode } from '../testing/totp.ts';
 import { createWorld, type World } from '../testing/world.ts';
+import { hashToken } from './identity.ts';
 
 let world: World;
 let admin: Device;
@@ -54,6 +55,16 @@ describe('администратор сбрасывает пароль ребё�
     expect(pending.rows).toEqual([
       { requested_by: world.anna.id, completed_at: null, acknowledged_at: null },
     ]);
+
+    // В базе — только хэш ссылки (бэклог «К R0.2»): по её содержимому войти по ссылке нельзя.
+    const stored = await world.database.admin.query<{ identifier: string }>(
+      `SELECT identifier FROM verifications WHERE identifier LIKE 'reset-password:%'`,
+    );
+    expect(stored.rows).toHaveLength(1);
+    expect(stored.rows[0]?.identifier).toBe(
+      `reset-password:${hashToken(`reset-password:${link.token}`)}`,
+    );
+    expect(JSON.stringify(stored.rows)).not.toContain(link.token);
 
     // Ребёнок открывает ссылку на своём устройстве: входить для этого не нужно.
     const password = newPassword();
@@ -122,7 +133,7 @@ describe('администратор сбрасывает пароль ребё�
     // Срок вышел: время переведено на минуту после окончания.
     await world.database.admin.query(
       `UPDATE verifications SET expires_at = now() - interval '1 minute' WHERE identifier = $1`,
-      [`reset-password:${link.token}`],
+      [`reset-password:${hashToken(`reset-password:${link.token}`)}`],
     );
     const late = await device.post('/api/auth/reset-password', {
       token: link.token,

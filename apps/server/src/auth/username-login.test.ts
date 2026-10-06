@@ -34,7 +34,7 @@ describe('вход по имени пользователя (AUTH-9)', () => {
   });
 
   it('имя не зависит от регистра, в том числе кириллическое', async () => {
-    await provisionAccount(world.module.db, {
+    await provisionAccount(world.fixtures, {
       username: 'Глеб',
       displayName: 'Глеб',
       password: 'gleb-pass-7044-ok',
@@ -52,7 +52,7 @@ describe('вход по имени пользователя (AUTH-9)', () => {
     }>(`SELECT username, display_username FROM accounts WHERE username = 'глеб'`);
     expect(rows).toEqual([{ username: 'глеб', display_username: 'Глеб' }]);
     await expect(
-      provisionAccount(world.module.db, {
+      provisionAccount(world.fixtures, {
         username: 'ГЛЕБ',
         displayName: 'Другой Глеб',
         password: 'other-pass-1234-ok',
@@ -156,7 +156,7 @@ describe('длина пароля (AUTH-1): не короче 10 символо�
 
   it('и при первой настройке: первый администратор тоже с паролем не короче десяти символов', async () => {
     await expect(
-      provisionAccount(world.module.db, {
+      provisionAccount(world.fixtures, {
         username: 'short-pass',
         displayName: 'Короткий',
         password: '123456789',

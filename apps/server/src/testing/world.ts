@@ -2,7 +2,7 @@
 // Better Auth и вымышленная семья. Секреты (ключ библиотеки, пароли) создаются во время
 // прогона и нигде не сохраняются.
 import { randomBytes } from 'node:crypto';
-import { createAppDatabase, createAuthDatabase } from '@homecrm/db';
+import { createAppDatabase, createAuthDatabase, type Database } from '@homecrm/db';
 import { createTestDatabase, type TestDatabase } from '@homecrm/db/testing';
 import type { Role } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
@@ -43,9 +43,16 @@ export interface World {
   requestLog: string[];
   /** Письма, которые «отправил» сервер. */
   mailbox: Mail[];
+  /** База суперпользователя в виде базы службы входа: для вымышленных участников мимо приглашений. */
+  fixtures: Database;
   /** Секрет Better Auth этого прогона — для проверки, что он нигде не всплывает. */
   secret: string;
-  device(options?: { userAgent?: string; ip?: string }): Device;
+  /**
+   * Новое устройство. Код TOTP принимается один раз (бэклог «К R0.2»), а тесты берут код текущего
+   * окна много раз подряд: перед каждым вводом кода отметки об использованных кодах снимаются.
+   * keepUsedCodes оставляет их — так проверяется сам отказ на повтор.
+   */
+  device(options?: { userAgent?: string; ip?: string; keepUsedCodes?: boolean }): Device;
   /** Сбросить счётчики ограничения запросов по адресу: время в тестах не ждём, а переводим. */
   clearRateLimits(): Promise<void>;
   close(): Promise<void>;
@@ -111,11 +118,14 @@ export async function createWorld(options: WorldOptions = {}): Promise<World> {
   );
   await app.ready();
 
-  const houseId = await createHousehold(module.db, 'Дом');
+  // Вымышленную семью заводит суперпользователь: политики службы входа пускают в дом только по
+  // приглашению или первого администратора (миграция 0004), а тесты приглашений проходят отдельно.
+  const fixtures = createAuthDatabase(database.admin);
+  const houseId = await createHousehold(fixtures, 'Дом');
   const people: Person[] = [];
   if (!options.empty) {
     for (const person of FAMILY) {
-      const created = await provisionAccount(module.db, {
+      const created = await provisionAccount(fixtures, {
         username: person.username,
         displayName: person.displayName,
         password: person.password,
@@ -147,11 +157,22 @@ export async function createWorld(options: WorldOptions = {}): Promise<World> {
     get vera() {
       return byKey('vera');
     },
+    fixtures,
     logs,
     requestLog,
     mailbox,
     secret,
-    device: (deviceOptions) => new Device(app, deviceOptions),
+    device: (deviceOptions) =>
+      new Device(app, {
+        ...deviceOptions,
+        beforeRequest: async (url) => {
+          if (deviceOptions?.keepUsedCodes !== true && url.includes('/two-factor/verify-totp')) {
+            await database.admin.query(
+              `DELETE FROM verifications WHERE identifier LIKE 'totp-used:%'`,
+            );
+          }
+        },
+      }),
     async clearRateLimits() {
       await database.admin.query('DELETE FROM rate_limits');
     },

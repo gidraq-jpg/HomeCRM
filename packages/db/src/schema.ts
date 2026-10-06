@@ -40,6 +40,7 @@ import {
   spaceKindEnum,
   spaces,
   updatedAt,
+  workerRole,
 } from './core.ts';
 import { recordTable } from './records.ts';
 
@@ -107,6 +108,46 @@ export const RECORD_HISTORY_TABLES = {
 // есть только у службы входа (homecrm_auth).
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * Сроки хранения служебных записей входа. Просроченное убирает обработчик под ролью
+ * homecrm_worker (apps/server/src/auth/cleanup.ts); политики ниже дают ему видеть и удалять
+ * только такие строки.
+ */
+export const RETENTION = {
+  /** Приглашение после принятия, отзыва или истечения срока. */
+  invitations: '30 days',
+  /** Журнал входов (AUTH-8): участник видит свои входы за это время. */
+  loginEvents: '180 days',
+  /** Отметка о сбросе пароля после того, как ребёнок её прочитал, или после истёкшей ссылки. */
+  passwordResets: '30 days',
+} as const;
+
+/** Блокировка закончилась и окно счётчика давно прошло: строка больше ничего не значит. */
+const LOCK_CLEANUP_SQL = `(locked_until IS NULL OR locked_until < now()) AND window_started_at < now() - interval '1 hour'`;
+
+/**
+ * Таблица → условие «эту строку уже можно убрать». Заполняется при объявлении таблиц ниже;
+ * обработчик (cleanup.ts) удаляет по тому же условию, что и политика: два замка вместо одного.
+ */
+export const CLEANUP_CONDITIONS: Record<string, string> = {};
+
+/** Политики обработчика: видеть и удалять только строки, которые по условию уже можно убрать. */
+function cleanupPolicies(table: string, condition: string) {
+  CLEANUP_CONDITIONS[table] = condition;
+  return [
+    pgPolicy(`${table}_worker_cleanup_select`, {
+      for: 'select',
+      to: workerRole,
+      using: sql.raw(condition),
+    }),
+    pgPolicy(`${table}_worker_cleanup`, {
+      for: 'delete',
+      to: workerRole,
+      using: sql.raw(condition),
+    }),
+  ];
+}
+
 /** Сессия на устройстве (AUTH-6): срок до 90 дней, продлевается при использовании. */
 export const sessions = pgTable(
   'sessions',
@@ -126,6 +167,7 @@ export const sessions = pgTable(
     unique('sessions_token_key').on(t.token),
     index('sessions_user_id_idx').on(t.userId),
     ...authPolicies('sessions', ['select', 'insert', 'update', 'delete']),
+    ...cleanupPolicies('sessions', 'expires_at < now()'),
   ],
 );
 
@@ -177,6 +219,7 @@ export const verifications = pgTable(
   (t) => [
     index('verifications_identifier_idx').on(t.identifier),
     ...authPolicies('verifications', ['select', 'insert', 'update', 'delete']),
+    ...cleanupPolicies('verifications', 'expires_at < now()'),
   ],
 );
 
@@ -214,6 +257,11 @@ export const rateLimits = pgTable(
   (t) => [
     unique('rate_limits_key_key').on(t.key),
     ...authPolicies('rate_limits', ['select', 'insert', 'update', 'delete']),
+    // Счётчик, не тронутый больше суток, давно вне любого окна ограничения.
+    ...cleanupPolicies(
+      'rate_limits',
+      `last_request < (extract(epoch from now()) * 1000)::bigint - 86400000`,
+    ),
   ],
 );
 
@@ -274,6 +322,10 @@ export const invitations = pgTable(
       withCheck: sql.raw(`${canInviteSql()} AND accepted_at IS NULL`),
     }),
     pgPolicy('invitations_auth_select', { for: 'select', to: authRole, using: sql.raw('true') }),
+    ...cleanupPolicies(
+      'invitations',
+      `COALESCE(accepted_at, revoked_at, expires_at) < now() - interval '${RETENTION.invitations}'`,
+    ),
     // Принять можно только живое приглашение: срок и одноразовость держит база.
     // Право UPDATE выдано только на accepted_at и accepted_by.
     pgPolicy('invitations_auth_accept', {
@@ -314,6 +366,7 @@ export const loginEvents = pgTable(
       to: appRole,
       using: sql.raw(ownAccountSql()),
     }),
+    ...cleanupPolicies('login_events', `created_at < now() - interval '${RETENTION.loginEvents}'`),
     pgPolicy('login_events_auth_insert', {
       for: 'insert',
       to: authRole,
@@ -333,7 +386,29 @@ export const loginLocks = pgTable(
     windowStartedAt: timestamp('window_started_at', { withTimezone: true }).notNull().defaultNow(),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
   },
-  () => [...authPolicies('login_locks', ['select', 'insert', 'update', 'delete'])],
+  () => [
+    ...authPolicies('login_locks', ['select', 'insert', 'update', 'delete']),
+    ...cleanupPolicies('login_locks', LOCK_CLEANUP_SQL),
+  ],
+);
+
+/**
+ * Попытки входа под именем, которого нет (AUTH-8). Блокировка не должна выдавать, какие имена
+ * существуют: на несуществующее имя она наступает так же, как на существующее. Ключ — хэш
+ * нормализованного имени, само имя не хранится.
+ */
+export const loginNameAttempts = pgTable(
+  'login_name_attempts',
+  {
+    nameHash: text('name_hash').primaryKey(),
+    failures: integer('failures').notNull().default(0),
+    windowStartedAt: timestamp('window_started_at', { withTimezone: true }).notNull().defaultNow(),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  },
+  () => [
+    ...authPolicies('login_name_attempts', ['select', 'insert', 'update', 'delete']),
+    ...cleanupPolicies('login_name_attempts', LOCK_CLEANUP_SQL),
+  ],
 );
 
 /**
@@ -376,6 +451,10 @@ export const passwordResets = pgTable(
       using: sql.raw(`${ownAccountSql()} AND completed_at IS NOT NULL`),
       withCheck: sql.raw(`${ownAccountSql()} AND completed_at IS NOT NULL`),
     }),
+    ...cleanupPolicies(
+      'password_resets',
+      `(acknowledged_at < now() - interval '${RETENTION.passwordResets}') OR (completed_at IS NULL AND expires_at < now() - interval '${RETENTION.passwordResets}')`,
+    ),
     pgPolicy('password_resets_auth_select', {
       for: 'select',
       to: authRole,

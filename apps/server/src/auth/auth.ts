@@ -21,6 +21,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { twoFactor, username } from 'better-auth/plugins';
 import { recordLoginEvent } from './attempts.ts';
 import {
+  hashToken,
   isPlaceholderEmail,
   isValidUsername,
   normalizeUsername,
@@ -87,7 +88,19 @@ export function createAuth(options: AuthOptions) {
       freshAge: 0,
     },
     account: { modelName: 'credentials' },
-    verification: { modelName: 'verifications' },
+    verification: {
+      modelName: 'verifications',
+      // Ссылка сброса пароля — это токен в адресе: в базе только его хэш (SHA-256), как у приглашений.
+      // Префикс остаётся открытым: так выдача новой ссылки находит и отзывает прежние (plugin.ts).
+      storeIdentifier: {
+        default: 'plain',
+        overrides: {
+          'reset-password:': {
+            hash: async (identifier) => `reset-password:${hashToken(identifier)}`,
+          },
+        },
+      },
+    },
     advanced: {
       database: { generateId: false },
       cookiePrefix: 'homecrm',
