@@ -36,7 +36,9 @@ export interface RestoreCheckStatus {
 }
 
 export const BACKUP_STATUS_FILE = 'backup.json';
-export const RESTORE_CHECK_FILE = 'restore-check.json';
+/** Результат проверки восстановления — отдельный файл на каждое хранилище. */
+export const restoreCheckFile = (repository: 'local' | 'cloud'): string =>
+  `restore-check-${repository}.json`;
 
 export async function readStatus<T>(dir: string, file: string): Promise<T | undefined> {
   try {

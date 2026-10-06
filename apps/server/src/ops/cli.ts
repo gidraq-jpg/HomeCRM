@@ -5,6 +5,7 @@
 //   scheduler                        расписание копий (контейнер backup)
 //   check-repositories               целостность хранилищ restic
 //   restore [--from local|cloud] [--snapshot <id>] [--check] [--migrate]
+//   snapshots [--from local|cloud]   список копий в хранилище (что реально там лежит)
 //   cloud-check                      создаёт и читает хранилище на Google Диске
 import { checkRepositories, runBackup } from './backup.ts';
 import { loadOpsEnv } from './env.ts';
@@ -50,6 +51,24 @@ async function main(): Promise<number> {
       });
       return report.ok ? 0 : 1;
     }
+    case 'snapshots': {
+      const from = option(args, '--from') ?? 'local';
+      if (from !== 'local' && from !== 'cloud') throw new Error(`Unknown repository: ${from}`);
+      const restic = await resticFor(env, repoByName(env, from));
+      const { stdout } = await restic(['snapshots', '--json', '--host', env.BACKUP_HOST]);
+      const list = JSON.parse(stdout || '[]') as Array<{
+        short_id: string;
+        time: string;
+        tags?: string[];
+      }>;
+      for (const snapshot of list) {
+        console.log(
+          `snapshot ${snapshot.short_id}  ${snapshot.time}  ${(snapshot.tags ?? []).join(',')}`,
+        );
+      }
+      console.log(`total ${list.length}`);
+      return 0;
+    }
     case 'cloud-check': {
       // Проверка подключения Google Диска: хранилище создаётся и читается.
       const restic = await resticFor(env, repoByName(env, 'cloud'));
@@ -60,7 +79,7 @@ async function main(): Promise<number> {
     }
     default:
       console.error(
-        'Usage: cli.ts migrate | backup | scheduler | check-repositories | restore | cloud-check',
+        'Usage: cli.ts migrate | backup | scheduler | check-repositories | restore | snapshots | cloud-check',
       );
       return 2;
   }

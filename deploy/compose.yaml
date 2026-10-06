@@ -1,12 +1,145 @@
-# HomeCRM: один compose-файл для этого компьютера и VPS (ADR-0015).
-# Сейчас здесь только заглушка этапа 0 и туннели; приложение, обработчик и база появятся в R0.
+# HomeCRM: один compose-файл для этого компьютера и VPS (ADR-0015, ADR-0020).
 #
-# Заглушка:                 docker compose -f deploy/compose.yaml --profile probe up -d --build
-# Заглушка + туннель (А1):  docker compose -f deploy/compose.yaml --profile probe --profile tunnel-ru up -d --build
-# Подробно — docs/runbook.md.
+# Профили:
+#   app      — база PostgreSQL 18, миграции при запуске и приложение (API + клиент) на 127.0.0.1:8300
+#   backup   — расписание резервных копий (ежедневно, ADR-0020); вместе с профилем app
+#   ops      — разовые команды: первая настройка, восстановление, проверка (docker compose run)
+#   probe    — заглушка этапа 0 (заменяется приложением; вместе с app порт 8300 не поделить)
+#   tunnel-* — обратный SSH-туннель до VPS; смотрит на приложение (на заглушку — TUNNEL_TARGET=probe:8300)
+#
+# Рабочее окружение:  docker compose -f deploy/compose.yaml --profile app --profile backup up -d --build
+# Предпросмотр:       docker compose -p homecrm-preview --env-file deploy/preview.env -f deploy/compose.yaml --profile app up -d --build
+# Подробно — docs/runbook.md. Секреты — только файлы в E:\HomeCRM-data\secrets, в образы не копируются.
 name: homecrm
 
+x-app: &app
+  image: homecrm-app:${HOMECRM_VERSION:-local}
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+    args:
+      APP_VERSION: ${HOMECRM_VERSION:-local}
+
+x-environment: &settings
+  # Адрес второго хранилища, время копий и часовой пояс дома — в secrets/backup.env (не секреты, но лежат там же).
+  BACKUP_ENABLED: ${BACKUP_ENABLED:-1}
+  BACKUP_PRE_MIGRATION_CLOUD: ${BACKUP_PRE_MIGRATION_CLOUD:-required}
+
 services:
+  db:
+    profiles: [app]
+    image: postgres:18
+    restart: unless-stopped
+    env_file:
+      - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/db.env
+    volumes:
+      # PostgreSQL 18 хранит данные в подпапке версии, том подключается к /var/lib/postgresql.
+      - db-data:/var/lib/postgresql
+    # Наружу не публикуется: к базе ходят только контейнеры этого проекта.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Роли, база, копия перед миграцией (DATA-4) и сами миграции. Приложение стартует только после успеха.
+  migrate:
+    <<: *app
+    profiles: [app]
+    restart: "no"
+    init: true
+    command: ["node", "apps/server/src/ops/cli.ts", "migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/db.env
+      - path: ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/backup.env
+        required: false
+    environment: *settings
+    secrets:
+      - restic-password
+    volumes:
+      - ${HOMECRM_BACKUP_DIR:-${HOMECRM_DATA:-E:/HomeCRM-data}/backups}/restic:/backups/restic
+      - ${HOMECRM_BACKUP_DIR:-${HOMECRM_DATA:-E:/HomeCRM-data}/backups}/status:/status
+      - ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/rclone:/run/rclone:ro
+      - files:/data/files:ro
+
+  app:
+    <<: *app
+    profiles: [app]
+    restart: unless-stopped
+    init: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file:
+      - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/server.env
+    ports:
+      # Наружу ничего не публикуется: только 127.0.0.1 этого компьютера. Туннель ходит по сети compose.
+      - "127.0.0.1:${HOMECRM_APP_PORT:-8300}:8300"
+    volumes:
+      - files:/data/files
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8300/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Ежедневная копия в 3:30 по времени дома, недельная проверка хранилищ; пропущенное делается сразу.
+  backup:
+    <<: *app
+    profiles: [backup]
+    restart: unless-stopped
+    init: true
+    command: ["node", "apps/server/src/ops/cli.ts", "scheduler"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file:
+      - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/db.env
+      - path: ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/backup.env
+        required: false
+    environment: *settings
+    secrets:
+      - restic-password
+    volumes:
+      - ${HOMECRM_BACKUP_DIR:-${HOMECRM_DATA:-E:/HomeCRM-data}/backups}/restic:/backups/restic
+      - ${HOMECRM_BACKUP_DIR:-${HOMECRM_DATA:-E:/HomeCRM-data}/backups}/status:/status
+      - ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/rclone:/run/rclone:ro
+      - files:/data/files:ro
+
+  # Разовые команды: docker compose --profile app --profile ops run --rm ops <команда> (см. runbook).
+  ops:
+    <<: *app
+    profiles: [ops]
+    restart: "no"
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/db.env
+      - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/server.env
+      - path: ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/backup.env
+        required: false
+    environment: *settings
+    secrets:
+      - restic-password
+    volumes:
+      - ${HOMECRM_BACKUP_DIR:-${HOMECRM_DATA:-E:/HomeCRM-data}/backups}/restic:/backups/restic
+      - ${HOMECRM_BACKUP_DIR:-${HOMECRM_DATA:-E:/HomeCRM-data}/backups}/status:/status
+      - ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/rclone:/run/rclone:ro
+      - files:/data/files
+
   probe:
     profiles: [probe]
     build:
@@ -44,7 +177,7 @@ services:
     env_file:
       - path: ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/tunnel/ru.env
     environment:
-      TARGET: probe:8300
+      TARGET: ${TUNNEL_TARGET:-app:8300}
     volumes:
       - ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/tunnel:/secrets:ro
 
@@ -57,7 +190,7 @@ services:
     env_file:
       - path: ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/tunnel/alt.env
     environment:
-      TARGET: probe:8300
+      TARGET: ${TUNNEL_TARGET:-app:8300}
     volumes:
       - ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/tunnel:/secrets:ro
 
@@ -67,7 +200,14 @@ services:
     profiles: [tunnel-cf]
     image: cloudflare/cloudflared:latest
     restart: "no"
-    command: tunnel --no-autoupdate --url http://probe:8300
+    command: tunnel --no-autoupdate --url http://${TUNNEL_TARGET:-app:8300}
+
+secrets:
+  # Пароль хранилищ restic. Без него копии бесполезны: храните его вне компьютера (runbook, раздел 8).
+  restic-password:
+    file: ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/restic-password
 
 volumes:
+  db-data:
+  files:
   probe-data:

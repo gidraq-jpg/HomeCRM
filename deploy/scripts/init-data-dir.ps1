@@ -4,7 +4,7 @@
   Готовит папку рабочих данных HomeCRM вне репозитория (план, раздел 2.3).
 
 .DESCRIPTION
-  Создаёт папку данных с подпапками secrets, secrets\tunnel, backups и import.
+  Создаёт папку данных с подпапками secrets, secrets\tunnel, secrets\rclone, backups (restic, status) и import.
   Если их ещё нет, создаёт ключи VAPID для push и ключ SSH для туннеля.
   Существующие файлы не перезаписывает. Секреты на экран не выводит;
   печатает только публичный ключ туннеля — его можно показывать.
@@ -21,7 +21,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 
-foreach ($dir in 'secrets', 'secrets\tunnel', 'backups', 'import') {
+foreach ($dir in 'secrets', 'secrets\tunnel', 'secrets\rclone', 'backups', 'backups\restic', 'backups\status', 'import') {
   New-Item -ItemType Directory -Force -Path (Join-Path $DataDir $dir) | Out-Null
 }
 Write-Host "Папка данных: $DataDir"

@@ -9,7 +9,7 @@ import { type OpsEnv, pgEnv } from './env.ts';
 import { runMigrate } from './migrate.ts';
 import { errorMessage, type Log, run, tail } from './process.ts';
 import { latestSnapshot, type RepoName, repoByName, resticFor } from './restic.ts';
-import { RESTORE_CHECK_FILE, type RestoreCheckStatus, writeStatus } from './status.ts';
+import { type RestoreCheckStatus, restoreCheckFile, writeStatus } from './status.ts';
 
 const RESTORE_DIR = '/tmp/homecrm-restore';
 
@@ -169,7 +169,7 @@ export async function runRestore(options: RestoreOptions): Promise<RestoreReport
       durationSec: Math.round((Date.now() - started) / 1000),
       ...(failure === undefined ? {} : { error: errorMessage(failure) }),
     };
-    await writeStatus(env.BACKUP_STATUS_DIR, RESTORE_CHECK_FILE, status);
+    await writeStatus(env.BACKUP_STATUS_DIR, restoreCheckFile(options.from), status);
   }
   if (failure !== undefined) throw failure;
   if (report === undefined) throw new Error('restore produced no report');
