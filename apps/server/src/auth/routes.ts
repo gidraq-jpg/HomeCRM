@@ -11,20 +11,24 @@ import {
   invitations,
   isNull,
   loginEvents,
-  notes,
   passwordResets,
   sql,
 } from '@homecrm/db';
-import { canInvite, mustUseSecondFactor, ROLES, type Viewer } from '@homecrm/shared';
+import { canInvite, ROLES } from '@homecrm/shared';
+import { exportNotes } from '../notes/routes.ts';
+import { type Account, createAccountReader } from './account.ts';
+
+export type { Account } from './account.ts';
+
 import { isAPIError } from 'better-auth/api';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import { clearFailures, reserveAttempt } from './attempts.ts';
 import { type Auth, type AuthOptions, createAuth } from './auth.ts';
-import { isPlaceholderEmail, newInvitationToken } from './identity.ts';
+import { newInvitationToken } from './identity.ts';
 import { CLIENT_IP_HEADER } from './plugin.ts';
-import { loadViewer, pgError } from './provision.ts';
+import { pgError } from './provision.ts';
 
 export interface AuthModule {
   auth: Auth;
@@ -54,21 +58,6 @@ export function createAuthModule(options: AuthOptions): AuthModule {
     homeTimeZone: options.homeTimeZone ?? DEFAULT_HOME_TIME_ZONE,
   };
 }
-
-/** Вошедший участник глазами маршрутов данных. */
-export interface Account {
-  id: string;
-  displayName: string;
-  username: string | null;
-  /** Настоящий адрес почты; у ребёнка без почты — null. */
-  email: string | null;
-  twoFactorEnabled: boolean;
-  viewer: Viewer;
-  /** Администратор без подтверждённого второго фактора: пока не включит его, данные закрыты (AUTH-3). */
-  secondFactorPending: boolean;
-}
-
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 function fail(reply: FastifyReply, status: number, code: string, message: string): null {
   void reply.code(status).send({ code, message });
@@ -124,43 +113,7 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
    * Сессия из cookie → участник. Продление сессии библиотека сообщает заголовками Set-Cookie:
    * они пересылаются клиенту, иначе cookie истекла бы раньше записи в базе.
    */
-  async function currentAccount(
-    request: FastifyRequest,
-    reply: FastifyReply,
-    options: { allowSecondFactorPending?: boolean } = {},
-  ): Promise<Account | null> {
-    // Изменяющие запросы принимаются только со своего происхождения: сверх SameSite=Lax.
-    if (!SAFE_METHODS.has(request.method)) {
-      const origin = request.headers.origin ?? originOf(request.headers.referer);
-      if (origin === undefined || !module.origins.has(origin)) {
-        return fail(reply, 403, 'INVALID_ORIGIN', 'Request origin is not allowed');
-      }
-    }
-    const result = await auth.api.getSession({
-      headers: fromNodeHeaders(request.headers),
-      returnHeaders: true,
-    });
-    const cookies = result.headers.getSetCookie();
-    if (cookies.length > 0) void reply.header('set-cookie', cookies);
-    const session = result.response;
-    if (session === null) return fail(reply, 401, 'UNAUTHORIZED', 'Sign in required');
-
-    const { user } = session;
-    const viewer = await appDb.withAccount(user.id, (tx) => loadViewer(tx, user.id));
-    const account: Account = {
-      id: user.id,
-      displayName: user.name,
-      username: user.username ?? null,
-      email: isPlaceholderEmail(user.email) ? null : user.email,
-      twoFactorEnabled: user.twoFactorEnabled === true,
-      viewer,
-      secondFactorPending: mustUseSecondFactor(viewer) && user.twoFactorEnabled !== true,
-    };
-    if (account.secondFactorPending && !options.allowSecondFactorPending) {
-      return fail(reply, 403, 'SECOND_FACTOR_REQUIRED', 'Enable the second factor first');
-    }
-    return account;
-  }
+  const currentAccount = createAccountReader(module);
 
   /** Повторный ввод пароля перед чувствительным действием (AUTH-7); неверные пароли копятся в блокировку. */
   async function confirmPassword(
@@ -353,30 +306,9 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
         tx
           .select({ displayName: accounts.displayName, username: accounts.username })
           .from(accounts),
-        tx.select({ id: notes.id, title: notes.title }).from(notes),
+        exportNotes(tx, account),
       ]),
     );
     return { exportedAt: new Date().toISOString(), profile: profile[0] ?? null, notes: mine };
   });
-
-  /** Пример маршрута данных за вторым фактором администратора и RLS. */
-  app.get('/api/notes', async (request, reply) => {
-    const account = await currentAccount(request, reply);
-    if (account === null) return reply;
-    return appDb.withAccount(account.id, (tx) =>
-      tx
-        .select({ id: notes.id, title: notes.title, spaceKind: notes.spaceKind })
-        .from(notes)
-        .orderBy(notes.title),
-    );
-  });
-}
-
-function originOf(referer: string | undefined): string | undefined {
-  if (referer === undefined) return undefined;
-  try {
-    return new URL(referer).origin;
-  } catch {
-    return undefined;
-  }
 }

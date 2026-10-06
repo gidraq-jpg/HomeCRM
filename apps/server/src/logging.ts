@@ -14,6 +14,28 @@ const SECRET_QUERY = /([?&]token=)[^&#]*/gi;
 export const REDACTED = '[redacted]';
 
 export function redactUrl(url: string): string {
+  if (url.startsWith('/api/notes')) {
+    const allowed = new Set([
+      'api',
+      'notes',
+      'share',
+      'personal',
+      'copy',
+      'audience',
+      'trash',
+      'restore',
+      'access-preview',
+    ]);
+    return (
+      url
+        .split(/[?#]/)[0]
+        ?.split('/')
+        .map((part) =>
+          !part || allowed.has(part) || /^[a-f0-9-]{36}$/i.test(part) ? part : REDACTED,
+        )
+        .join('/') ?? '/api/notes'
+    );
+  }
   let result = url;
   for (const pattern of SECRET_PATHS) result = result.replace(pattern, `$1${REDACTED}`);
   return result.replace(SECRET_QUERY, `$1${REDACTED}`);

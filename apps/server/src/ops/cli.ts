@@ -1,4 +1,4 @@
-// Команды эксплуатации внутри контейнера (ADR-0020). Запуск: node apps/server/src/ops/cli.ts <команда>
+// Команды эксплуатации внутри контейнера (ADR-0021). Запуск: node apps/server/src/ops/cli.ts <команда>
 //
 //   migrate                          роли, база, копия перед миграцией и миграции
 //   backup [--kind daily|pre-migration]

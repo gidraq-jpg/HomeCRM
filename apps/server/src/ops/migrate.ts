@@ -1,4 +1,4 @@
-// Миграции при запуске окружения (ADR-0015) и копия перед ними (DATA-4, ADR-0020).
+// Миграции при запуске окружения (ADR-0015) и копия перед ними (DATA-4, ADR-0021).
 import { createPool, DB_ROLES, runMigrations } from '@homecrm/db';
 import { type BackupResult, runBackup } from './backup.ts';
 import { bootstrapDatabase, migrationState } from './database.ts';

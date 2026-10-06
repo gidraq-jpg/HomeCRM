@@ -1,4 +1,4 @@
-// restic: два хранилища — локальная папка и Google Диск через rclone (ADR-0020, ADR-0014).
+// restic: два хранилища — локальная папка и Google Диск через rclone (ADR-0021, ADR-0014).
 import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { OpsEnv } from './env.ts';

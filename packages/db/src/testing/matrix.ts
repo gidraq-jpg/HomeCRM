@@ -5,7 +5,10 @@
 import {
   type Audience,
   canBeAssignee,
+  canChangeAudience,
+  canCopyToPersonal,
   canCreate,
+  canMove,
   canRestore,
   canTrash,
   canView,
@@ -34,6 +37,7 @@ export const OPERATIONS = [
   'trash',
   'restore',
   'move',
+  'copy',
   'delete',
   'rewrite',
   'history',
@@ -48,6 +52,7 @@ export const OPERATION_LABELS: Readonly<Record<Operation, string>> = {
   trash: 'удаление в корзину',
   restore: 'восстановление из корзины',
   move: 'перенос в другое место',
+  copy: 'копирование в личное',
   delete: 'удаление мимо корзины: DELETE или дата корзины задним числом',
   rewrite: 'подмена автора, времени создания и id',
   history: 'чтение истории изменений по id записи',
@@ -134,6 +139,23 @@ function attemptsFor(
     );
 
   switch (operation) {
+    case 'copy':
+      // Копирование заметок: SELECT исходника и INSERT в своё личное независимо проходят RLS.
+      // Корзину не копируют; дочерние записи и историю копии проверяют notes-move.test.ts и API-тесты.
+      return each(
+        inScope.filter((record) => record.type === 'note'),
+        (viewer, record) => ({
+          label: record.label,
+          expected: canCopyToPersonal(viewer.viewer, record.facts),
+          run: async (tx) => {
+            const result = await tx.execute(sql`INSERT INTO notes
+            (space_id, space_kind, author_id, title, body, pinned)
+            SELECT ${viewer.personalSpaceId}, 'personal', ${viewer.id}, title, body, pinned
+            FROM notes WHERE id = ${record.id} AND deleted_at IS NULL RETURNING id`);
+            return result.rowCount === 1;
+          },
+        }),
+      );
     case 'view':
       return each(inScope, (viewer, record) => ({
         label: record.label,
@@ -180,10 +202,8 @@ function attemptsFor(
         run: (tx) => updateRecord(tx, record, { deletedAt: null }),
       }));
     case 'move':
-      // access.ts не описывает перенос отдельно (R0.4, SPACE-7): изменение места — это изменение записи,
-      // поэтому нужно право писать и старую запись, и новую (USING и WITH CHECK политики), а ответственный
-      // должен видеть запись на новом месте. В личном ответственный — владелец (правило 9).
-      // Дочерние записи переезжают только с родителем: отдельно их место определяет родитель.
+      // canMove и canChangeAudience — эталон; SQL проверяет OLD/NEW триггером, RLS — оба места.
+      // Дочерние записи переезжают каскадом. Ответственные, включая дочерних, должны видеть новое место.
       return family.people.flatMap((viewer) =>
         inScope
           .filter((record) => record.parentId === undefined)
@@ -198,13 +218,37 @@ function attemptsFor(
                 const assigneeFits =
                   target.kind === 'personal' ||
                   (assignee !== undefined && canBeAssignee(assignee.viewer, target));
+                const childrenFit =
+                  target.kind === 'personal' ||
+                  family.records
+                    .filter((child) => child.parentId === record.id)
+                    .every((child) => {
+                      const responsible = family.people.find(
+                        (person) => person.id === child.facts.assigneeId,
+                      );
+                      return responsible !== undefined && canBeAssignee(responsible.viewer, target);
+                    });
                 return {
                   viewer,
                   label: `${record.label} → ${family.describe(record.type, moved)}`,
                   expected:
-                    canWrite(viewer.viewer, record.facts) &&
+                    (record.facts.placement.kind === 'household' &&
+                    target.kind === 'household' &&
+                    record.facts.placement.spaceId === target.spaceId
+                      ? canChangeAudience(viewer.viewer, record.facts, target)
+                      : canMove(
+                          viewer.viewer,
+                          record.facts,
+                          target,
+                          family.records.some(
+                            (child) =>
+                              child.parentId === record.id &&
+                              child.facts.authorId !== record.facts.authorId,
+                          ),
+                        )) &&
                     canWrite(viewer.viewer, moved) &&
-                    assigneeFits,
+                    assigneeFits &&
+                    childrenFit,
                   // Ответственный, которого нет в новом доме, — нарушение внешнего ключа, а не прав.
                   alsoDenied: ['23503'],
                   run: (tx: Transaction) => updateRecord(tx, record, placementColumns(target)),

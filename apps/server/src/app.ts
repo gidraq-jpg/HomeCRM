@@ -2,6 +2,7 @@ import { type FastifyInstance, fastify } from 'fastify';
 import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
 import { serializeRequest } from './logging.ts';
+import { notesRoutes } from './notes/routes.ts';
 import { createStaticHandler } from './static.ts';
 
 export interface AppDependencies {
@@ -70,7 +71,10 @@ export function buildApp(
   });
 
   const { auth } = dependencies;
-  if (auth !== undefined) void app.register(authRoutes, auth);
+  if (auth !== undefined) {
+    void app.register(authRoutes, auth);
+    void app.register(notesRoutes, auth);
+  }
 
   return app;
 }

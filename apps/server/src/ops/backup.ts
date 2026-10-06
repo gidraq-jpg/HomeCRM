@@ -1,4 +1,4 @@
-// Резервная копия (DATA-3, DATA-4, ADR-0020): дамп базы и файлы — в каждое настроенное хранилище.
+// Резервная копия (DATA-3, DATA-4, ADR-0021): дамп базы и файлы — в каждое настроенное хранилище.
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { connectAdmin, countRows, type RowCounts } from './database.ts';

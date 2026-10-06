@@ -94,7 +94,7 @@ export function recordPolicySql(type: RecordType): {
   return {
     select: canViewSql(),
     insert: `${live} AND author_id = ${ME} AND ${canWriteSql(type)}`,
-    updateUsing: `(${live} AND ${canWriteSql(type)}) OR (${trashed} AND ${canRestoreSql()})`,
+    updateUsing: `(${live} AND ${canWriteSql(type)}) OR (${trashed} AND ${canRestoreSql()})${type === 'note_item' ? ` OR (${trashed} AND pg_trigger_depth() > 0 AND ${canWriteSql(type)})` : ''}`,
     updateCheck: `(${live} AND ${canWriteSql(type)}) OR (${trashed} AND ${canTrashSql()})`,
   };
 }

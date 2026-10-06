@@ -127,7 +127,7 @@ describe('пункт наследует место заметки', () => {
 });
 
 describe('перенос вместе с родителем (PRD 7.3.5)', () => {
-  it('заметку и её пункты меняют одной транзакцией; заметку одну — нельзя', async () => {
+  it('изменение заметки переносит пункты каскадом; пункты без родителя менять место не могут', async () => {
     const anna = scene.person('anna');
     const parentId = await addNote(database.admin, {
       author: anna,
@@ -136,12 +136,17 @@ describe('перенос вместе с родителем (PRD 7.3.5)', () => 
     await addItem(parentId, scene.home('household'), anna);
     await addItem(parentId, scene.home('household'), scene.person('boris'));
 
-    await expect(
-      scene.as('boris', (tx) =>
-        tx.update(notes).set({ audience: 'adults' }).where(eq(notes.id, parentId)),
-      ),
-      'родитель без детей',
-    ).rejects.toSatisfy((error) => hasCode(error, NOT_SAME_PLACE));
+    await scene.as('boris', (tx) =>
+      tx.update(notes).set({ audience: 'adults' }).where(eq(notes.id, parentId)),
+    );
+    expect(
+      await rowsOf(database.admin, 'SELECT audience FROM note_items WHERE parent_id=$1', [
+        parentId,
+      ]),
+    ).toEqual([{ audience: 'adults' }, { audience: 'adults' }]);
+    await scene.as('boris', (tx) =>
+      tx.update(notes).set({ audience: 'household' }).where(eq(notes.id, parentId)),
+    );
     await expect(
       scene.as('boris', (tx) =>
         tx.update(noteItems).set({ audience: 'adults' }).where(eq(noteItems.parentId, parentId)),

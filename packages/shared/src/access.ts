@@ -63,7 +63,7 @@ export function canView(viewer: Viewer, placement: Placement): boolean {
 }
 
 /**
- * Может ли участник изменить запись или перенести её в другое место (для переноса — новая запись).
+ * Может ли участник изменить запись. Перенос проверяет отдельно `canMove`.
  * В общем пространстве ребёнок пишет только покупки и дела, назначенные ему.
  * Запись в корзине не меняют и не переносят: её можно только восстановить (`canRestore`).
  */
@@ -83,6 +83,44 @@ export function canWrite(viewer: Viewer, record: RecordFacts): boolean {
  */
 export function canCreate(viewer: Viewer, record: RecordFacts): boolean {
   return record.authorId === viewer.accountId && canWrite(viewer, record);
+}
+
+/** SPACE-7: перенос — отдельное действие, права обычной правки недостаточно. */
+export function canMove(
+  viewer: Viewer,
+  record: RecordFacts,
+  target: Placement,
+  hasOtherContributions = true,
+): boolean {
+  if (!canWrite(viewer, record)) return false;
+  if (record.placement.kind === 'personal' && target.kind === 'household')
+    return (
+      record.placement.ownerId === viewer.accountId &&
+      canWrite(viewer, { ...record, placement: target })
+    );
+  if (record.placement.kind === 'household' && target.kind === 'personal')
+    return (
+      target.ownerId === viewer.accountId &&
+      record.authorId === viewer.accountId &&
+      !hasOtherContributions
+    );
+  return false;
+}
+
+/** Копия доступна любому читателю, включая ребёнка; автор новой записи — он сам. */
+export function canCopyToPersonal(viewer: Viewer, record: RecordFacts): boolean {
+  return record.trashed !== true && canView(viewer, record.placement);
+}
+
+/** Правило 7: аудиторию меняет взрослый; ответственный должен видеть новое место. */
+export function canChangeAudience(viewer: Viewer, record: RecordFacts, target: Placement): boolean {
+  return (
+    record.placement.kind === 'household' &&
+    target.kind === 'household' &&
+    record.placement.spaceId === target.spaceId &&
+    ADULT_ROLES.has(roleIn(viewer, target.spaceId) as Role) &&
+    canWrite(viewer, record)
+  );
 }
 
 /** Может ли участник убрать запись в корзину. В общем — только взрослые. */

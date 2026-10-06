@@ -70,7 +70,11 @@ export class Device {
     this.ip = options.ip ?? uniqueAddress();
   }
 
-  async request(method: 'GET' | 'POST', url: string, options: RequestOptions = {}): Promise<Reply> {
+  async request(
+    method: 'GET' | 'POST' | 'PATCH',
+    url: string,
+    options: RequestOptions = {},
+  ): Promise<Reply> {
     await this.beforeRequest?.(url);
     const headers: Record<string, string> = {
       'user-agent': this.userAgent,
