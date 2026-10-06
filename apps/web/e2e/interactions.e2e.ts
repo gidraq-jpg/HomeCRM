@@ -348,7 +348,7 @@ test.describe('«Ещё»', () => {
 
   test('заглушки объясняют, что здесь будет', async ({ page }) => {
     await openApp(page, '/more/settings');
-    await expect(page.getByText('Перенос из LifeOS и сведения о системе.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Устройства', exact: true })).toBeVisible();
     await openApp(page, '/more/export');
     await expect(page.getByText('Чужое личное в экспорт дома не попадает.')).toBeVisible();
     await openApp(page, '/more/trash');

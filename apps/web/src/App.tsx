@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ScopeProvider } from './access/ScopeContext.tsx';
 import { AddSheet } from './prototype/AddSheet.tsx';
 import { AddRequestContext, useAddController } from './prototype/add-request.tsx';
@@ -10,7 +11,13 @@ import { ToastProvider } from './ui/Toast.tsx';
 // Каркас приложения (шапка, нижнее меню, «+», переключатель) остаётся и в R0.3.
 // Всё из папки prototype/ — вымышленные данные и экраны на них — потом заменят настоящие.
 
-function PrototypeApp() {
+function PrototypeApp({
+  settings,
+  exportScreen,
+}: {
+  settings?: ReactNode;
+  exportScreen?: ReactNode;
+}) {
   const add = useAddController();
   return (
     <AddRequestContext.Provider value={add.request}>
@@ -19,19 +26,25 @@ function PrototypeApp() {
         onAdd={() => add.request()}
         overlays={<AddSheet controller={add} />}
       >
-        <PrototypeRoutes />
+        <PrototypeRoutes settings={settings} exportScreen={exportScreen} />
       </AppShell>
     </AddRequestContext.Provider>
   );
 }
 
 /** Приложение без маршрутизатора: его подключает `main.tsx` (hash) или тест (в памяти). */
-export function App() {
+export function App({
+  settings,
+  exportScreen,
+}: {
+  settings?: ReactNode;
+  exportScreen?: ReactNode;
+} = {}) {
   return (
     <ScopeProvider>
       <PrototypeProvider>
         <ToastProvider>
-          <PrototypeApp />
+          <PrototypeApp settings={settings} exportScreen={exportScreen} />
         </ToastProvider>
       </PrototypeProvider>
     </ScopeProvider>

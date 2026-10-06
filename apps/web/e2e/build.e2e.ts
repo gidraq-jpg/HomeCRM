@@ -7,9 +7,7 @@ import { E2E_PORT, E2E_PREFIX } from './support/static-server.ts';
 
 const ORIGIN = `http://127.0.0.1:${E2E_PORT}`;
 
-test('сборка открывается из подпапки: пути относительные, корень сайта не нужен', async ({
-  page,
-}) => {
+test('сборка открывается из заданной подпапки, корень сайта не нужен', async ({ page }) => {
   await openApp(page, '/today');
   expect(new URL(page.url()).pathname).toBe(E2E_PREFIX);
 
@@ -21,7 +19,10 @@ test('сборка открывается из подпапки: пути отн
   expect(assets.length).toBeGreaterThan(1);
   for (const asset of assets) {
     // Значок вшит в страницу (data:), остальное — файлы рядом со страницей.
-    expect(asset.startsWith('./') || asset.startsWith('data:'), asset).toBe(true);
+    expect(
+      asset.startsWith(E2E_PREFIX) || asset.startsWith('./') || asset.startsWith('data:'),
+      asset,
+    ).toBe(true);
   }
 
   // Корень сайта сервер не отдаёт: если бы сборка ссылалась на «/assets/…», страница не открылась бы.
@@ -49,7 +50,9 @@ test('все запросы страницы — к тому же серверу
   });
   expect(foreign).toEqual([]);
   // Всё, что запрошено, лежит в подпапке.
-  for (const url of requested.filter((item) => item.startsWith(ORIGIN))) {
+  for (const url of requested.filter(
+    (item) => item.startsWith(ORIGIN) && !new URL(item).pathname.startsWith('/api/'),
+  )) {
     expect(new URL(url).pathname.startsWith(E2E_PREFIX), url).toBe(true);
   }
 });

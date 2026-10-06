@@ -509,6 +509,14 @@ export function homecrm(deps: PluginDeps) {
               outcome: pending ? 'second_factor_required' : 'success',
               ...info,
             });
+            if (pending) {
+              // Клиент пока без сессии и не может прочитать /api/me. Флаг нужен, чтобы не
+              // предлагать администратору доверие устройству. Только после верного пароля.
+              return ctx.json({
+                ...(returned as object),
+                trustDeviceAllowed: !mustUseSecondFactor(await loadViewer(deps.db, account.id)),
+              });
+            }
           }),
         },
         {
