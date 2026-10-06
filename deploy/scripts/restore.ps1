@@ -9,7 +9,7 @@
   Сценарии:
     - потеря компьютера или базы: новый пустой проект `homecrm`, копия из Google Диска (-From cloud);
     - проверка выпуска на реальных данных: проект `homecrm-preview` (-Project, -EnvFile deploy/preview.env).
-  Дальше запустите окружение как обычно (runbook, раздел 6): миграции применятся сами.
+  Дальше запустите окружение как обычно (runbook, раздел 7): миграции применятся сами.
 
 .EXAMPLE
   pwsh deploy/scripts/restore.ps1 -From cloud
@@ -36,4 +36,4 @@ Invoke-Docker @compose --profile app up -d --wait db
 Invoke-Docker @compose --profile app --profile ops run --rm -T -e BACKUP_ENABLED=0 ops `
   node apps/server/src/ops/cli.ts restore --from $From --snapshot $Snapshot
 Write-Host ''
-Write-Host 'Восстановлено. Запустите окружение: docker compose ... up -d (runbook, раздел 6).'
+Write-Host 'Восстановлено. Запустите окружение: docker compose ... up -d (runbook, раздел 7).'

@@ -1,7 +1,9 @@
 // Первая настройка: создаёт дом и первого администратора (SPACE-2, сценарий S1).
 //
-//   node --env-file=<файл окружения сервера> deploy/scripts/first-setup.ts
+//   docker compose -f deploy/compose.yaml --profile app --profile ops run --rm ops node deploy/scripts/first-setup.ts
 //
+// В рабочем окружении запускается внутри контейнера ops (сеть compose, файл окружения secrets\app\server.env);
+// на компьютере разработки: node --env-file=<файл окружения сервера> deploy/scripts/first-setup.ts.
 // Нужна только DATABASE_URL_AUTH из файла окружения. Пароль спрашивается в консоли без эха и
 // нигде не сохраняется: в базу он уходит хэшем Argon2id. Выполняется один раз; повторный запуск
 // отказывается, пока в базе есть хоть одна учётная запись. Второй фактор администратор включает

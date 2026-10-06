@@ -42,3 +42,19 @@ function Write-TextFile {
   New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
   [System.IO.File]::WriteAllText($Path, ($Text -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
 }
+
+# Время из отметки (ISO, UTC) как DateTime в UTC. ConvertFrom-Json сам превращает такие строки в даты,
+# и без явного приведения к UTC возраст отметки сдвигается на часовой пояс компьютера.
+function ConvertTo-UtcDate {
+  param($Value)
+  if ($Value -is [datetime]) {
+    if ($Value.Kind -eq [System.DateTimeKind]::Unspecified) { return [datetime]::SpecifyKind($Value, [System.DateTimeKind]::Utc) }
+    return $Value.ToUniversalTime()
+  }
+  return [datetime]::Parse([string]$Value, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()
+}
+
+function Get-AgeSpan {
+  param($Value)
+  return ([datetime]::UtcNow - (ConvertTo-UtcDate $Value))
+}

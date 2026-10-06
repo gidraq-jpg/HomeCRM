@@ -38,7 +38,7 @@ if ($OnlyIfDue) {
     $file = Join-Path $statusDir "restore-check-$repo.json"
     if (-not (Test-Path $file)) { $due = $true; continue }
     $check = Get-Content $file -Raw | ConvertFrom-Json
-    if (-not $check.ok -or ((Get-Date) - [datetime]$check.at).TotalDays -ge 30) { $due = $true }
+    if (-not $check.ok -or (Get-AgeSpan $check.at).TotalDays -ge 30) { $due = $true }
   }
   if (-not $due) { Write-Host 'Проверка восстановления ещё не нужна (последняя моложе 30 дней).'; exit 0 }
 }

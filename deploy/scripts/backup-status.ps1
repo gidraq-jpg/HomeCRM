@@ -25,8 +25,8 @@ $statusDir = Join-Path $DataDir 'backups\status'
 $problems = 0
 $names = @{ local = 'на этом компьютере'; cloud = 'на Google Диске' }
 
-function Format-Age([datetime]$at) {
-  $span = (Get-Date) - $at
+function Format-Age($at) {
+  $span = Get-AgeSpan $at
   if ($span.TotalHours -lt 48) { return '{0:N0} ч назад' -f $span.TotalHours }
   return '{0:N0} дн. назад' -f $span.TotalDays
 }
@@ -39,9 +39,9 @@ if (-not (Test-Path $backupFile)) {
 else {
   $backup = Get-Content $backupFile -Raw | ConvertFrom-Json
   if ($backup.lastSuccessAt) {
-    $last = [datetime]$backup.lastSuccessAt
+    $last = ConvertTo-UtcDate $backup.lastSuccessAt
     Write-Host "Последняя удачная копия: $($last.ToLocalTime().ToString('d MMM HH:mm')) ($(Format-Age $last))"
-    if (((Get-Date) - $last).TotalHours -gt 26) { Write-Host '  ВНИМАНИЕ: копия старше 26 часов.'; $problems++ }
+    if ((Get-AgeSpan $last).TotalHours -gt 26) { Write-Host '  ВНИМАНИЕ: копия старше 26 часов.'; $problems++ }
   }
   else { Write-Host 'Удачной копии ещё не было.'; $problems++ }
   foreach ($repo in 'local', 'cloud') {
@@ -56,7 +56,7 @@ else {
   }
   if ($backup.lastCheckAt) {
     $okText = if ($backup.lastCheckOk) { 'ок' } else { 'ЕСТЬ ОШИБКИ'; $problems++ }
-    Write-Host "Проверка целостности хранилищ: $okText, $(Format-Age ([datetime]$backup.lastCheckAt))"
+    Write-Host "Проверка целостности хранилищ: $okText, $(Format-Age $backup.lastCheckAt)"
   }
 }
 
@@ -67,10 +67,10 @@ foreach ($repo in 'local', 'cloud') {
     continue
   }
   $check = Get-Content $file -Raw | ConvertFrom-Json
-  $at = [datetime]$check.at
+  $at = ConvertTo-UtcDate $check.at
   $state = if ($check.ok) { "ок: $($check.tables) таблиц, $($check.rows) строк, файлов $($check.files)" } else { "НЕ СОШЛОСЬ: $($check.error) $($check.mismatches -join '; ')" }
   Write-Host "Проверка восстановления ($($names[$repo])): $state, $(Format-Age $at)"
-  if (-not $check.ok -or ((Get-Date) - $at).TotalDays -gt 35) { $problems++ }
+  if (-not $check.ok -or (Get-AgeSpan $at).TotalDays -gt 35) { $problems++ }
 }
 
 if ($Snapshots) {
