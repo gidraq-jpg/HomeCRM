@@ -65,3 +65,35 @@ describe('trustProxy (AUTH-8)', () => {
     expect(await clientOf(['192.168.0.0/16'])).toBe('10.0.0.5');
   });
 });
+
+describe('Cache-Control для /api', () => {
+  it('перекрывает заголовок обработчика; действует на 500, 404 и корень /api, остальные пути не меняет', async () => {
+    const app = buildApp({ LOG_LEVEL: 'silent', APP_VERSION: 'test' });
+    app.get('/api/value', async (_request, reply) => {
+      void reply.header('cache-control', 'public, max-age=3600');
+      return { value: 'test' };
+    });
+    app.get('/api/failure', async () => {
+      throw new Error('Synthetic failure');
+    });
+    try {
+      for (const [url, status] of [
+        ['/api/value?x=1', 200],
+        ['/api/failure', 500],
+        ['/api/missing', 404],
+        ['/api', 404],
+        ['/api?x=1', 404],
+      ] as const) {
+        const response = await app.inject({ method: 'GET', url });
+        expect(response.statusCode, url).toBe(status);
+        expect(response.headers['cache-control'], url).toBe('no-store');
+      }
+      for (const url of ['/health', '/apiary', '/assets/missing.js']) {
+        const response = await app.inject({ method: 'GET', url });
+        expect(response.headers['cache-control'], url).toBeUndefined();
+      }
+    } finally {
+      await app.close();
+    }
+  });
+});

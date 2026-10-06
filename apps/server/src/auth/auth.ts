@@ -39,6 +39,7 @@ import {
 } from './identity.ts';
 import { hashPassword, verifyPassword } from './password.ts';
 import { CLIENT_IP_HEADER, homecrm } from './plugin.ts';
+import { AUTH_RATE_LIMIT } from './rate-limit.ts';
 
 export const SESSION_DAYS = 90;
 const DAY = 24 * 60 * 60;
@@ -101,7 +102,7 @@ function queriedTokens(where: Where[] = []): string[] {
 }
 
 /** Обёртка внешнего контракта Drizzle: названия полей ещё те, что использует Better Auth. */
-function sessionTokenAdapter(adapter: DBTransactionAdapter): DBTransactionAdapter {
+export function sessionTokenAdapter(adapter: DBTransactionAdapter): DBTransactionAdapter {
   // Сверка схемы привязана к объекту адаптера через WeakMap библиотеки: сохраняем его.
   const original = { ...adapter };
   return Object.assign(adapter, {
@@ -306,8 +307,7 @@ export function createAuth(options: AuthOptions) {
       enabled: true,
       storage: 'database',
       modelName: 'rateLimits',
-      window: 60,
-      max: 120,
+      ...AUTH_RATE_LIMIT,
       customRules: {
         '/sign-in/username': { window: 900, max: 20 },
         '/sign-in/email': { window: 900, max: 20 },

@@ -31,6 +31,8 @@ import { type Auth, type AuthOptions, createAuth } from './auth.ts';
 import { newInvitationToken } from './identity.ts';
 import { CLIENT_IP_HEADER } from './plugin.ts';
 import { pgError } from './provision.ts';
+import { reserveSessionRequest } from './rate-limit.ts';
+import { checkRequestSource } from './request-source.ts';
 
 export interface AuthModule {
   auth: Auth;
@@ -116,7 +118,26 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
    * они пересылаются клиенту, иначе cookie истекла бы раньше записи в базе.
    */
   const currentAccount = createAccountReader(module);
-  app.get('/api/auth/list-sessions', async (request, reply) => {
+  const sessionProtection = {
+    onRequest: async (request: FastifyRequest, reply: FastifyReply) => {
+      const path = new URL(request.url, module.baseURL).pathname;
+      const retryAfter = await reserveSessionRequest(db, `session:${request.ip}:${path}`);
+      if (retryAfter !== null) {
+        void reply.header('retry-after', String(retryAfter));
+        void reply.header('x-retry-after', String(retryAfter));
+        return reply
+          .code(429)
+          .send({ code: 'TOO_MANY_REQUESTS', message: 'Too many requests, try later' });
+      }
+      const error = checkRequestSource(
+        fromNodeHeaders(request.headers),
+        (origin) => module.origins.has(origin),
+        request.method !== 'GET',
+      );
+      if (error !== null) return reply.code(403).send(error);
+    },
+  };
+  app.get('/api/auth/list-sessions', sessionProtection, async (request, reply) => {
     const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
     if (account === null) return reply;
     const devices = await db
@@ -141,7 +162,7 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
   });
 
   const revokeDevice = z.strictObject({ id: z.uuid() });
-  app.post('/api/auth/revoke-session', async (request, reply) => {
+  app.post('/api/auth/revoke-session', sessionProtection, async (request, reply) => {
     const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
     if (account === null) return reply;
     const parsed = revokeDevice.safeParse(request.body);
@@ -151,10 +172,18 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
       .where(and(eq(sessions.id, parsed.data.id), eq(sessions.userId, account.id)))
       .returning({ id: sessions.id });
     if (removed.length === 0) return fail(reply, 404, 'NOT_FOUND', 'Session not found');
+    if (parsed.data.id === account.sessionId) {
+      // Библиотека гасит все свои cookie теми же атрибутами, что при обычном выходе.
+      const signedOut = await auth.api.signOut({
+        headers: fromNodeHeaders(request.headers),
+        returnHeaders: true,
+      });
+      void reply.header('set-cookie', signedOut.headers.getSetCookie());
+    }
     return { status: true };
   });
 
-  app.post('/api/auth/revoke-other-sessions', async (request, reply) => {
+  app.post('/api/auth/revoke-other-sessions', sessionProtection, async (request, reply) => {
     const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
     if (account === null) return reply;
     await db
