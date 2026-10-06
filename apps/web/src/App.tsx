@@ -5,6 +5,10 @@ import type { Me } from './auth/api.ts';
 import { ExportScreen } from './auth/ExportScreen.tsx';
 import { SecurityScreen } from './auth/SecurityScreen.tsx';
 import { HouseholdProvider } from './household/HouseholdContext.tsx';
+import { NewNoteScreen } from './notes/NewNoteScreen.tsx';
+import { NoteScreen } from './notes/NoteScreen.tsx';
+import { NotesScreen } from './notes/NotesScreen.tsx';
+import { TrashScreen } from './notes/TrashScreen.tsx';
 import { DocumentsScreen, HomeScreen, TodayScreen } from './screens/EmptySections.tsx';
 import { InviteScreen } from './screens/InviteScreen.tsx';
 import { MemberScreen } from './screens/MemberScreen.tsx';
@@ -50,6 +54,10 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         />
         <Route path="more/export" element={<ExportScreen />} />
         <Route path="more/spaces" element={<SpacesScreen />} />
+        <Route path="more/notes" element={<NotesScreen />} />
+        <Route path="more/notes/new" element={<NewNoteScreen />} />
+        <Route path="more/notes/:noteId" element={<NoteScreen />} />
+        <Route path="more/trash" element={<TrashScreen />} />
         <Route path="search" element={<SearchScreen />} />
         <Route path="*" element={<NotFoundScreen />} />
       </Routes>

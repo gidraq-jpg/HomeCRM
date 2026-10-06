@@ -88,6 +88,27 @@ describe('рабочее приложение', () => {
     expect(text(render('/people/invite', 'admin'))).toContain('Создать ссылку-приглашение');
   });
 
+  it('«Ещё» ведёт в заметки и корзину; экраны заметок открываются и ждут данные API', () => {
+    const more = text(render('/more'));
+    expect(more).toContain('href="/more/notes"');
+    expect(more).toContain('href="/more/trash"');
+    expect(text(render('/more/notes'))).toContain('Загружаем заметки');
+    expect(text(render('/more/trash'))).toContain('Загружаем корзину');
+    expect(text(render('/more/notes/abc'))).toContain('Загружаем заметку');
+    // Форма создания: строка «Кто видит» над «Сохранить», у взрослого — три значения.
+    const form = text(render('/more/notes/new'));
+    expect(form).toContain('Новая заметка');
+    expect(form.indexOf('Кто видит')).toBeLessThan(form.indexOf('>Сохранить<'));
+    for (const value of ['personal', 'adults', 'household']) {
+      expect(form).toContain(`value="${value}"`);
+    }
+  });
+
+  it('форма заметки не пишет ни в localStorage, ни в адрес: у страницы нет черновика вне памяти', () => {
+    // На сервере (renderToString) хранилища нет: форма не должна обращаться к нему вообще.
+    expect(() => render('/more/notes/new')).not.toThrow();
+  });
+
   it('неизвестный адрес — понятное сообщение', () => {
     expect(text(render('/нет-такого'))).toContain('Страница не найдена');
   });
