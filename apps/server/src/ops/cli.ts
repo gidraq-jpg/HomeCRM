@@ -6,7 +6,7 @@
 //   check-repositories               целостность хранилищ restic
 //   restore [--from local|cloud] [--snapshot <id>] [--check] [--migrate]
 //   snapshots [--from local|cloud]   список копий в хранилище (что реально там лежит)
-//   cloud-check                      создаёт и читает хранилище на Google Диске
+//   cloud-check                      создаёт и читает хранилище на Яндекс Диске
 import { checkRepositories, runBackup } from './backup.ts';
 import { loadOpsEnv } from './env.ts';
 import { runMigrate } from './migrate.ts';
@@ -70,7 +70,7 @@ async function main(): Promise<number> {
       return 0;
     }
     case 'cloud-check': {
-      // Проверка подключения Google Диска: хранилище создаётся и читается.
+      // Проверка подключения Яндекс Диска: хранилище создаётся и читается.
       const restic = await resticFor(env, repoByName(env, 'cloud'));
       const created = await ensureRepo(restic);
       await restic(['snapshots', '--json']);

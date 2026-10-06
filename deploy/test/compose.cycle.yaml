@@ -1,5 +1,5 @@
 # Только для теста полного круга копий (deploy/test/backup-cycle.ps1), в своём compose-проекте homecrm-test-*.
-# Вместо Google Диска — rclone-подключение типа local: папка ${HOMECRM_DATA}/cloud монтируется как /cloud,
+# Вместо Яндекс Диска — rclone-подключение типа local: папка ${HOMECRM_DATA}/cloud монтируется как /cloud,
 # так проверяется весь путь restic -> rclone -> «облако» без настоящих ключей.
 services:
   migrate:
