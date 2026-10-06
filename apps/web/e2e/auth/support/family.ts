@@ -84,6 +84,10 @@ export async function createFamily() {
     baseURL: origin,
   });
   const app = buildApp({ LOG_LEVEL: 'silent', APP_VERSION: 'e2e' }, { auth: module });
+  // В конце сценария соединения прокси уже не нужны, в том числе прерванные офлайном.
+  app.addHook('preClose', async () => {
+    app.server.closeAllConnections();
+  });
   await app.listen({ host: '127.0.0.1', port: 0 });
   upstream = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
   const fixtures = createAuthDatabase(database.admin);
@@ -148,9 +152,11 @@ export async function createFamily() {
       return data;
     },
     async close() {
-      await new Promise<void>((done, reject) =>
-        server.close((error) => (error ? reject(error) : done())),
-      );
+      await new Promise<void>((done, reject) => {
+        server.close((error) => (error ? reject(error) : done()));
+        // После офлайна Chromium может оставить соединения; сценарий уже закончен.
+        server.closeAllConnections();
+      });
       await app.close();
       await database.drop();
     },
