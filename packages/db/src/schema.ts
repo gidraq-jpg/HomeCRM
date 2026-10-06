@@ -5,14 +5,18 @@
 // Политики RLS — для трёх ролей: homecrm_app (приложение), homecrm_worker (обработчик) и
 // homecrm_auth (служба входа). У владельца таблиц homecrm_owner политик нет, а FORCE ROW LEVEL
 // SECURITY не даёт ему обойти RLS: он не видит ни одной строки.
+
+import { OBJECT_TYPES } from '@homecrm/shared';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
   check,
+  date,
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgPolicy,
   pgTable,
@@ -32,11 +36,13 @@ import {
 import {
   accounts,
   appRole,
+  audienceEnum,
   authPolicies,
   authRole,
   createdAt,
   id,
   memberRoleEnum,
+  spaceKindEnum as originSpaceKindEnum,
   spaceKindEnum,
   spaces,
   updatedAt,
@@ -94,12 +100,112 @@ const tasksDefinition = recordTable('tasks', 'task', {
 export const tasks = tasksDefinition.table;
 export const tasksHistory = tasksDefinition.history;
 
+/** OBJ-1: поля конкретного типа появятся вместе с UTIL и DOC; пока контейнер пуст. */
+export const objectTypeEnum = pgEnum('object_type', OBJECT_TYPES);
+const objectsDefinition = recordTable('objects', 'object', {
+  objectType: objectTypeEnum('object_type').notNull().default('other'),
+  typeData: jsonb('type_data').notNull().default({}),
+  searchText: text('search_text').generatedAlwaysAs(sql`title`),
+});
+export const objects = objectsDefinition.table;
+export const objectsHistory = objectsDefinition.history;
+
+/** Название поля — общий title, значение и порядок — собственные колонки. */
+const objectFieldsDefinition = recordTable(
+  'object_fields',
+  'object_field',
+  {
+    parentId: uuid('parent_id').notNull(),
+    value: text('value').notNull().default(''),
+    position: integer('position').notNull().default(0),
+    searchText: text('search_text').generatedAlwaysAs(sql`title || ' ' || value`),
+  },
+  { parent: objects },
+);
+export const objectFields = objectFieldsDefinition.table;
+export const objectFieldsHistory = objectFieldsDefinition.history;
+
+/** Ручное событие: текст — title. Снимок места не меняется при переносе объекта. */
+export const eventVisibilitySql = `
+  app.placement_visible(origin_space_id, origin_space_kind, origin_audience)
+  AND EXISTS (SELECT 1 FROM public.objects p WHERE p.id = parent_id)
+  AND (contact_id IS NULL OR app.record_ref_allowed(contact_table, contact_id, false))`;
+const objectEventsDefinition = recordTable(
+  'object_events',
+  'object_event',
+  {
+    parentId: uuid('parent_id').notNull(),
+    occurredOn: date('occurred_on').notNull().default(sql`CURRENT_DATE`),
+    amountKopecks: bigint('amount_kopecks', { mode: 'number' }),
+    rating: integer('rating'),
+    contactTable: text('contact_table'),
+    contactId: uuid('contact_id'),
+    originSpaceId: uuid('origin_space_id').notNull(),
+    originSpaceKind: originSpaceKindEnum('origin_space_kind').notNull(),
+    originAudience: audienceEnum('origin_audience'),
+    searchText: text('search_text').generatedAlwaysAs(sql`title`),
+  },
+  { parent: objects, visibleSql: eventVisibilitySql },
+);
+export const objectEvents = objectEventsDefinition.table;
+export const objectEventsHistory = objectEventsDefinition.history;
+
+/** Связь хранит два конца; её пространство и аудитория — пересечение их доступа (ADR-0023). */
+const linkView = sql`app.record_ref_allowed(left_table, left_id, false) AND app.record_ref_allowed(right_table, right_id, false)`;
+const linkWrite = sql`${linkView} AND (app.record_ref_allowed(left_table, left_id, true) OR app.record_ref_allowed(right_table, right_id, true))`;
+export const recordLinks = pgTable(
+  'record_links',
+  {
+    id: id(),
+    leftTable: text('left_table').notNull(),
+    leftId: uuid('left_id').notNull(),
+    rightTable: text('right_table').notNull(),
+    rightId: uuid('right_id').notNull(),
+    role: text('role').notNull().default(''),
+    authorId: uuid('author_id')
+      .notNull()
+      .references(() => accounts.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('record_links_left_idx').on(t.leftTable, t.leftId),
+    index('record_links_right_idx').on(t.rightTable, t.rightId),
+    pgPolicy('record_links_select', { for: 'select', to: appRole, using: linkView }),
+    pgPolicy('record_links_insert', {
+      for: 'insert',
+      to: appRole,
+      withCheck: sql`${linkWrite} AND author_id = app.current_account_id() AND deleted_at IS NULL`,
+    }),
+    pgPolicy('record_links_update', {
+      for: 'update',
+      to: appRole,
+      using: linkWrite,
+      withCheck: linkWrite,
+    }),
+    pgPolicy('record_links_purge_select', {
+      for: 'select',
+      to: workerRole,
+      using: sql`deleted_at < now() - interval '30 days' OR pg_trigger_depth() > 0`,
+    }),
+    pgPolicy('record_links_purge', {
+      for: 'delete',
+      to: workerRole,
+      using: sql`deleted_at < now() - interval '30 days' OR pg_trigger_depth() > 0`,
+    }),
+  ],
+);
+
 /** Таблица-пример для каждого вида записи. */
 export const RECORD_TABLES = {
   note: notes,
   note_item: noteItems,
   shopping_item: shoppingItems,
   task: tasks,
+  object: objects,
+  object_field: objectFields,
+  object_event: objectEvents,
 } as const satisfies Record<RecordType, unknown>;
 
 /** История изменений каждого вида записи (OBJ-6). */
@@ -108,6 +214,9 @@ export const RECORD_HISTORY_TABLES = {
   note_item: noteItemsHistory,
   shopping_item: shoppingItemsHistory,
   task: tasksHistory,
+  object: objectsHistory,
+  object_field: objectFieldsHistory,
+  object_event: objectEventsHistory,
 } as const satisfies Record<RecordType, unknown>;
 // ---------------------------------------------------------------------------------------------
 // Таблицы входа (ADR-0005). Первые шесть — модели Better Auth: имена моделей и полей заданы в

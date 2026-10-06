@@ -306,7 +306,9 @@ function attemptsFor(
       return family.people.flatMap((viewer) =>
         types.flatMap((type) =>
           family.placements.flatMap((placement) => {
-            const parentId = type === 'note_item' ? family.parentIdFor(placement) : undefined;
+            const parentId = ['note_item', 'object_field', 'object_event'].includes(type)
+              ? family.parentIdFor(placement, type)
+              : undefined;
             const insert = (
               tx: Transaction,
               values: { authorId: string; assigneeId: string | null; deletedAt?: Date },

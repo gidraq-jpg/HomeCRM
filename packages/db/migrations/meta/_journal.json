@@ -64,6 +64,34 @@
       "when": 1791281860327,
       "tag": "0008_member_names",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791296007469,
+      "tag": "0009_object_functions",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791296055655,
+      "tag": "0010_objects",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791296121581,
+      "tag": "0011_object_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791296192318,
+      "tag": "0012_object_cascade",
+      "breakpoints": true
     }
   ]
 }

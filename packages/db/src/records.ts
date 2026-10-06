@@ -114,7 +114,13 @@ type CommonColumns = Record<
 >;
 
 /** Ограничения, индексы и политики записи: одинаковые для всех таблиц, кроме правил вида записи. */
-function recordRules(name: string, type: RecordType, t: CommonColumns, hasParent: boolean) {
+function recordRules(
+  name: string,
+  type: RecordType,
+  t: CommonColumns,
+  hasParent: boolean,
+  visibleSql?: string,
+) {
   const policy = recordPolicySql(type);
   return [
     foreignKey({
@@ -144,7 +150,11 @@ function recordRules(name: string, type: RecordType, t: CommonColumns, hasParent
     // Очистка корзины ищет только записи в корзине.
     index(`${name}_trash_idx`).on(t.deletedAt).where(sql.raw('deleted_at IS NOT NULL')),
     ...(hasParent ? [index(`${name}_parent_id_idx`).on(sql.raw('parent_id'))] : []),
-    pgPolicy(`${name}_select`, { for: 'select', to: appRole, using: sql.raw(policy.select) }),
+    pgPolicy(`${name}_select`, {
+      for: 'select',
+      to: appRole,
+      using: sql.raw(visibleSql ? `(${policy.select}) AND (${visibleSql})` : policy.select),
+    }),
     pgPolicy(`${name}_insert`, { for: 'insert', to: appRole, withCheck: sql.raw(policy.insert) }),
     pgPolicy(`${name}_update`, {
       for: 'update',
@@ -181,6 +191,8 @@ function recordRules(name: string, type: RecordType, t: CommonColumns, hasParent
 export interface RecordTableOptions {
   /** Родитель дочерней таблицы (PRD 7.3.3). В `extra` обязательна колонка `parentId: uuid('parent_id').notNull()`. */
   parent?: PgTable;
+  /** Дополнительная видимость дочерней записи: снимок аудитории события и контакт. */
+  visibleSql?: string;
 }
 
 export interface RecordDefinition {
@@ -204,7 +216,7 @@ export function recordTable<
   const parentName = options.parent === undefined ? null : getTableName(options.parent);
   RECORD_DEFINITIONS.push({ name, type, parent: parentName });
   const table = pgTable(name, { ...recordColumns(), ...extra }, (t) =>
-    recordRules(name, type, t as unknown as CommonColumns, parentName !== null),
+    recordRules(name, type, t as unknown as CommonColumns, parentName !== null, options.visibleSql),
   );
   const history = historyTable(name, table);
   return { table, history };

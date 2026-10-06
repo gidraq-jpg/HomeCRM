@@ -28,6 +28,7 @@ const FROZEN = ['id', 'author_id', 'created_at', 'updated_at'];
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
+    record_links: { SELECT: 'all', INSERT: 'all', UPDATE: ['role', 'deleted_at'] },
     accounts: { SELECT: 'all' },
     spaces: { SELECT: 'all' },
     space_members: { SELECT: 'all', UPDATE: ['role', 'left_at', 'left_by', 'display_name'] },
@@ -41,6 +42,10 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     password_resets: { SELECT: 'all', UPDATE: ['acknowledged_at'] },
   };
   const worker: Record<string, TableGrants> = {
+    record_links: {
+      SELECT: ['id', 'left_table', 'left_id', 'right_table', 'right_id', 'deleted_at'],
+      DELETE: 'all',
+    },
     space_members: { SELECT: ['space_id', 'account_id', 'role', 'created_at', 'left_at'] },
   };
   // Обработчик убирает просроченное из таблиц входа; какие строки — решают политики *_worker_cleanup.
