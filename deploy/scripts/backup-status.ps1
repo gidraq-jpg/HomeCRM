@@ -15,12 +15,16 @@
 #>
 param(
   [string]$DataDir = 'E:\HomeCRM-data',
+  [string]$Project = 'homecrm',
+  [string[]]$ExtraComposeFiles = @(),
   [switch]$Snapshots
 )
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\ops-common.ps1"
 
 $env:HOMECRM_DATA = $DataDir -replace '\\', '/'
+$compose = Get-ComposeArgs -Project $Project -ExtraFiles $ExtraComposeFiles
+Wait-FirstDatabase -DataDir $DataDir -Compose $compose
 $statusDir = Join-Path $DataDir 'backups\status'
 $problems = 0
 $names = @{ local = 'на этом компьютере'; cloud = 'на Яндекс Диске' }
@@ -81,7 +85,6 @@ foreach ($repo in $checked) {
 }
 
 if ($Snapshots) {
-  $compose = Get-ComposeArgs
   $repos = if (Get-EnvSetting (Join-Path $DataDir 'secrets\backup.env') 'BACKUP_CLOUD_REPOSITORY') { 'local', 'cloud' } else { 'local' }
   foreach ($repo in $repos) {
     Write-Host ''

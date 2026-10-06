@@ -16,6 +16,7 @@ $ErrorActionPreference = 'Stop'
 $env:HOMECRM_DATA = $DataDir -replace '\\', '/'
 
 $compose = Get-ComposeArgs -Project $Project -ExtraFiles $ExtraComposeFiles
+Wait-FirstDatabase -DataDir $DataDir -Compose $compose
 # Отдельный разовый контейнер: расписание в контейнере backup от этого не страдает.
 Invoke-Docker @compose --profile app --profile ops run --rm -T ops node apps/server/src/ops/cli.ts backup
 Write-Host 'Готово. Проверить: pwsh deploy/scripts/backup-status.ps1 -Snapshots'

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -17,6 +17,35 @@ beforeAll(() => {
   writeFileSync(join(root, 'assets', 'app-abc123.js'), 'console.log(1)');
   secretOutside = join(parent, 'secret.txt');
   writeFileSync(secretOutside, 'must not be served');
+  mkdirSync(join(root, '.private'));
+  for (const file of [
+    '.env',
+    '.env.production',
+    'app.ts',
+    'App.TSX',
+    'app.js.MAP',
+    'settings.env.local',
+    '.private/config.js',
+  ]) {
+    writeFileSync(join(root, file), 'must not be served');
+  }
+  const outside = join(parent, 'outside');
+  mkdirSync(outside);
+  writeFileSync(join(outside, 'secret.txt'), 'must not be served');
+  writeFileSync(join(outside, 'no-extension'), 'must not be served');
+  const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+  symlinkSync(outside, join(root, 'external'), linkType);
+  symlinkSync(join(root, '.private'), join(root, 'private-alias'), linkType);
+  symlinkSync(join(root, 'assets'), join(root, 'asset-alias'), linkType);
+  symlinkSync(root, join(parent, 'dist-alias'), linkType);
+  if (process.platform !== 'win32') {
+    symlinkSync(secretOutside, join(root, 'outside-file.txt'));
+    symlinkSync(join(root, '.env'), join(root, 'hidden-alias.txt'));
+    symlinkSync(join(root, 'app.ts'), join(root, 'source-alias.js'));
+    const escapedShell = join(parent, 'escaped-shell');
+    mkdirSync(escapedShell);
+    symlinkSync(secretOutside, join(escapedShell, 'index.html'));
+  }
 });
 
 afterAll(() => {
@@ -68,6 +97,68 @@ describe('раздача клиента', () => {
       const response = await app.inject({ method: 'GET', url });
       expect(response.body, url).not.toContain('must not be served');
     }
+    await app.close();
+  });
+
+  it.each([
+    '/.env',
+    '/.env.production',
+    '/%2eenv',
+    '/.private/config.js',
+    '/%2eprivate/config.js',
+    '/app.ts',
+    '/App.TSX',
+    '/app.js.MAP',
+    '/settings.env.local',
+    '/assets/../app.ts',
+    '/external/secret.txt',
+    '/external/no-extension',
+    '/private-alias/config.js',
+    '/..%5csecret.txt',
+    '/external%5csecret.txt',
+    '/app.ts::$DATA',
+  ])('GET и HEAD запрещённого пути %s отвечают 404', async (url) => {
+    const app = build();
+    for (const method of ['GET', 'HEAD'] as const) {
+      const response = await app.inject({ method, url });
+      expect(response.statusCode).toBe(404);
+      expect(response.body).not.toContain('must not be served');
+    }
+    await app.close();
+  });
+
+  it
+    .runIf(process.platform !== 'win32')
+    .each(['/outside-file.txt', '/hidden-alias.txt', '/source-alias.js'])(
+    'не отдаёт файл через символическую ссылку %s',
+    async (url) => {
+      const app = build();
+      expect((await app.inject({ method: 'GET', url })).statusCode).toBe(404);
+      await app.close();
+    },
+  );
+
+  it.runIf(process.platform !== 'win32')(
+    'не использует index.html со ссылкой за пределы каталога',
+    async () => {
+      const app = buildApp(
+        { LOG_LEVEL: 'silent', APP_VERSION: 'test' },
+        { staticDir: join(root, '..', 'escaped-shell') },
+      );
+      expect((await app.inject({ method: 'GET', url: '/invite/abc' })).statusCode).toBe(404);
+      await app.close();
+    },
+  );
+
+  it('разрешает ссылки на обычные файлы внутри сборки и STATIC_DIR со ссылкой', async () => {
+    const app = buildApp(
+      { LOG_LEVEL: 'silent', APP_VERSION: 'test' },
+      { staticDir: join(root, '..', 'dist-alias') },
+    );
+    const response = await app.inject({ method: 'GET', url: '/asset-alias/app-abc123.js' });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe('console.log(1)');
+    expect((await app.inject({ method: 'GET', url: '/invite/abc' })).body).toContain('shell');
     await app.close();
   });
 

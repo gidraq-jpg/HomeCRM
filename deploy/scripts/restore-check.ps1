@@ -20,6 +20,7 @@
 param(
   [string]$DataDir = 'E:\HomeCRM-data',
   [string]$Project = 'homecrm-restore-check',
+  [string]$SourceProject = 'homecrm',
   [ValidateSet('local', 'cloud')][string[]]$From,
   [string[]]$ExtraComposeFiles = @(),
   [switch]$OnlyIfDue
@@ -43,6 +44,8 @@ if ($OnlyIfDue) {
   if (-not $due) { Write-Host 'Проверка восстановления ещё не нужна (последняя моложе 30 дней).'; exit 0 }
 }
 
+$sourceCompose = Get-ComposeArgs -Project $SourceProject -ExtraFiles $ExtraComposeFiles
+Wait-FirstDatabase -DataDir $DataDir -Compose $sourceCompose
 $compose = Get-ComposeArgs -Project $Project -ExtraFiles $ExtraComposeFiles
 $failed = $false
 foreach ($repo in $From) {

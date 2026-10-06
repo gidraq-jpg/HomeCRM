@@ -27,6 +27,57 @@ function Invoke-Docker {
   if ($LASTEXITCODE -ne 0) { throw "docker $($args[0..2] -join ' ') ... завершился с кодом $LASTEXITCODE" }
 }
 
+# Только чтение каталога PostgreSQL в уже запущенном контейнере. Каждый вызов ограничен по времени;
+# вывод psql (включая ошибки) не печатается. Проверка идёт по локальному сокету, без секретов в аргументах.
+function Test-FirstDatabase {
+  param([string[]]$Compose, [int]$TimeoutMilliseconds)
+  $start = [System.Diagnostics.ProcessStartInfo]::new('docker')
+  $start.UseShellExecute = $false
+  $start.CreateNoWindow = $true
+  $start.RedirectStandardOutput = $true
+  $start.RedirectStandardError = $true
+  foreach ($argument in ($Compose + @('--profile', 'app', 'exec', '-T', 'db', 'psql', '-U', 'postgres', '-d', 'postgres', '-At', '-c', "select 1 from pg_database where datname = 'homecrm'"))) {
+    $start.ArgumentList.Add($argument)
+  }
+  $probe = [System.Diagnostics.Process]::new()
+  $probe.StartInfo = $start
+  $started = $false
+  try {
+    [void]$probe.Start()
+    $started = $true
+    $output = $probe.StandardOutput.ReadToEndAsync()
+    $errors = $probe.StandardError.ReadToEndAsync()
+    if (-not $probe.WaitForExit($TimeoutMilliseconds)) { return $false }
+    return $probe.ExitCode -eq 0 -and $output.GetAwaiter().GetResult().Trim() -eq '1'
+  }
+  catch [System.ComponentModel.Win32Exception] { return $false }
+  finally {
+    if ($started -and -not $probe.HasExited) { $probe.Kill($true) }
+    $probe.Dispose()
+  }
+}
+
+# До первой копии не запускаем ops, который ждёт ещё не созданную базу. Успешная копия означает,
+# что первое включение уже было: восстановление и просмотр копий доступны и при потере исходной базы.
+function Wait-FirstDatabase {
+  [CmdletBinding()]
+  param(
+    [string]$DataDir,
+    [string[]]$Compose,
+    [ValidateRange(1, 120)][int]$TimeoutSeconds = 90
+  )
+  $backupFile = Join-Path $DataDir 'backups/status/backup.json'
+  if ((Test-Path $backupFile) -and (Get-Content $backupFile -Raw | ConvertFrom-Json).lastSuccessAt) { return }
+  $watch = [System.Diagnostics.Stopwatch]::StartNew()
+  while ($watch.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
+    $remaining = [int][Math]::Ceiling($TimeoutSeconds * 1000 - $watch.Elapsed.TotalMilliseconds)
+    if (Test-FirstDatabase -Compose $Compose -TimeoutMilliseconds ([Math]::Min(5000, $remaining))) { return }
+    $remaining = [int][Math]::Ceiling($TimeoutSeconds * 1000 - $watch.Elapsed.TotalMilliseconds)
+    if ($remaining -gt 0) { Start-Sleep -Milliseconds ([Math]::Min(2000, $remaining)) }
+  }
+  throw 'База ещё не создана — сначала первое включение (runbook, раздел 7)'
+}
+
 # Значение настройки из файла окружения (не секретной); пусто, если строки нет или она закомментирована.
 function Get-EnvSetting {
   param([string]$File, [string]$Name)
