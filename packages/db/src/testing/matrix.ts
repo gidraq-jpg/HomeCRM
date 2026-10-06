@@ -6,6 +6,7 @@ import {
   type Audience,
   canBeAssignee,
   canChangeAudience,
+  canCopyToPersonal,
   canCreate,
   canMove,
   canRestore,
@@ -36,6 +37,7 @@ export const OPERATIONS = [
   'trash',
   'restore',
   'move',
+  'copy',
   'delete',
   'rewrite',
   'history',
@@ -50,6 +52,7 @@ export const OPERATION_LABELS: Readonly<Record<Operation, string>> = {
   trash: 'удаление в корзину',
   restore: 'восстановление из корзины',
   move: 'перенос в другое место',
+  copy: 'копирование в личное',
   delete: 'удаление мимо корзины: DELETE или дата корзины задним числом',
   rewrite: 'подмена автора, времени создания и id',
   history: 'чтение истории изменений по id записи',
@@ -136,6 +139,23 @@ function attemptsFor(
     );
 
   switch (operation) {
+    case 'copy':
+      // Копирование заметок: SELECT исходника и INSERT в своё личное независимо проходят RLS.
+      // Корзину не копируют; дочерние записи и историю копии проверяют notes-move.test.ts и API-тесты.
+      return each(
+        inScope.filter((record) => record.type === 'note'),
+        (viewer, record) => ({
+          label: record.label,
+          expected: canCopyToPersonal(viewer.viewer, record.facts),
+          run: async (tx) => {
+            const result = await tx.execute(sql`INSERT INTO notes
+            (space_id, space_kind, author_id, title, body, pinned)
+            SELECT ${viewer.personalSpaceId}, 'personal', ${viewer.id}, title, body, pinned
+            FROM notes WHERE id = ${record.id} AND deleted_at IS NULL RETURNING id`);
+            return result.rowCount === 1;
+          },
+        }),
+      );
     case 'view':
       return each(inScope, (viewer, record) => ({
         label: record.label,

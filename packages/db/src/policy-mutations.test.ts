@@ -22,6 +22,13 @@ interface Mutation {
 
 const MUTATIONS: Mutation[] = [
   {
+    title: 'чтение без RLS позволяет скопировать чужое личное — матрица замечает утечку',
+    sql: 'ALTER POLICY notes_select ON notes USING (true)',
+    operation: 'copy',
+    types: ['note'],
+    expected: /^Анна · копирование в личное · заметка · личное \(Борис\).*эталон — нет, база — да$/,
+  },
+  {
     title: 'нет политики чтения заметок — свои записи пропадают',
     sql: 'DROP POLICY notes_select ON notes',
     operation: 'view',
