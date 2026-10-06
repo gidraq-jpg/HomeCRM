@@ -151,35 +151,6 @@ describe('кто видит историю — те же, кому видна з
     expect(await seenBy('mila', neighbours)).toBe(1);
   });
 
-  it('смена аудитории переносит историю вместе с записью: суженным её больше не видно (PRD 7.3.7, 7.3.8)', async () => {
-    const id = await addNote(database.admin, {
-      author: scene.person('anna'),
-      placement: scene.home('household'),
-    });
-    await scene.as('anna', (tx) =>
-      tx.update(notes).set({ title: 'правка' }).where(eq(notes.id, id)),
-    );
-    expect(await seenBy('vera', id)).toBe(2);
-
-    await scene.as('boris', (tx) =>
-      tx.update(notes).set({ audience: 'adults' }).where(eq(notes.id, id)),
-    );
-    // Ни старые события, ни новое «смена аудитории» ребёнок не видит; взрослые видят всё.
-    expect(await seenBy('vera', id)).toBe(0);
-    expect(await seenBy('boris', id)).toBe(3);
-    expect((await eventsOf(id)).map((event) => event.operation)).toEqual([
-      'create',
-      'update',
-      'audience',
-    ]);
-
-    // Расширили обратно — ребёнок видит всё, что было записано.
-    await scene.as('boris', (tx) =>
-      tx.update(notes).set({ audience: 'household' }).where(eq(notes.id, id)),
-    );
-    expect(await seenBy('vera', id)).toBe(4);
-  });
-
   it('«Сделать личной»: история уходит из дома вместе с записью и видна только владельцу', async () => {
     const anna = scene.person('anna');
     const id = await addNote(database.admin, {
@@ -201,7 +172,132 @@ describe('кто видит историю — те же, кому видна з
     expect(events.at(-1)?.operation).toBe('move');
   });
 
-  it('«Поделиться»: событие переноса видно дому, личный период — нет', async () => {
+  it('смена аудитории: прошлое видят те, кто видел его тогда; суженные теряют историю, расширенные — не получают старую (PRD 7.3.7, 7.3.8)', async () => {
+    const id = await addNote(database.admin, {
+      author: scene.person('anna'),
+      placement: scene.home('household'),
+    });
+    await scene.as('anna', (tx) =>
+      tx.update(notes).set({ title: 'правка' }).where(eq(notes.id, id)),
+    );
+    expect(await seenBy('vera', id)).toBe(2);
+
+    await scene.as('boris', (tx) =>
+      tx.update(notes).set({ audience: 'adults' }).where(eq(notes.id, id)),
+    );
+    // Запись и вся история ребёнку закрыты; взрослые видят всё.
+    expect(await seenBy('vera', id)).toBe(0);
+    expect(await seenBy('boris', id)).toBe(3);
+    expect((await eventsOf(id)).map((event) => event.operation)).toEqual([
+      'create',
+      'update',
+      'audience',
+    ]);
+
+    // Расширили обратно: ребёнок видит запись и то, что при её создании и правке было ему открыто.
+    // Событие смены аудитории стоит на «Взрослых» — оно остаётся им.
+    await scene.as('boris', (tx) =>
+      tx.update(notes).set({ audience: 'household' }).where(eq(notes.id, id)),
+    );
+    expect(await seenBy('vera', id)).toBe(2);
+    expect(await seenBy('boris', id)).toBe(4);
+  });
+
+  it('расширение аудитории не открывает ребёнку прошлое «Взрослых»: прежние тексты в истории остаются закрытыми', async () => {
+    const id = await addNote(database.admin, {
+      author: scene.person('anna'),
+      placement: scene.home('adults'),
+      title: 'секрет',
+    });
+    await scene.as('anna', (tx) => tx.update(notes).set({ title: 'план' }).where(eq(notes.id, id)));
+    // Открыли всей семье отдельным запросом.
+    await scene.as('boris', (tx) =>
+      tx.update(notes).set({ audience: 'household' }).where(eq(notes.id, id)),
+    );
+    const textsSeenBy = async (who: PersonKey) =>
+      JSON.stringify(
+        await scene.as(who, (tx) =>
+          tx
+            .select({ changes: notesHistory.changes })
+            .from(notesHistory)
+            .where(eq(notesHistory.recordId, id)),
+        ),
+      );
+    // Ребёнок читает запись, но историю до открытия — нет: ни «секрет», ни «план».
+    expect(
+      await scene.as('vera', (tx) => tx.select().from(notes).where(eq(notes.id, id))),
+    ).toHaveLength(1);
+    expect(await seenBy('vera', id)).toBe(0);
+    expect(await textsSeenBy('vera')).not.toMatch(/секрет|план/);
+    // Взрослые видят всё.
+    expect(await seenBy('boris', id)).toBe(3);
+    expect(await textsSeenBy('boris')).toMatch(/секрет/);
+
+    // Что изменили после открытия — видно всем, кто видит запись.
+    await scene.as('anna', (tx) =>
+      tx.update(notes).set({ title: 'для всех' }).where(eq(notes.id, id)),
+    );
+    expect(await seenBy('vera', id)).toBe(1);
+    expect(await textsSeenBy('vera')).toMatch(/для всех/);
+    // «План» в этом событии — название на момент открытия, оно уже видно ребёнку в самой записи.
+    expect(await textsSeenBy('vera')).not.toMatch(/секрет/);
+  });
+
+  it('правка и расширение аудитории одним запросом: старый текст ребёнку не достаётся', async () => {
+    const id = await addNote(database.admin, {
+      author: scene.person('anna'),
+      placement: scene.home('adults'),
+      title: 'только взрослым',
+    });
+    await scene.as('boris', (tx) =>
+      tx.update(notes).set({ title: 'для всех', audience: 'household' }).where(eq(notes.id, id)),
+    );
+    expect(await seenBy('vera', id)).toBe(0);
+    expect(await seenBy('boris', id)).toBe(2);
+  });
+
+  it('перенос между домами: прошлое видят только те, кто видел его в прежнем доме и видит запись теперь', async () => {
+    const mila = scene.person('mila');
+    // Мила — взрослая у соседей и ребёнок в «Доме»: запись «Вся семья» видна ей в обоих домах.
+    const id = await addNote(database.admin, {
+      author: mila,
+      placement: scene.neighbours('household'),
+      title: 'у соседей',
+    });
+    await scene.as('dina', (tx) =>
+      tx.update(notes).set({ title: 'у соседей, правка' }).where(eq(notes.id, id)),
+    );
+    expect(await seenBy('dina', id)).toBe(2);
+    expect(await seenBy('anna', id)).toBe(0);
+
+    const home = scene.home('household');
+    await database.admin.query(
+      `UPDATE notes SET space_id = $2, audience = 'household' WHERE id = $1`,
+      [id, home.spaceId],
+    );
+    expect((await eventsOf(id)).map((event) => event.operation)).toEqual([
+      'create',
+      'update',
+      'move',
+    ]);
+    // «Дом» видит запись, но не то, что с ней было у соседей; соседи записи больше не видят вовсе.
+    expect(
+      await scene.as('anna', (tx) => tx.select().from(notes).where(eq(notes.id, id))),
+    ).toHaveLength(1);
+    expect(await seenBy('anna', id)).toBe(0);
+    expect(await seenBy('vera', id)).toBe(0);
+    expect(await seenBy('dina', id)).toBe(0);
+    // Мила состоит в обоих домах и видела прошлое у соседей.
+    expect(await seenBy('mila', id)).toBe(3);
+    // Дальше история идёт уже в «Доме».
+    await scene.as('anna', (tx) =>
+      tx.update(notes).set({ title: 'теперь у нас' }).where(eq(notes.id, id)),
+    );
+    expect(await seenBy('vera', id)).toBe(1);
+    expect(await seenBy('dina', id)).toBe(0);
+  });
+
+  it('«Поделиться»: личный период и сам перенос остаются у владельца, дальше история идёт для дома', async () => {
     const [created] = await scene.as('boris', (tx) =>
       tx
         .insert(notes)
@@ -220,6 +316,14 @@ describe('кто видит историю — те же, кому видна з
         .where(eq(notes.id, id)),
     );
     expect((await eventsOf(id)).map((event) => event.operation)).toEqual(['move']);
+    // Событие переноса стоит на личном месте: дому оно закрыто, чтобы вместе с ним не открылись
+    // старые значения полей, изменённых тем же запросом.
+    expect(await seenBy('vera', id)).toBe(0);
+    expect(await seenBy('anna', id)).toBe(0);
+    expect(await seenBy('boris', id)).toBe(1);
+    await scene.as('anna', (tx) =>
+      tx.update(notes).set({ title: 'правка дома' }).where(eq(notes.id, id)),
+    );
     expect(await seenBy('vera', id)).toBe(1);
     expect(await seenBy('anna', id)).toBe(1);
   });

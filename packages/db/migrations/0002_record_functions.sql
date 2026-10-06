@@ -87,7 +87,12 @@ $$;
 -- История изменений (OBJ-6): кто, когда, какие поля — со старыми и новыми значениями. Ведётся у записей
 -- общего пространства: создание, любое изменение, перенос в общее и из общего. У личных записей события
 -- не пишутся (их не видит никто, кроме владельца, и история личного — не требование PRD).
--- Место события — место записи после изменения: так история следует за записью (см. records.ts).
+-- Место события (пространство и аудитория) фиксируется в момент события и дальше не меняется. Читать
+-- событие вправе тот, кто видит это место И видит запись сейчас (политика, records.ts): запись открыли
+-- шире или перенесли — прошлое остаётся только у тех, кто видел его тогда. Если одним изменением
+-- меняется и место, событие ставится на более узкое из двух: личное — самое узкое, затем старый дом
+-- при переносе между домами, затем «Взрослые». Так старые значения полей не попадают к тем, кому они
+-- не были видны, даже если правка и расширение аудитории пришли в одном запросе.
 -- Вставка в историю проходит политику, потому что идёт изнутри триггера (pg_trigger_depth() > 0).
 CREATE FUNCTION app.record_history() RETURNS trigger
   LANGUAGE plpgsql
@@ -99,6 +104,9 @@ DECLARE
   old_json jsonb;
   changes jsonb;
   operation text;
+  place_id uuid := NEW.space_id;
+  place_kind public.space_kind := NEW.space_kind;
+  place_audience public.audience := NEW.audience;
 BEGIN
   IF TG_OP = 'INSERT' THEN
     IF NEW.space_kind <> 'household' THEN
@@ -128,12 +136,24 @@ BEGIN
       WHEN OLD.audience IS DISTINCT FROM NEW.audience THEN 'audience'
       ELSE 'update'
     END;
+    -- Более узкое из двух мест.
+    IF OLD.space_kind = 'personal' THEN
+      place_id := OLD.space_id;
+      place_kind := OLD.space_kind;
+      place_audience := OLD.audience;
+    ELSIF NEW.space_kind = 'household' AND OLD.space_id <> NEW.space_id THEN
+      place_id := OLD.space_id;
+      place_kind := OLD.space_kind;
+      place_audience := OLD.audience;
+    ELSIF NEW.space_kind = 'household' AND (OLD.audience = 'adults' OR NEW.audience = 'adults') THEN
+      place_audience := 'adults';
+    END IF;
   END IF;
   EXECUTE format(
     'INSERT INTO public.%I (record_id, space_id, space_kind, audience, actor_id, operation, changes) '
     'VALUES ($1, $2, $3, $4, $5, $6::public.history_operation, $7)',
     TG_TABLE_NAME || '_history'
-  ) USING NEW.id, NEW.space_id, NEW.space_kind, NEW.audience, app.current_account_id(), operation, changes;
+  ) USING NEW.id, place_id, place_kind, place_audience, app.current_account_id(), operation, changes;
   RETURN NULL;
 END;
 $$;
@@ -155,6 +175,31 @@ BEGIN
       USING NEW.id, OLD.deleted_at;
   END IF;
   RETURN NULL;
+END;
+$$;
+--> statement-breakpoint
+-- Живая дочерняя запись при родителе в корзине невозможна: ни вставкой пункта под заметку в корзине,
+-- ни отдельным восстановлением пункта, ни переносом под другого родителя. Иначе очистка корзины,
+-- удалив просроченного родителя (ON DELETE CASCADE), унесла бы вместе с ним живую запись мимо корзины.
+-- Пункт восстанавливают вместе с родителем (каскад) или после него. Родитель виден вызывающему так же,
+-- как сама запись (то же место); если не виден — проверку остаётся за внешним ключом.
+CREATE FUNCTION app.guard_parent_live() RETURNS trigger
+  LANGUAGE plpgsql
+  SET search_path = ''
+  AS $$
+DECLARE
+  parent_trashed boolean;
+BEGIN
+  IF NEW.deleted_at IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+  EXECUTE format('SELECT p.deleted_at IS NOT NULL FROM public.%I p WHERE p.id = $1', TG_ARGV[0])
+    INTO parent_trashed USING NEW.parent_id;
+  IF parent_trashed THEN
+    RAISE EXCEPTION 'a live record cannot belong to a parent in the trash; restore the parent first'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
 END;
 $$;
 --> statement-breakpoint
@@ -320,6 +365,8 @@ BEGIN
     EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I FOREIGN KEY (parent_id, audience) '
       'REFERENCES public.%I (id, audience) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED',
       rel, tbl || '_parent_audience_fk', parent);
+    EXECUTE format('CREATE TRIGGER %I BEFORE INSERT OR UPDATE OF deleted_at, parent_id ON %s FOR EACH ROW EXECUTE FUNCTION app.guard_parent_live(%L)',
+      tbl || '_parent_live', rel, parent);
     EXECUTE format('CREATE TRIGGER %I AFTER UPDATE OF deleted_at ON public.%I FOR EACH ROW EXECUTE FUNCTION app.cascade_trash(%L)',
       parent || '_cascade_' || tbl, parent, tbl);
   END IF;

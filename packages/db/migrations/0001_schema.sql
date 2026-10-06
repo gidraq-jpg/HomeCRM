@@ -310,16 +310,14 @@ ALTER TABLE "note_items" ADD CONSTRAINT "note_items_space_fk" FOREIGN KEY ("spac
 ALTER TABLE "note_items" ADD CONSTRAINT "note_items_assignee_member_fk" FOREIGN KEY ("space_id","assignee_house_id") REFERENCES "public"."space_members"("space_id","account_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "note_items" ADD CONSTRAINT "note_items_assignee_adult_fk" FOREIGN KEY ("space_id","assignee_adult_id","assignee_adult_flag") REFERENCES "public"."space_members"("space_id","account_id","is_adult") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "note_items_history" ADD CONSTRAINT "note_items_history_actor_id_accounts_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "note_items_history" ADD CONSTRAINT "note_items_history_record_fk" FOREIGN KEY ("record_id","space_id","space_kind") REFERENCES "public"."note_items"("id","space_id","space_kind") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
-ALTER TABLE "note_items_history" ADD CONSTRAINT "note_items_history_audience_fk" FOREIGN KEY ("record_id","audience") REFERENCES "public"."note_items"("id","audience") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "note_items_history" ADD CONSTRAINT "note_items_history_record_fk" FOREIGN KEY ("record_id") REFERENCES "public"."note_items"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notes" ADD CONSTRAINT "notes_author_id_accounts_id_fk" FOREIGN KEY ("author_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notes" ADD CONSTRAINT "notes_assignee_id_accounts_id_fk" FOREIGN KEY ("assignee_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notes" ADD CONSTRAINT "notes_space_fk" FOREIGN KEY ("space_id","space_kind") REFERENCES "public"."spaces"("id","kind") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notes" ADD CONSTRAINT "notes_assignee_member_fk" FOREIGN KEY ("space_id","assignee_house_id") REFERENCES "public"."space_members"("space_id","account_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notes" ADD CONSTRAINT "notes_assignee_adult_fk" FOREIGN KEY ("space_id","assignee_adult_id","assignee_adult_flag") REFERENCES "public"."space_members"("space_id","account_id","is_adult") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notes_history" ADD CONSTRAINT "notes_history_actor_id_accounts_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "notes_history" ADD CONSTRAINT "notes_history_record_fk" FOREIGN KEY ("record_id","space_id","space_kind") REFERENCES "public"."notes"("id","space_id","space_kind") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
-ALTER TABLE "notes_history" ADD CONSTRAINT "notes_history_audience_fk" FOREIGN KEY ("record_id","audience") REFERENCES "public"."notes"("id","audience") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "notes_history" ADD CONSTRAINT "notes_history_record_fk" FOREIGN KEY ("record_id") REFERENCES "public"."notes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "password_resets" ADD CONSTRAINT "password_resets_account_id_accounts_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "password_resets" ADD CONSTRAINT "password_resets_requested_by_accounts_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_accounts_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -329,16 +327,14 @@ ALTER TABLE "shopping_items" ADD CONSTRAINT "shopping_items_space_fk" FOREIGN KE
 ALTER TABLE "shopping_items" ADD CONSTRAINT "shopping_items_assignee_member_fk" FOREIGN KEY ("space_id","assignee_house_id") REFERENCES "public"."space_members"("space_id","account_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shopping_items" ADD CONSTRAINT "shopping_items_assignee_adult_fk" FOREIGN KEY ("space_id","assignee_adult_id","assignee_adult_flag") REFERENCES "public"."space_members"("space_id","account_id","is_adult") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shopping_items_history" ADD CONSTRAINT "shopping_items_history_actor_id_accounts_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "shopping_items_history" ADD CONSTRAINT "shopping_items_history_record_fk" FOREIGN KEY ("record_id","space_id","space_kind") REFERENCES "public"."shopping_items"("id","space_id","space_kind") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
-ALTER TABLE "shopping_items_history" ADD CONSTRAINT "shopping_items_history_audience_fk" FOREIGN KEY ("record_id","audience") REFERENCES "public"."shopping_items"("id","audience") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "shopping_items_history" ADD CONSTRAINT "shopping_items_history_record_fk" FOREIGN KEY ("record_id") REFERENCES "public"."shopping_items"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_author_id_accounts_id_fk" FOREIGN KEY ("author_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_assignee_id_accounts_id_fk" FOREIGN KEY ("assignee_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_space_fk" FOREIGN KEY ("space_id","space_kind") REFERENCES "public"."spaces"("id","kind") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_assignee_member_fk" FOREIGN KEY ("space_id","assignee_house_id") REFERENCES "public"."space_members"("space_id","account_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_assignee_adult_fk" FOREIGN KEY ("space_id","assignee_adult_id","assignee_adult_flag") REFERENCES "public"."space_members"("space_id","account_id","is_adult") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tasks_history" ADD CONSTRAINT "tasks_history_actor_id_accounts_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "tasks_history" ADD CONSTRAINT "tasks_history_record_fk" FOREIGN KEY ("record_id","space_id","space_kind") REFERENCES "public"."tasks"("id","space_id","space_kind") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
-ALTER TABLE "tasks_history" ADD CONSTRAINT "tasks_history_audience_fk" FOREIGN KEY ("record_id","audience") REFERENCES "public"."tasks"("id","audience") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "tasks_history" ADD CONSTRAINT "tasks_history_record_fk" FOREIGN KEY ("record_id") REFERENCES "public"."tasks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "two_factors" ADD CONSTRAINT "two_factors_user_id_accounts_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "space_members" ADD CONSTRAINT "space_members_account_id_accounts_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "space_members" ADD CONSTRAINT "space_members_left_by_accounts_id_fk" FOREIGN KEY ("left_by") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -454,7 +450,7 @@ CREATE POLICY "note_items_history_select" ON "note_items_history" AS PERMISSIVE 
       space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))
       OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))
     ))
-  ));--> statement-breakpoint
+  ) AND EXISTS (SELECT 1 FROM note_items r WHERE r.id = note_items_history.record_id));--> statement-breakpoint
 CREATE POLICY "note_items_history_insert" ON "note_items_history" AS PERMISSIVE FOR INSERT TO "homecrm_app" WITH CHECK (pg_trigger_depth() > 0 AND actor_id IS NOT DISTINCT FROM app.current_account_id());--> statement-breakpoint
 CREATE POLICY "note_items_history_worker_insert" ON "note_items_history" AS PERMISSIVE FOR INSERT TO "homecrm_worker" WITH CHECK (pg_trigger_depth() > 0 AND actor_id IS NULL);--> statement-breakpoint
 CREATE POLICY "notes_select" ON "notes" AS PERMISSIVE FOR SELECT TO "homecrm_app" USING ((
@@ -532,7 +528,7 @@ CREATE POLICY "notes_history_select" ON "notes_history" AS PERMISSIVE FOR SELECT
       space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))
       OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))
     ))
-  ));--> statement-breakpoint
+  ) AND EXISTS (SELECT 1 FROM notes r WHERE r.id = notes_history.record_id));--> statement-breakpoint
 CREATE POLICY "notes_history_insert" ON "notes_history" AS PERMISSIVE FOR INSERT TO "homecrm_app" WITH CHECK (pg_trigger_depth() > 0 AND actor_id IS NOT DISTINCT FROM app.current_account_id());--> statement-breakpoint
 CREATE POLICY "notes_history_worker_insert" ON "notes_history" AS PERMISSIVE FOR INSERT TO "homecrm_worker" WITH CHECK (pg_trigger_depth() > 0 AND actor_id IS NULL);--> statement-breakpoint
 CREATE POLICY "password_resets_select" ON "password_resets" AS PERMISSIVE FOR SELECT TO "homecrm_app" USING (account_id = app.current_account_id());--> statement-breakpoint
@@ -632,7 +628,7 @@ CREATE POLICY "shopping_items_history_select" ON "shopping_items_history" AS PER
       space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))
       OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))
     ))
-  ));--> statement-breakpoint
+  ) AND EXISTS (SELECT 1 FROM shopping_items r WHERE r.id = shopping_items_history.record_id));--> statement-breakpoint
 CREATE POLICY "shopping_items_history_insert" ON "shopping_items_history" AS PERMISSIVE FOR INSERT TO "homecrm_app" WITH CHECK (pg_trigger_depth() > 0 AND actor_id IS NOT DISTINCT FROM app.current_account_id());--> statement-breakpoint
 CREATE POLICY "shopping_items_history_worker_insert" ON "shopping_items_history" AS PERMISSIVE FOR INSERT TO "homecrm_worker" WITH CHECK (pg_trigger_depth() > 0 AND actor_id IS NULL);--> statement-breakpoint
 CREATE POLICY "tasks_select" ON "tasks" AS PERMISSIVE FOR SELECT TO "homecrm_app" USING ((
@@ -713,7 +709,7 @@ CREATE POLICY "tasks_history_select" ON "tasks_history" AS PERMISSIVE FOR SELECT
       space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))
       OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))
     ))
-  ));--> statement-breakpoint
+  ) AND EXISTS (SELECT 1 FROM tasks r WHERE r.id = tasks_history.record_id));--> statement-breakpoint
 CREATE POLICY "tasks_history_insert" ON "tasks_history" AS PERMISSIVE FOR INSERT TO "homecrm_app" WITH CHECK (pg_trigger_depth() > 0 AND actor_id IS NOT DISTINCT FROM app.current_account_id());--> statement-breakpoint
 CREATE POLICY "tasks_history_worker_insert" ON "tasks_history" AS PERMISSIVE FOR INSERT TO "homecrm_worker" WITH CHECK (pg_trigger_depth() > 0 AND actor_id IS NULL);--> statement-breakpoint
 CREATE POLICY "two_factors_auth_select" ON "two_factors" AS PERMISSIVE FOR SELECT TO "homecrm_auth" USING (true);--> statement-breakpoint

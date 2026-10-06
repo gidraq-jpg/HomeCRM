@@ -28,10 +28,10 @@ import {
 } from 'drizzle-orm/pg-core';
 import {
   adminAssigneeSql,
-  canViewSql,
   EXPIRED_TRASH_SQL,
   HISTORY_APP_INSERT_SQL,
   HISTORY_WORKER_INSERT_SQL,
+  historySelectSql,
   leftAssigneeSql,
   type RecordType,
   reassignSelectSql,
@@ -212,16 +212,15 @@ export function recordTable<
  * История изменений записи (OBJ-6): кто, когда и какие поля — со старыми и новыми значениями.
  * - Пишет только триггер `<таблица>_history`: у приложения нет права вставки вне триггера
  *   (`pg_trigger_depth() > 0` в политике), права на изменение и удаление нет вовсе.
- * - Видна тем же, кому видна запись: место события (пространство, аудитория) повторяет место
- *   записи, а составные внешние ключи с каскадом переносят его вместе с записью — при переносе и
- *   смене аудитории история следует за записью и не остаётся там, где её уже не должны видеть.
+ * - Видна тем, кто видит событие И видит запись сейчас. Место события (пространство, аудитория)
+ *   фиксируется в момент события и не меняется: тот, кто в тот момент записи не видел, прошлого не
+ *   прочтёт, даже если запись потом открыли шире или перенесли. При смене места событие ставится на
+ *   более узкое из двух мест (см. `record_history` в миграции 0002). Условие «запись видна сейчас»
+ *   проверяет политика самой таблицы записей: сузили аудиторию — суженные теряют и историю.
  * - Уходит вместе с записью: ON DELETE CASCADE, когда обработчик очищает корзину.
  * - Событий личных записей нет: история ведётся у общих (PRD, OBJ-6).
  */
-function historyTable(
-  name: string,
-  table: { id: AnyPgColumn; spaceId: AnyPgColumn; spaceKind: AnyPgColumn; audience: AnyPgColumn },
-) {
+function historyTable(name: string, table: { id: AnyPgColumn }) {
   const historyName = `${name}_history`;
   return pgTable(
     historyName,
@@ -239,25 +238,17 @@ function historyTable(
       changes: jsonb('changes').notNull(),
     },
     (t) => [
+      // Только на запись: место события свободное, внешний ключ не переносит его вместе с записью.
       foreignKey({
         name: `${historyName}_record_fk`,
-        columns: [t.recordId, t.spaceId, t.spaceKind],
-        foreignColumns: [table.id, table.spaceId, table.spaceKind],
-      })
-        .onUpdate('cascade')
-        .onDelete('cascade'),
-      foreignKey({
-        name: `${historyName}_audience_fk`,
-        columns: [t.recordId, t.audience],
-        foreignColumns: [table.id, table.audience],
-      })
-        .onUpdate('cascade')
-        .onDelete('cascade'),
+        columns: [t.recordId],
+        foreignColumns: [table.id],
+      }).onDelete('cascade'),
       index(`${historyName}_record_id_idx`).on(t.recordId, t.createdAt),
       pgPolicy(`${historyName}_select`, {
         for: 'select',
         to: appRole,
-        using: sql.raw(canViewSql()),
+        using: sql.raw(historySelectSql(name)),
       }),
       pgPolicy(`${historyName}_insert`, {
         for: 'insert',

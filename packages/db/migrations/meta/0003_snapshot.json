@@ -1,6 +1,6 @@
 {
-  "id": "97d943e0-050a-4634-9542-922bb8520ab6",
-  "prevId": "684139eb-cd7d-4742-acdd-0d25d12c4c83",
+  "id": "790975c9-488a-4c88-95a2-5865e14df9ac",
+  "prevId": "4d8d480a-6ef9-4eb5-a995-a8d3c92b6b0c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1026,32 +1026,13 @@
           "name": "note_items_history_record_fk",
           "tableFrom": "note_items_history",
           "columnsFrom": [
-            "record_id",
-            "space_id",
-            "space_kind"
+            "record_id"
           ],
           "tableTo": "note_items",
           "columnsTo": [
-            "id",
-            "space_id",
-            "space_kind"
+            "id"
           ],
-          "onUpdate": "cascade",
-          "onDelete": "cascade"
-        },
-        "note_items_history_audience_fk": {
-          "name": "note_items_history_audience_fk",
-          "tableFrom": "note_items_history",
-          "columnsFrom": [
-            "record_id",
-            "audience"
-          ],
-          "tableTo": "note_items",
-          "columnsTo": [
-            "id",
-            "audience"
-          ],
-          "onUpdate": "cascade",
+          "onUpdate": "no action",
           "onDelete": "cascade"
         }
       },
@@ -1065,7 +1046,7 @@
           "to": [
             "homecrm_app"
           ],
-          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND EXISTS (SELECT 1 FROM note_items r WHERE r.id = note_items_history.record_id)"
         },
         "note_items_history_insert": {
           "name": "note_items_history_insert",
@@ -1504,32 +1485,13 @@
           "name": "notes_history_record_fk",
           "tableFrom": "notes_history",
           "columnsFrom": [
-            "record_id",
-            "space_id",
-            "space_kind"
+            "record_id"
           ],
           "tableTo": "notes",
           "columnsTo": [
-            "id",
-            "space_id",
-            "space_kind"
+            "id"
           ],
-          "onUpdate": "cascade",
-          "onDelete": "cascade"
-        },
-        "notes_history_audience_fk": {
-          "name": "notes_history_audience_fk",
-          "tableFrom": "notes_history",
-          "columnsFrom": [
-            "record_id",
-            "audience"
-          ],
-          "tableTo": "notes",
-          "columnsTo": [
-            "id",
-            "audience"
-          ],
-          "onUpdate": "cascade",
+          "onUpdate": "no action",
           "onDelete": "cascade"
         }
       },
@@ -1543,7 +1505,7 @@
           "to": [
             "homecrm_app"
           ],
-          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND EXISTS (SELECT 1 FROM notes r WHERE r.id = notes_history.record_id)"
         },
         "notes_history_insert": {
           "name": "notes_history_insert",
@@ -2364,32 +2326,13 @@
           "name": "shopping_items_history_record_fk",
           "tableFrom": "shopping_items_history",
           "columnsFrom": [
-            "record_id",
-            "space_id",
-            "space_kind"
+            "record_id"
           ],
           "tableTo": "shopping_items",
           "columnsTo": [
-            "id",
-            "space_id",
-            "space_kind"
+            "id"
           ],
-          "onUpdate": "cascade",
-          "onDelete": "cascade"
-        },
-        "shopping_items_history_audience_fk": {
-          "name": "shopping_items_history_audience_fk",
-          "tableFrom": "shopping_items_history",
-          "columnsFrom": [
-            "record_id",
-            "audience"
-          ],
-          "tableTo": "shopping_items",
-          "columnsTo": [
-            "id",
-            "audience"
-          ],
-          "onUpdate": "cascade",
+          "onUpdate": "no action",
           "onDelete": "cascade"
         }
       },
@@ -2403,7 +2346,7 @@
           "to": [
             "homecrm_app"
           ],
-          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND EXISTS (SELECT 1 FROM shopping_items r WHERE r.id = shopping_items_history.record_id)"
         },
         "shopping_items_history_insert": {
           "name": "shopping_items_history_insert",
@@ -2847,32 +2790,13 @@
           "name": "tasks_history_record_fk",
           "tableFrom": "tasks_history",
           "columnsFrom": [
-            "record_id",
-            "space_id",
-            "space_kind"
+            "record_id"
           ],
           "tableTo": "tasks",
           "columnsTo": [
-            "id",
-            "space_id",
-            "space_kind"
+            "id"
           ],
-          "onUpdate": "cascade",
-          "onDelete": "cascade"
-        },
-        "tasks_history_audience_fk": {
-          "name": "tasks_history_audience_fk",
-          "tableFrom": "tasks_history",
-          "columnsFrom": [
-            "record_id",
-            "audience"
-          ],
-          "tableTo": "tasks",
-          "columnsTo": [
-            "id",
-            "audience"
-          ],
-          "onUpdate": "cascade",
+          "onUpdate": "no action",
           "onDelete": "cascade"
         }
       },
@@ -2886,7 +2810,7 @@
           "to": [
             "homecrm_app"
           ],
-          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND EXISTS (SELECT 1 FROM tasks r WHERE r.id = tasks_history.record_id)"
         },
         "tasks_history_insert": {
           "name": "tasks_history_insert",

@@ -68,6 +68,8 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         [`${name}_guard`]: 'record_guard',
         [`${name}_trash_time`]: 'guard_trash_time',
         [`${name}_history`]: 'record_history',
+        // Живая дочерняя запись при родителе в корзине невозможна.
+        ...(definition.parent === null ? {} : { [`${name}_parent_live`]: 'guard_parent_live' }),
         // Родитель убирает дочерние записи в корзину вместе с собой.
         ...Object.fromEntries(
           RECORD_DEFINITIONS.filter((child) => child.parent === name).map((child) => [

@@ -260,7 +260,7 @@ describe('корзина родителя (DATA-1)', () => {
     expect((await state()).get(foreign)).toBe(false);
   });
 
-  it('очистка корзины убирает просроченную заметку вместе с пунктами и историей', async () => {
+  it('очистка корзины убирает просроченную заметку вместе с её пунктами в корзине и историей', async () => {
     const anna = scene.person('anna');
     const home = scene.home('household');
     const parentId = await addNote(database.admin, {
@@ -268,7 +268,8 @@ describe('корзина родителя (DATA-1)', () => {
       placement: home,
       trashedDaysAgo: 31,
     });
-    const itemId = await addItem(parentId, home, anna);
+    // Пункты, убранные вместе с заметкой: живого пункта под заметкой в корзине быть не может.
+    const itemId = await addItem(parentId, home, anna, 31);
     expect(
       await rowsOf(database.admin, `SELECT 1 FROM note_items_history WHERE record_id = $1`, [
         itemId,
@@ -284,5 +285,96 @@ describe('корзина родителя (DATA-1)', () => {
         itemId,
       ]),
     ).toEqual([]);
+  });
+});
+
+describe('живой пункт при заметке в корзине невозможен (очистка корзины не должна уносить живое)', () => {
+  const liveUnderTrashed = () =>
+    rowsOf(
+      database.admin,
+      `SELECT i.id FROM note_items i JOIN notes n ON n.id = i.parent_id
+       WHERE i.deleted_at IS NULL AND n.deleted_at IS NOT NULL`,
+    );
+
+  it('вставка пункта под заметку в корзине — отказ; под живую — можно', async () => {
+    const anna = scene.person('anna');
+    const home = scene.home('household');
+    const trashedParent = await addNote(database.admin, {
+      author: anna,
+      placement: home,
+      trashedDaysAgo: 1,
+    });
+    const insert = (parentId: string) =>
+      scene.as('anna', (tx) =>
+        tx
+          .insert(noteItems)
+          .values({ ...columnsOf(home), parentId, authorId: anna.id, title: 'п' }),
+      );
+    await expect(insert(trashedParent)).rejects.toMatchObject({ cause: { code: '42501' } });
+    // Суперпользователь упирается в тот же триггер: он не обходит правило.
+    await expect(addItem(trashedParent, home, anna)).rejects.toMatchObject({ code: '42501' });
+    await insert(await addNote(database.admin, { author: anna, placement: home }));
+    expect(await liveUnderTrashed()).toEqual([]);
+  });
+
+  it('пункт, убранный отдельно, не восстановить, пока заметка в корзине; после неё — можно', async () => {
+    const anna = scene.person('anna');
+    const home = scene.home('household');
+    const parentId = await addNote(database.admin, { author: anna, placement: home });
+    const itemId = await addItem(parentId, home, anna, 5);
+    await scene.as('anna', (tx) =>
+      tx.update(notes).set({ deletedAt: new Date() }).where(eq(notes.id, parentId)),
+    );
+    await expect(
+      scene.as('anna', (tx) =>
+        tx.update(noteItems).set({ deletedAt: null }).where(eq(noteItems.id, itemId)),
+      ),
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
+    expect(await liveUnderTrashed()).toEqual([]);
+
+    await scene.as('anna', (tx) =>
+      tx.update(notes).set({ deletedAt: null }).where(eq(notes.id, parentId)),
+    );
+    const restored = await scene.as('anna', (tx) =>
+      tx.update(noteItems).set({ deletedAt: null }).where(eq(noteItems.id, itemId)),
+    );
+    expect(restored.rowCount).toBe(1);
+  });
+
+  it('живой пункт нельзя перенести под заметку в корзине', async () => {
+    const anna = scene.person('anna');
+    const home = scene.home('household');
+    const liveParent = await addNote(database.admin, { author: anna, placement: home });
+    const trashedParent = await addNote(database.admin, {
+      author: anna,
+      placement: home,
+      trashedDaysAgo: 2,
+    });
+    const itemId = await addItem(liveParent, home, anna);
+    await expect(
+      scene.as('anna', (tx) =>
+        tx.update(noteItems).set({ parentId: trashedParent }).where(eq(noteItems.id, itemId)),
+      ),
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
+    expect(await liveUnderTrashed()).toEqual([]);
+  });
+
+  it('просроченная заметка уходит при очистке, а живого пункта у неё нет — удалять мимо корзины нечего', async () => {
+    const anna = scene.person('anna');
+    const home = scene.home('household');
+    const parentId = await addNote(database.admin, { author: anna, placement: home });
+    const itemId = await addItem(parentId, home, anna);
+    // Заметку убирают в корзину вместе с живым пунктом; состояние «живой пункт при заметке в корзине»
+    // после этого невозможно, поэтому очистка удаляет только то, что и так лежало в корзине.
+    await scene.as('anna', (tx) =>
+      tx.update(notes).set({ deletedAt: new Date() }).where(eq(notes.id, parentId)),
+    );
+    expect(await liveUnderTrashed()).toEqual([]);
+    const [item] = await rowsOf<{ trashed: boolean }>(
+      database.admin,
+      `SELECT deleted_at IS NOT NULL AS trashed FROM note_items WHERE id = $1`,
+      [itemId],
+    );
+    expect(item?.trashed).toBe(true);
   });
 });

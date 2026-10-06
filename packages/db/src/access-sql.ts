@@ -139,6 +139,15 @@ export function adminAssigneeSql(table: string): string {
  * триггера (`pg_trigger_depth() > 0`). Автор события — участник, от чьего имени идёт запрос.
  */
 export const HISTORY_APP_INSERT_SQL = `pg_trigger_depth() > 0 AND actor_id IS NOT DISTINCT FROM ${ME}`;
+/**
+ * Чтение истории: событие видно, если видно его место (оно записано в момент события и не меняется)
+ * И видна сама запись сейчас — подзапрос идёт под политикой чтения таблицы записей. Расширили
+ * аудиторию или перенесли запись — прошлое видят только те, кто видел его тогда.
+ */
+export function historySelectSql(table: string): string {
+  return `${canViewSql()} AND EXISTS (SELECT 1 FROM ${table} r WHERE r.id = ${table}_history.record_id)`;
+}
+
 /** То же для обработчика, который передаёт записи ушедшего администратору: события — «от системы». */
 export const HISTORY_WORKER_INSERT_SQL = 'pg_trigger_depth() > 0 AND actor_id IS NULL';
 
