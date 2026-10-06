@@ -476,7 +476,11 @@ test('конфликт правки: «обновить» или «сохран�
   family,
 }, info) => {
   const boris = await apiAs(family, 'adult');
-  const note = await seedNote(boris, family, { title: 'Список покупок', body: 'Хлеб, молоко.' });
+  const note = await seedNote(boris, family, {
+    title: 'Список покупок',
+    body: 'Хлеб, молоко.',
+    checklist: [{ title: 'Купить хлеб' }, { title: 'Купить сыр' }],
+  });
   await signInAs(page, family, 'adult');
   await page.goto(`#/more/notes/${note.id}`);
   await page.getByRole('button', { name: 'Править' }).click();
@@ -499,6 +503,16 @@ test('конфликт правки: «обновить» или «сохран�
     page.getByRole('heading', { level: 1, name: 'Список покупок (моя версия)', exact: true }),
   ).toBeVisible();
   await expect(page.getByText('Хлеб, молоко, сыр.')).toBeVisible();
+  // Пункты чек-листа перешли в копию новыми, а у исходной заметки остались свои.
+  await expect(page.getByText('Купить хлеб')).toBeVisible();
+  await expect(page.getByText('Купить сыр')).toBeVisible();
+  const stored = await family.database.admin.query(
+    'SELECT n.title, (SELECT count(*)::int FROM note_items i WHERE i.parent_id = n.id) AS items FROM notes n ORDER BY n.title',
+  );
+  expect(stored.rows).toEqual([
+    { title: 'Список покупок', items: 2 },
+    { title: 'Список покупок (моя версия)', items: 2 },
+  ]);
   await page.goto(`#/more/notes/${note.id}`);
   await expect(page.getByText('Хлеб, молоко, яйца.')).toBeVisible();
 

@@ -192,7 +192,12 @@ function NoteView({ card }: { card: NoteCard }) {
     const place = options.includes(visibility) ? visibility : 'personal';
     void save.run(async () => {
       const copy = await createNote(
-        { ...values, title: copyTitle(values.title) },
+        {
+          ...values,
+          title: copyTitle(values.title),
+          // У копии пункты новые: `id` исходной заметки сервер в новой заметке не принимает.
+          checklist: values.checklist.map(({ title, done }) => ({ title, done })),
+        },
         newPlacement(place, householdId),
       );
       await refresh();

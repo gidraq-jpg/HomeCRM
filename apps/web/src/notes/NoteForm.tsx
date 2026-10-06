@@ -267,9 +267,8 @@ export function NoteForm({
             </button>
           </div>
         </Notice>
-      ) : (
-        <NoteError error={state.error} action={action} />
-      )}
+      ) : null}
+      <NoteError error={state.error} action={action} />
 
       <div className="btn-row">
         <button type="submit" className="btn btn--primary" disabled={state.disabled}>
