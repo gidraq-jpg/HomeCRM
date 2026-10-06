@@ -30,7 +30,12 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
     accounts: { SELECT: 'all' },
     spaces: { SELECT: 'all' },
-    space_members: { SELECT: 'all' },
+    space_members: { SELECT: 'all', UPDATE: ['role', 'left_at', 'left_by', 'display_name'] },
+    household_access: { SELECT: 'all' },
+    member_profiles: {
+      SELECT: 'all',
+      UPDATE: ['display_name', 'photo_file_id', 'birth_date', 'phone'],
+    },
     invitations: { SELECT: 'all', INSERT: 'all', UPDATE: ['revoked_at'] },
     login_events: { SELECT: 'all' },
     password_resets: { SELECT: 'all', UPDATE: ['acknowledged_at'] },

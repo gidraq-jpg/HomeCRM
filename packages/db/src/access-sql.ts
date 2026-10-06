@@ -151,12 +151,21 @@ export function historySelectSql(table: string): string {
 /** То же для обработчика, который передаёт записи ушедшего администратору: события — «от системы». */
 export const HISTORY_WORKER_INSERT_SQL = 'pg_trigger_depth() > 0 AND actor_id IS NULL';
 
-// Пространства, членство, учётные записи: пока каждый видит только своё; список участников дома — R0.9.
+// Состав дома читается через индекс своих действующих членств, без рекурсии space_members.
 
 /** canViewSpace: своё личное пространство и дома, где он действующий участник. */
 export const SPACES_SELECT_SQL = `owner_account_id = ${ME} OR id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = ${ME} AND m.left_at IS NULL)`;
-/** canViewMembership: только свои строки. Условие не читает space_members: иначе — бесконечная рекурсия. */
-export const MEMBERS_SELECT_SQL = `account_id = ${ME}`;
+/** canViewMembership: собственные членства и состав своего действующего дома, включая бывших. */
+export const MEMBERS_SELECT_SQL = `account_id = ${ME} OR space_id IN (SELECT space_id FROM household_access WHERE account_id = ${ME})`;
+/** canViewProfile: только семейные поля отдельной таблицы; accounts сохраняет собственную RLS. */
+export const PROFILES_SELECT_SQL = `account_id = ${ME} OR EXISTS (
+  SELECT 1 FROM space_members m WHERE m.account_id = member_profiles.account_id AND m.left_at IS NULL
+    AND m.space_id IN (SELECT space_id FROM household_access WHERE account_id = ${ME})
+)`;
+/** Действующий администратор своего дома; завершённое членство менять нельзя. */
+export const MEMBERS_APP_ADMIN_SQL = `left_at IS NULL AND space_id IN (
+  SELECT space_id FROM household_access WHERE account_id = ${ME} AND role = 'admin'
+)`;
 /** canViewAccount: только своя учётная запись. */
 export const ACCOUNTS_SELECT_SQL = `id = ${ME}`;
 

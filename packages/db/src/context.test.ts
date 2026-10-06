@@ -29,6 +29,8 @@ const AUTH_ONLY = [
 const RECORD_NAMES = RECORD_DEFINITIONS.map((definition) => definition.name);
 const APP_TABLES = [
   'accounts',
+  'household_access',
+  'member_profiles',
   'invitations',
   'login_events',
   'password_resets',
@@ -40,6 +42,8 @@ const APP_TABLES = [
 // Эти таблицы наполняет seedFamily: проверка «без контекста пусто» не вырождена.
 const SEEDED = new Set([
   'accounts',
+  'household_access',
+  'member_profiles',
   'space_members',
   'spaces',
   ...RECORD_NAMES,

@@ -130,7 +130,12 @@ describe('NOTE-1…3, SPACE-7: API заметок', () => {
   it('сделать личной: только автор, подтверждение и отсутствие чужого вклада', async () => {
     const note = await create(adult, { placement: common(), checklist: [{ title: 'Пункт' }] });
     status(await second.post(`${base}/${note.id}/personal`, { confirmed: true }), 403);
-    status(await adult.post(`${base}/${note.id}/personal`, {}), 400);
+    const unconfirmed = await adult.post(`${base}/${note.id}/personal`, {});
+    status(unconfirmed, 409);
+    expect(unconfirmed.json().code).toBe('CONFIRMATION_REQUIRED');
+    const declined = await adult.post(`${base}/${note.id}/personal`, { confirmed: false });
+    status(declined, 409);
+    expect(declined.json().code).toBe('CONFIRMATION_REQUIRED');
     const preview = await adult.post(`${base}/${note.id}/access-preview`, { action: 'personal' });
     status(preview, 200);
     const affected = preview.json<{ losesAccess: { displayName: string }[] }>().losesAccess;

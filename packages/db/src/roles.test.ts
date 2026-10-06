@@ -77,17 +77,31 @@ describe('роли базы', () => {
         expect(policyname).toMatch(
           /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$/,
         );
+      } else if (roles[0] === DB_ROLES.owner) {
+        expect(['household_access_sync', 'member_profiles_initialize']).toContain(policyname);
       } else if (roles[0] === DB_ROLES.auth) expect(policyname).toMatch(/_auth_/);
       else expect(roles[0], policyname).toBe(DB_ROLES.app);
     }
   });
 
-  it('нет функций SECURITY DEFINER: они обходят RLS (ADR-0004, пункт 6)', async () => {
+  it('SECURITY DEFINER только у двух закрытых триггеров ADR-0021; runtime-роли не вызывают их', async () => {
     const { rows } = await database.admin.query(
-      `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-       WHERE n.nspname IN ('public', 'app') AND p.prosecdef`,
+      `SELECT p.proname, pg_get_userbyid(p.proowner) AS owner,
+         has_function_privilege('homecrm_app', p.oid, 'EXECUTE') AS app,
+         has_function_privilege('homecrm_auth', p.oid, 'EXECUTE') AS auth,
+         has_function_privilege('homecrm_worker', p.oid, 'EXECUTE') AS worker
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname IN ('public', 'app') AND p.prosecdef ORDER BY p.proname`,
     );
-    expect(rows).toEqual([]);
+    expect(rows).toEqual(
+      ['initialize_member_profile', 'sync_household_access'].map((proname) => ({
+        proname,
+        owner: DB_ROLES.owner,
+        app: false,
+        auth: false,
+        worker: false,
+      })),
+    );
   });
 });
 

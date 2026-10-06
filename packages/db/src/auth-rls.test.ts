@@ -221,6 +221,15 @@ describe('сброс пароля ребёнка: отметка', () => {
 
   it('ребёнок видит свою отметку и может подтвердить, что прочитал; чужая строка ему недоступна', async () => {
     const id = await seedReset(true);
+    const locked = await asApp(
+      vera?.id ?? '',
+      `UPDATE password_resets SET acknowledged_at = now() WHERE id = '${id}'`,
+    );
+    expect(locked.rowCount).toBe(0);
+    await database.admin.query(
+      "UPDATE password_resets SET completed_at = now() - interval '7 days' WHERE id = $1",
+      [id],
+    );
     const own = await asApp(vera?.id ?? '', `SELECT id FROM password_resets WHERE id = '${id}'`);
     expect(own.rows).toHaveLength(1);
     for (const stranger of [anna, boris, gleb]) {

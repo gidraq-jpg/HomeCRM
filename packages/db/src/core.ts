@@ -6,6 +6,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  date,
   foreignKey,
   index,
   pgEnum,
@@ -21,7 +22,9 @@ import {
 import {
   ACCOUNTS_SELECT_SQL,
   MEMBER_LEAVE_CHECK_SQL,
+  MEMBERS_APP_ADMIN_SQL,
   MEMBERS_SELECT_SQL,
+  PROFILES_SELECT_SQL,
   SPACES_SELECT_SQL,
 } from './access-sql.ts';
 
@@ -29,6 +32,7 @@ import {
 export const appRole = pgRole('homecrm_app').existing();
 export const workerRole = pgRole('homecrm_worker').existing();
 export const authRole = pgRole('homecrm_auth').existing();
+const ownerRole = pgRole('homecrm_owner').existing();
 
 export const SPACE_KINDS = [
   'personal',
@@ -107,7 +111,7 @@ export const accounts = pgTable(
   (t) => [
     unique('accounts_email_key').on(t.email),
     unique('accounts_username_key').on(t.username),
-    // Приложению — только своя учётная запись. Кто видит других участников дома — решается в R0.9.
+    // Закрытые сведения учётной записи — только владельцу; семейные поля — в member_profiles.
     pgPolicy('accounts_select', {
       for: 'select',
       to: appRole,
@@ -165,6 +169,8 @@ export const spaceMembers = pgTable(
       .notNull()
       .references(() => accounts.id),
     role: memberRoleEnum('role').notNull(),
+    /** Семейное имя, сохранённое в составе и после ухода. Синхронизируется из своего профиля. */
+    displayName: text('display_name').notNull().default(''),
     createdAt: createdAt(),
     /** Когда участник покинул дом или был исключён; NULL — участник действующий. */
     leftAt: timestamp('left_at', { withTimezone: true }),
@@ -187,11 +193,37 @@ export const spaceMembers = pgTable(
     check('space_members_household_only', sql.raw(`space_kind = 'household'`)),
     check('space_members_left_pair', sql.raw(`(left_at IS NULL) = (left_by IS NULL)`)),
     index('space_members_account_id_idx').on(t.accountId),
-    // Только свои членства. Политика не читает space_members сама: иначе была бы рекурсия.
+    // Состав своего дома через производный индекс: политика не читает space_members сама.
     pgPolicy('space_members_select', {
       for: 'select',
       to: appRole,
       using: sql.raw(MEMBERS_SELECT_SQL),
+    }),
+    // Поле role — только администратору; уход — администратору или самому участнику.
+    // Последнего администратора, подмену left_by и изменение завершённого членства
+    // запрещает guard_member_leave из миграции 0007. UPDATE выдан лишь на три колонки.
+    pgPolicy('space_members_admin_update', {
+      for: 'update',
+      to: appRole,
+      using: sql.raw(MEMBERS_APP_ADMIN_SQL),
+      withCheck: sql.raw(`space_id IN (
+        SELECT space_id FROM household_access
+        WHERE account_id = app.current_account_id() AND role = 'admin'
+      )`),
+    }),
+    pgPolicy('space_members_self_leave', {
+      for: 'update',
+      to: appRole,
+      using: sql.raw('account_id = app.current_account_id() AND left_at IS NULL'),
+      withCheck: sql.raw(
+        'account_id = app.current_account_id() AND left_at IS NOT NULL AND left_by = app.current_account_id()',
+      ),
+    }),
+    pgPolicy('space_members_profile_name', {
+      for: 'update',
+      to: appRole,
+      using: sql.raw('account_id = app.current_account_id() AND pg_trigger_depth() = 1'),
+      withCheck: sql.raw('account_id = app.current_account_id() AND pg_trigger_depth() = 1'),
     }),
     // Служба входа добавляет участника по приглашению и проверяет, чьим администратором является
     // тот, кто просит сбросить пароль (AUTH-5); данных семьи у неё нет.
@@ -215,6 +247,68 @@ export const spaceMembers = pgTable(
       for: 'select',
       to: workerRole,
       using: sql.raw('true'),
+    }),
+  ],
+);
+
+/** Производный индекс действующих членств. Запись — только закрытому триггеру миграции 0007. */
+export const householdAccess = pgTable(
+  'household_access',
+  {
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id),
+    role: memberRoleEnum('role').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.spaceId, t.accountId] }),
+    pgPolicy('household_access_select', {
+      for: 'select',
+      to: appRole,
+      using: sql.raw('account_id = app.current_account_id()'),
+    }),
+    // Владелец функции не получает обход RLS: FORCE действует, прямой доступ запрещён.
+    // У runtime-ролей нет DML и EXECUTE функции синхронизации.
+    pgPolicy('household_access_sync', {
+      for: 'all',
+      to: ownerRole,
+      using: sql.raw('pg_trigger_depth() = 1'),
+      withCheck: sql.raw('pg_trigger_depth() = 1'),
+    }),
+  ],
+);
+
+/** Только семейные поля SPACE-10; сведения о входе остаются в accounts под собственной RLS. */
+export const memberProfiles = pgTable(
+  'member_profiles',
+  {
+    accountId: uuid('account_id')
+      .primaryKey()
+      .references(() => accounts.id),
+    displayName: text('display_name').notNull(),
+    photoFileId: uuid('photo_file_id'),
+    birthDate: date('birth_date'),
+    phone: text('phone'),
+  },
+  () => [
+    pgPolicy('member_profiles_select', {
+      for: 'select',
+      to: appRole,
+      using: sql.raw(PROFILES_SELECT_SQL),
+    }),
+    pgPolicy('member_profiles_update', {
+      for: 'update',
+      to: appRole,
+      using: sql.raw('account_id = app.current_account_id()'),
+      withCheck: sql.raw('account_id = app.current_account_id()'),
+    }),
+    pgPolicy('member_profiles_initialize', {
+      for: 'insert',
+      to: ownerRole,
+      withCheck: sql.raw('pg_trigger_depth() = 1'),
     }),
   ],
 );

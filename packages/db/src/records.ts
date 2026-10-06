@@ -247,6 +247,10 @@ function historyTable(name: string, table: { id: AnyPgColumn }) {
         foreignColumns: [table.id],
       }).onDelete('cascade'),
       index(`${historyName}_record_id_idx`).on(t.recordId, t.createdAt),
+      check(
+        `${historyName}_audience_iff_household`,
+        sql.raw(`(space_kind = 'personal') = (audience IS NULL)`),
+      ),
       pgPolicy(`${historyName}_select`, {
         for: 'select',
         to: appRole,

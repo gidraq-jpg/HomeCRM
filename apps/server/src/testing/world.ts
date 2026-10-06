@@ -2,7 +2,12 @@
 // Better Auth и вымышленная семья. Секреты (ключ библиотеки, пароли) создаются во время
 // прогона и нигде не сохраняются.
 import { randomBytes } from 'node:crypto';
-import { createAppDatabase, createAuthDatabase, type Database } from '@homecrm/db';
+import {
+  createAppDatabase,
+  createAuthDatabase,
+  createWorkerDatabase,
+  type Database,
+} from '@homecrm/db';
 import { createTestDatabase, type TestDatabase } from '@homecrm/db/testing';
 import type { Role } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
@@ -114,7 +119,11 @@ export async function createWorld(options: WorldOptions = {}): Promise<World> {
   });
   const app = buildApp(
     { LOG_LEVEL: 'info', APP_VERSION: 'test' },
-    { auth: module, logStream: { write: (line) => void requestLog.push(line) } },
+    {
+      auth: module,
+      worker: createWorkerDatabase(database.worker),
+      logStream: { write: (line) => void requestLog.push(line) },
+    },
   );
   await app.ready();
 

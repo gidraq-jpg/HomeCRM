@@ -140,7 +140,7 @@ describe('в базе нет таблицы, которой не знает ни
   // recordTable()); пространства, участники, учётные записи — spaces-matrix.test.ts; приглашения,
   // журнал входов и сброс пароля — identity-matrix.test.ts; пароли, секреты, сессии и счётчики приложению
   // не выданы вовсе — context.test.ts и auth-rls.test.ts.
-  const SPACES = ['accounts', 'space_members', 'spaces'];
+  const SPACES = ['accounts', 'space_members', 'spaces', 'household_access', 'member_profiles'];
   const IDENTITY = ['invitations', 'login_events', 'password_resets'];
   const AUTH_ONLY = [
     'credentials',

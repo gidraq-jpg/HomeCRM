@@ -38,7 +38,7 @@ export const ShareNote = z.strictObject({
   audience: audience.default('household'),
 });
 export const AudienceChange = z.strictObject({ audience, confirmed: z.boolean().optional() });
-export const Confirm = z.strictObject({ confirmed: z.literal(true) });
+export const Confirm = z.strictObject({ confirmed: z.boolean() });
 export const Preview = z.discriminatedUnion('action', [
   z.strictObject({ action: z.literal('personal') }),
   z.strictObject({ action: z.literal('audience'), audience }),

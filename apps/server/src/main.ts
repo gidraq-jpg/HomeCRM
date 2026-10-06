@@ -37,11 +37,12 @@ const auth = createAuthModule({
   trustedOrigins: authConfig.TRUSTED_ORIGINS,
   homeTimeZone: authConfig.HOME_TIME_ZONE,
 });
-const app = buildApp(config, { auth });
+const worker = createWorkerDatabase(workerPool);
+const app = buildApp(config, { auth, worker });
 // Сообщения о сбое соединения не содержат строки подключения: pg пишет только причину.
 poolErrors.push((error) => app.log.error({ message: error.message }, 'database pool error'));
 
-const stopCleanup = scheduleCleanup(createWorkerDatabase(workerPool), app.log);
+const stopCleanup = scheduleCleanup(worker, app.log);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
