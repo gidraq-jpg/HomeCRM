@@ -40,6 +40,7 @@ import {
   USERNAME_MIN,
 } from './identity.ts';
 import { insertAccount, loadViewer, pgError } from './provision.ts';
+import { claimTotpCode } from './totp-replay.ts';
 
 /** Заголовок с адресом клиента: его ставит только наш Fastify (fastify.ts), чужой заголовок затирается. */
 export const CLIENT_IP_HEADER = 'x-homecrm-client-ip';
@@ -418,6 +419,29 @@ export function homecrm(deps: PluginDeps) {
               return { context: { headers } };
             }
             return { context: { body: { ...(ctx.body as object), trustDevice: false } } };
+          }),
+        },
+        {
+          // Код TOTP принимается один раз: повтор в том же окне — отказ (RFC 6238, п. 5.2).
+          matcher: (context) => context.path === '/two-factor/verify-totp',
+          handler: createAuthMiddleware(async (ctx) => {
+            const code = (ctx.body as { code?: unknown } | undefined)?.code;
+            if (typeof code !== 'string') return;
+            let accountId = (await getSessionFromCtx(ctx))?.user.id;
+            if (accountId === undefined) {
+              const cookie = ctx.context.createAuthCookie(TWO_FACTOR_COOKIE);
+              const challenge = await ctx.getSignedCookie(cookie.name, ctx.context.secret);
+              if (challenge) {
+                accountId = (await ctx.context.internalAdapter.findVerificationValue(challenge))
+                  ?.value;
+              }
+            }
+            if (accountId === undefined) return;
+            if (await claimTotpCode(deps.db, accountId, code)) return;
+            throw APIError.from('UNAUTHORIZED', {
+              code: 'INVALID_CODE',
+              message: 'Invalid code',
+            });
           }),
         },
         {

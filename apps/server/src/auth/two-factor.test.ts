@@ -217,20 +217,35 @@ describe('вход со вторым фактором', () => {
     expect(open.status, open.text).toBe(200);
   });
 
-  it('код из приложения принимается повторно в том же окне: защиты от повтора в библиотеке нет', async () => {
-    // RFC 6238, раздел 5.2, требует принимать код один раз. Библиотека этого не делает: код
-    // подслушанный (но не пароль) за 30 секунд даёт второй вход. Риск низкий — нужен ещё пароль —
-    // и записан в ADR-0005; если библиотека это исправит, этот тест напомнит обновить запись.
+  it('код из приложения принимается один раз: повтор в том же окне — отказ (RFC 6238, п. 5.2)', async () => {
+    // Библиотека принимает один и тот же код сколько угодно раз; свой хук занимает код до проверки.
+    // Подслушанный код (но не пароль) за 30 секунд второго входа не даёт.
     const code = currentCode(annaEnrollment.uri);
     const results: number[] = [];
     for (const _ of [1, 2]) {
-      const device = world.device();
+      const device = world.device({ keepUsedCodes: true });
       await world.clearRateLimits();
       await device.signIn(world.anna.username, world.anna.password);
       await world.clearRateLimits();
       results.push((await device.post('/api/auth/two-factor/verify-totp', { code })).status);
     }
-    expect(results).toEqual([200, 200]);
+    // Первый раз — 200 (или отказ, если тот же код уже занят соседним тестом; тогда оба отказа).
+    expect(results[1]).toBe(401);
+    // Параллельно, с двух устройств: ровно один выигрывает.
+    const next = currentCode(annaEnrollment.uri, Date.now() + 30_000);
+    const racers = await Promise.all(
+      [1, 2, 3].map(async () => {
+        const device = world.device({ keepUsedCodes: true });
+        await world.clearRateLimits();
+        await device.signIn(world.anna.username, world.anna.password);
+        return device;
+      }),
+    );
+    await world.clearRateLimits();
+    const replies = await Promise.all(
+      racers.map((device) => device.post('/api/auth/two-factor/verify-totp', { code: next })),
+    );
+    expect(replies.map((reply) => reply.status).sort()).toEqual([200, 401, 401]);
   });
 
   it('«доверять устройству» администратору запрещено: код спрашивается при каждом входе', async () => {
