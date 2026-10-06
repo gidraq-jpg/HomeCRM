@@ -10,6 +10,7 @@ import './styles/components.css';
 import './styles/screens.css';
 import './styles/auth.css';
 import './styles/household.css';
+import './styles/notes.css';
 import { registerShell } from './pwa/register.ts';
 
 const root = document.getElementById('root');

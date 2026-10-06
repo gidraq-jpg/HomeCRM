@@ -1,5 +1,6 @@
 import { test } from '../auth/support/fixtures.ts';
 import { setScope } from '../support/helpers.ts';
+import { apiAs, noteLinks, seedNote } from './notes-support.ts';
 import { checkApp, expect, seedProfiles, signInAs } from './support.ts';
 
 // Компьютер (PRD, раздел 14): боковое меню со всеми разделами; переключатель пространств и
@@ -52,4 +53,47 @@ test('боковое меню вместо нижнего, переключат�
   await expect(add).toBeVisible();
   const box = await add.boundingBox();
   expect(box && box.x + box.width).toBeGreaterThan(1200);
+});
+
+test('заметки на компьютере: список, карточка и «Кто видит» рядом с боковым меню', async ({
+  page,
+  family,
+}, info) => {
+  const boris = await apiAs(family, 'adult');
+  await seedNote(boris, family, {
+    title: 'Ремонт кухни',
+    body: '# План\n\nНужна **краска** и скотч.',
+    pinned: true,
+    checklist: [{ title: 'Купить краску' }, { title: 'Позвонить мастеру', done: true }],
+  });
+  await seedNote(boris, family, {
+    title: 'Правила дома',
+    body: 'Обувь у двери.',
+    audience: 'household',
+  });
+  await signInAs(page, family, 'adult');
+
+  const side = page.getByRole('navigation', { name: 'Основные разделы' });
+  await side.getByRole('link', { name: 'Ещё', exact: true }).click();
+  await page.getByRole('link', { name: /^Заметки/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Заметки', exact: true })).toBeVisible();
+  await expect(side.getByRole('link', { name: 'Ещё', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(noteLinks(page)).toHaveCount(2);
+  await checkApp(page, info, 'desktop-notes');
+
+  await noteLinks(page).filter({ hasText: 'Ремонт кухни' }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Ремонт кухни', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('Выполнено 1 из 2')).toBeVisible();
+  await checkApp(page, info, 'desktop-note');
+
+  await page.goto('#/more/notes');
+  await noteLinks(page).filter({ hasText: 'Правила дома' }).click();
+  await page.getByRole('button', { name: 'Кто видит…' }).click();
+  await expect(page.getByRole('dialog', { name: 'Кто видит заметку' })).toBeVisible();
+  await checkApp(page, info, 'desktop-note-audience');
 });

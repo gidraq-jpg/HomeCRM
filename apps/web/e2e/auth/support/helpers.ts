@@ -53,6 +53,13 @@ export async function checkAuth(page: Page, info: TestInfo, name: string, prefix
     });
   } finally {
     if (viewport) await page.setViewportSize(viewport);
+    // Возврат окна к прежней высоте приложение принимает за открытую экранную клавиатуру и прячет
+    // нижнее меню и «+». Это побочный эффект снимка, а не поведение человека: возвращаем меню.
+    await page.evaluate(async () => {
+      // Событие изменения окна приходит после возврата размера, поэтому ждём его и только потом снимаем отметку.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      delete document.documentElement.dataset.keyboard;
+    });
   }
 }
 export async function expectSignedIn(page: Page) {
