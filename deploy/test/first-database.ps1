@@ -55,7 +55,8 @@ try {
   Write-Host 'ок: успешная копия — восстановление не зависит от исходной базы'
 }
 finally {
-  & docker @compose down --volumes --remove-orphans 2>&1 | Out-Null
+  # Профиль нужен и здесь: без него down не видит db и оставляет контейнер и сеть после каждого прогона.
+  & docker @compose --profile app down --volumes --remove-orphans 2>&1 | Out-Null
   $env:HOMECRM_DATA = $previousData
   $PSDefaultParameterValues = $previousDefaults
   $resolvedData = [System.IO.Path]::GetFullPath($data)
