@@ -26,9 +26,9 @@ import {
   findAccountByLogin,
   type LoginKind,
   type LoginOutcome,
-  lockedUntil,
-  recordFailure,
   recordLoginEvent,
+  reserveAttempt,
+  unknownLoginSubject,
 } from './attempts.ts';
 import {
   hashToken,
@@ -140,8 +140,13 @@ async function journal(
   }
 }
 
-function retryAfterSeconds(until: Date): string {
-  return String(Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000)));
+export function lockedError(until: Date): APIError {
+  const seconds = String(Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000)));
+  return new APIError(
+    'TOO_MANY_REQUESTS',
+    { code: 'ACCOUNT_TEMPORARILY_LOCKED', message: 'Too many attempts, try later' },
+    { 'Retry-After': seconds, 'X-Retry-After': seconds },
+  );
 }
 
 export function homecrm(deps: PluginDeps) {
@@ -196,14 +201,17 @@ export function homecrm(deps: PluginDeps) {
                 email,
                 householdId: invitation.householdId,
                 role: invitation.role,
+                // Политика службы входа разрешает отметить только живое приглашение: если соседний
+                // запрос успел раньше, строк не найдётся, а вся транзакция откатится. Отметка идёт
+                // до вставки участника: база сверяет с ней дом и роль нового участника.
+                beforeMembership: async (inner, accountId) => {
+                  const accepted = await inner
+                    .update(invitations)
+                    .set({ acceptedAt: sql`now()`, acceptedBy: accountId })
+                    .where(eq(invitations.id, invitation.id));
+                  if (accepted.rowCount !== 1) throw new InvitationError('INVITATION_USED');
+                },
               });
-              // Политика службы входа разрешает отметить только живое приглашение: если соседний
-              // запрос успел раньше, строк не найдётся, а вся транзакция откатится.
-              const accepted = await tx
-                .update(invitations)
-                .set({ acceptedAt: sql`now()`, acceptedBy: account.id })
-                .where(eq(invitations.id, invitation.id));
-              if (accepted.rowCount !== 1) throw new InvitationError('INVITATION_USED');
               return {
                 id: account.id,
                 householdId: invitation.householdId,
@@ -353,22 +361,24 @@ export function homecrm(deps: PluginDeps) {
                 message: 'Invalid email or password',
               });
             }
+            // Попытка занимается до проверки пароля: параллельные запросы выстраиваются в очередь
+            // на строке счётчика. Для имени, которого нет, счётчик свой — отказ приходит так же,
+            // и по блокировке нельзя узнать, есть ли такое имя (AUTH-8).
             const account = await findAccountByLogin(deps.db, body);
-            if (account === null) return;
-            const until = await lockedUntil(deps.db, account.id);
-            if (until === null) return;
-            await journal(deps, ctx.context.logger, {
-              accountId: account.id,
-              kind: 'sign_in',
-              outcome: 'locked',
-              ...clientInfo(ctx),
-            });
-            const seconds = retryAfterSeconds(until);
-            throw new APIError(
-              'TOO_MANY_REQUESTS',
-              { code: 'ACCOUNT_TEMPORARILY_LOCKED', message: 'Too many attempts, try later' },
-              { 'Retry-After': seconds, 'X-Retry-After': seconds },
-            );
+            const subject =
+              account === null ? unknownLoginSubject(body) : { accountId: account.id };
+            if (subject === null) return;
+            const reservation = await reserveAttempt(deps.db, subject);
+            if (reservation.allowed) return;
+            if (account !== null) {
+              await journal(deps, ctx.context.logger, {
+                accountId: account.id,
+                kind: 'sign_in',
+                outcome: 'locked',
+                ...clientInfo(ctx),
+              });
+            }
+            throw lockedError(reservation.lockedUntil);
           }),
         },
         {
@@ -414,16 +424,16 @@ export function homecrm(deps: PluginDeps) {
           // Заблокированная учётная запись не проверяет пароль ни при входе, ни при подтверждении.
           matcher: (context) => PASSWORD_CONFIRM_PATHS.has(context.path ?? ''),
           handler: createAuthMiddleware(async (ctx) => {
+            // Неверный пароль на этих путях копится в блокировку, как при входе: тот, кто украл
+            // cookie, не должен подбирать пароль без ограничений. Считается только запрос с паролем.
+            // Пароль приходит в поле password, а при смене пароля — в currentPassword.
+            const body = (ctx.body ?? {}) as { password?: unknown; currentPassword?: unknown };
+            if (typeof body.password !== 'string' && typeof body.currentPassword !== 'string')
+              return;
             const session = await getSessionFromCtx(ctx);
             if (!session) return;
-            const until = await lockedUntil(deps.db, session.user.id);
-            if (until === null) return;
-            const seconds = retryAfterSeconds(until);
-            throw new APIError(
-              'TOO_MANY_REQUESTS',
-              { code: 'ACCOUNT_TEMPORARILY_LOCKED', message: 'Too many attempts, try later' },
-              { 'Retry-After': seconds, 'X-Retry-After': seconds },
-            );
+            const reservation = await reserveAttempt(deps.db, { accountId: session.user.id });
+            if (!reservation.allowed) throw lockedError(reservation.lockedUntil);
           }),
         },
         {
@@ -454,9 +464,8 @@ export function homecrm(deps: PluginDeps) {
             const returned = ctx.context.returned;
             const info = clientInfo(ctx);
             if (isAPIError(returned)) {
-              // Блокировка и сбои сервера подбором не считаются: только неверные учётные данные.
+              // Попытка уже посчитана до проверки; в журнал идут только неверные учётные данные.
               if (returned.statusCode !== 401) return;
-              await recordFailure(deps.db, account.id);
               await journal(deps, ctx.context.logger, {
                 accountId: account.id,
                 kind: 'sign_in',
@@ -465,7 +474,7 @@ export function homecrm(deps: PluginDeps) {
               });
               return;
             }
-            await clearFailures(deps.db, account.id);
+            await clearFailures(deps.db, { accountId: account.id });
             const pending =
               typeof returned === 'object' &&
               returned !== null &&
@@ -484,11 +493,8 @@ export function homecrm(deps: PluginDeps) {
             const returned = ctx.context.returned;
             const userId = ctx.context.session?.user.id;
             if (userId === undefined) return;
-            if (!isAPIError(returned)) {
-              await clearFailures(deps.db, userId); // пароль подтверждён: счётчик неудач сброшен
-            } else if (returned.body?.code === 'INVALID_PASSWORD') {
-              await recordFailure(deps.db, userId);
-            }
+            // Пароль подтверждён: счётчик попыток сброшен. Неверный остаётся посчитанным.
+            if (!isAPIError(returned)) await clearFailures(deps.db, { accountId: userId });
           }),
         },
         {

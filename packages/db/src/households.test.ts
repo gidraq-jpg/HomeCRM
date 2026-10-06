@@ -61,15 +61,24 @@ describe('личное пространство вместе с учётной �
       [id],
     );
     expect(rows).toEqual([{ kind: 'personal', owner_account_id: id }]);
+    // Второе личное пространство: служба входа создаёт его только учётной записи, заведённой в этой же
+    // транзакции (политика spaces_auth_insert), а глубже — уникальный ключ владельца (23505).
     await expect(authTransaction([personalSpace(id, 'Нина ещё раз')])).rejects.toMatchObject({
-      code: '23505',
+      code: '42501',
     });
+    await expect(
+      database.admin.query(
+        `INSERT INTO spaces (kind, name, owner_account_id) VALUES ('personal', 'ещё', $1)`,
+        [id],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
   });
 
   it('участников у личного пространства нет: только владелец', async () => {
     const anna = scene.person('anna');
+    // Суперпользователь обходит RLS: проверяется внешний ключ, а не политика (её проверяет identity-mutations).
     await expect(
-      database.auth.query(
+      database.admin.query(
         `INSERT INTO space_members (space_id, space_kind, account_id, role) VALUES ($1, 'household', $2, 'adult')`,
         [anna.personalSpaceId, scene.person('boris').id],
       ),
@@ -81,12 +90,13 @@ describe('несколько домов у одной учётной запис�
   it('роль в каждом доме своя, а видно ровно то, где человек состоит', async () => {
     const anna = scene.person('anna');
     const boris = scene.person('boris');
-    // Второй дом создаёт служба входа при первой настройке: Борис — его администратор, Анна — взрослая.
-    const { rows } = await database.auth.query<{ id: string }>(
+    // Второй дом: Борис — его администратор, Анна — взрослая. Заводит суперпользователь: служба входа
+    // пустила бы в дом только по приглашению (тесты политик — в spaces-auth-insert.test.ts).
+    const { rows } = await database.admin.query<{ id: string }>(
       `INSERT INTO spaces (kind, name) VALUES ('household', 'Дача') RETURNING id`,
     );
     const dacha = rows[0]?.id ?? '';
-    await database.auth.query(
+    await database.admin.query(
       `INSERT INTO space_members (space_id, account_id, role) VALUES ($1, $2, 'admin'), ($1, $3, 'adult')`,
       [dacha, boris.id, anna.id],
     );

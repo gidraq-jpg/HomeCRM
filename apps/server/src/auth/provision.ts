@@ -32,6 +32,12 @@ export interface NewAccount {
   email?: string | undefined;
   householdId: string;
   role: Role;
+  /**
+   * Вызывается после учётной записи и личного пространства, но до членства в доме. По приглашению
+   * здесь приглашение отмечается принятым: политика базы разрешает вставить участника, только если
+   * принятое в этой же транзакции приглашение совпадает с ним по дому, роли и участнику (миграция 0004).
+   */
+  beforeMembership?: ((tx: Transaction, accountId: string) => Promise<void>) | undefined;
 }
 
 export interface CreatedAccount {
@@ -81,6 +87,7 @@ export async function insertAccount(tx: Transaction, input: NewAccount): Promise
     .values({ kind: 'personal', name: `Личное: ${input.displayName}`, ownerAccountId: account.id })
     .returning({ id: spaces.id });
   if (space === undefined) throw new Error('insertAccount: no personal space returned');
+  await input.beforeMembership?.(tx, account.id);
   await tx
     .insert(spaceMembers)
     .values({ spaceId: input.householdId, accountId: account.id, role: input.role });

@@ -29,6 +29,13 @@
       "when": 1791258291263,
       "tag": "0003_attach_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791259348108,
+      "tag": "0004_auth_hardening",
+      "breakpoints": true
     }
   ]
 }

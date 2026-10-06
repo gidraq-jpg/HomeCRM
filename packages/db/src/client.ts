@@ -1,8 +1,21 @@
 import { sql } from 'drizzle-orm';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { Pool } from 'pg';
+import pg, { type Pool } from 'pg';
 import { z } from 'zod';
 import * as schema from './schema.ts';
+
+/**
+ * Пул подключений по адресу из настроек. Ошибка простаивающего соединения (перезапуск базы) не
+ * должна ронять процесс: она попадает в журнал вызывающего, а пул открывает новое соединение.
+ */
+export function createPool(
+  connectionString: string,
+  options: { max?: number; onError?: (error: Error) => void } = {},
+): Pool {
+  const pool = new pg.Pool({ connectionString, max: options.max ?? 10 });
+  pool.on('error', (error) => options.onError?.(error));
+  return pool;
+}
 
 export type Database = NodePgDatabase<typeof schema>;
 export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];

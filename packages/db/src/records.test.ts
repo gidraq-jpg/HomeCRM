@@ -143,6 +143,7 @@ describe('в базе нет таблицы, которой не знает ни
   const AUTH_ONLY = [
     'credentials',
     'login_locks',
+    'login_name_attempts',
     'rate_limits',
     'sessions',
     'two_factors',

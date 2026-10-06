@@ -20,7 +20,7 @@ import { isAPIError } from 'better-auth/api';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import * as z from 'zod';
-import { clearFailures, lockedUntil, recordFailure } from './attempts.ts';
+import { clearFailures, reserveAttempt } from './attempts.ts';
 import { type Auth, type AuthOptions, createAuth } from './auth.ts';
 import { isPlaceholderEmail, newInvitationToken } from './identity.ts';
 import { CLIENT_IP_HEADER } from './plugin.ts';
@@ -166,9 +166,14 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
       fail(reply, 400, 'PASSWORD_REQUIRED', 'Enter your password to continue');
       return false;
     }
-    const until = await lockedUntil(db, account.id);
-    if (until !== null) {
-      void reply.header('retry-after', String(Math.ceil((until.getTime() - Date.now()) / 1000)));
+    // Попытка занимается до проверки пароля (attempts.ts): параллельные запросы не обгонят счётчик.
+    const reservation = await reserveAttempt(db, { accountId: account.id });
+    if (!reservation.allowed) {
+      const seconds = Math.max(
+        1,
+        Math.ceil((reservation.lockedUntil.getTime() - Date.now()) / 1000),
+      );
+      void reply.header('retry-after', String(seconds));
       fail(reply, 429, 'ACCOUNT_TEMPORARILY_LOCKED', 'Too many attempts, try later');
       return false;
     }
@@ -179,11 +184,10 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
       });
     } catch (error) {
       if (!isAPIError(error)) throw error;
-      await recordFailure(db, account.id);
       fail(reply, 403, 'INVALID_PASSWORD', 'Wrong password');
       return false;
     }
-    await clearFailures(db, account.id);
+    await clearFailures(db, { accountId: account.id });
     return true;
   }
 

@@ -38,6 +38,19 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const worker: Record<string, TableGrants> = {
     space_members: { SELECT: ['space_id', 'account_id', 'role', 'created_at', 'left_at'] },
   };
+  // Обработчик убирает просроченное из таблиц входа; какие строки — решают политики *_worker_cleanup.
+  for (const name of [
+    'sessions',
+    'verifications',
+    'rate_limits',
+    'login_locks',
+    'login_name_attempts',
+    'invitations',
+    'login_events',
+    'password_resets',
+  ]) {
+    worker[name] = { SELECT: 'all', DELETE: 'all' };
+  }
   const auth: Record<string, TableGrants> = {
     accounts: { SELECT: 'all', INSERT: 'all', UPDATE: 'all' },
     spaces: { SELECT: 'all', INSERT: 'all' },
@@ -47,7 +60,14 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     login_events: { INSERT: 'all' },
     password_resets: { SELECT: 'all', INSERT: 'all', UPDATE: ['completed_at'] },
   };
-  for (const name of ['sessions', 'verifications', 'two_factors', 'rate_limits', 'login_locks']) {
+  for (const name of [
+    'sessions',
+    'verifications',
+    'two_factors',
+    'rate_limits',
+    'login_locks',
+    'login_name_attempts',
+  ]) {
     auth[name] = { SELECT: 'all', INSERT: 'all', UPDATE: 'all', DELETE: 'all' };
   }
 

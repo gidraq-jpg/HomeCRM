@@ -1,22 +1,26 @@
-// Попытки входа (AUTH-8): блокировка учётной записи после серии неудач и журнал входов.
+// Попытки входа (AUTH-8): блокировка после серии неудач и журнал входов.
 // Библиотека ограничивает запросы по адресу и пути (rateLimit), но не знает про учётную запись:
 // подбор пароля с разных адресов она не остановит. Эту часть пишем сами; работает она от имени
-// службы входа (роль homecrm_auth) и в таблицах login_locks и login_events.
+// службы входа (роль homecrm_auth) в таблицах login_locks, login_name_attempts и login_events.
+//
+// Попытка занимается ДО проверки пароля (reserveAttempt), а не записывается после неё: иначе
+// параллельная пачка запросов успевала бы проверить больше пяти паролей, пока ни один из них
+// ещё не посчитан. Верный пароль освобождает счётчик (clearFailures).
+//
+// Блокировка не выдаёт, какие имена существуют: на имя, которого нет, она наступает так же и
+// в те же сроки — счётчик ведётся по хэшу имени (login_name_attempts).
 import {
   accounts,
-  and,
   type Database,
   eq,
-  gt,
   type LOGIN_KINDS,
   type LOGIN_OUTCOMES,
   loginEvents,
-  loginLocks,
   sql,
 } from '@homecrm/db';
-import { normalizeUsername } from './identity.ts';
+import { hashToken, normalizeUsername } from './identity.ts';
 
-/** Пять неудач подряд за 15 минут — вход заблокирован на 15 минут; верный пароль счётчик сбрасывает. */
+/** Пять попыток за 15 минут; шестая — блокировка на 15 минут. Верный пароль счётчик сбрасывает. */
 export const LOCKOUT = { maxFailures: 5, windowSeconds: 900, lockSeconds: 900 } as const;
 
 export type LoginKind = (typeof LOGIN_KINDS)[number];
@@ -27,10 +31,19 @@ export interface ClientInfo {
   userAgent: string | null;
 }
 
-/** Учётная запись по тому, что ввели при входе: имя пользователя или адрес почты. */
+/** Кого считает счётчик: известную учётную запись или имя, которого в базе нет. */
+export type AttemptSubject = { accountId: string } | { name: string };
+
+/** Что ввели при входе: имя пользователя или адрес почты. */
+export interface LoginInput {
+  username?: unknown;
+  email?: unknown;
+}
+
+/** Учётная запись по тому, что ввели при входе. */
 export async function findAccountByLogin(
   db: Database,
-  login: { username?: unknown; email?: unknown },
+  login: LoginInput,
 ): Promise<{ id: string } | null> {
   const condition =
     typeof login.username === 'string'
@@ -43,40 +56,81 @@ export async function findAccountByLogin(
   return row ?? null;
 }
 
-/** До какого времени вход заблокирован; null — не заблокирован. Время сравнивает база. */
-export async function lockedUntil(db: Database, accountId: string): Promise<Date | null> {
-  const [row] = await db
-    .select({ lockedUntil: loginLocks.lockedUntil })
-    .from(loginLocks)
-    .where(and(eq(loginLocks.accountId, accountId), gt(loginLocks.lockedUntil, sql`now()`)));
-  return row?.lockedUntil ?? null;
+/** Ключ счётчика для введённого, но неизвестного имени; null — вход без имени и почты. */
+export function unknownLoginSubject(login: LoginInput): AttemptSubject | null {
+  const typed =
+    typeof login.username === 'string'
+      ? `u:${normalizeUsername(login.username)}`
+      : typeof login.email === 'string'
+        ? `e:${login.email.trim().toLowerCase()}`
+        : null;
+  return typed === null ? null : { name: hashToken(typed) };
 }
+
+function table(subject: AttemptSubject) {
+  return 'accountId' in subject
+    ? { name: sql.raw('login_locks'), key: sql.raw('account_id'), value: subject.accountId }
+    : { name: sql.raw('login_name_attempts'), key: sql.raw('name_hash'), value: subject.name };
+}
+
+/** До какого времени вход заблокирован; null — не заблокирован. Время сравнивает база. */
+export async function lockedUntil(db: Database, subject: AttemptSubject): Promise<Date | null> {
+  const t = table(subject);
+  const result = await db.execute<{ locked_until: string }>(
+    sql`SELECT locked_until FROM ${t.name} WHERE ${t.key} = ${t.value} AND locked_until > now()`,
+  );
+  const value = result.rows[0]?.locked_until;
+  return value === undefined ? null : new Date(value);
+}
+
+export type Reservation = { allowed: true } | { allowed: false; lockedUntil: Date };
 
 /**
- * Неудачная попытка: счётчик растёт атомарно, окно в 15 минут начинается с первой неудачи.
- * На пятой неудаче вход блокируется. Возвращает время блокировки, если она наступила.
+ * Занимает попытку входа до проверки пароля. Строка счётчика блокируется на время решения
+ * (SELECT ... FOR UPDATE), поэтому параллельные запросы выстраиваются в очередь и каждый видит
+ * счётчик с учётом предыдущих: больше пяти проверок в окне не пройдёт ни при какой нагрузке.
+ * Пятая попытка пропускается, но выставляет блокировку: шестая получит отказ, не касаясь пароля.
  */
-export async function recordFailure(db: Database, accountId: string): Promise<Date | null> {
+export async function reserveAttempt(db: Database, subject: AttemptSubject): Promise<Reservation> {
   const { maxFailures, windowSeconds, lockSeconds } = LOCKOUT;
-  const counted = await db.execute<{ failures: number }>(sql`
-    INSERT INTO login_locks (account_id, failures, window_started_at)
-    VALUES (${accountId}, 1, now())
-    ON CONFLICT (account_id) DO UPDATE SET
-      failures = CASE WHEN login_locks.window_started_at < now() - make_interval(secs => ${windowSeconds})
-                      THEN 1 ELSE login_locks.failures + 1 END,
-      window_started_at = CASE WHEN login_locks.window_started_at < now() - make_interval(secs => ${windowSeconds})
-                               THEN now() ELSE login_locks.window_started_at END
-    RETURNING failures`);
-  if ((counted.rows[0]?.failures ?? 0) < maxFailures) return null;
-  const locked = await db.execute<{ locked_until: Date }>(sql`
-    UPDATE login_locks SET locked_until = now() + make_interval(secs => ${lockSeconds})
-    WHERE account_id = ${accountId} RETURNING locked_until`);
-  return locked.rows[0]?.locked_until ?? null;
+  const t = table(subject);
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`INSERT INTO ${t.name} (${t.key}) VALUES (${t.value}) ON CONFLICT DO NOTHING`,
+    );
+    const state = await tx.execute<{
+      failures: number;
+      expired: boolean;
+      locked: boolean;
+      locked_until: string | null;
+    }>(sql`
+      SELECT failures,
+             window_started_at < now() - make_interval(secs => ${windowSeconds}) AS expired,
+             COALESCE(locked_until > now(), false) AS locked,
+             locked_until
+      FROM ${t.name} WHERE ${t.key} = ${t.value} FOR UPDATE`);
+    const row = state.rows[0];
+    if (row === undefined) throw new Error('reserveAttempt: the counter row disappeared');
+    if (row.locked && row.locked_until !== null) {
+      return { allowed: false, lockedUntil: new Date(row.locked_until) } as const;
+    }
+    const failures = row.expired ? 1 : row.failures + 1;
+    const lock = failures >= maxFailures;
+    await tx.execute(sql`
+      UPDATE ${t.name} SET
+        failures = ${failures},
+        window_started_at = CASE WHEN ${row.expired} THEN now() ELSE window_started_at END,
+        locked_until = CASE WHEN ${lock}
+                            THEN now() + make_interval(secs => ${lockSeconds}) ELSE NULL END
+      WHERE ${t.key} = ${t.value}`);
+    return { allowed: true } as const;
+  });
 }
 
-/** Верный пароль: счётчик неудач и блокировка снимаются. */
-export async function clearFailures(db: Database, accountId: string): Promise<void> {
-  await db.delete(loginLocks).where(eq(loginLocks.accountId, accountId));
+/** Верный пароль: счётчик попыток и блокировка снимаются. */
+export async function clearFailures(db: Database, subject: AttemptSubject): Promise<void> {
+  const t = table(subject);
+  await db.execute(sql`DELETE FROM ${t.name} WHERE ${t.key} = ${t.value}`);
 }
 
 export async function recordLoginEvent(
