@@ -4,7 +4,7 @@
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 . "$PSScriptRoot/../scripts/ops-common.ps1"
-$branch = (git -C $script:RepoRoot branch --show-current).Trim().ToLowerInvariant() -replace '[^a-z0-9]+', '-'
+$branch = (git -C $script:RepoRoot rev-parse --abbrev-ref HEAD).Trim().ToLowerInvariant() -replace '[^a-z0-9]+', '-'
 $project = "homecrm-test-$branch-first-database-$([guid]::NewGuid().ToString('n').Substring(0, 8))"
 $data = Join-Path $script:RepoRoot "test-results/$project"
 $composeFile = Join-Path $data 'compose.yaml'
