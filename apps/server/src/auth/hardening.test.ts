@@ -110,7 +110,14 @@ describe('настройки входа (R0.2)', () => {
     expect(loadAuthConfig(valid)).toMatchObject({
       BASE_URL: 'https://home.example',
       TRUSTED_ORIGINS: ['http://127.0.0.1:5173', 'https://m.home.example'],
+      HOME_TIME_ZONE: 'Asia/Yekaterinburg',
     });
+    expect(loadAuthConfig({ ...valid, HOME_TIME_ZONE: 'Europe/Moscow' }).HOME_TIME_ZONE).toBe(
+      'Europe/Moscow',
+    );
+    expect(() => loadAuthConfig({ ...valid, HOME_TIME_ZONE: 'Mars/Olympus' })).toThrow(
+      /HOME_TIME_ZONE/,
+    );
   });
 
   it('ошибка называет переменные, но не значения: ни паролей из адресов, ни секрета', () => {

@@ -35,7 +35,13 @@ export interface AuthModule {
   baseURL: string;
   /** Откуда принимаются изменяющие запросы с cookie. */
   origins: ReadonlySet<string>;
+  /** Часовой пояс дома (IANA): клиент показывает даты в нём. */
+  homeTimeZone: string;
 }
+
+/** Сколько дней после сброса отметку не может закрыть никто (AUTH-5, решение владельца 6 октября). */
+export const RESET_NOTICE_LOCK_DAYS = 7;
+const DEFAULT_HOME_TIME_ZONE = 'Asia/Yekaterinburg';
 
 export function createAuthModule(options: AuthOptions): AuthModule {
   const origin = new URL(options.baseURL).origin;
@@ -45,6 +51,7 @@ export function createAuthModule(options: AuthOptions): AuthModule {
     appDb: options.appDb,
     baseURL: origin,
     origins: new Set([origin, ...(options.trustedOrigins ?? [])]),
+    homeTimeZone: options.homeTimeZone ?? DEFAULT_HOME_TIME_ZONE,
   };
 }
 
@@ -205,6 +212,7 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
           ),
         ),
     );
+    const completedAt = notices[0]?.completedAt ?? null;
     return {
       id: account.id,
       displayName: account.displayName,
@@ -213,26 +221,53 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
       twoFactorEnabled: account.twoFactorEnabled,
       secondFactorRequired: account.secondFactorPending,
       roles: [...account.viewer.memberships].map(([householdId, role]) => ({ householdId, role })),
-      // Ребёнок видит, что пароль сбрасывали, пока не подтвердит, что прочитал (AUTH-5).
-      passwordReset: notices[0] ? { completedAt: notices[0].completedAt } : null,
+      timeZone: module.homeTimeZone,
+      // Ребёнок видит, что пароль сбрасывали, пока не подтвердит, что прочитал (AUTH-5);
+      // первые 7 дней подтвердить нельзя никому, в том числе вошедшему по ссылке администратору.
+      passwordReset: completedAt
+        ? {
+            completedAt,
+            // С этого момента кнопка «Я прочитал» доступна, а сервер принимает подтверждение.
+            ackAllowedAt: new Date(
+              completedAt.getTime() + RESET_NOTICE_LOCK_DAYS * 86_400_000,
+            ).toISOString(),
+          }
+        : null,
     };
   });
 
   app.post('/api/me/password-reset/ack', async (request, reply) => {
     const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
     if (account === null) return reply;
-    const acknowledged = await appDb.withAccount(account.id, (tx) =>
-      tx
+    // Первые 7 дней отметку не закрыть никому (AUTH-5): иначе администратор, вошедший по ссылке
+    // от имени ребёнка, закрыл бы её раньше, чем ребёнок увидит.
+    const result = await appDb.withAccount(account.id, async (tx) => {
+      const closed = await tx
         .update(passwordResets)
         .set({ acknowledgedAt: sql`now()` })
         .where(
           and(
             isNull(passwordResets.acknowledgedAt),
+            sql`${passwordResets.completedAt} <= now() - make_interval(days => ${RESET_NOTICE_LOCK_DAYS})`,
+          ),
+        );
+      if ((closed.rowCount ?? 0) > 0) return closed.rowCount ?? 0;
+      const waiting = await tx
+        .select({ id: passwordResets.id })
+        .from(passwordResets)
+        .where(
+          and(
+            isNull(passwordResets.acknowledgedAt),
             sql`${passwordResets.completedAt} IS NOT NULL`,
           ),
-        ),
-    );
-    return { acknowledged: acknowledged.rowCount ?? 0 };
+        )
+        .limit(1);
+      return waiting.length > 0 ? ('locked' as const) : 0;
+    });
+    if (result === 'locked') {
+      return fail(reply, 409, 'RESET_NOTICE_LOCKED', 'The notice cannot be closed yet');
+    }
+    return { acknowledged: result };
   });
 
   app.get('/api/login-events', async (request, reply) => {

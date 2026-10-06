@@ -35,6 +35,7 @@ const auth = createAuthModule({
   secret: authConfig.BETTER_AUTH_SECRET,
   baseURL: authConfig.BASE_URL,
   trustedOrigins: authConfig.TRUSTED_ORIGINS,
+  homeTimeZone: authConfig.HOME_TIME_ZONE,
 });
 const app = buildApp(config, { auth });
 // Сообщения о сбое соединения не содержат строки подключения: pg пишет только причину.

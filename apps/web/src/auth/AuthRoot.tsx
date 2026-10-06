@@ -6,6 +6,7 @@ import { App } from '../App.tsx';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { ApiError, action, api, appURL, consumeLink, Me } from './api.ts';
 import { AuthPage, ErrorNotice, Notice, OfflineBanner, useAction } from './components.tsx';
+import { formatDay } from './dates.ts';
 import { ExportScreen } from './ExportScreen.tsx';
 import { SecurityScreen } from './SecurityScreen.tsx';
 import {
@@ -35,8 +36,18 @@ async function currentMe(signal?: AbortSignal) {
   }
 }
 
-function ResetNotice({ reload }: { reload: () => Promise<void> }) {
+function ResetNotice({
+  reset,
+  timeZone,
+  reload,
+}: {
+  reset: NonNullable<Me['passwordReset']>;
+  timeZone: string;
+  reload: () => Promise<void>;
+}) {
   const state = useAction();
+  // Первые 7 дней отметку не закрыть никому: сервер отклонит, кнопки нет (AUTH-5).
+  const locked = Date.now() < Date.parse(reset.ackAllowedAt);
   return (
     <section className="reset-notice" aria-label="Сброс пароля">
       <Notice>
@@ -45,19 +56,23 @@ function ResetNotice({ reload }: { reload: () => Promise<void> }) {
           По ссылке он мог задать новый пароль и войти от вашего имени, в том числе в личное
           пространство.
         </p>
-        <button
-          className="text-button"
-          type="button"
-          disabled={state.disabled}
-          onClick={() =>
-            void state.run(async () => {
-              await action('me/password-reset/ack');
-              await reload();
-            })
-          }
-        >
-          {state.pending ? 'Сохраняем…' : 'Я прочитал'}
-        </button>
+        {locked ? (
+          <p>Эта плашка будет видна до {formatDay(reset.ackAllowedAt, timeZone)}.</p>
+        ) : (
+          <button
+            className="text-button"
+            type="button"
+            disabled={state.disabled}
+            onClick={() =>
+              void state.run(async () => {
+                await action('me/password-reset/ack');
+                await reload();
+              })
+            }
+          >
+            {state.pending ? 'Сохраняем…' : 'Я прочитал'}
+          </button>
+        )}
         <ErrorNotice error={state.error} />
       </Notice>
     </section>
@@ -104,6 +119,7 @@ export function AuthRoot() {
     navigate('/sign-in', { replace: true });
   }
   let screen: ReactNode;
+  let signedInApp = false;
   if (location.pathname === '/invite' || location.pathname.startsWith('/invite/'))
     screen = (
       <InvitationScreen
@@ -137,21 +153,30 @@ export function AuthRoot() {
     screen = (
       <TwoFactorSetup required={query.data.secondFactorRequired} onComplete={() => signedIn()} />
     );
-  else
+  else {
+    signedInApp = true;
     screen = (
       <>
-        {query.data.passwordReset && <ResetNotice reload={reload} />}
+        {query.data.passwordReset && (
+          <ResetNotice
+            reset={query.data.passwordReset}
+            timeZone={query.data.timeZone}
+            reload={reload}
+          />
+        )}
         <App
           settings={<SecurityScreen me={query.data} reload={reload} onSignedOut={signedOut} />}
           exportScreen={<ExportScreen />}
         />
       </>
     );
+  }
   return (
     <>
       <OfflineBanner />
       {screen}
-      <InstallApp />
+      {/* Не под нижним меню и не на «Сегодня»: внутри приложения установка — в настройках. */}
+      {!signedInApp && <InstallApp />}
     </>
   );
 }

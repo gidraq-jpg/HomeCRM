@@ -50,6 +50,8 @@ export interface AuthOptions {
   baseURL: string;
   /** Откуда принимаются запросы с cookie помимо baseURL (например, адрес Vite в разработке). */
   trustedOrigins?: readonly string[];
+  /** Часовой пояс дома (IANA): отдаётся клиенту в /api/me. По умолчанию — Asia/Yekaterinburg. */
+  homeTimeZone?: string;
   mailer?: Mailer;
   /** Куда писать сообщения библиотеки. По умолчанию — только ошибки, в консоль. */
   logger?: {

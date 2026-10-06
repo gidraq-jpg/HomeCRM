@@ -29,6 +29,11 @@ test('профиль: свои устройства и журнал; незав�
     await page.unroute('**/api/auth/list-sessions');
     await page.getByRole('button', { name: 'Повторить загрузку устройств' }).click();
     await expect(page.getByRole('button', { name: 'Завершить сессию' })).toHaveCount(1);
+    // Даты — «5 окт., 08:52» в часовом поясе дома, год только если он не текущий (PRD 13).
+    await expect(page.getByText(/^Вход: \d{1,2} [а-я]+\., \d\d:\d\d$/)).toBeVisible();
+    await expect(page.getByText(/^До: \d{1,2} [а-я]+\.( \d{4})?, \d\d:\d\d$/)).toBeVisible();
+    await expect(page.getByText(/^\d{1,2} [а-я]+\., \d\d:\d\d · /).first()).toBeVisible();
+    await expect(page.getByText(/^Вход: .*\d{4}/)).toHaveCount(0);
     await checkAuth(page, info, 'profile');
   } finally {
     release();
