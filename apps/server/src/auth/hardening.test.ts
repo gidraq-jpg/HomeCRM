@@ -78,6 +78,7 @@ describe('очистка просроченного обработчиком', (
         'login_name_attempts',
         'password_resets',
         'rate_limits',
+        'reassigned',
         'sessions',
         'verifications',
       ].sort(),

@@ -1,7 +1,7 @@
 import { canCopyToPersonal, canMove, type RecordFacts } from '@homecrm/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { canViewSql } from './access-sql.ts';
+import { canViewSql, recordPolicySql } from './access-sql.ts';
 import { noteItems, notes, notesHistory } from './schema.ts';
 import { createTestDatabase, type TestDatabase } from './testing/database.ts';
 import { addNote, createScene, type Scene } from './testing/helpers.ts';
@@ -29,6 +29,105 @@ const privatize = (id: string) =>
       .where(eq(notes.id, id)),
   );
 describe('перенос: прямой SQL под RLS совпадает с canMove', () => {
+  it('закрепление, аудитория, корзина и восстановление другим участником не считаются вкладом', async () => {
+    const id = await make();
+    for (const fields of [
+      { pinned: true },
+      { audience: 'adults' as const },
+      { deletedAt: new Date() },
+      { deletedAt: null },
+    ])
+      await scene.as('anna', (tx) => tx.update(notes).set(fields).where(eq(notes.id, id)));
+    expect(
+      (await db.admin.query('SELECT has_other_contributions FROM notes WHERE id=$1', [id])).rows[0]
+        ?.has_other_contributions,
+    ).toBe(false);
+    await expect(privatize(id)).resolves.toMatchObject({ rowCount: 1 });
+  });
+  it('корзина и восстановление своего пункта другим участником не являются вкладом; отметка выполнения — является', async () => {
+    const id = await make();
+    const [item] = await scene.as('boris', (tx) =>
+      tx
+        .insert(noteItems)
+        .values({
+          parentId: id,
+          spaceId: scene.home('household').spaceId,
+          spaceKind: 'household',
+          audience: 'household',
+          authorId: scene.person('boris').id,
+          title: 'пункт автора',
+        })
+        .returning(),
+    );
+    if (!item) throw new Error('No item');
+    await scene.as('anna', (tx) =>
+      tx.update(noteItems).set({ deletedAt: new Date() }).where(eq(noteItems.id, item.id)),
+    );
+    await scene.as('anna', (tx) =>
+      tx.update(noteItems).set({ deletedAt: null }).where(eq(noteItems.id, item.id)),
+    );
+    expect(
+      (await db.admin.query('SELECT has_other_contributions FROM notes WHERE id=$1', [id])).rows[0]
+        ?.has_other_contributions,
+    ).toBe(false);
+    await scene.as('anna', (tx) =>
+      tx.update(noteItems).set({ done: true }).where(eq(noteItems.id, item.id)),
+    );
+    expect(
+      (await db.admin.query('SELECT has_other_contributions FROM notes WHERE id=$1', [id])).rows[0]
+        ?.has_other_contributions,
+    ).toBe(true);
+    await expect(privatize(id)).rejects.toSatisfy(isDenied);
+  });
+  it('удаление триггерной ветки RLS обнаруживает неперенесённый чужой пункт в корзине', async () => {
+    const id = await make();
+    const [item] = await scene.as('anna', (tx) =>
+      tx
+        .insert(noteItems)
+        .values({
+          parentId: id,
+          spaceId: scene.home('household').spaceId,
+          spaceKind: 'household',
+          audience: 'household',
+          authorId: scene.person('anna').id,
+          title: 'чужой пункт в корзине',
+        })
+        .returning(),
+    );
+    if (!item) throw new Error('No item');
+    await scene.as('anna', (tx) =>
+      tx.update(noteItems).set({ deletedAt: new Date() }).where(eq(noteItems.id, item.id)),
+    );
+    const policy = recordPolicySql('note_item');
+    try {
+      const restricted = recordPolicySql('note').updateUsing;
+      await db.admin.query(`ALTER POLICY note_items_update ON note_items USING (${restricted})`);
+      await expect(
+        scene.as('boris', (tx) =>
+          tx.update(notes).set({ audience: 'adults' }).where(eq(notes.id, id)),
+        ),
+      ).rejects.toSatisfy((error) => {
+        // Отложенный FK обнаруживает, что ребёнок каскада не получил новое место.
+        let current: unknown = error;
+        for (let depth = 0; depth < 5 && typeof current === 'object' && current !== null; depth++) {
+          if ('code' in current && current.code === '23503') return true;
+          current = 'cause' in current ? current.cause : undefined;
+        }
+        return false;
+      });
+    } finally {
+      await db.admin.query(
+        `ALTER POLICY note_items_update ON note_items USING (${policy.updateUsing})`,
+      );
+    }
+    await scene.as('boris', (tx) =>
+      tx.update(notes).set({ audience: 'adults' }).where(eq(notes.id, id)),
+    );
+    expect(
+      (await db.admin.query('SELECT audience, deleted_at FROM note_items WHERE id=$1', [item.id]))
+        .rows[0],
+    ).toMatchObject({ audience: 'adults', deleted_at: expect.any(Date) });
+  });
   for (const other of [false, true])
     for (const key of ['anna', 'boris', 'vera', 'dina', 'mila', 'gleb'] as const) {
       it(`${key}: сделать личной, чужой вклад ${other}`, async () => {

@@ -11,6 +11,7 @@ import {
   invitations,
   isNull,
   loginEvents,
+  memberProfiles,
   passwordResets,
   sql,
 } from '@homecrm/db';
@@ -154,8 +155,8 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
   app.get('/api/me', async (request, reply) => {
     const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
     if (account === null) return reply;
-    const notices = await appDb.withAccount(account.id, (tx) =>
-      tx
+    const { notices, profile } = await appDb.withAccount(account.id, async (tx) => ({
+      notices: await tx
         .select({ id: passwordResets.id, completedAt: passwordResets.completedAt })
         .from(passwordResets)
         .where(
@@ -163,12 +164,16 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
             sql`${passwordResets.completedAt} IS NOT NULL`,
             isNull(passwordResets.acknowledgedAt),
           ),
-        ),
-    );
+        )
+        .orderBy(desc(passwordResets.completedAt), desc(passwordResets.id)),
+      profile: (
+        await tx.select().from(memberProfiles).where(eq(memberProfiles.accountId, account.id))
+      )[0],
+    }));
     const completedAt = notices[0]?.completedAt ?? null;
     return {
       id: account.id,
-      displayName: account.displayName,
+      displayName: profile?.displayName ?? account.displayName,
       username: account.username,
       email: account.email,
       twoFactorEnabled: account.twoFactorEnabled,
@@ -301,14 +306,20 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
     if (account === null) return reply;
     const body = (request.body ?? {}) as { password?: unknown };
     if (!(await confirmPassword(request, reply, account, body.password))) return reply;
-    const [profile, mine] = await appDb.withAccount(account.id, (tx) =>
+    const [profile, mine, familyProfile] = await appDb.withAccount(account.id, (tx) =>
       Promise.all([
         tx
           .select({ displayName: accounts.displayName, username: accounts.username })
-          .from(accounts),
+          .from(accounts)
+          .where(eq(accounts.id, account.id)),
         exportNotes(tx, account),
+        tx.select().from(memberProfiles).where(eq(memberProfiles.accountId, account.id)),
       ]),
     );
-    return { exportedAt: new Date().toISOString(), profile: profile[0] ?? null, notes: mine };
+    return {
+      exportedAt: new Date().toISOString(),
+      profile: profile[0] ? { ...profile[0], ...familyProfile[0] } : null,
+      notes: mine,
+    };
   });
 }

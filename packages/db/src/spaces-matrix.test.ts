@@ -76,7 +76,7 @@ async function expectMatrix(viewers: readonly { name: string; id: string; viewer
       checks++;
       if (
         seen.members.has(`${member.space_id}/${member.account_id}`) !==
-        canViewMembership(person.viewer, member.account_id)
+        canViewMembership(person.viewer, member.account_id, member.space_id)
       ) {
         mismatches.push(`${person.name} · участник ${member.account_id}`);
       }
@@ -120,8 +120,6 @@ describe('пространства, участники и учётные зап�
     for (const statement of [
       `INSERT INTO spaces (kind, name) VALUES ('household', 'Чужой дом')`,
       `INSERT INTO space_members (space_id, account_id, role) VALUES ('${family.houses[0]?.id}', '${anna.id}', 'admin')`,
-      `UPDATE space_members SET role = 'admin'`,
-      `UPDATE space_members SET left_at = now(), left_by = account_id`,
       `UPDATE spaces SET name = 'взлом'`,
       `UPDATE accounts SET display_name = 'взлом'`,
       `DELETE FROM space_members`,

@@ -9,6 +9,10 @@ export type CleanupReport = Record<string, number>;
 
 export async function cleanupExpired(db: Database): Promise<CleanupReport> {
   const report: CleanupReport = {};
+  const reassigned = await db.execute<{ moved: number }>(
+    sql`SELECT app.reassign_responsibility() AS moved`,
+  );
+  report.reassigned = reassigned.rows[0]?.moved ?? 0;
   for (const [table, condition] of Object.entries(CLEANUP_CONDITIONS)) {
     // Имена таблиц и условия — из нашей схемы, не от пользователя.
     const result = await db.execute(sql`DELETE FROM ${sql.raw(table)} WHERE ${sql.raw(condition)}`);

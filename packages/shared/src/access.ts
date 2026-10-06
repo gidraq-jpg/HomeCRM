@@ -176,14 +176,50 @@ export function canViewSpace(viewer: Viewer, space: SpaceFacts): boolean {
     : roleIn(viewer, space.id) !== undefined;
 }
 
-/** Видит ли участник строку учётной записи. Пока — только свою; список участников дома — R0.9. */
+/** Закрытые сведения учётной записи видит только её владелец. */
 export function canViewAccount(viewer: Viewer, ownerAccountId: string): boolean {
   return viewer.accountId === ownerAccountId;
 }
 
-/** Видит ли участник строку членства. Пока — только свою; список участников дома — R0.9. */
-export function canViewMembership(viewer: Viewer, memberAccountId: string): boolean {
-  return viewer.accountId === memberAccountId;
+/** Состав своего действующего дома, включая бывших участников, и собственные членства. */
+export function canViewMembership(
+  viewer: Viewer,
+  memberAccountId: string,
+  houseId?: string,
+): boolean {
+  return (
+    viewer.accountId === memberAccountId ||
+    (houseId !== undefined && viewer.memberships.has(houseId))
+  );
+}
+
+/** Семейные поля профиля видят владелец и участники домов, где владелец профиля ещё состоит. */
+export function canViewProfile(
+  viewer: Viewer,
+  ownerAccountId: string,
+  houseIds: readonly string[],
+): boolean {
+  return (
+    viewer.accountId === ownerAccountId ||
+    houseIds.some((houseId) => viewer.memberships.has(houseId))
+  );
+}
+
+/** Роль меняет администратор; последнего администратора понизить нельзя. */
+export function canChangeRole(
+  viewer: Viewer,
+  houseId: string,
+  target: Viewer,
+  role: Role,
+  adminIds: readonly string[],
+): boolean {
+  return (
+    roleIn(viewer, houseId) === 'admin' &&
+    roleIn(target, houseId) !== undefined &&
+    (roleIn(target, houseId) !== 'admin' ||
+      role === 'admin' ||
+      adminIds.some((id) => id !== target.accountId))
+  );
 }
 
 /**

@@ -453,12 +453,13 @@ export const passwordResets = pgTable(
       to: appRole,
       using: sql.raw(ownAccountSql()),
     }),
-    // Подтвердить прочтение может только сам ребёнок и только выполненный сброс; право UPDATE — на acknowledged_at.
+    // Подтвердить прочтение может только сам ребёнок спустя 7 дней после выполненного сброса;
+    // право UPDATE — только на acknowledged_at (AUTH-5, решение владельца).
     pgPolicy('password_resets_ack', {
       for: 'update',
       to: appRole,
-      using: sql.raw(`${ownAccountSql()} AND completed_at IS NOT NULL`),
-      withCheck: sql.raw(`${ownAccountSql()} AND completed_at IS NOT NULL`),
+      using: sql.raw(`${ownAccountSql()} AND completed_at <= now() - interval '7 days'`),
+      withCheck: sql.raw(`${ownAccountSql()} AND completed_at <= now() - interval '7 days'`),
     }),
     ...cleanupPolicies(
       'password_resets',

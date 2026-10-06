@@ -1,10 +1,10 @@
 // Заметки читаются и меняются только под homecrm_app, в транзакции участника и под RLS.
 import {
-  accounts,
   and,
   desc,
   eq,
   isNull,
+  memberProfiles,
   noteItems,
   notes,
   spaceMembers,
@@ -21,6 +21,7 @@ import {
   canRestore,
   canTrash,
   canView,
+  canViewMembership,
   canWrite,
   type Placement,
   type RecordFacts,
@@ -52,9 +53,9 @@ class Failure extends Error {
     this.code = code;
   }
 }
-const denied = () => {
+function denied(): never {
   throw new Failure(403, 'ACCESS_DENIED');
-};
+}
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throw new Failure(400, 'INVALID_INPUT');
@@ -141,7 +142,7 @@ async function get(tx: Transaction, account: Account, id: string, lock = true): 
     throw new Failure(404, 'NOT_FOUND');
   const [record] = lock ? await query.for('update') : [visible];
   if (!record) denied();
-  if (!record || !canView(account.viewer, placementOf(record))) throw new Failure(404, 'NOT_FOUND');
+  if (!canView(account.viewer, placementOf(record))) throw new Failure(404, 'NOT_FOUND');
   return record;
 }
 async function hasContributions(tx: Transaction, record: Note): Promise<boolean> {
@@ -367,7 +368,7 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
         record.assigneeId,
         ...(await itemsOf(tx, record.id)).map((item) => item.assigneeId),
       ];
-      const adults = await module.db
+      const adults = await tx
         .select({ id: spaceMembers.accountId })
         .from(spaceMembers)
         .where(
@@ -383,17 +384,21 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
     }
     return place;
   }
-  async function lostAccess(record: Note, place: Placement) {
+  async function lostAccess(tx: Transaction, account: Account, record: Note, place: Placement) {
     const old = placementOf(record);
     if (old.kind !== 'household') return [];
-    // Только публичные имена и состав уже доступного дома; таблиц записей у homecrm_auth нет.
-    const members = await module.db
-      .select({ id: accounts.id, displayName: accounts.displayName, role: spaceMembers.role })
+    const members = await tx
+      .select({
+        id: memberProfiles.accountId,
+        displayName: memberProfiles.displayName,
+        role: spaceMembers.role,
+      })
       .from(spaceMembers)
-      .innerJoin(accounts, eq(accounts.id, spaceMembers.accountId))
+      .innerJoin(memberProfiles, eq(memberProfiles.accountId, spaceMembers.accountId))
       .where(and(eq(spaceMembers.spaceId, old.spaceId), isNull(spaceMembers.leftAt)));
     return members
       .filter((member) => {
+        if (!canViewMembership(account.viewer, member.id, old.spaceId)) return false;
         const viewer = { accountId: member.id, memberships: new Map([[old.spaceId, member.role]]) };
         return canView(viewer, old) && !canView(viewer, place);
       })
@@ -407,7 +412,10 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
     return module.appDb.withAccount(account.id, async (tx) => {
       const record = await get(tx, account, id);
       const place = await target(tx, account, record, action);
-      return { updatedAt: record.updatedAt, losesAccess: await lostAccess(record, place) };
+      return {
+        updatedAt: record.updatedAt,
+        losesAccess: await lostAccess(tx, account, record, place),
+      };
     });
   });
   for (const action of ['share', 'personal', 'copy', 'audience', 'trash', 'restore'] as const) {
@@ -455,7 +463,7 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
         } else if (action === 'personal' || action === 'audience') {
           const body =
             action === 'personal'
-              ? parse(Confirm, request.body)
+              ? parse(Confirm.partial(), request.body ?? {})
               : parse(AudienceChange, request.body);
           const place = await target(
             tx,

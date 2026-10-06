@@ -50,6 +50,20 @@
       "when": 1791273388612,
       "tag": "0006_note_item_cascade",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791280588791,
+      "tag": "0007_household",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791281860327,
+      "tag": "0008_member_names",
+      "breakpoints": true
     }
   ]
 }

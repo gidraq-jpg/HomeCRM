@@ -1,6 +1,8 @@
+import type { Database } from '@homecrm/db';
 import { type FastifyInstance, fastify } from 'fastify';
 import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
+import { householdRoutes } from './household/routes.ts';
 import { serializeRequest } from './logging.ts';
 import { notesRoutes } from './notes/routes.ts';
 import { createStaticHandler } from './static.ts';
@@ -8,6 +10,8 @@ import { createStaticHandler } from './static.ts';
 export interface AppDependencies {
   /** Вход и учётные записи (ADR-0005). Пока подключается только в тестах: в main.ts — вместе с базой в R0.1. */
   auth?: AuthModule;
+  /** Обработчик передачи ответственности после ухода участника. */
+  worker?: Database;
   /** Куда писать журнал вместо стандартного вывода: нужно тестам, которые читают журнал. */
   logStream?: { write(line: string): void };
   /** Проверка базы для /health: выбрасывает ошибку, если база не отвечает. Без неё /health базу не проверяет. */
@@ -74,6 +78,10 @@ export function buildApp(
   if (auth !== undefined) {
     void app.register(authRoutes, auth);
     void app.register(notesRoutes, auth);
+    void app.register(householdRoutes, {
+      ...auth,
+      ...(dependencies.worker ? { worker: dependencies.worker } : {}),
+    });
   }
 
   return app;

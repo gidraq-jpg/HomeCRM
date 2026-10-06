@@ -13,10 +13,11 @@ import {
   type Role,
   type Viewer,
 } from '@homecrm/shared';
+import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import type pg from 'pg';
 import { RECORD_TYPES, type RecordType } from '../access-sql.ts';
-import { accounts, RECORD_TABLES, spaceMembers, spaces } from '../schema.ts';
+import { accounts, RECORD_TABLES, spaces } from '../schema.ts';
 
 export const PERSON_KEYS = ['anna', 'boris', 'vera', 'gleb', 'dina', 'mila'] as const;
 export type PersonKey = (typeof PERSON_KEYS)[number];
@@ -259,15 +260,12 @@ export async function seedPeople(admin: pg.Pool, family: Family): Promise<void> 
         name: house.name,
       })),
     ]);
-    await tx.insert(spaceMembers).values(
-      family.houses.flatMap((house) =>
-        [...house.members].map(([key, role]) => ({
-          spaceId: house.id,
-          accountId: family.person(key).id,
-          role,
-        })),
-      ),
-    );
+    // Явные колонки сохраняют пригодность фикстуры для теста обновления старой схемы:
+    // Drizzle иначе перечисляет новые колонки даже со значением DEFAULT.
+    for (const house of family.houses)
+      for (const [key, role] of house.members)
+        await tx.execute(sql`INSERT INTO space_members(space_id, account_id, role)
+        VALUES (${house.id}, ${family.person(key).id}, ${role})`);
   });
 }
 
