@@ -18,8 +18,8 @@ export const CreateNote = z.strictObject({
   pinned: z.boolean().default(false),
   checklist: Checklist.default([]),
   placement: z.strictObject({ spaceId: z.uuid(), audience: audience.optional() }).optional(),
-  /** Контекст создания из карточки: пока объектом-примером служит tasks. Постоянные связи — R0.5. */
-  object: z.strictObject({ type: z.literal('task'), id: z.uuid() }).optional(),
+  /** Контекст карточки: настоящий объект или прежний образец-дело; постоянная связь создаётся отдельно. */
+  object: z.strictObject({ type: z.enum(['object', 'task']), id: z.uuid() }).optional(),
 });
 export const PatchNote = z
   .strictObject({

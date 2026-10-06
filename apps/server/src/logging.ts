@@ -14,10 +14,23 @@ const SECRET_QUERY = /([?&]token=)[^&#]*/gi;
 export const REDACTED = '[redacted]';
 
 export function redactUrl(url: string): string {
-  if (url.startsWith('/api/notes')) {
+  if (/^\/api\/(notes|objects|links|records)(?:\/|[?#]|$)/.test(url)) {
     const allowed = new Set([
       'api',
       'notes',
+      'objects',
+      'links',
+      'records',
+      'timeline',
+      'events',
+      'export',
+      'object',
+      'note',
+      'note_item',
+      'object_field',
+      'object_event',
+      'task',
+      'shopping_item',
       'share',
       'personal',
       'copy',

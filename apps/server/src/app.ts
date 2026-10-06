@@ -5,6 +5,7 @@ import type { Config } from './config.ts';
 import { householdRoutes } from './household/routes.ts';
 import { serializeRequest } from './logging.ts';
 import { notesRoutes } from './notes/routes.ts';
+import { objectsRoutes } from './objects/routes.ts';
 import { createStaticHandler } from './static.ts';
 
 export interface AppDependencies {
@@ -78,6 +79,7 @@ export function buildApp(
   if (auth !== undefined) {
     void app.register(authRoutes, auth);
     void app.register(notesRoutes, auth);
+    void app.register(objectsRoutes, auth);
     void app.register(householdRoutes, {
       ...auth,
       ...(dependencies.worker ? { worker: dependencies.worker } : {}),
