@@ -22,6 +22,13 @@ interface Mutation {
 
 const MUTATIONS: Mutation[] = [
   {
+    title: 'чтение без RLS позволяет скопировать чужое личное — матрица замечает утечку',
+    sql: 'ALTER POLICY notes_select ON notes USING (true)',
+    operation: 'copy',
+    types: ['note'],
+    expected: /^Анна · копирование в личное · заметка · личное \(Борис\).*эталон — нет, база — да$/,
+  },
+  {
     title: 'нет политики чтения заметок — свои записи пропадают',
     sql: 'DROP POLICY notes_select ON notes',
     operation: 'view',
@@ -109,6 +116,14 @@ const MUTATIONS: Mutation[] = [
     types: ['note'],
     expected:
       /^Борис · подмена автора, времени создания и id · заметка · Дом · Вся семья · автор Борис .* · автор: эталон — нет, база — да$/,
+  },
+  {
+    title: 'нет проверки canMove — взрослый уносит чужую заметку в личное',
+    sql: 'DROP TRIGGER notes_guard ON notes',
+    operation: 'move',
+    types: ['note'],
+    expected:
+      /^Борис · перенос в другое место · заметка · Дом · Вся семья · автор Анна .* → заметка · личное \(Борис\).*эталон — нет, база — да$/,
   },
 ];
 

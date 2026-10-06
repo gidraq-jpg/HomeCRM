@@ -1,5 +1,7 @@
 // Своя база на каждый файл тестов: случайное имя, миграции от homecrm_owner, пулы всех ролей.
 import { randomBytes } from 'node:crypto';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
 import { createDatabase, DB_ROLES } from '../bootstrap.ts';
 import { runMigrations } from '../migrate.ts';
@@ -17,7 +19,10 @@ export interface TestDatabase {
   drop(): Promise<void>;
 }
 
-export async function createTestDatabase(adminUrl: string): Promise<TestDatabase> {
+export async function createTestDatabase(
+  adminUrl: string,
+  migrationsFolder?: string,
+): Promise<TestDatabase> {
   const name = `homecrm_test_${randomBytes(6).toString('hex')}`;
   await withClient(adminUrl, (client) => createDatabase(client, name));
 
@@ -43,7 +48,9 @@ export async function createTestDatabase(adminUrl: string): Promise<TestDatabase
 
   // Файлы тестов идут параллельно, а у сервера по умолчанию 100 соединений: пулы небольшие.
   const owner = open(DB_ROLES.owner, 1);
-  await runMigrations(owner);
+  // Отдельный каталог нужен только тесту обновления старой базы с данными.
+  if (migrationsFolder) await migrate(drizzle({ client: owner }), { migrationsFolder });
+  else await runMigrations(owner);
 
   return {
     name,

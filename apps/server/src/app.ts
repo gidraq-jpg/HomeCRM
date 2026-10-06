@@ -2,6 +2,7 @@ import { type FastifyInstance, fastify } from 'fastify';
 import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
 import { serializeRequest } from './logging.ts';
+import { notesRoutes } from './notes/routes.ts';
 
 export interface AppDependencies {
   /** Вход и учётные записи (ADR-0005). Пока подключается только в тестах: в main.ts — вместе с базой в R0.1. */
@@ -40,7 +41,10 @@ export function buildApp(
   }));
 
   const { auth } = dependencies;
-  if (auth !== undefined) void app.register(authRoutes, auth);
+  if (auth !== undefined) {
+    void app.register(authRoutes, auth);
+    void app.register(notesRoutes, auth);
+  }
 
   return app;
 }

@@ -36,6 +36,20 @@
       "when": 1791259348108,
       "tag": "0004_auth_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791273182411,
+      "tag": "0005_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791273388612,
+      "tag": "0006_note_item_cascade",
+      "breakpoints": true
     }
   ]
 }

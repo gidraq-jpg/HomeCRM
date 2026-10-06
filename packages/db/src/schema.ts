@@ -51,7 +51,12 @@ export * from './records.ts';
 // recordTable; всё остальное (политики, права, триггеры, история) делает помощник.
 
 /** Заметки: личные и общие. Ребёнок в общем пространстве их не пишет. */
-const notesDefinition = recordTable('notes', 'note', { body: text('body').notNull().default('') });
+const notesDefinition = recordTable('notes', 'note', {
+  body: text('body').notNull().default(''),
+  pinned: boolean('pinned').notNull().default(false),
+  /** Будущий поиск NOTE-3; HTML не хранится (ADR-0020). */
+  searchText: text('search_text').generatedAlwaysAs(sql`title || ' ' || body`),
+});
 export const notes = notesDefinition.table;
 export const notesHistory = notesDefinition.history;
 
@@ -63,7 +68,11 @@ export const notesHistory = notesDefinition.history;
 const noteItemsDefinition = recordTable(
   'note_items',
   'note_item',
-  { parentId: uuid('parent_id').notNull(), done: boolean('done').notNull().default(false) },
+  {
+    parentId: uuid('parent_id').notNull(),
+    done: boolean('done').notNull().default(false),
+    position: integer('position').notNull().default(0),
+  },
   { parent: notes },
 );
 export const noteItems = noteItemsDefinition.table;
