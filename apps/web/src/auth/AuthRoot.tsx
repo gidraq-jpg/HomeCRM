@@ -7,8 +7,6 @@ import { InstallApp } from '../pwa/InstallApp.tsx';
 import { ApiError, action, api, appURL, consumeLink, Me } from './api.ts';
 import { AuthPage, ErrorNotice, Notice, OfflineBanner, useAction } from './components.tsx';
 import { formatDay } from './dates.ts';
-import { ExportScreen } from './ExportScreen.tsx';
-import { SecurityScreen } from './SecurityScreen.tsx';
 import {
   type Challenge,
   ChallengeScreen,
@@ -57,7 +55,7 @@ function ResetNotice({
           пространство.
         </p>
         {locked ? (
-          <p>Эта плашка будет видна до {formatDay(reset.ackAllowedAt, timeZone)}.</p>
+          <p>Закрыть её можно будет с {formatDay(reset.ackAllowedAt, timeZone)}.</p>
         ) : (
           <button
             className="text-button"
@@ -119,18 +117,24 @@ export function AuthRoot() {
     navigate('/sign-in', { replace: true });
   }
   let screen: ReactNode;
-  let signedInApp = false;
-  if (location.pathname === '/invite' || location.pathname.startsWith('/invite/'))
+  // Установку предлагаем там, где человек её ищет: на входе, в приглашении и при сбросе пароля.
+  // Пока проверяется сессия, на экране кода и внутри приложения её нет: внутри — только в настройках.
+  let installable = false;
+  if (location.pathname === '/invite' || location.pathname.startsWith('/invite/')) {
+    installable = true;
     screen = (
       <InvitationScreen
         token={link?.kind === 'invite' ? link.token : null}
         onAccepted={() => signedIn(true)}
       />
     );
-  else if (location.pathname === '/reset-password')
+  } else if (location.pathname === '/reset-password') {
+    installable = true;
     screen = <ResetScreen token={link?.kind === 'reset' ? link.token : null} />;
-  else if (location.pathname === '/forgot-password') screen = <ForgotScreen />;
-  else if (location.pathname === '/two-factor')
+  } else if (location.pathname === '/forgot-password') {
+    installable = true;
+    screen = <ForgotScreen />;
+  } else if (location.pathname === '/two-factor')
     screen = <ChallengeScreen challenge={challenge} onSignedIn={() => signedIn()} />;
   else if (query.isPending)
     screen = (
@@ -147,14 +151,14 @@ export function AuthRoot() {
         </button>
       </AuthPage>
     );
-  else if (!query.data)
+  else if (!query.data) {
+    installable = true;
     screen = <LoginScreen onChallenge={setChallenge} onSignedIn={() => signedIn()} />;
-  else if (query.data.secondFactorRequired || location.pathname === '/setup-two-factor')
+  } else if (query.data.secondFactorRequired || location.pathname === '/setup-two-factor')
     screen = (
       <TwoFactorSetup required={query.data.secondFactorRequired} onComplete={() => signedIn()} />
     );
   else {
-    signedInApp = true;
     screen = (
       <>
         {query.data.passwordReset && (
@@ -164,10 +168,7 @@ export function AuthRoot() {
             reload={reload}
           />
         )}
-        <App
-          settings={<SecurityScreen me={query.data} reload={reload} onSignedOut={signedOut} />}
-          exportScreen={<ExportScreen />}
-        />
+        <App me={query.data} reloadMe={reload} signOut={signedOut} />
       </>
     );
   }
@@ -175,8 +176,7 @@ export function AuthRoot() {
     <>
       <OfflineBanner />
       {screen}
-      {/* Не под нижним меню и не на «Сегодня»: внутри приложения установка — в настройках. */}
-      {!signedInApp && <InstallApp />}
+      {installable && <InstallApp />}
     </>
   );
 }

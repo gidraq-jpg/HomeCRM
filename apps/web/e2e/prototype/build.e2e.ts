@@ -1,6 +1,6 @@
-import { expect, test } from './support/fixtures.ts';
-import { goToSection, openApp, setScope, startAdd } from './support/helpers.ts';
-import { E2E_PORT, E2E_PREFIX } from './support/static-server.ts';
+import { expect, test } from '../support/fixtures.ts';
+import { goToSection, openApp, setScope, startAdd } from '../support/helpers.ts';
+import { E2E_PORT, E2E_PREFIX } from '../support/static-server.ts';
 
 // Сборка для телефона (задача 0.5): статические файлы работают из подпапки, без сервера
 // приложения и без внешних запросов; маршруты живут в части адреса после «#».

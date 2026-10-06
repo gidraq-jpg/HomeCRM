@@ -1,12 +1,12 @@
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import { App } from './App.tsx';
+import { PrototypeApp } from './PrototypeApp.tsx';
 
 function render(path: string): string {
   return renderToString(
     <MemoryRouter initialEntries={[path]}>
-      <App />
+      <PrototypeApp />
     </MemoryRouter>,
   );
 }
@@ -14,7 +14,7 @@ function render(path: string): string {
 // Разметка из renderToString разделяет соседние тексты комментариями React — убираем их.
 const text = (html: string) => html.replaceAll('<!-- -->', '');
 
-describe('App', () => {
+describe('PrototypeApp', () => {
   it('рисует пять разделов нижнего меню', () => {
     const html = text(render('/today'));
     for (const label of ['Сегодня', 'Дом', 'Документы', 'Люди', 'Ещё']) {

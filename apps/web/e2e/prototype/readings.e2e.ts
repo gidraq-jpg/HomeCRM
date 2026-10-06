@@ -1,5 +1,5 @@
-import { expect, test } from './support/fixtures.ts';
-import { checkScreen, goToSection, openApp } from './support/helpers.ts';
+import { expect, test } from '../support/fixtures.ts';
+import { checkScreen, goToSection, openApp } from '../support/helpers.ts';
 
 // Экран «Показания» — PRD, S3 и UTIL-5…8: ввод на цифровой клавиатуре, проверки, передача.
 

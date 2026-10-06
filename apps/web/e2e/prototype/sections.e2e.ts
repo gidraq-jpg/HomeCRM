@@ -1,5 +1,5 @@
-import { expect, test } from './support/fixtures.ts';
-import { checkScreen, goToSection, openApp } from './support/helpers.ts';
+import { expect, test } from '../support/fixtures.ts';
+import { checkScreen, goToSection, openApp } from '../support/helpers.ts';
 
 // Каждый раздел и экран из PRD, раздел 14: открывается, без ошибок в консоли, без горизонтальной
 // прокрутки, цели нажатия от 44 px, axe без серьёзных замечаний. Скриншоты — в test-results/screens.

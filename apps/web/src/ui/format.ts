@@ -119,6 +119,11 @@ export function formatShortDate(date: DateOnly, today?: DateOnly): string {
   return `${base}${NBSP}${year}`;
 }
 
+/** «14 мар. 1990»: год всегда, например для даты рождения. */
+export function formatFullDate(date: DateOnly): string {
+  return `${formatShortDate(date)}${NBSP}${parseDateOnly(date).year}`;
+}
+
 /** «22 октября». */
 export function formatLongDate(date: DateOnly): string {
   const { month, day } = parseDateOnly(date);

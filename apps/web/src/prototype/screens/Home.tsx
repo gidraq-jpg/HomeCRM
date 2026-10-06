@@ -135,7 +135,7 @@ function usePropertyContext(): PropertyContext {
   return useOutletContext<PropertyContext>();
 }
 
-/** Карточка объекта: вкладки «Обзор», «Коммуналка», «Счётчики», «Документы», «Люди», «Лента». */
+/** Карточка объекта: вкладки «Обзор», «Лента», затем модули (PRD, раздел 14). */
 export function PropertyScreen() {
   const { propertyId } = useParams();
   const property = useRecord('property', propertyId);
@@ -152,11 +152,11 @@ export function PropertyScreen() {
           label="Разделы объекта"
           items={[
             { to: base, label: 'Обзор', end: true },
+            { to: `${base}/feed`, label: 'Лента' },
             { to: `${base}/utilities`, label: 'Коммуналка' },
             { to: `${base}/meters`, label: 'Счётчики' },
             { to: `${base}/documents`, label: 'Документы' },
             { to: `${base}/people`, label: 'Люди' },
-            { to: `${base}/feed`, label: 'Лента' },
           ]}
         />
       }

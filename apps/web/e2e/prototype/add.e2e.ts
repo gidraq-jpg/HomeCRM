@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, test } from './support/fixtures.ts';
-import { checkScreen, openApp, setScope, startAdd } from './support/helpers.ts';
+import { expect, test } from '../support/fixtures.ts';
+import { checkScreen, openApp, setScope, startAdd } from '../support/helpers.ts';
 
 // Кнопка «+» на всех экранах: что добавить → форма со строкой «Кто видит» над «Сохранить».
 

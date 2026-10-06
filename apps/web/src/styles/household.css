@@ -1,0 +1,161 @@
+/* Состав дома, «Обо мне», приглашения и действия администратора. */
+
+.avatar--large {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  font-size: 1.5rem;
+}
+
+.member-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.member-head__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  justify-items: start;
+}
+
+.member-head__name {
+  font-size: 1.125rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+/* Выбор роли: плашки на всю ширину, у каждой пояснение. */
+.choice-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choice-group__legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.choice {
+  position: relative;
+  display: block;
+}
+
+.choice input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.choice__body {
+  display: grid;
+  gap: 2px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.choice__title {
+  font-weight: 650;
+}
+
+.choice__hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.choice input:checked + .choice__body {
+  border-color: var(--green);
+  background: var(--soft);
+  box-shadow: inset 0 0 0 1px var(--green);
+}
+
+.choice input:focus-visible + .choice__body {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+}
+
+.invite-form,
+.profile-form {
+  display: grid;
+  gap: 4px;
+}
+
+.invite-form > .btn,
+.invite-form > .auth-notice {
+  margin-top: 12px;
+}
+
+.admin-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.admin-actions .muted svg {
+  vertical-align: -3px;
+}
+
+/* Выданная ссылка: сервер показывает её один раз */
+.issued-link {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.issued-link__text {
+  margin: 0;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font-size: 0.9375rem;
+}
+
+.visibility-list {
+  display: grid;
+  gap: 14px;
+}
+
+.visibility-list li {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.visibility-list p {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.sheet__lead {
+  margin-top: 8px;
+  font-weight: 650;
+}
+
+.more-note {
+  margin-top: 18px;
+}
+
+.add-note {
+  margin-top: 14px;
+}
+
+/* Абзац сразу после списка: без отступа он прилипал к последнему пункту. */
+.bullets + .muted,
+.bullets + p {
+  margin-top: 14px;
+}
