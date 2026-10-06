@@ -33,6 +33,8 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(8310),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   APP_VERSION: z.string().min(1).default('dev'),
+  /** Папка собранного клиента (apps/web/dist): в образе задана, в разработке клиент отдаёт Vite. */
+  STATIC_DIR: z.string().min(1).optional(),
   TRUST_PROXY: z.string().default('false').transform(parseTrustProxy),
 });
 
