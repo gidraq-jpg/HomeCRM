@@ -372,6 +372,45 @@ export function homecrm(deps: PluginDeps) {
           }),
         },
         {
+          // Решение владельца: «доверять устройству» администратору запрещено — код TOTP у него
+          // спрашивается при каждом входе (AUTH-3). Остальным — 30 дней, как в библиотеке.
+          matcher: (context) =>
+            SIGN_IN_PATHS.has(context.path ?? '') || SECOND_FACTOR_PATHS.has(context.path ?? ''),
+          handler: createAuthMiddleware(async (ctx) => {
+            const path = ctx.path ?? '';
+            let accountId: string | undefined;
+            if (SIGN_IN_PATHS.has(path)) {
+              accountId = (
+                await findAccountByLogin(deps.db, (ctx.body ?? {}) as Record<string, unknown>)
+              )?.id;
+            } else {
+              accountId = (await getSessionFromCtx(ctx))?.user.id;
+              if (accountId === undefined) {
+                const cookie = ctx.context.createAuthCookie(TWO_FACTOR_COOKIE);
+                const challenge = await ctx.getSignedCookie(cookie.name, ctx.context.secret);
+                if (challenge) {
+                  accountId = (await ctx.context.internalAdapter.findVerificationValue(challenge))
+                    ?.value;
+                }
+              }
+            }
+            if (accountId === undefined) return;
+            if (!mustUseSecondFactor(await loadViewer(deps.db, accountId))) return;
+            if (SIGN_IN_PATHS.has(path)) {
+              // Cookie доверия, выданная раньше, администратору не помогает: убирается из запроса.
+              const trust = ctx.context.createAuthCookie('trust_device').name;
+              const kept = (ctx.request?.headers.get('cookie') ?? '')
+                .split(';')
+                .map((part) => part.trim())
+                .filter((part) => part !== '' && !part.startsWith(`${trust}=`));
+              const headers = new Headers(ctx.request?.headers);
+              headers.set('cookie', kept.join('; '));
+              return { context: { headers } };
+            }
+            return { context: { body: { ...(ctx.body as object), trustDevice: false } } };
+          }),
+        },
+        {
           // Заблокированная учётная запись не проверяет пароль ни при входе, ни при подтверждении.
           matcher: (context) => PASSWORD_CONFIRM_PATHS.has(context.path ?? ''),
           handler: createAuthMiddleware(async (ctx) => {

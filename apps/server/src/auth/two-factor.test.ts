@@ -233,7 +233,7 @@ describe('вход со вторым фактором', () => {
     expect(results).toEqual([200, 200]);
   });
 
-  it('«доверять устройству»: с cookie доверия повторный вход обходится без кода', async () => {
+  it('«доверять устройству» администратору запрещено: код спрашивается при каждом входе', async () => {
     const device = world.device();
     await device.signIn(world.anna.username, world.anna.password);
     await world.clearRateLimits();
@@ -242,11 +242,74 @@ describe('вход со вторым фактором', () => {
       trustDevice: true,
     });
     expect(trusted.status).toBe(200);
-    expect([...device.cookies.keys()].some((name) => name.endsWith('trust_device'))).toBe(true);
+    // Отметка принята, но cookie доверия не выдана.
+    expect([...device.cookies.keys()].some((name) => name.endsWith('trust_device'))).toBe(false);
     await device.post('/api/auth/sign-out');
     const again = await device.signIn(world.anna.username, world.anna.password);
+    expect(again.json()).toMatchObject({ twoFactorRedirect: true });
+    expect((await device.get('/api/notes')).status).toBe(401);
+  });
+
+  it('cookie доверия, выданная до того, как человек стал администратором, не действует', async () => {
+    // Вручную подсунутая cookie доверия с чужого устройства или из прошлого не обходит код.
+    const donor = world.device();
+    await donor.signIn(world.boris.username, world.boris.password);
+    const boris = await enrollTotp(donor, world.boris);
+    await donor.post('/api/auth/sign-out');
+    await world.clearRateLimits();
+    await donor.signIn(world.boris.username, world.boris.password);
+    await world.clearRateLimits();
+    await donor.post('/api/auth/two-factor/verify-totp', {
+      code: currentCode(boris.uri),
+      trustDevice: true,
+    });
+    const trustCookie = [...donor.cookies].find(([name]) => name.endsWith('trust_device'));
+    expect(trustCookie).toBeDefined();
+    // Борису — 30 дней: на этом устройстве повторный вход идёт без кода.
+    await donor.post('/api/auth/sign-out');
+    await world.clearRateLimits();
+    expect(
+      (await donor.signIn(world.boris.username, world.boris.password)).json(),
+    ).not.toHaveProperty('twoFactorRedirect');
+    // Стал администратором — доверие перестаёт действовать, даже с прежней cookie.
+    await world.database.admin.query(
+      `UPDATE space_members SET role = 'admin' WHERE account_id = $1`,
+      [world.boris.id],
+    );
+    await donor.post('/api/auth/sign-out');
+    await world.clearRateLimits();
+    const again = await donor.signIn(world.boris.username, world.boris.password);
+    expect(again.json()).toMatchObject({ twoFactorRedirect: true });
+    await world.database.admin.query(
+      `UPDATE space_members SET role = 'adult' WHERE account_id = $1`,
+      [world.boris.id],
+    );
+    await world.clearRateLimits();
+    await donor.post('/api/auth/two-factor/verify-totp', { code: currentCode(boris.uri) });
+    await donor.post('/api/auth/two-factor/disable', { password: world.boris.password });
+  });
+
+  it('остальным участникам «доверять устройству» работает 30 дней, как в библиотеке', async () => {
+    const device = world.device();
+    await device.signIn(world.boris.username, world.boris.password);
+    const enrollment = await enrollTotp(device, world.boris);
+    await device.post('/api/auth/sign-out');
+    await world.clearRateLimits();
+    await device.signIn(world.boris.username, world.boris.password);
+    await world.clearRateLimits();
+    const trusted = await device.post('/api/auth/two-factor/verify-totp', {
+      code: currentCode(enrollment.uri),
+      trustDevice: true,
+    });
+    expect(trusted.status).toBe(200);
+    const cookie = trusted.setCookies.find((item) => item.name.endsWith('trust_device'));
+    expect(cookie?.attributes.get('max-age')).toBe(String(30 * 24 * 60 * 60));
+    await device.post('/api/auth/sign-out');
+    const again = await device.signIn(world.boris.username, world.boris.password);
     expect(again.json()).not.toHaveProperty('twoFactorRedirect');
     expect((await device.get('/api/notes')).status).toBe(200);
+    await world.clearRateLimits();
+    await device.post('/api/auth/two-factor/disable', { password: world.boris.password });
   });
 });
 

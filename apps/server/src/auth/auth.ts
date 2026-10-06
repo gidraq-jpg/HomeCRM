@@ -178,6 +178,9 @@ export function createAuth(options: AuthOptions) {
       '/two-factor/send-otp',
       '/two-factor/verify-otp',
       '/error',
+      // scope: "server" в библиотеке не закрывает маршрут по HTTP: через него пароль подбирался без
+      // блокировки. Изнутри auth.api.verifyPassword (confirmPassword) по-прежнему работает.
+      '/verify-password',
     ],
 
     plugins: [

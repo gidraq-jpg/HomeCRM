@@ -49,20 +49,32 @@ describe('cookie (PRD, раздел 13)', () => {
     await world.clearRateLimits();
     const code = await signInWithTotp(world.device(), world.anna, enrollment);
     seen.push(...code.setCookies);
+    // Cookie доверия к устройству выдаётся не администратору, а взрослому (решение владельца).
     const trusted = world.device();
+    await trusted.signIn('boris', world.boris.password);
+    const borisEnrollment = await enrollTotp(trusted, world.boris);
+    await trusted.post('/api/auth/sign-out');
     await world.clearRateLimits();
-    await trusted.signIn('anna', world.anna.password);
+    await trusted.signIn('boris', world.boris.password);
     await world.clearRateLimits();
     const { currentCode } = await import('../testing/totp.ts');
     seen.push(
       ...(
         await trusted.post('/api/auth/two-factor/verify-totp', {
-          code: currentCode(enrollment.uri),
+          code: currentCode(borisEnrollment.uri),
           trustDevice: true,
         })
       ).setCookies,
     );
     seen.push(...(await trusted.post('/api/auth/sign-out')).setCookies);
+    // Остальным тестам файла нужен Борис без второго фактора.
+    await world.database.admin.query('DELETE FROM two_factors WHERE user_id = $1', [
+      world.boris.id,
+    ]);
+    await world.database.admin.query(
+      'UPDATE accounts SET two_factor_enabled = false WHERE id = $1',
+      [world.boris.id],
+    );
 
     expect(seen.length).toBeGreaterThanOrEqual(5);
     for (const cookie of seen) expectProtected(cookie);

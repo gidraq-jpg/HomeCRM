@@ -97,6 +97,7 @@ describe('лишние маршруты закрыты', () => {
       ['POST', '/api/auth/two-factor/send-otp'],
       ['POST', '/api/auth/two-factor/verify-otp'],
       ['GET', '/api/auth/error'],
+      ['POST', '/api/auth/verify-password'],
     ];
     for (const [method, url] of routes) {
       const reply = await device.request(method, url, method === 'POST' ? { json: {} } : {});
