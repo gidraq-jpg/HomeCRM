@@ -83,7 +83,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         ...Object.fromEntries(
           RECORD_DEFINITIONS.filter((child) => child.parent === name).map((child) => [
             `${name}_cascade_${child.name}`,
-            'cascade_trash',
+            child.name === 'object_events' ? 'cascade_object_events' : 'cascade_trash',
           ]),
         ),
       });

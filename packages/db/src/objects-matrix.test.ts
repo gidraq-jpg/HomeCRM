@@ -1,7 +1,7 @@
 // OBJ-2: пары пространств и видов, включая случаи «видит только один конец».
 import { randomUUID } from 'node:crypto';
 import { canViewLink, canViewTimelineEvent, canWriteLink, type RecordFacts } from '@homecrm/shared';
-import { eq, sql } from 'drizzle-orm';
+import { eq, getTableName, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, inject, it } from 'vitest';
 import { objectEvents, objectFields, objects, RECORD_TABLES, recordLinks } from './schema.ts';
 import { createTestDatabase, type TestDatabase } from './testing/database.ts';
@@ -22,17 +22,45 @@ beforeAll(async () => {
         : placement.spaceId === scene.home('household').spaceId
           ? scene.person('anna').id
           : scene.person('dina').id;
-    for (const type of ['object', 'note', 'task', 'shopping_item'] as const) {
+    for (const type of [
+      'object',
+      'note',
+      'task',
+      'shopping_item',
+      'note_item',
+      'object_field',
+      'object_event',
+    ] as const) {
       const table = RECORD_TABLES[type];
-      const { getTableName } = await import('drizzle-orm');
       const name = getTableName(table);
+      const parent =
+        type === 'note_item'
+          ? records.find(
+              (r) =>
+                r.table === 'notes' &&
+                r.facts.placement.spaceId === placement.spaceId &&
+                (r.facts.placement.kind === 'personal' ||
+                  r.facts.placement.audience ===
+                    (placement.kind === 'household' ? placement.audience : null)),
+            )
+          : ['object_field', 'object_event'].includes(type)
+            ? records.find(
+                (r) =>
+                  r.table === 'objects' &&
+                  r.facts.placement.spaceId === placement.spaceId &&
+                  (r.facts.placement.kind === 'personal' ||
+                    r.facts.placement.audience ===
+                      (placement.kind === 'household' ? placement.audience : null)),
+              )
+            : undefined;
       const result = await db.admin.query(
-        `INSERT INTO ${name} (space_id, space_kind, audience, author_id, title) VALUES ($1,$2,$3,$4,'Вымышленная запись') RETURNING id, assignee_id`,
+        `INSERT INTO ${name} (space_id, space_kind, audience, author_id, title${parent ? ',parent_id' : ''}) VALUES ($1,$2,$3,$4,'Вымышленная запись'${parent ? ', $5' : ''}) RETURNING id, assignee_id`,
         [
           placement.spaceId,
           placement.kind,
           placement.kind === 'household' ? placement.audience : null,
           authorId,
+          ...(parent ? [parent.id] : []),
         ],
       );
       records.push({
@@ -123,7 +151,96 @@ it('матрица пар совпадает с эталоном, без рас�
   const report = await linkMatrix();
   console.info(`Матрица связей: ${report.checks} проверок`);
   expect(report.mismatches).toEqual([]);
+}, 180_000);
+it('чтение связей: все семь видов × все пары мест × все участники', async () => {
+  const pairs = records.flatMap((left) =>
+    records
+      .filter((right) => right.id !== left.id)
+      .map((right) => ({ id: randomUUID(), left, right })),
+  );
+  await db.admin.query('ALTER TABLE record_links DISABLE TRIGGER record_links_guard');
+  try {
+    await db.admin.query(
+      `INSERT INTO record_links(id,left_table,left_id,right_table,right_id,author_id)
+      SELECT id,left_table,left_id,right_table,right_id,author_id FROM jsonb_to_recordset($1::jsonb)
+      AS x(id uuid,left_table text,left_id uuid,right_table text,right_id uuid,author_id uuid)`,
+      [
+        JSON.stringify(
+          pairs.map(({ id, left, right }) => ({
+            id,
+            left_table: left.table,
+            left_id: left.id,
+            right_table: right.table,
+            right_id: right.id,
+            author_id: left.facts.authorId,
+          })),
+        ),
+      ],
+    );
+  } finally {
+    await db.admin.query('ALTER TABLE record_links ENABLE TRIGGER record_links_guard');
+  }
+  let checks = 0;
+  const mismatches: string[] = [];
+  for (const person of scene.family.people) {
+    const visible = new Set(
+      (await scene.as(person.key, (tx) => tx.select({ id: recordLinks.id }).from(recordLinks))).map(
+        (row) => row.id,
+      ),
+    );
+    for (const pair of pairs) {
+      checks++;
+      if (visible.has(pair.id) !== canViewLink(person.viewer, pair.left.facts, pair.right.facts))
+        mismatches.push(`${person.key}: ${pair.left.table}/${pair.right.table}`);
+    }
+  }
+  await db.admin.query('DELETE FROM record_links');
+  console.info(`Матрица видимости всех связей: ${checks} проверок`);
+  expect(mismatches).toEqual([]);
 }, 120_000);
+it('UPDATE без WHERE и поддельный контекст не правят текст скрытого события', async () => {
+  const author = scene.person('boris');
+  const [parent] = await scene.as('boris', (tx) =>
+    tx
+      .insert(objects)
+      .values({
+        ...placementColumns(scene.personal('boris')),
+        authorId: author.id,
+        title: 'Личный объект',
+      })
+      .returning(),
+  );
+  if (!parent) throw new Error('Missing object');
+  const [manual] = await scene.as('boris', (tx) =>
+    tx
+      .insert(objectEvents)
+      .values({
+        ...placementColumns(scene.personal('boris')),
+        parentId: parent.id,
+        authorId: author.id,
+        title: 'Приватный текст',
+        originSpaceId: parent.spaceId,
+        originSpaceKind: 'personal',
+      })
+      .returning(),
+  );
+  if (!manual) throw new Error('Missing event');
+  await scene.as('boris', (tx) =>
+    tx
+      .update(objects)
+      .set(placementColumns(scene.home('household')))
+      .where(eq(objects.id, parent.id)),
+  );
+  await scene.as('anna', (tx) => tx.execute(sql`UPDATE object_events SET title='Слепая правка'`));
+  await scene.as('anna', async (tx) => {
+    await tx.execute(sql`SELECT set_config('app.object_cascade_id',${parent.id},true)`);
+    await tx.execute(sql`UPDATE object_events SET title='Поддельный каскад'`);
+  });
+  expect(
+    (await db.admin.query('SELECT title FROM object_events WHERE id=$1', [manual.id])).rows[0]
+      .title,
+  ).toBe('Приватный текст');
+});
 it('ослабленная политика чтения связи роняет матрицу видимости', async () => {
   const left = records[0];
   const right = records.find(

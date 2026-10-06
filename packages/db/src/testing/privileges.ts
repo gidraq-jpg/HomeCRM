@@ -92,9 +92,16 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         .filter((column) => !column.generated && !FROZEN.includes(column.name))
         .map((column) => column.name),
     };
-    // Обработчик не читает тексты: id, место, ответственный и отметка корзины; меняет только ответственного.
+    // Обработчик не читает тексты: идентификаторы, место, ответственный и корзина.
     worker[name] = {
-      SELECT: ['id', 'space_id', 'space_kind', 'assignee_id', 'deleted_at'],
+      SELECT: [
+        'id',
+        'space_id',
+        'space_kind',
+        'assignee_id',
+        'deleted_at',
+        ...columns.filter((column) => column.name === 'parent_id').map((column) => column.name),
+      ],
       UPDATE: ['assignee_id'],
       DELETE: 'all',
     };

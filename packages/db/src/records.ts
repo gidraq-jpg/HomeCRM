@@ -120,6 +120,7 @@ function recordRules(
   t: CommonColumns,
   hasParent: boolean,
   visibleSql?: string,
+  updateVisibilitySql?: string,
 ) {
   const policy = recordPolicySql(type);
   return [
@@ -159,8 +160,16 @@ function recordRules(
     pgPolicy(`${name}_update`, {
       for: 'update',
       to: appRole,
-      using: sql.raw(policy.updateUsing),
-      withCheck: sql.raw(policy.updateCheck),
+      using: sql.raw(
+        updateVisibilitySql
+          ? `(${policy.updateUsing}) AND (${updateVisibilitySql})`
+          : policy.updateUsing,
+      ),
+      withCheck: sql.raw(
+        updateVisibilitySql
+          ? `(${policy.updateCheck}) AND (${updateVisibilitySql})`
+          : policy.updateCheck,
+      ),
     }),
     // Обработчик видит и удаляет только то, что пролежало в корзине дольше срока хранения.
     pgPolicy(`${name}_purge_select`, {
@@ -193,6 +202,8 @@ export interface RecordTableOptions {
   parent?: PgTable;
   /** Дополнительная видимость дочерней записи: снимок аудитории события и контакт. */
   visibleSql?: string;
+  /** Правка также требует чтения; закрытый каскад меняет только метаданные родителя. */
+  updateVisibilitySql?: string;
 }
 
 export interface RecordDefinition {
@@ -216,7 +227,14 @@ export function recordTable<
   const parentName = options.parent === undefined ? null : getTableName(options.parent);
   RECORD_DEFINITIONS.push({ name, type, parent: parentName });
   const table = pgTable(name, { ...recordColumns(), ...extra }, (t) =>
-    recordRules(name, type, t as unknown as CommonColumns, parentName !== null, options.visibleSql),
+    recordRules(
+      name,
+      type,
+      t as unknown as CommonColumns,
+      parentName !== null,
+      options.visibleSql,
+      options.updateVisibilitySql,
+    ),
   );
   const history = historyTable(name, table);
   return { table, history };

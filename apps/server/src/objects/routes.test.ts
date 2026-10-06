@@ -96,6 +96,39 @@ it('контекст заметки выбирает место и аудито�
   });
   expect(denied.status).toBe(404);
 });
+it('смена аудитории, корзина и восстановление сохраняют событие, скрытое снимком личного', async () => {
+  const object = await create();
+  const manual = await event(object.id);
+  expect((await adult.post(`${url(object.id)}/share`, common())).status).toBe(200);
+  expect(
+    (await admin.get(`${url(object.id)}/timeline`))
+      .json<Page>()
+      .items.some((item) => item.id === manual.id),
+  ).toBe(false);
+  const narrowed = await admin.post(`${url(object.id)}/audience`, {
+    audience: 'adults',
+    confirmed: true,
+  });
+  expect(narrowed.status, narrowed.text).toBe(200);
+  expect((await admin.post(`${url(object.id)}/trash`, {})).status).toBe(200);
+  const deleted = await world.database.admin.query(
+    'SELECT audience,deleted_at FROM object_events WHERE id=$1',
+    [manual.id],
+  );
+  expect(deleted.rows[0].audience).toBe('adults');
+  expect(deleted.rows[0].deleted_at).not.toBeNull();
+  expect((await admin.post(`${url(object.id)}/restore`, {})).status).toBe(200);
+  expect(
+    (await adult.get(`${url(object.id)}/timeline`))
+      .json<Page>()
+      .items.some((item) => item.id === manual.id),
+  ).toBe(true);
+  expect(
+    (await admin.get(`${url(object.id)}/timeline`))
+      .json<Page>()
+      .items.some((item) => item.id === manual.id),
+  ).toBe(false);
+});
 it('OBJ-1: достаточно названия, тип и свои поля сохраняются с порядком', async () => {
   const object = await create(adult, {
     objectType: 'property',
@@ -275,6 +308,73 @@ it('ручные события сохраняют копейки, дату и �
   expect((await adult.get(`${url(object.id)}/timeline`)).json<Page>().items).toHaveLength(0);
   expect((await adult.post(`${url(object.id)}/events/${manual.id}/restore`, {})).status).toBe(200);
   expect((await adult.get(`${url(object.id)}/timeline`)).json<Page>().items).toHaveLength(1);
+});
+it('невидимый контакт скрывает событие, его связи и копию; отказ не раскрывает существование контакта', async () => {
+  const object = await create(adult, { placement: common() });
+  const contact = await create();
+  const manual = await event(object.id, adult, {
+    text: 'Закрытое упоминание контакта',
+    contact: { type: 'object', id: contact.id },
+  });
+  const link = await adult.post('/api/links', {
+    left: { type: 'object', id: object.id },
+    right: { type: 'object_event', id: manual.id },
+  });
+  expect(link.status, link.text).toBe(201);
+  for (const device of [child, second, admin]) {
+    const page = await device.get(`${url(object.id)}/timeline`);
+    expect(JSON.stringify(page.json())).not.toContain(manual.id);
+    expect(JSON.stringify(page.json())).not.toContain(contact.id);
+    expect((await device.get(`/api/records/object/${object.id}/links`)).json()).toEqual([]);
+    const copy = await device.post(`${url(object.id)}/copy`, {});
+    expect(copy.status, copy.text).toBe(201);
+    expect((await device.get(`${url(copy.json<Card>().id)}/timeline`)).json<Page>().items).toEqual(
+      [],
+    );
+  }
+  const failures = [];
+  for (const id of [contact.id, randomUUID()]) {
+    const response = await second.post(`${url(object.id)}/events`, {
+      text: 'Попытка',
+      occurredOn: '2026-10-06',
+      contact: { type: 'object', id },
+    });
+    expect(response.status).toBe(404);
+    failures.push(response.json());
+  }
+  expect(failures[0]).toEqual(failures[1]);
+});
+it('названия, свои поля, тексты событий и подробности ошибки SQL не попадают в журналы', async () => {
+  const markers = [
+    'PrivateObjectMarker',
+    'PrivateFieldMarker',
+    'PrivateValueMarker',
+    'PrivateEventMarker',
+    'PrivateSqlMarker',
+  ];
+  const object = await create(adult, {
+    title: markers[0],
+    fields: [{ name: markers[1], value: markers[2] }],
+  });
+  await event(object.id, adult, { text: markers[3] });
+  await adult.get(`${url(object.id)}/timeline?search=${markers[2]}`);
+  await adult.get(`/api/objects/${markers[0]}`);
+  await world.database.admin.query(
+    `CREATE FUNCTION app.test_object_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'PrivateSqlMarker'; END; $$`,
+  );
+  await world.database.admin.query(
+    'CREATE TRIGGER objects_test_failure BEFORE UPDATE ON objects FOR EACH ROW EXECUTE FUNCTION app.test_object_failure()',
+  );
+  try {
+    expect((await patch(adult, object.id, { title: markers[0] })).status).toBe(500);
+  } finally {
+    await world.database.admin.query(
+      'DROP TRIGGER objects_test_failure ON objects; DROP FUNCTION app.test_object_failure()',
+    );
+  }
+  const log = [...world.logs, ...world.requestLog].join('\n');
+  for (const marker of markers) expect(log).not.toContain(marker);
+  expect(log).toContain('Objects request failed');
 });
 it('корзина родителя переносит поля и события, восстановление возвращает только каскадное удаление', async () => {
   const object = await create(adult, { fields: [{ name: 'Поле', value: 'Значение' }] });

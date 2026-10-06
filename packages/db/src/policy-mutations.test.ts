@@ -22,6 +22,21 @@ interface Mutation {
 
 const MUTATIONS: Mutation[] = [
   {
+    title: 'объекты без проверки чтения раскрывают чужое личное',
+    sql: 'ALTER POLICY objects_select ON objects USING (true)',
+    operation: 'view',
+    types: ['object'],
+    expected: /^Анна · чтение записи по id · объект · личное \(Борис\).*эталон — нет, база — да$/,
+  },
+  {
+    title: 'события без проверки чтения раскрывают чужое личное',
+    sql: 'ALTER POLICY object_events_select ON object_events USING (true)',
+    operation: 'view',
+    types: ['object_event'],
+    expected:
+      /^Анна · чтение записи по id · событие объекта · личное \(Борис\).*эталон — нет, база — да$/,
+  },
+  {
     title: 'чтение без RLS позволяет скопировать чужое личное — матрица замечает утечку',
     sql: 'ALTER POLICY notes_select ON notes USING (true)',
     operation: 'copy',

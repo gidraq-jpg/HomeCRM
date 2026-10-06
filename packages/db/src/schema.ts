@@ -29,6 +29,7 @@ import {
 import {
   canInviteSql,
   canResetPasswordSql,
+  canRestoreSql,
   INVITATION_TTL,
   ownAccountSql,
   type RecordType,
@@ -130,6 +131,16 @@ export const eventVisibilitySql = `
   app.placement_visible(origin_space_id, origin_space_kind, origin_audience)
   AND EXISTS (SELECT 1 FROM public.objects p WHERE p.id = parent_id)
   AND (contact_id IS NULL OR app.record_ref_allowed(contact_table, contact_id, false))`;
+// Контекст выставляет и снимает триггер родителя; прямой SQL не меняет скрытое событие.
+export const eventCascadeSql = `pg_trigger_depth() > 0
+  AND parent_id = nullif(current_setting('app.object_cascade_id',true),'')::uuid
+  AND app.record_ref_allowed('objects',parent_id,false)
+  AND (current_setting('app.object_cascade_mode',true)<>'restore' OR (
+    (deleted_at IS NULL OR deleted_at=nullif(current_setting('app.object_cascade_time',true),'')::timestamptz)
+    AND (${canRestoreSql()})))
+  AND (current_setting('app.object_cascade_mode',true)<>'trash' OR
+    deleted_at IS NULL OR deleted_at=nullif(current_setting('app.object_cascade_time',true),'')::timestamptz)`;
+export const eventUpdateVisibilitySql = `((${eventVisibilitySql}) AND nullif(current_setting('app.object_cascade_id',true),'') IS NULL) OR (${eventCascadeSql})`;
 const objectEventsDefinition = recordTable(
   'object_events',
   'object_event',
@@ -145,7 +156,11 @@ const objectEventsDefinition = recordTable(
     originAudience: audienceEnum('origin_audience'),
     searchText: text('search_text').generatedAlwaysAs(sql`title`),
   },
-  { parent: objects, visibleSql: eventVisibilitySql },
+  {
+    parent: objects,
+    visibleSql: eventVisibilitySql,
+    updateVisibilitySql: eventUpdateVisibilitySql,
+  },
 );
 export const objectEvents = objectEventsDefinition.table;
 export const objectEventsHistory = objectEventsDefinition.history;
