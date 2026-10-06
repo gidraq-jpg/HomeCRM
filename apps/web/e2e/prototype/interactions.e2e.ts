@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../support/fixtures.ts';
-import { goToSection, openApp, plain } from '../support/helpers.ts';
+import { goToSection, openApp, plain, screenshot } from '../support/helpers.ts';
 
 // Остальные касания: дела, главное дело, фильтры списков, вкладки объекта, «Ещё», «Коммуналка за месяц».
 // Проверяется, что всё, что выглядит нажимаемым, действительно работает.
@@ -187,7 +187,7 @@ test.describe('«Документы»: фильтры', () => {
 test.describe('карточка объекта: шесть вкладок', () => {
   test('все вкладки видны без прокрутки вбок; «Лента» — вторая после «Обзора»', async ({
     page,
-  }) => {
+  }, info) => {
     await openApp(page, '/home/sadovaya');
     const tabs = page.getByRole('navigation', { name: 'Разделы объекта' });
     const links = tabs.getByRole('link');
@@ -217,6 +217,7 @@ test.describe('карточка объекта: шесть вкладок', () =
       expect(new Set(tops).size, 'вкладки должны перенестись на вторую строку').toBeGreaterThan(1);
     }
     await expect(tabs.getByRole('link').nth(1)).toHaveText('Лента');
+    await screenshot(page, info, 'property-tabs');
   });
 
   test('«Обзор», «Лента», «Коммуналка», «Счётчики», «Документы», «Люди»', async ({ page }) => {
