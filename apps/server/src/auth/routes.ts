@@ -212,6 +212,7 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
           ),
         ),
     );
+    const completedAt = notices[0]?.completedAt ?? null;
     return {
       id: account.id,
       displayName: account.displayName,
@@ -223,12 +224,12 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
       timeZone: module.homeTimeZone,
       // Ребёнок видит, что пароль сбрасывали, пока не подтвердит, что прочитал (AUTH-5);
       // первые 7 дней подтвердить нельзя никому, в том числе вошедшему по ссылке администратору.
-      passwordReset: notices[0]
+      passwordReset: completedAt
         ? {
-            completedAt: notices[0].completedAt,
+            completedAt,
             // С этого момента кнопка «Я прочитал» доступна, а сервер принимает подтверждение.
             ackAllowedAt: new Date(
-              new Date(notices[0].completedAt).getTime() + RESET_NOTICE_LOCK_DAYS * 86_400_000,
+              completedAt.getTime() + RESET_NOTICE_LOCK_DAYS * 86_400_000,
             ).toISOString(),
           }
         : null,

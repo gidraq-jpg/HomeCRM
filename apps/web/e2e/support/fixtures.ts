@@ -17,6 +17,7 @@ export const test = base.extend({
         twoFactorEnabled: false,
         secondFactorRequired: false,
         roles: [{ householdId: 'fictional-home', role: 'adult' }],
+        timeZone: 'Asia/Yekaterinburg',
         passwordReset: null,
       };
       const data =

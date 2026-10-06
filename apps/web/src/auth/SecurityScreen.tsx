@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import * as z from 'zod';
+import { InstallApp } from '../pwa/InstallApp.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { ApiError, action, api, BackupCodes, Events, isAdmin, type Me, Sessions } from './api.ts';
 import {
@@ -13,12 +14,11 @@ import {
   PasswordField,
   useAction,
 } from './components.tsx';
+import { formatMoment } from './dates.ts';
 import { RecoveryCodes } from './TwoFactorSetup.tsx';
 
-const date = (value: string) =>
-  new Date(value).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
-
-function Devices({ onSignedOut }: { onSignedOut: () => void }) {
+function Devices({ onSignedOut, timeZone }: { onSignedOut: () => void; timeZone: string }) {
+  const date = (value: string) => formatMoment(value, timeZone);
   const query = useQuery({
     queryKey: ['devices'],
     queryFn: ({ signal }) => api('auth/list-sessions', Sessions, undefined, signal),
@@ -99,7 +99,8 @@ function Devices({ onSignedOut }: { onSignedOut: () => void }) {
   );
 }
 
-function LoginEvents() {
+function LoginEvents({ timeZone }: { timeZone: string }) {
+  const date = (value: string) => formatMoment(value, timeZone);
   const query = useQuery({
     queryKey: ['login-events'],
     queryFn: ({ signal }) => api('login-events', Events, undefined, signal),
@@ -315,9 +316,10 @@ export function SecurityScreen({
       </Section>
       <FactorSettings me={me} reload={reload} />
       <ChangePassword />
-      <Devices onSignedOut={onSignedOut} />
-      <LoginEvents />
+      <Devices onSignedOut={onSignedOut} timeZone={me.timeZone} />
+      <LoginEvents timeZone={me.timeZone} />
       <InviteParticipant me={me} />
+      <InstallApp inline />
     </Page>
   );
 }

@@ -140,17 +140,19 @@ export function ChallengeScreen({
               <p className="auth-hint">Администратор подтверждает каждый вход кодом.</p>
             )}
           </AuthForm>
-          <button
-            className="text-button auth-link"
-            type="button"
-            onClick={() => {
-              setBackup(!backup);
-              state.setError(null);
-            }}
-          >
-            {backup ? 'Ввести код из приложения' : 'Использовать резервный код'}
-          </button>
-          <BackToLogin />
+          <div className="auth-links">
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => {
+                setBackup(!backup);
+                state.setError(null);
+              }}
+            >
+              {backup ? 'Ввести код из приложения' : 'Использовать резервный код'}
+            </button>
+            <BackToLogin />
+          </div>
         </>
       )}
     </AuthPage>

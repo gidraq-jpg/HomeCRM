@@ -26,6 +26,23 @@ test('manifest и значки установки; инструкция для �
   await checkAuth(page, info, 'install');
 });
 
+test('«Установить на телефон»: на входе и в настройках, не на «Сегодня» и не под нижним меню', async ({
+  page,
+  family,
+}, info) => {
+  const install = page.getByRole('button', { name: 'Установить на телефон' });
+  await page.goto('#/sign-in');
+  await expect(install).toBeVisible();
+  await signIn(page, family, 'child');
+  await expectSignedIn(page);
+  await expect(install).toHaveCount(0);
+  await page.goto('#/more/settings');
+  await expect(page.getByRole('heading', { name: 'Настройки', exact: true })).toBeVisible();
+  await expect(install).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Приложение на телефоне' })).toBeVisible();
+  await checkAuth(page, info, 'install-settings');
+});
+
 test('без сети видна плашка, форма недоступна, после подключения вход работает', async ({
   page,
   family,

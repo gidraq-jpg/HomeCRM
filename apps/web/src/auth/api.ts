@@ -8,7 +8,9 @@ export const Me = z.object({
   twoFactorEnabled: z.boolean(),
   secondFactorRequired: z.boolean(),
   roles: z.array(z.object({ householdId: z.string(), role: z.enum(['admin', 'adult', 'child']) })),
-  passwordReset: z.object({ completedAt: z.string() }).nullable(),
+  /** Часовой пояс дома (IANA): в нём показываются даты. */
+  timeZone: z.string(),
+  passwordReset: z.object({ completedAt: z.string(), ackAllowedAt: z.string() }).nullable(),
 });
 export type Me = z.infer<typeof Me>;
 export const SignIn = z.object({
