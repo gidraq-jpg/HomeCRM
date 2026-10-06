@@ -200,10 +200,12 @@ function recordRules(
 export interface RecordTableOptions {
   /** Родитель дочерней таблицы (PRD 7.3.3). В `extra` обязательна колонка `parentId: uuid('parent_id').notNull()`. */
   parent?: PgTable;
-  /** Дополнительная видимость дочерней записи: снимок аудитории события и контакт. */
+  /** Дополнительная видимость дочерней записи: снимок аудитории события. */
   visibleSql?: string;
   /** Правка также требует чтения; закрытый каскад меняет только метаданные родителя. */
   updateVisibilitySql?: string;
+  /** Дополнительные узкие политики служебной операции. */
+  extraPolicies?: ReturnType<typeof pgPolicy>[];
 }
 
 export interface RecordDefinition {
@@ -226,8 +228,8 @@ export function recordTable<
 >(name: TName, type: RecordType, extra: TExtra, options: RecordTableOptions = {}) {
   const parentName = options.parent === undefined ? null : getTableName(options.parent);
   RECORD_DEFINITIONS.push({ name, type, parent: parentName });
-  const table = pgTable(name, { ...recordColumns(), ...extra }, (t) =>
-    recordRules(
+  const table = pgTable(name, { ...recordColumns(), ...extra }, (t) => [
+    ...recordRules(
       name,
       type,
       t as unknown as CommonColumns,
@@ -235,7 +237,8 @@ export function recordTable<
       options.visibleSql,
       options.updateVisibilitySql,
     ),
-  );
+    ...(options.extraPolicies ?? []),
+  ]);
   const history = historyTable(name, table);
   return { table, history };
 }

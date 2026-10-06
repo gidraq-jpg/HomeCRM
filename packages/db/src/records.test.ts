@@ -107,6 +107,12 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           `${name}.${name}_purge:DELETE`,
           `${name}.${name}_reassign_select:SELECT`,
           `${name}.${name}_reassign:UPDATE`,
+          ...(name === 'object_events'
+            ? [
+                'object_events.object_events_contact_purge_select:SELECT',
+                'object_events.object_events_contact_purge:UPDATE',
+              ]
+            : []),
           `${name}_history.${name}_history_select:SELECT`,
           `${name}_history.${name}_history_insert:INSERT`,
           `${name}_history.${name}_history_worker_insert:INSERT`,

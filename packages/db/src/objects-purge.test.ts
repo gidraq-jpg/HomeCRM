@@ -144,12 +144,41 @@ it('очистка объекта удаляет связи обоих конц�
         parentId: survivor.id,
         authorId: author.id,
         title: 'Остающееся событие',
+        contactTable: 'object_fields',
+        contactId: field.id,
         originSpaceId: survivor.spaceId,
         originSpaceKind: 'personal',
       })
       .returning(),
   );
   if (!survivingEvent) throw new Error('Missing surviving event');
+  const [trashedEvent] = await scene.as('boris', (tx) =>
+    tx
+      .insert(objectEvents)
+      .values({
+        ...place,
+        parentId: survivor.id,
+        authorId: author.id,
+        title: 'Событие в корзине',
+        originSpaceId: survivor.spaceId,
+        originSpaceKind: 'personal',
+        contactTable: 'objects',
+        contactId: object.id,
+      })
+      .returning(),
+  );
+  if (!trashedEvent) throw new Error('Missing trashed event');
+  await scene.as('boris', (tx) =>
+    tx
+      .update(objectEvents)
+      .set({ deletedAt: new Date() })
+      .where(eq(objectEvents.id, trashedEvent.id)),
+  );
+  const beforeCleanup = (
+    await db.admin.query('SELECT * FROM object_events WHERE id=ANY($1) ORDER BY id', [
+      [survivingEvent.id, trashedEvent.id],
+    ])
+  ).rows;
   for (const [table, id] of [
     ['objects', object.id],
     ['object_fields', field.id],
@@ -193,5 +222,88 @@ it('очистка объекта удаляет связи обоих конц�
     await scene.as('boris', (tx) =>
       tx.select().from(objectEvents).where(eq(objectEvents.id, survivingEvent.id)),
     ),
-  ).toMatchObject([{ deletedAt: null, parentId: survivor.id }]);
+  ).toMatchObject([
+    { deletedAt: null, parentId: survivor.id, contactId: null, contactTable: null },
+  ]);
+  const afterCleanup = (
+    await db.admin.query('SELECT * FROM object_events WHERE id=ANY($1) ORDER BY id', [
+      [survivingEvent.id, trashedEvent.id],
+    ])
+  ).rows;
+  expect(afterCleanup).toEqual(
+    beforeCleanup.map((row) => ({ ...row, contact_id: null, contact_table: null })),
+  );
+});
+
+it('назначение контакта только на чтение ждёт очистку и не оставляет осиротевшую ссылку', async () => {
+  const [parent] = await scene.as('vera', (tx) =>
+    tx
+      .insert(objects)
+      .values({
+        ...placementColumns(scene.personal('vera')),
+        authorId: scene.person('vera').id,
+        title: 'Личное ребёнка',
+      })
+      .returning(),
+  );
+  if (!parent) throw new Error('Missing personal object');
+  const result = await db.admin.query<{ id: string }>(
+    "INSERT INTO notes(space_id,space_kind,audience,author_id,title,deleted_at) VALUES ($1,'household','household',$2,'Контакт для очистки',now()-interval '31 days') RETURNING id",
+    [scene.home('household').spaceId, scene.person('boris').id],
+  );
+  const contactId = result.rows[0]?.id;
+  if (!contactId) throw new Error('Missing expired contact');
+  const worker = await db.worker.connect();
+  const started = Promise.withResolvers<number>();
+  let inserting: Promise<unknown> | undefined;
+  try {
+    await worker.query('BEGIN');
+    expect((await worker.query('DELETE FROM notes WHERE id=$1', [contactId])).rowCount).toBe(1);
+    inserting = scene
+      .as('vera', async (tx) => {
+        const pid = await tx.execute<{ pid: number }>(sql`SELECT pg_backend_pid() AS pid`);
+        started.resolve(pid.rows[0]?.pid ?? 0);
+        await tx.insert(objectEvents).values({
+          ...placementColumns(scene.personal('vera')),
+          parentId: parent.id,
+          authorId: scene.person('vera').id,
+          title: 'Ссылка во время очистки',
+          originSpaceId: parent.spaceId,
+          originSpaceKind: 'personal',
+          contactTable: 'notes',
+          contactId,
+        });
+      })
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    const pid = await started.promise;
+    const deadline = Date.now() + 5000;
+    let waiting = false;
+    while (!waiting && Date.now() < deadline) {
+      waiting =
+        (
+          await db.admin.query(
+            "SELECT 1 FROM pg_locks WHERE pid=$1 AND locktype='advisory' AND NOT granted",
+            [pid],
+          )
+        ).rowCount === 1;
+      if (!waiting) await delay(10);
+    }
+    expect(waiting).toBe(true);
+    await worker.query('COMMIT');
+    expect(hasCode(await inserting, ['42501'])).toBe(true);
+    expect(
+      (
+        await db.admin.query('SELECT count(*)::int n FROM object_events WHERE contact_id=$1', [
+          contactId,
+        ])
+      ).rows[0].n,
+    ).toBe(0);
+  } finally {
+    await worker.query('ROLLBACK');
+    worker.release();
+    await inserting;
+  }
 });

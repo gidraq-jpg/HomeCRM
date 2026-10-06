@@ -29,7 +29,6 @@ import {
 import {
   canInviteSql,
   canResetPasswordSql,
-  canRestoreSql,
   INVITATION_TTL,
   ownAccountSql,
   type RecordType,
@@ -129,18 +128,21 @@ export const objectFieldsHistory = objectFieldsDefinition.history;
 /** Ручное событие: текст — title. Снимок места не меняется при переносе объекта. */
 export const eventVisibilitySql = `
   app.placement_visible(origin_space_id, origin_space_kind, origin_audience)
-  AND EXISTS (SELECT 1 FROM public.objects p WHERE p.id = parent_id)
-  AND (contact_id IS NULL OR app.record_ref_allowed(contact_table, contact_id, false))`;
+  AND EXISTS (SELECT 1 FROM public.objects p WHERE p.id = parent_id)`;
 // Контекст выставляет и снимает триггер родителя; прямой SQL не меняет скрытое событие.
 export const eventCascadeSql = `pg_trigger_depth() > 0
   AND parent_id = nullif(current_setting('app.object_cascade_id',true),'')::uuid
   AND app.record_ref_allowed('objects',parent_id,false)
-  AND (current_setting('app.object_cascade_mode',true)<>'restore' OR (
-    (deleted_at IS NULL OR deleted_at=nullif(current_setting('app.object_cascade_time',true),'')::timestamptz)
-    AND (${canRestoreSql()})))
+  AND (current_setting('app.object_cascade_mode',true)<>'restore' OR
+    deleted_at IS NULL OR deleted_at=nullif(current_setting('app.object_cascade_time',true),'')::timestamptz)
   AND (current_setting('app.object_cascade_mode',true)<>'trash' OR
     deleted_at IS NULL OR deleted_at=nullif(current_setting('app.object_cascade_time',true),'')::timestamptz)`;
 export const eventUpdateVisibilitySql = `((${eventVisibilitySql}) AND nullif(current_setting('app.object_cascade_id',true),'') IS NULL) OR (${eventCascadeSql})`;
+// Обработчик обнуляет ссылку только внутри триггера окончательной очистки контакта.
+const contactPurgeContextSql =
+  "pg_trigger_depth() > 0 AND nullif(current_setting('app.contact_purge_id',true),'') IS NOT NULL";
+const contactPurgeMatchSql = `contact_table = current_setting('app.contact_purge_table',true)
+  AND contact_id = nullif(current_setting('app.contact_purge_id',true),'')::uuid`;
 const objectEventsDefinition = recordTable(
   'object_events',
   'object_event',
@@ -160,6 +162,23 @@ const objectEventsDefinition = recordTable(
     parent: objects,
     visibleSql: eventVisibilitySql,
     updateVisibilitySql: eventUpdateVisibilitySql,
+    extraPolicies: [
+      pgPolicy('object_events_contact_purge_select', {
+        for: 'select',
+        to: workerRole,
+        using: sql.raw(
+          `(${contactPurgeContextSql}) AND ((${contactPurgeMatchSql}) OR (contact_id IS NULL AND contact_table IS NULL))`,
+        ),
+      }),
+      pgPolicy('object_events_contact_purge', {
+        for: 'update',
+        to: workerRole,
+        using: sql.raw(`(${contactPurgeContextSql}) AND (${contactPurgeMatchSql})`),
+        withCheck: sql.raw(
+          `(${contactPurgeContextSql}) AND contact_id IS NULL AND contact_table IS NULL`,
+        ),
+      }),
+    ],
   },
 );
 export const objectEvents = objectEventsDefinition.table;

@@ -234,12 +234,13 @@ describe('корзина родителя (DATA-1)', () => {
     expect(after.get(earlier)).toBe(true);
   });
 
-  it('взрослый восстанавливает свою заметку, а пункт чужого автора остаётся в корзине — его вернёт администратор', async () => {
+  it('автор заметки восстанавливает чужой пункт каскада; отдельная корзина требует своего права', async () => {
     const boris = scene.person('boris');
     const home = scene.home('household');
     const parentId = await addNote(database.admin, { author: boris, placement: home });
     const own = await addItem(parentId, home, boris);
     const foreign = await addItem(parentId, home, scene.person('anna'));
+    const earlier = await addItem(parentId, home, scene.person('anna'), 5);
     await scene.as('boris', (tx) =>
       tx.update(notes).set({ deletedAt: new Date() }).where(eq(notes.id, parentId)),
     );
@@ -257,12 +258,21 @@ describe('корзина родителя (DATA-1)', () => {
         ).map((row) => [row.id, row.trashed]),
       );
     expect((await state()).get(own)).toBe(false);
-    expect((await state()).get(foreign)).toBe(true);
-
-    await scene.as('anna', (tx) =>
-      tx.update(noteItems).set({ deletedAt: null }).where(eq(noteItems.id, foreign)),
-    );
     expect((await state()).get(foreign)).toBe(false);
+    expect((await state()).get(earlier)).toBe(true);
+    expect(
+      await scene.as('boris', (tx) =>
+        tx
+          .update(noteItems)
+          .set({ deletedAt: null })
+          .where(eq(noteItems.id, earlier))
+          .returning({ id: noteItems.id }),
+      ),
+    ).toEqual([]);
+    await scene.as('anna', (tx) =>
+      tx.update(noteItems).set({ deletedAt: null }).where(eq(noteItems.id, earlier)),
+    );
+    expect((await state()).get(earlier)).toBe(false);
   });
 
   it('очистка корзины убирает просроченную заметку вместе с её пунктами в корзине и историей', async () => {

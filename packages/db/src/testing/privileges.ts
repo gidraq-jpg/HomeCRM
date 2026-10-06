@@ -101,8 +101,9 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         'assignee_id',
         'deleted_at',
         ...columns.filter((column) => column.name === 'parent_id').map((column) => column.name),
+        ...(name === 'object_events' ? ['contact_table', 'contact_id'] : []),
       ],
-      UPDATE: ['assignee_id'],
+      UPDATE: ['assignee_id', ...(name === 'object_events' ? ['contact_table', 'contact_id'] : [])],
       DELETE: 'all',
     };
   }

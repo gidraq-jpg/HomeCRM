@@ -309,7 +309,7 @@ it('ручные события сохраняют копейки, дату и �
   expect((await adult.post(`${url(object.id)}/events/${manual.id}/restore`, {})).status).toBe(200);
   expect((await adult.get(`${url(object.id)}/timeline`)).json<Page>().items).toHaveLength(1);
 });
-it('невидимый контакт скрывает событие, его связи и копию; отказ не раскрывает существование контакта', async () => {
+it('невидимый контакт скрывается как поле, событие и связи остаются; отказ не раскрывает контакт', async () => {
   const object = await create(adult, { placement: common() });
   const contact = await create();
   const manual = await event(object.id, adult, {
@@ -323,14 +323,16 @@ it('невидимый контакт скрывает событие, его с
   expect(link.status, link.text).toBe(201);
   for (const device of [child, second, admin]) {
     const page = await device.get(`${url(object.id)}/timeline`);
-    expect(JSON.stringify(page.json())).not.toContain(manual.id);
+    expect(page.json<Page>().items.find((item) => item.id === manual.id)).toMatchObject({
+      contact: null,
+    });
     expect(JSON.stringify(page.json())).not.toContain(contact.id);
-    expect((await device.get(`/api/records/object/${object.id}/links`)).json()).toEqual([]);
+    expect((await device.get(`/api/records/object/${object.id}/links`)).json()).toHaveLength(1);
     const copy = await device.post(`${url(object.id)}/copy`, {});
     expect(copy.status, copy.text).toBe(201);
-    expect((await device.get(`${url(copy.json<Card>().id)}/timeline`)).json<Page>().items).toEqual(
-      [],
-    );
+    expect(
+      (await device.get(`${url(copy.json<Card>().id)}/timeline`)).json<Page>().items,
+    ).toMatchObject([{ text: manual.text, contact: null }]);
   }
   const failures = [];
   for (const id of [contact.id, randomUUID()]) {
@@ -439,4 +441,137 @@ it('проверка в коде скрывает чужое личное при
       `ALTER POLICY objects_select ON objects USING (${canViewSql()})`,
     );
   }
+});
+
+it.each(['personal', 'adults', 'purged'] as const)(
+  'контакт %s скрывается как поле, событие остаётся в ленте, экспорте и копии',
+  async (mode) => {
+    const object = await create(adult, { placement: common() });
+    const response = await second.post('/api/notes', {
+      title: 'Вымышленный контакт',
+      placement: common(),
+    });
+    expect(response.status).toBe(201);
+    const contact = response.json<{ id: string }>();
+    const manual = await event(object.id, second, { contact: { type: 'note', id: contact.id } });
+    if (mode === 'personal') {
+      expect(
+        (await second.post(`/api/notes/${contact.id}/personal`, { confirmed: true })).status,
+      ).toBe(200);
+    } else if (mode === 'adults') {
+      expect(
+        (
+          await second.post(`/api/notes/${contact.id}/audience`, {
+            audience: 'adults',
+            confirmed: true,
+          })
+        ).status,
+      ).toBe(200);
+    } else {
+      expect((await second.post(`/api/notes/${contact.id}/trash`, {})).status).toBe(200);
+      await world.database.admin.query('ALTER TABLE notes DISABLE TRIGGER notes_trash_time');
+      try {
+        await world.database.admin.query(
+          "UPDATE notes SET deleted_at=now()-interval '31 days' WHERE id=$1",
+          [contact.id],
+        );
+      } finally {
+        await world.database.admin.query('ALTER TABLE notes ENABLE TRIGGER notes_trash_time');
+      }
+      expect(
+        (await world.database.worker.query('DELETE FROM notes WHERE id=$1', [contact.id])).rowCount,
+      ).toBe(1);
+      expect(
+        (
+          await world.database.admin.query(
+            'SELECT contact_id,contact_table FROM object_events WHERE id=$1',
+            [manual.id],
+          )
+        ).rows,
+      ).toEqual([{ contact_id: null, contact_table: null }]);
+    }
+    const viewers = mode === 'adults' ? [child] : [adult, child];
+    for (const device of viewers) {
+      const pagedIds: string[] = [];
+      let cursor: string | null = null;
+      do {
+        const timeline = await device.get(
+          `${url(object.id)}/timeline?limit=1${cursor ? `&cursor=${cursor}` : ''}`,
+        );
+        expect(timeline.status).toBe(200);
+        const page = timeline.json<Page>();
+        expect(timeline.text).not.toContain(contact.id);
+        pagedIds.push(...page.items.map((item) => item.id));
+        cursor = page.nextCursor;
+      } while (cursor);
+      expect(pagedIds).toContain(manual.id);
+      expect(new Set(pagedIds).size).toBe(pagedIds.length);
+      const page = (await device.get(`${url(object.id)}/timeline`)).json<Page>();
+      expect(page.items.find((item) => item.id === manual.id)).toMatchObject({
+        text: manual.text,
+        contact: null,
+      });
+      expect(JSON.stringify(page)).not.toContain(contact.id);
+      const copied = await device.post(`${url(object.id)}/copy`, {});
+      expect(copied.status, copied.text).toBe(201);
+      const copiedPage = (await device.get(`${url(copied.json<Card>().id)}/timeline`)).json<Page>();
+      expect(copiedPage.items.find((item) => item.source === 'manual')).toMatchObject({
+        text: manual.text,
+        contact: null,
+      });
+    }
+    const exported = await admin.get('/api/objects/export');
+    expect(exported.status).toBe(200);
+    expect(exported.text).toContain(manual.id);
+    if (mode !== 'adults') expect(exported.text).not.toContain(contact.id);
+    const changed = await patchEvent(adult, object.id, manual.id, { text: 'Событие сохранено' });
+    expect(changed.status, changed.text).toBe(200);
+    expect(changed.json<{ contact: unknown }>().contact).toEqual(
+      mode === 'adults' ? { type: 'note', id: contact.id } : null,
+    );
+  },
+);
+function patchEvent(device: Device, objectId: string, eventId: string, body: unknown) {
+  return device.request('PATCH', `${url(objectId)}/events/${eventId}`, { json: body });
+}
+it('взрослый автор восстанавливает чужие поля и события каскада, но не отдельную корзину', async () => {
+  const object = await create(adult, { placement: common() });
+  const withFields = await patch(second, object.id, {
+    fields: [
+      { name: 'Поле папы', value: 'Вернуть' },
+      { name: 'Отдельная корзина', value: 'Не возвращать' },
+    ],
+  });
+  expect(withFields.status).toBe(200);
+  const fields = withFields.json<Card>().fields;
+  const kept = fields[0];
+  const separate = fields[1];
+  if (!kept || !separate) throw new Error('Missing fields');
+  expect(
+    (
+      await patch(second, object.id, {
+        fields: [{ id: kept.id, name: kept.name, value: kept.value }],
+      })
+    ).status,
+  ).toBe(200);
+  const manual = await event(object.id, second);
+  const deleted = await event(object.id, second, { text: 'Отдельная корзина события' });
+  expect((await second.post(`${url(object.id)}/events/${deleted.id}/trash`, {})).status).toBe(200);
+  expect((await adult.post(`${url(object.id)}/events/${deleted.id}/restore`, {})).status).toBe(404);
+  expect((await adult.post(`${url(object.id)}/trash`, {})).status).toBe(200);
+  expect((await adult.post(`${url(object.id)}/restore`, {})).status).toBe(200);
+  expect((await adult.get(url(object.id))).json<Card>().fields.map((field) => field.id)).toEqual([
+    kept.id,
+  ]);
+  const page = (await adult.get(`${url(object.id)}/timeline`)).json<Page>();
+  expect(page.items.some((item) => item.id === manual.id)).toBe(true);
+  expect(page.items.some((item) => item.id === deleted.id)).toBe(false);
+  const rows = await world.database.admin.query(
+    'SELECT id,deleted_at FROM object_fields WHERE parent_id=$1 UNION ALL SELECT id,deleted_at FROM object_events WHERE parent_id=$1',
+    [object.id],
+  );
+  for (const id of [kept.id, manual.id])
+    expect(rows.rows.find((row) => row.id === id).deleted_at).toBeNull();
+  for (const id of [separate.id, deleted.id])
+    expect(rows.rows.find((row) => row.id === id).deleted_at).not.toBeNull();
 });

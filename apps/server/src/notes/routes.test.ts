@@ -367,3 +367,26 @@ describe('NOTE-1…3, SPACE-7: API заметок', () => {
     });
   });
 });
+
+it('взрослый автор восстанавливает чужие пункты каскада, отдельно удалённый пункт остаётся в корзине', async () => {
+  const note = await create(adult, { placement: common() });
+  const response = await patch(second, note.id, {
+    checklist: [{ title: 'Пункт папы' }, { title: 'Отдельно удалённый' }],
+  });
+  expect(response.status).toBe(200);
+  const [kept, separate] = response.json<Card>().checklist;
+  if (!kept || !separate) throw new Error('Missing checklist fixtures');
+  expect(
+    (await patch(second, note.id, { checklist: [{ id: kept.id, title: kept.title }] })).status,
+  ).toBe(200);
+  expect((await adult.post(`${base}/${note.id}/trash`, {})).status).toBe(200);
+  const restored = await adult.post(`${base}/${note.id}/restore`, {});
+  expect(restored.status, restored.text).toBe(200);
+  expect(restored.json<Card>().checklist.map((item) => item.id)).toEqual([kept.id]);
+  const rows = await world.database.admin.query(
+    'SELECT id,deleted_at FROM note_items WHERE parent_id=$1',
+    [note.id],
+  );
+  expect(rows.rows.find((row) => row.id === kept.id).deleted_at).toBeNull();
+  expect(rows.rows.find((row) => row.id === separate.id).deleted_at).not.toBeNull();
+});

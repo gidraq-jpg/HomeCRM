@@ -120,10 +120,6 @@ export async function readReference(
     )
   )
     missing();
-  if ('contactId' in row && row.contactId && row.contactTable) {
-    if (row.contactTable === 'object_events') missing();
-    await readReference(tx, account, { type: typeForTable(row.contactTable), id: row.contactId });
-  }
   return { row, facts: factsOf(row, ref.type) };
 }
 export function version(expected: string | undefined, actual: Date) {

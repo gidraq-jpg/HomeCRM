@@ -35,7 +35,7 @@ import {
 } from './support.ts';
 
 type Event = typeof objectEvents.$inferSelect;
-function summary(event: Event) {
+async function summary(tx: Transaction, account: Account, event: Event) {
   const {
     id,
     parentId,
@@ -55,10 +55,7 @@ function summary(event: Event) {
     text: title,
     amountKopecks,
     rating,
-    contact:
-      event.contactId && event.contactTable
-        ? { type: typeFor(event.contactTable), id: event.contactId }
-        : null,
+    contact: await visibleContact(tx, account, event),
     authorId,
     createdAt,
     updatedAt,
@@ -74,15 +71,18 @@ async function visible(tx: Transaction, account: Account, event: Event) {
     )
   )
     return false;
-  if (event.contactId && event.contactTable) {
-    try {
-      await readReference(tx, account, { type: typeFor(event.contactTable), id: event.contactId });
-    } catch (error) {
-      if (error instanceof Error && error.message === 'NOT_FOUND') return false;
-      throw error;
-    }
-  }
   return true;
+}
+async function visibleContact(tx: Transaction, account: Account, event: Event) {
+  if (!event.contactId || !event.contactTable) return null;
+  const contact = { type: typeFor(event.contactTable), id: event.contactId };
+  try {
+    await readReference(tx, account, contact);
+    return contact;
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NOT_FOUND') return null;
+    throw error;
+  }
 }
 async function eventValues(tx: Transaction, account: Account, body: z.infer<typeof PatchEvent>) {
   if (body.contact) await readReference(tx, account, body.contact);
@@ -156,19 +156,6 @@ async function feed(
           ? { kind: 'personal', spaceId: row.space_id, ownerId: row.owner_id ?? '' }
           : { kind: 'household', spaceId: row.space_id, audience: row.audience ?? 'household' };
       if (!canViewTimelineEvent(account.viewer, factsOf(record), original)) return false;
-      if (row.contact_id) {
-        const contact = row.contact_facts;
-        if (!contact) return false;
-        const place: Placement =
-          contact.spaceKind === 'personal'
-            ? { kind: 'personal', spaceId: contact.spaceId, ownerId: contact.ownerId ?? '' }
-            : {
-                kind: 'household',
-                spaceId: contact.spaceId,
-                audience: contact.audience ?? 'household',
-              };
-        if (!canView(account.viewer, place)) return false;
-      }
       return true;
     })
     .map((row) => ({
@@ -176,15 +163,20 @@ async function feed(
       at: row.at,
       source: row.source,
       ...row.payload,
-      ...(row.source === 'manual' && row.payload.contact
-        ? {
-            contact: {
-              ...(row.payload.contact as { id: string }),
-              type: typeFor((row.payload.contact as { type: string }).type),
-            },
-          }
-        : {}),
+      ...(row.source === 'manual' ? { contact: feedContact(account, row) } : {}),
     }));
+}
+
+function feedContact(account: Account, row: FeedRow) {
+  const contact = row.contact_facts;
+  if (!row.contact_id || !contact || !row.payload.contact) return null;
+  const place: Placement =
+    contact.spaceKind === 'personal'
+      ? { kind: 'personal', spaceId: contact.spaceId, ownerId: contact.ownerId ?? '' }
+      : { kind: 'household', spaceId: contact.spaceId, audience: contact.audience ?? 'household' };
+  if (!canView(account.viewer, place)) return null;
+  const reference = row.payload.contact as { type: string; id: string };
+  return { type: typeFor(reference.type), id: reference.id };
 }
 export function registerTimeline(route: DataRoute) {
   route('GET', '/api/objects/:id/timeline', 200, async (tx, account, request) => {
@@ -236,7 +228,7 @@ export function registerTimeline(route: DataRoute) {
       .returning();
     if (!event) throw new Error('Event insert returned no row');
     await tx.update(objects).set({ title: parent.title }).where(eq(objects.id, parent.id));
-    return summary(event);
+    return summary(tx, account, event);
   });
   for (const action of ['patch', 'trash', 'restore'] as const)
     route(
@@ -280,7 +272,7 @@ export function registerTimeline(route: DataRoute) {
           .returning();
         if (!updated) deny();
         await tx.update(objects).set({ title: parent.title }).where(eq(objects.id, id));
-        return summary(updated);
+        return summary(tx, account, updated);
       },
     );
 }
@@ -294,8 +286,9 @@ export async function copyEvents(
     .select()
     .from(objectEvents)
     .where(and(eq(objectEvents.parentId, record.id), sql`${objectEvents.deletedAt} IS NULL`));
-  for (const event of rows)
-    if (await visible(tx, account, event))
+  for (const event of rows) {
+    if (await visible(tx, account, event)) {
+      const contact = await visibleContact(tx, account, event);
       await tx.insert(objectEvents).values({
         ...columnsOf(placementOf(copy)),
         parentId: copy.id,
@@ -304,11 +297,13 @@ export async function copyEvents(
         occurredOn: event.occurredOn,
         amountKopecks: event.amountKopecks,
         rating: event.rating,
-        contactTable: event.contactTable,
-        contactId: event.contactId,
+        contactTable: contact ? tableFor(contact.type) : null,
+        contactId: contact?.id ?? null,
         originSpaceId: copy.spaceId,
         originSpaceKind: copy.spaceKind,
       });
+    }
+  }
 }
 export async function exportEvents(tx: Transaction, account: Account, record: ObjectRow) {
   return feed(tx, account, record, null, null, true);
