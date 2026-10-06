@@ -4,7 +4,9 @@
 // входов и отметку о сбросе видно (canViewAccountJournal).
 import { randomBytes, randomUUID } from 'node:crypto';
 import {
+  canExclude,
   canInvite,
+  canLeave,
   canResetPassword,
   canViewAccountJournal,
   ROLES,
@@ -35,6 +37,8 @@ export const IDENTITY_OPERATIONS = [
   'reset-record',
   'journal-view',
   'notice-view',
+  'member-leave',
+  'member-exclude',
 ] as const;
 export type IdentityOperation = (typeof IDENTITY_OPERATIONS)[number];
 
@@ -45,12 +49,14 @@ export const IDENTITY_LABELS: Readonly<Record<IdentityOperation, string>> = {
   'reset-record': 'записать сброс пароля',
   'journal-view': 'прочитать журнал входов',
   'notice-view': 'прочитать отметку о сбросе',
+  'member-leave': 'покинуть дом',
+  'member-exclude': 'исключить участника из дома',
 };
 
 /**
- * К семье из family.ts добавляются двое, на ком правила ломаются чаще всего: Мила — ребёнок в одном
- * доме и взрослая в другом (её пароль сбросить нельзя нигде), Ян — ребёнок только в доме соседей.
- * Все записаны от имени суперпользователя: он обходит RLS.
+ * К семье из family.ts добавляется Ян — ребёнок только в доме соседей. Мила, ребёнок в одном доме и
+ * взрослая в другом (её пароль сбросить нельзя нигде), уже в семье. Запись — от имени суперпользователя:
+ * он обходит RLS.
  */
 export async function buildIdentityWorld(
   database: TestDatabase,
@@ -60,13 +66,6 @@ export async function buildIdentityWorld(
   if (home === undefined || neighbours === undefined)
     throw new Error('The family needs two houses');
   const extra: Array<{ name: string; memberships: Array<[string, Role]> }> = [
-    {
-      name: 'Мила',
-      memberships: [
-        [home.id, 'child'],
-        [neighbours.id, 'adult'],
-      ],
-    },
     { name: 'Ян', memberships: [[neighbours.id, 'child']] },
   ];
   const people: IdentityPerson[] = family.people.map((person) => ({
@@ -76,15 +75,30 @@ export async function buildIdentityWorld(
   }));
   for (const { name, memberships } of extra) {
     const id = randomUUID();
-    await database.admin.query(
-      `INSERT INTO accounts (id, display_name, email, username) VALUES ($1, $2, $3, $4)`,
-      [id, name, `${id}@family.invalid`, id],
-    );
-    for (const [houseId, role] of memberships) {
-      await database.admin.query(
-        `INSERT INTO space_members (space_id, account_id, role) VALUES ($1, $2, $3)`,
-        [houseId, id, role],
+    const client = await database.admin.connect();
+    try {
+      // Личное пространство — в той же транзакции: без него учётную запись база не примет (SPACE-1).
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO accounts (id, display_name, email, username) VALUES ($1, $2, $3, $4)`,
+        [id, name, `${id}@family.invalid`, id],
       );
+      await client.query(
+        `INSERT INTO spaces (kind, name, owner_account_id) VALUES ('personal', $1, $2)`,
+        [`Личное: ${name}`, id],
+      );
+      for (const [houseId, role] of memberships) {
+        await client.query(
+          `INSERT INTO space_members (space_id, account_id, role) VALUES ($1, $2, $3)`,
+          [houseId, id, role],
+        );
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
     people.push({ name, id, viewer: { accountId: id, memberships: new Map(memberships) } });
   }
@@ -96,7 +110,6 @@ export async function buildIdentityWorld(
     ],
   };
 }
-
 /** Прячет в приглашениях, журнале и отметках по одной строке на дом и на человека — всё остальное матрица пробует и откатывает. */
 export async function seedIdentityRows(
   database: TestDatabase,
@@ -261,6 +274,54 @@ export async function runIdentityMatrix(
         }
       }
       break;
+    case 'member-leave':
+    case 'member-exclude': {
+      // Уход и исключение записывает служба входа; кто это делает — в left_by, правило проверяет политика
+      // и триггер (последний администратор). Попытка откатывается: состав дома матрицы не меняется.
+      const adminIds = (houseId: string) =>
+        world.people
+          .filter((person) => person.viewer.memberships.get(houseId) === 'admin')
+          .map((person) => person.id);
+      const end = async (houseId: string, accountId: string, by: string): Promise<boolean> => {
+        const client = await database.auth.connect();
+        try {
+          await client.query('BEGIN');
+          const result = await client.query(
+            `UPDATE space_members SET left_at = now(), left_by = $3 WHERE space_id = $1 AND account_id = $2`,
+            [houseId, accountId, by],
+          );
+          return (result.rowCount ?? 0) > 0;
+        } catch (error) {
+          if (deniedByDatabase(error)) return false;
+          throw error;
+        } finally {
+          await client.query('ROLLBACK');
+          client.release();
+        }
+      };
+      for (const house of world.houses) {
+        for (const person of world.people) {
+          if (operation === 'member-leave') {
+            attempts.push({
+              label: `${person.name} · ${house.name}`,
+              expected: canLeave(person.viewer, house.id, adminIds(house.id)),
+              run: () => end(house.id, person.id, person.id),
+            });
+            continue;
+          }
+          for (const target of world.people) {
+            // Сам себя участник не исключает — это уход, он проверяется отдельно.
+            if (target.id === person.id) continue;
+            attempts.push({
+              label: `${person.name} исключает ${target.name} · ${house.name}`,
+              expected: canExclude(person.viewer, house.id, target.viewer),
+              run: () => end(house.id, target.id, person.id),
+            });
+          }
+        }
+      }
+      break;
+    }
     case 'journal-view':
     case 'notice-view': {
       const table = operation === 'journal-view' ? 'login_events' : 'password_resets';

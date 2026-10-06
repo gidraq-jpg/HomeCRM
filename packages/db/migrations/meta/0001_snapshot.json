@@ -1,11 +1,11 @@
 {
-  "id": "687227c0-60a8-4ace-a47a-324bbc170c6a",
-  "prevId": "50aaad6c-b0d9-4aa4-b221-4ed7aecae2a7",
+  "id": "83042823-f247-4dbc-8475-f2b3236035e4",
+  "prevId": "d489b3f3-afd8-4cba-980f-7b5f88d58420",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.accounts": {
-      "name": "accounts",
+    "public.credentials": {
+      "name": "credentials",
       "schema": "",
       "columns": {
         "id": {
@@ -15,8 +15,626 @@
           "notNull": true,
           "default": "uuidv7()"
         },
-        "display_name": {
-          "name": "display_name",
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_token": {
+          "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token_expires_at": {
+          "name": "access_token_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token_expires_at": {
+          "name": "refresh_token_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "credentials_user_id_idx": {
+          "name": "credentials_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credentials_one_password_idx": {
+          "name": "credentials_one_password_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "provider_id = 'credential'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "credentials_user_id_accounts_id_fk": {
+          "name": "credentials_user_id_accounts_id_fk",
+          "tableFrom": "credentials",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "credentials_auth_select": {
+          "name": "credentials_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "credentials_auth_insert": {
+          "name": "credentials_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "true"
+        },
+        "credentials_auth_update": {
+          "name": "credentials_auth_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.invitations": {
+      "name": "invitations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "household_id": {
+          "name": "household_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_kind": {
+          "name": "space_kind",
+          "type": "space_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'household'"
+        },
+        "role": {
+          "name": "role",
+          "type": "member_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now() + interval '72 hours'"
+        },
+        "accepted_at": {
+          "name": "accepted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accepted_by": {
+          "name": "accepted_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "invitations_household_id_idx": {
+          "name": "invitations_household_id_idx",
+          "columns": [
+            {
+              "expression": "household_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "invitations_created_by_accounts_id_fk": {
+          "name": "invitations_created_by_accounts_id_fk",
+          "tableFrom": "invitations",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "invitations_accepted_by_accounts_id_fk": {
+          "name": "invitations_accepted_by_accounts_id_fk",
+          "tableFrom": "invitations",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "accepted_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "invitations_household_fk": {
+          "name": "invitations_household_fk",
+          "tableFrom": "invitations",
+          "tableTo": "spaces",
+          "columnsFrom": [
+            "household_id",
+            "space_kind"
+          ],
+          "columnsTo": [
+            "id",
+            "kind"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "invitations_token_hash_key": {
+          "name": "invitations_token_hash_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {
+        "invitations_select": {
+          "name": "invitations_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "household_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin'))"
+        },
+        "invitations_insert": {
+          "name": "invitations_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_app"
+          ],
+          "withCheck": "household_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin')) AND created_by = app.current_account_id() AND accepted_at IS NULL AND revoked_at IS NULL"
+        },
+        "invitations_revoke": {
+          "name": "invitations_revoke",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "household_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin')) AND accepted_at IS NULL",
+          "withCheck": "household_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin')) AND accepted_at IS NULL"
+        },
+        "invitations_auth_select": {
+          "name": "invitations_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "invitations_auth_accept": {
+          "name": "invitations_auth_accept",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "accepted_at IS NULL AND revoked_at IS NULL AND expires_at > now()",
+          "withCheck": "accepted_at IS NOT NULL"
+        }
+      },
+      "checkConstraints": {
+        "invitations_household_only": {
+          "name": "invitations_household_only",
+          "value": "space_kind = 'household'"
+        },
+        "invitations_ttl": {
+          "name": "invitations_ttl",
+          "value": "expires_at > created_at AND expires_at <= created_at + interval '72 hours'"
+        },
+        "invitations_accepted_pair": {
+          "name": "invitations_accepted_pair",
+          "value": "(accepted_at IS NULL) = (accepted_by IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.login_events": {
+      "name": "login_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "login_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "login_outcome",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "login_events_account_id_created_at_idx": {
+          "name": "login_events_account_id_created_at_idx",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "login_events_account_id_accounts_id_fk": {
+          "name": "login_events_account_id_accounts_id_fk",
+          "tableFrom": "login_events",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "login_events_select": {
+          "name": "login_events_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "account_id = app.current_account_id()"
+        },
+        "login_events_auth_insert": {
+          "name": "login_events_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.login_locks": {
+      "name": "login_locks",
+      "schema": "",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "failures": {
+          "name": "failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "window_started_at": {
+          "name": "window_started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "login_locks_account_id_accounts_id_fk": {
+          "name": "login_locks_account_id_accounts_id_fk",
+          "tableFrom": "login_locks",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "login_locks_auth_select": {
+          "name": "login_locks_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "login_locks_auth_insert": {
+          "name": "login_locks_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "true"
+        },
+        "login_locks_auth_update": {
+          "name": "login_locks_auth_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        },
+        "login_locks_auth_delete": {
+          "name": "login_locks_auth_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.note_items": {
+      "name": "note_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_kind": {
+          "name": "space_kind",
+          "type": "space_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audience": {
+          "name": "audience",
+          "type": "audience",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assignee_id": {
+          "name": "assignee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -27,21 +645,426 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assignee_house_id": {
+          "name": "assignee_house_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN space_kind = 'household' THEN assignee_id END",
+            "type": "stored"
+          }
+        },
+        "assignee_adult_id": {
+          "name": "assignee_adult_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN audience = 'adults' THEN assignee_id END",
+            "type": "stored"
+          }
+        },
+        "assignee_adult_flag": {
+          "name": "assignee_adult_flag",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN audience = 'adults' AND assignee_id IS NOT NULL THEN true END",
+            "type": "stored"
+          }
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "done": {
+          "name": "done",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
+      "indexes": {
+        "note_items_space_id_idx": {
+          "name": "note_items_space_id_idx",
+          "columns": [
+            {
+              "expression": "space_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "note_items_trash_idx": {
+          "name": "note_items_trash_idx",
+          "columns": [
+            {
+              "expression": "deleted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "deleted_at IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "note_items_parent_id_idx": {
+          "name": "note_items_parent_id_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "note_items_author_id_accounts_id_fk": {
+          "name": "note_items_author_id_accounts_id_fk",
+          "tableFrom": "note_items",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "note_items_assignee_id_accounts_id_fk": {
+          "name": "note_items_assignee_id_accounts_id_fk",
+          "tableFrom": "note_items",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "assignee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "note_items_space_fk": {
+          "name": "note_items_space_fk",
+          "tableFrom": "note_items",
+          "tableTo": "spaces",
+          "columnsFrom": [
+            "space_id",
+            "space_kind"
+          ],
+          "columnsTo": [
+            "id",
+            "kind"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "note_items_assignee_member_fk": {
+          "name": "note_items_assignee_member_fk",
+          "tableFrom": "note_items",
+          "tableTo": "space_members",
+          "columnsFrom": [
+            "space_id",
+            "assignee_house_id"
+          ],
+          "columnsTo": [
+            "space_id",
+            "account_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "note_items_assignee_adult_fk": {
+          "name": "note_items_assignee_adult_fk",
+          "tableFrom": "note_items",
+          "tableTo": "space_members",
+          "columnsFrom": [
+            "space_id",
+            "assignee_adult_id",
+            "assignee_adult_flag"
+          ],
+          "columnsTo": [
+            "space_id",
+            "account_id",
+            "is_adult"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "note_items_id_space_key": {
+          "name": "note_items_id_space_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "space_id",
+            "space_kind"
+          ]
+        },
+        "note_items_id_audience_key": {
+          "name": "note_items_id_audience_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "audience"
+          ]
+        }
+      },
       "policies": {
-        "accounts_select": {
-          "name": "accounts_select",
+        "note_items_select": {
+          "name": "note_items_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
           "to": [
             "homecrm_app"
           ],
-          "using": "id = app.current_account_id()"
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
+        },
+        "note_items_insert": {
+          "name": "note_items_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_app"
+          ],
+          "withCheck": "deleted_at IS NULL AND author_id = app.current_account_id() AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n  ))"
+        },
+        "note_items_update": {
+          "name": "note_items_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "(deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n  ))) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal'\n    OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin'))\n    OR (space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('adult')) AND author_id = app.current_account_id())\n  )))",
+          "withCheck": "(deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n  ))) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n  )))"
+        },
+        "note_items_purge_select": {
+          "name": "note_items_purge_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "deleted_at < now() - interval '30 days'"
+        },
+        "note_items_purge": {
+          "name": "note_items_purge",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "deleted_at < now() - interval '30 days'"
+        },
+        "note_items_reassign_select": {
+          "name": "note_items_reassign_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "(note_items.space_kind = 'household' AND note_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = note_items.space_id AND l.account_id = note_items.assignee_id AND l.left_at IS NOT NULL\n  )) OR (note_items.space_kind = 'household' AND note_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = note_items.space_id AND a.account_id = note_items.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  ))"
+        },
+        "note_items_reassign": {
+          "name": "note_items_reassign",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "note_items.space_kind = 'household' AND note_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = note_items.space_id AND l.account_id = note_items.assignee_id AND l.left_at IS NOT NULL\n  )",
+          "withCheck": "EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = note_items.space_id AND a.account_id = note_items.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  )"
+        }
+      },
+      "checkConstraints": {
+        "note_items_audience_iff_household": {
+          "name": "note_items_audience_iff_household",
+          "value": "(space_kind = 'personal') = (audience IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.note_items_history": {
+      "name": "note_items_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "record_id": {
+          "name": "record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_kind": {
+          "name": "space_kind",
+          "type": "space_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audience": {
+          "name": "audience",
+          "type": "audience",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "operation": {
+          "name": "operation",
+          "type": "history_operation",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changes": {
+          "name": "changes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "note_items_history_record_id_idx": {
+          "name": "note_items_history_record_id_idx",
+          "columns": [
+            {
+              "expression": "record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "note_items_history_actor_id_accounts_id_fk": {
+          "name": "note_items_history_actor_id_accounts_id_fk",
+          "tableFrom": "note_items_history",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "note_items_history_record_fk": {
+          "name": "note_items_history_record_fk",
+          "tableFrom": "note_items_history",
+          "tableTo": "note_items",
+          "columnsFrom": [
+            "record_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "note_items_history_select": {
+          "name": "note_items_history_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND EXISTS (SELECT 1 FROM note_items r WHERE r.id = note_items_history.record_id)"
+        },
+        "note_items_history_insert": {
+          "name": "note_items_history_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_app"
+          ],
+          "withCheck": "pg_trigger_depth() > 0 AND actor_id IS NOT DISTINCT FROM app.current_account_id()"
+        },
+        "note_items_history_worker_insert": {
+          "name": "note_items_history_worker_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "withCheck": "pg_trigger_depth() > 0 AND actor_id IS NULL"
         }
       },
       "checkConstraints": {},
@@ -116,6 +1139,36 @@
           "primaryKey": false,
           "notNull": false
         },
+        "assignee_house_id": {
+          "name": "assignee_house_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN space_kind = 'household' THEN assignee_id END",
+            "type": "stored"
+          }
+        },
+        "assignee_adult_id": {
+          "name": "assignee_adult_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN audience = 'adults' THEN assignee_id END",
+            "type": "stored"
+          }
+        },
+        "assignee_adult_flag": {
+          "name": "assignee_adult_flag",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN audience = 'adults' AND assignee_id IS NOT NULL THEN true END",
+            "type": "stored"
+          }
+        },
         "body": {
           "name": "body",
           "type": "text",
@@ -136,6 +1189,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "notes_trash_idx": {
+          "name": "notes_trash_idx",
+          "columns": [
+            {
+              "expression": "deleted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "deleted_at IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -182,10 +1251,60 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "notes_assignee_member_fk": {
+          "name": "notes_assignee_member_fk",
+          "tableFrom": "notes",
+          "tableTo": "space_members",
+          "columnsFrom": [
+            "space_id",
+            "assignee_house_id"
+          ],
+          "columnsTo": [
+            "space_id",
+            "account_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "notes_assignee_adult_fk": {
+          "name": "notes_assignee_adult_fk",
+          "tableFrom": "notes",
+          "tableTo": "space_members",
+          "columnsFrom": [
+            "space_id",
+            "assignee_adult_id",
+            "assignee_adult_flag"
+          ],
+          "columnsTo": [
+            "space_id",
+            "account_id",
+            "is_adult"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "notes_id_space_key": {
+          "name": "notes_id_space_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "space_id",
+            "space_kind"
+          ]
+        },
+        "notes_id_audience_key": {
+          "name": "notes_id_audience_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "audience"
+          ]
+        }
+      },
       "policies": {
         "notes_select": {
           "name": "notes_select",
@@ -194,7 +1313,7 @@
           "to": [
             "homecrm_app"
           ],
-          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
         },
         "notes_insert": {
           "name": "notes_insert",
@@ -203,7 +1322,7 @@
           "to": [
             "homecrm_app"
           ],
-          "withCheck": "deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n  ))"
+          "withCheck": "deleted_at IS NULL AND author_id = app.current_account_id() AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n  ))"
         },
         "notes_update": {
           "name": "notes_update",
@@ -212,8 +1331,8 @@
           "to": [
             "homecrm_app"
           ],
-          "using": "(deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n  ))) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal'\n    OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin'))\n    OR (space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('adult')) AND author_id = app.current_account_id())\n  )))",
-          "withCheck": "(deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n  ))) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n  )))"
+          "using": "(deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n  ))) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal'\n    OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin'))\n    OR (space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('adult')) AND author_id = app.current_account_id())\n  )))",
+          "withCheck": "(deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n  ))) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n  )))"
         },
         "notes_purge_select": {
           "name": "notes_purge_select",
@@ -232,6 +1351,25 @@
             "homecrm_worker"
           ],
           "using": "deleted_at < now() - interval '30 days'"
+        },
+        "notes_reassign_select": {
+          "name": "notes_reassign_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "(notes.space_kind = 'household' AND notes.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = notes.space_id AND l.account_id = notes.assignee_id AND l.left_at IS NOT NULL\n  )) OR (notes.space_kind = 'household' AND notes.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = notes.space_id AND a.account_id = notes.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  ))"
+        },
+        "notes_reassign": {
+          "name": "notes_reassign",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "notes.space_kind = 'household' AND notes.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = notes.space_id AND l.account_id = notes.assignee_id AND l.left_at IS NOT NULL\n  )",
+          "withCheck": "EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = notes.space_id AND a.account_id = notes.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  )"
         }
       },
       "checkConstraints": {
@@ -240,6 +1378,532 @@
           "value": "(space_kind = 'personal') = (audience IS NULL)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.notes_history": {
+      "name": "notes_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "record_id": {
+          "name": "record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_kind": {
+          "name": "space_kind",
+          "type": "space_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audience": {
+          "name": "audience",
+          "type": "audience",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "operation": {
+          "name": "operation",
+          "type": "history_operation",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changes": {
+          "name": "changes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "notes_history_record_id_idx": {
+          "name": "notes_history_record_id_idx",
+          "columns": [
+            {
+              "expression": "record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "notes_history_actor_id_accounts_id_fk": {
+          "name": "notes_history_actor_id_accounts_id_fk",
+          "tableFrom": "notes_history",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "notes_history_record_fk": {
+          "name": "notes_history_record_fk",
+          "tableFrom": "notes_history",
+          "tableTo": "notes",
+          "columnsFrom": [
+            "record_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "notes_history_select": {
+          "name": "notes_history_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND EXISTS (SELECT 1 FROM notes r WHERE r.id = notes_history.record_id)"
+        },
+        "notes_history_insert": {
+          "name": "notes_history_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_app"
+          ],
+          "withCheck": "pg_trigger_depth() > 0 AND actor_id IS NOT DISTINCT FROM app.current_account_id()"
+        },
+        "notes_history_worker_insert": {
+          "name": "notes_history_worker_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "withCheck": "pg_trigger_depth() > 0 AND actor_id IS NULL"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.password_resets": {
+      "name": "password_resets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_by": {
+          "name": "requested_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acknowledged_at": {
+          "name": "acknowledged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "password_resets_account_id_idx": {
+          "name": "password_resets_account_id_idx",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "password_resets_account_id_accounts_id_fk": {
+          "name": "password_resets_account_id_accounts_id_fk",
+          "tableFrom": "password_resets",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "password_resets_requested_by_accounts_id_fk": {
+          "name": "password_resets_requested_by_accounts_id_fk",
+          "tableFrom": "password_resets",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "requested_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "password_resets_select": {
+          "name": "password_resets_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "account_id = app.current_account_id()"
+        },
+        "password_resets_ack": {
+          "name": "password_resets_ack",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "account_id = app.current_account_id() AND completed_at IS NOT NULL",
+          "withCheck": "account_id = app.current_account_id() AND completed_at IS NOT NULL"
+        },
+        "password_resets_auth_select": {
+          "name": "password_resets_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "password_resets_auth_insert": {
+          "name": "password_resets_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "(\n    password_resets.requested_by <> password_resets.account_id\n    AND EXISTS (\n      SELECT 1 FROM space_members admin_m\n      JOIN space_members child_m ON child_m.space_id = admin_m.space_id\n      WHERE admin_m.account_id = password_resets.requested_by AND admin_m.role = 'admin'\n        AND admin_m.left_at IS NULL\n        AND child_m.account_id = password_resets.account_id AND child_m.role = 'child'\n        AND child_m.left_at IS NULL\n    )\n    AND NOT EXISTS (\n      SELECT 1 FROM space_members other\n      WHERE other.account_id = password_resets.account_id AND other.role <> 'child'\n        AND other.left_at IS NULL\n    )\n  )"
+        },
+        "password_resets_auth_complete": {
+          "name": "password_resets_auth_complete",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "completed_at IS NULL",
+          "withCheck": "completed_at IS NOT NULL"
+        }
+      },
+      "checkConstraints": {
+        "password_resets_not_self": {
+          "name": "password_resets_not_self",
+          "value": "account_id <> requested_by"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.rate_limits": {
+      "name": "rate_limits",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_request": {
+          "name": "last_request",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rate_limits_key_key": {
+          "name": "rate_limits_key_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        }
+      },
+      "policies": {
+        "rate_limits_auth_select": {
+          "name": "rate_limits_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "rate_limits_auth_insert": {
+          "name": "rate_limits_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "true"
+        },
+        "rate_limits_auth_update": {
+          "name": "rate_limits_auth_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        },
+        "rate_limits_auth_delete": {
+          "name": "rate_limits_auth_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sessions": {
+      "name": "sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "sessions_user_id_idx": {
+          "name": "sessions_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sessions_user_id_accounts_id_fk": {
+          "name": "sessions_user_id_accounts_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sessions_token_key": {
+          "name": "sessions_token_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
+      "policies": {
+        "sessions_auth_select": {
+          "name": "sessions_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "sessions_auth_insert": {
+          "name": "sessions_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "true"
+        },
+        "sessions_auth_update": {
+          "name": "sessions_auth_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        },
+        "sessions_auth_delete": {
+          "name": "sessions_auth_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        }
+      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.shopping_items": {
@@ -311,6 +1975,36 @@
           "primaryKey": false,
           "notNull": false
         },
+        "assignee_house_id": {
+          "name": "assignee_house_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN space_kind = 'household' THEN assignee_id END",
+            "type": "stored"
+          }
+        },
+        "assignee_adult_id": {
+          "name": "assignee_adult_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN audience = 'adults' THEN assignee_id END",
+            "type": "stored"
+          }
+        },
+        "assignee_adult_flag": {
+          "name": "assignee_adult_flag",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN audience = 'adults' AND assignee_id IS NOT NULL THEN true END",
+            "type": "stored"
+          }
+        },
         "quantity": {
           "name": "quantity",
           "type": "text",
@@ -336,6 +2030,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shopping_items_trash_idx": {
+          "name": "shopping_items_trash_idx",
+          "columns": [
+            {
+              "expression": "deleted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "deleted_at IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -382,10 +2092,60 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "shopping_items_assignee_member_fk": {
+          "name": "shopping_items_assignee_member_fk",
+          "tableFrom": "shopping_items",
+          "tableTo": "space_members",
+          "columnsFrom": [
+            "space_id",
+            "assignee_house_id"
+          ],
+          "columnsTo": [
+            "space_id",
+            "account_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "shopping_items_assignee_adult_fk": {
+          "name": "shopping_items_assignee_adult_fk",
+          "tableFrom": "shopping_items",
+          "tableTo": "space_members",
+          "columnsFrom": [
+            "space_id",
+            "assignee_adult_id",
+            "assignee_adult_flag"
+          ],
+          "columnsTo": [
+            "space_id",
+            "account_id",
+            "is_adult"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "shopping_items_id_space_key": {
+          "name": "shopping_items_id_space_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "space_id",
+            "space_kind"
+          ]
+        },
+        "shopping_items_id_audience_key": {
+          "name": "shopping_items_id_audience_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "audience"
+          ]
+        }
+      },
       "policies": {
         "shopping_items_select": {
           "name": "shopping_items_select",
@@ -394,7 +2154,7 @@
           "to": [
             "homecrm_app"
           ],
-          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
         },
         "shopping_items_insert": {
           "name": "shopping_items_insert",
@@ -403,7 +2163,7 @@
           "to": [
             "homecrm_app"
           ],
-          "withCheck": "deleted_at IS NULL AND (\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
+          "withCheck": "deleted_at IS NULL AND author_id = app.current_account_id() AND (\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
         },
         "shopping_items_update": {
           "name": "shopping_items_update",
@@ -412,8 +2172,8 @@
           "to": [
             "homecrm_app"
           ],
-          "using": "(deleted_at IS NULL AND (\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal'\n    OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin'))\n    OR (space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('adult')) AND author_id = app.current_account_id())\n  )))",
-          "withCheck": "(deleted_at IS NULL AND (\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n  )))"
+          "using": "(deleted_at IS NULL AND (\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal'\n    OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin'))\n    OR (space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('adult')) AND author_id = app.current_account_id())\n  )))",
+          "withCheck": "(deleted_at IS NULL AND (\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n  )))"
         },
         "shopping_items_purge_select": {
           "name": "shopping_items_purge_select",
@@ -432,6 +2192,25 @@
             "homecrm_worker"
           ],
           "using": "deleted_at < now() - interval '30 days'"
+        },
+        "shopping_items_reassign_select": {
+          "name": "shopping_items_reassign_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "(shopping_items.space_kind = 'household' AND shopping_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = shopping_items.space_id AND l.account_id = shopping_items.assignee_id AND l.left_at IS NOT NULL\n  )) OR (shopping_items.space_kind = 'household' AND shopping_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = shopping_items.space_id AND a.account_id = shopping_items.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  ))"
+        },
+        "shopping_items_reassign": {
+          "name": "shopping_items_reassign",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "shopping_items.space_kind = 'household' AND shopping_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = shopping_items.space_id AND l.account_id = shopping_items.assignee_id AND l.left_at IS NOT NULL\n  )",
+          "withCheck": "EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = shopping_items.space_id AND a.account_id = shopping_items.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  )"
         }
       },
       "checkConstraints": {
@@ -440,6 +2219,974 @@
           "value": "(space_kind = 'personal') = (audience IS NULL)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.shopping_items_history": {
+      "name": "shopping_items_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "record_id": {
+          "name": "record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_kind": {
+          "name": "space_kind",
+          "type": "space_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audience": {
+          "name": "audience",
+          "type": "audience",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "operation": {
+          "name": "operation",
+          "type": "history_operation",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changes": {
+          "name": "changes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "shopping_items_history_record_id_idx": {
+          "name": "shopping_items_history_record_id_idx",
+          "columns": [
+            {
+              "expression": "record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "shopping_items_history_actor_id_accounts_id_fk": {
+          "name": "shopping_items_history_actor_id_accounts_id_fk",
+          "tableFrom": "shopping_items_history",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "shopping_items_history_record_fk": {
+          "name": "shopping_items_history_record_fk",
+          "tableFrom": "shopping_items_history",
+          "tableTo": "shopping_items",
+          "columnsFrom": [
+            "record_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "shopping_items_history_select": {
+          "name": "shopping_items_history_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND EXISTS (SELECT 1 FROM shopping_items r WHERE r.id = shopping_items_history.record_id)"
+        },
+        "shopping_items_history_insert": {
+          "name": "shopping_items_history_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_app"
+          ],
+          "withCheck": "pg_trigger_depth() > 0 AND actor_id IS NOT DISTINCT FROM app.current_account_id()"
+        },
+        "shopping_items_history_worker_insert": {
+          "name": "shopping_items_history_worker_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "withCheck": "pg_trigger_depth() > 0 AND actor_id IS NULL"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tasks": {
+      "name": "tasks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_kind": {
+          "name": "space_kind",
+          "type": "space_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audience": {
+          "name": "audience",
+          "type": "audience",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assignee_id": {
+          "name": "assignee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assignee_house_id": {
+          "name": "assignee_house_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN space_kind = 'household' THEN assignee_id END",
+            "type": "stored"
+          }
+        },
+        "assignee_adult_id": {
+          "name": "assignee_adult_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN audience = 'adults' THEN assignee_id END",
+            "type": "stored"
+          }
+        },
+        "assignee_adult_flag": {
+          "name": "assignee_adult_flag",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN audience = 'adults' AND assignee_id IS NOT NULL THEN true END",
+            "type": "stored"
+          }
+        },
+        "due_at": {
+          "name": "due_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "done_at": {
+          "name": "done_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "tasks_space_id_idx": {
+          "name": "tasks_space_id_idx",
+          "columns": [
+            {
+              "expression": "space_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tasks_trash_idx": {
+          "name": "tasks_trash_idx",
+          "columns": [
+            {
+              "expression": "deleted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "deleted_at IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tasks_author_id_accounts_id_fk": {
+          "name": "tasks_author_id_accounts_id_fk",
+          "tableFrom": "tasks",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "tasks_assignee_id_accounts_id_fk": {
+          "name": "tasks_assignee_id_accounts_id_fk",
+          "tableFrom": "tasks",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "assignee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "tasks_space_fk": {
+          "name": "tasks_space_fk",
+          "tableFrom": "tasks",
+          "tableTo": "spaces",
+          "columnsFrom": [
+            "space_id",
+            "space_kind"
+          ],
+          "columnsTo": [
+            "id",
+            "kind"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "tasks_assignee_member_fk": {
+          "name": "tasks_assignee_member_fk",
+          "tableFrom": "tasks",
+          "tableTo": "space_members",
+          "columnsFrom": [
+            "space_id",
+            "assignee_house_id"
+          ],
+          "columnsTo": [
+            "space_id",
+            "account_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "tasks_assignee_adult_fk": {
+          "name": "tasks_assignee_adult_fk",
+          "tableFrom": "tasks",
+          "tableTo": "space_members",
+          "columnsFrom": [
+            "space_id",
+            "assignee_adult_id",
+            "assignee_adult_flag"
+          ],
+          "columnsTo": [
+            "space_id",
+            "account_id",
+            "is_adult"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tasks_id_space_key": {
+          "name": "tasks_id_space_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "space_id",
+            "space_kind"
+          ]
+        },
+        "tasks_id_audience_key": {
+          "name": "tasks_id_audience_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "audience"
+          ]
+        }
+      },
+      "policies": {
+        "tasks_select": {
+          "name": "tasks_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
+        },
+        "tasks_insert": {
+          "name": "tasks_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_app"
+          ],
+          "withCheck": "deleted_at IS NULL AND author_id = app.current_account_id() AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n    OR assignee_id = app.current_account_id()\n  ))"
+        },
+        "tasks_update": {
+          "name": "tasks_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "(deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n    OR assignee_id = app.current_account_id()\n  ))) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal'\n    OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin'))\n    OR (space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('adult')) AND author_id = app.current_account_id())\n  )))",
+          "withCheck": "(deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n    OR assignee_id = app.current_account_id()\n  ))) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n  )))"
+        },
+        "tasks_purge_select": {
+          "name": "tasks_purge_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "deleted_at < now() - interval '30 days'"
+        },
+        "tasks_purge": {
+          "name": "tasks_purge",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "deleted_at < now() - interval '30 days'"
+        },
+        "tasks_reassign_select": {
+          "name": "tasks_reassign_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "(tasks.space_kind = 'household' AND tasks.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = tasks.space_id AND l.account_id = tasks.assignee_id AND l.left_at IS NOT NULL\n  )) OR (tasks.space_kind = 'household' AND tasks.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = tasks.space_id AND a.account_id = tasks.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  ))"
+        },
+        "tasks_reassign": {
+          "name": "tasks_reassign",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "tasks.space_kind = 'household' AND tasks.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = tasks.space_id AND l.account_id = tasks.assignee_id AND l.left_at IS NOT NULL\n  )",
+          "withCheck": "EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = tasks.space_id AND a.account_id = tasks.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  )"
+        }
+      },
+      "checkConstraints": {
+        "tasks_audience_iff_household": {
+          "name": "tasks_audience_iff_household",
+          "value": "(space_kind = 'personal') = (audience IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.tasks_history": {
+      "name": "tasks_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "record_id": {
+          "name": "record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_kind": {
+          "name": "space_kind",
+          "type": "space_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audience": {
+          "name": "audience",
+          "type": "audience",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "operation": {
+          "name": "operation",
+          "type": "history_operation",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changes": {
+          "name": "changes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "tasks_history_record_id_idx": {
+          "name": "tasks_history_record_id_idx",
+          "columns": [
+            {
+              "expression": "record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tasks_history_actor_id_accounts_id_fk": {
+          "name": "tasks_history_actor_id_accounts_id_fk",
+          "tableFrom": "tasks_history",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "tasks_history_record_fk": {
+          "name": "tasks_history_record_fk",
+          "tableFrom": "tasks_history",
+          "tableTo": "tasks",
+          "columnsFrom": [
+            "record_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "tasks_history_select": {
+          "name": "tasks_history_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND EXISTS (SELECT 1 FROM tasks r WHERE r.id = tasks_history.record_id)"
+        },
+        "tasks_history_insert": {
+          "name": "tasks_history_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_app"
+          ],
+          "withCheck": "pg_trigger_depth() > 0 AND actor_id IS NOT DISTINCT FROM app.current_account_id()"
+        },
+        "tasks_history_worker_insert": {
+          "name": "tasks_history_worker_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "withCheck": "pg_trigger_depth() > 0 AND actor_id IS NULL"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.two_factors": {
+      "name": "two_factors",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "secret": {
+          "name": "secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "backup_codes": {
+          "name": "backup_codes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verified": {
+          "name": "verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "failed_verification_count": {
+          "name": "failed_verification_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "two_factors_user_id_accounts_id_fk": {
+          "name": "two_factors_user_id_accounts_id_fk",
+          "tableFrom": "two_factors",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "two_factors_user_id_key": {
+          "name": "two_factors_user_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id"
+          ]
+        }
+      },
+      "policies": {
+        "two_factors_auth_select": {
+          "name": "two_factors_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "two_factors_auth_insert": {
+          "name": "two_factors_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "true"
+        },
+        "two_factors_auth_update": {
+          "name": "two_factors_auth_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        },
+        "two_factors_auth_delete": {
+          "name": "two_factors_auth_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.verifications": {
+      "name": "verifications",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "verifications_identifier_idx": {
+          "name": "verifications_identifier_idx",
+          "columns": [
+            {
+              "expression": "identifier",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "verifications_auth_select": {
+          "name": "verifications_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "verifications_auth_insert": {
+          "name": "verifications_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "true"
+        },
+        "verifications_auth_update": {
+          "name": "verifications_auth_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        },
+        "verifications_auth_delete": {
+          "name": "verifications_auth_delete",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.accounts": {
+      "name": "accounts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_username": {
+          "name": "display_username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "two_factor_enabled": {
+          "name": "two_factor_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "accounts_email_key": {
+          "name": "accounts_email_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        },
+        "accounts_username_key": {
+          "name": "accounts_username_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "username"
+          ]
+        }
+      },
+      "policies": {
+        "accounts_select": {
+          "name": "accounts_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_app"
+          ],
+          "using": "id = app.current_account_id()"
+        },
+        "accounts_auth_select": {
+          "name": "accounts_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "accounts_auth_insert": {
+          "name": "accounts_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "true"
+        },
+        "accounts_auth_update": {
+          "name": "accounts_auth_update",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        }
+      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.space_members": {
@@ -479,6 +3226,28 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "left_at": {
+          "name": "left_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "left_by": {
+          "name": "left_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_adult": {
+          "name": "is_adult",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "role IN ('admin', 'adult')",
+            "type": "stored"
+          }
         }
       },
       "indexes": {
@@ -512,6 +3281,19 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
+        "space_members_left_by_accounts_id_fk": {
+          "name": "space_members_left_by_accounts_id_fk",
+          "tableFrom": "space_members",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "left_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "space_members_space_fk": {
           "name": "space_members_space_fk",
           "tableFrom": "space_members",
@@ -537,7 +3319,17 @@
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "space_members_adult_key": {
+          "name": "space_members_adult_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "space_id",
+            "account_id",
+            "is_adult"
+          ]
+        }
+      },
       "policies": {
         "space_members_select": {
           "name": "space_members_select",
@@ -547,12 +3339,53 @@
             "homecrm_app"
           ],
           "using": "account_id = app.current_account_id()"
+        },
+        "space_members_auth_select": {
+          "name": "space_members_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "space_members_auth_insert": {
+          "name": "space_members_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "true"
+        },
+        "space_members_auth_leave": {
+          "name": "space_members_auth_leave",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "left_at IS NULL",
+          "withCheck": "left_at IS NOT NULL AND (\n    left_by = account_id\n    OR EXISTS (\n      SELECT 1 FROM space_members a\n      WHERE a.space_id = space_members.space_id AND a.account_id = space_members.left_by\n        AND a.role = 'admin' AND a.left_at IS NULL\n    )\n  )"
+        },
+        "space_members_worker_select": {
+          "name": "space_members_worker_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_worker"
+          ],
+          "using": "true"
         }
       },
       "checkConstraints": {
         "space_members_household_only": {
           "name": "space_members_household_only",
           "value": "space_kind = 'household'"
+        },
+        "space_members_left_pair": {
+          "name": "space_members_left_pair",
+          "value": "(left_at IS NULL) = (left_by IS NULL)"
         }
       },
       "isRLSEnabled": false
@@ -637,7 +3470,25 @@
           "to": [
             "homecrm_app"
           ],
-          "using": "owner_account_id = app.current_account_id() OR id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id())"
+          "using": "owner_account_id = app.current_account_id() OR id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL)"
+        },
+        "spaces_auth_select": {
+          "name": "spaces_auth_select",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "using": "true"
+        },
+        "spaces_auth_insert": {
+          "name": "spaces_auth_insert",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "homecrm_auth"
+          ],
+          "withCheck": "true"
         }
       },
       "checkConstraints": {
@@ -647,209 +3498,28 @@
         }
       },
       "isRLSEnabled": false
-    },
-    "public.tasks": {
-      "name": "tasks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "space_id": {
-          "name": "space_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "space_kind": {
-          "name": "space_kind",
-          "type": "space_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "audience": {
-          "name": "audience",
-          "type": "audience",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "author_id": {
-          "name": "author_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "assignee_id": {
-          "name": "assignee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "due_at": {
-          "name": "due_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "done_at": {
-          "name": "done_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "tasks_space_id_idx": {
-          "name": "tasks_space_id_idx",
-          "columns": [
-            {
-              "expression": "space_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "tasks_author_id_accounts_id_fk": {
-          "name": "tasks_author_id_accounts_id_fk",
-          "tableFrom": "tasks",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "author_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tasks_assignee_id_accounts_id_fk": {
-          "name": "tasks_assignee_id_accounts_id_fk",
-          "tableFrom": "tasks",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "assignee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tasks_space_fk": {
-          "name": "tasks_space_fk",
-          "tableFrom": "tasks",
-          "tableTo": "spaces",
-          "columnsFrom": [
-            "space_id",
-            "space_kind"
-          ],
-          "columnsTo": [
-            "id",
-            "kind"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {
-        "tasks_select": {
-          "name": "tasks_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "homecrm_app"
-          ],
-          "using": "(\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  )"
-        },
-        "tasks_insert": {
-          "name": "tasks_insert",
-          "as": "PERMISSIVE",
-          "for": "INSERT",
-          "to": [
-            "homecrm_app"
-          ],
-          "withCheck": "deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n    OR assignee_id = app.current_account_id()\n  ))"
-        },
-        "tasks_update": {
-          "name": "tasks_update",
-          "as": "PERMISSIVE",
-          "for": "UPDATE",
-          "to": [
-            "homecrm_app"
-          ],
-          "using": "(deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n    OR assignee_id = app.current_account_id()\n  ))) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal'\n    OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin'))\n    OR (space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('adult')) AND author_id = app.current_account_id())\n  )))",
-          "withCheck": "(deleted_at IS NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n    OR assignee_id = app.current_account_id()\n  ))) OR (deleted_at IS NOT NULL AND ((\n    (space_kind = 'personal' AND space_id IN (SELECT s.id FROM spaces s WHERE s.owner_account_id = app.current_account_id()))\n    OR (space_kind = 'household' AND (\n      space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n      OR (audience = 'household' AND space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult', 'child')))\n    ))\n  ) AND (\n    space_kind = 'personal' OR space_id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.role IN ('admin', 'adult'))\n  )))"
-        },
-        "tasks_purge_select": {
-          "name": "tasks_purge_select",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "homecrm_worker"
-          ],
-          "using": "deleted_at < now() - interval '30 days'"
-        },
-        "tasks_purge": {
-          "name": "tasks_purge",
-          "as": "PERMISSIVE",
-          "for": "DELETE",
-          "to": [
-            "homecrm_worker"
-          ],
-          "using": "deleted_at < now() - interval '30 days'"
-        }
-      },
-      "checkConstraints": {
-        "tasks_audience_iff_household": {
-          "name": "tasks_audience_iff_household",
-          "value": "(space_kind = 'personal') = (audience IS NULL)"
-        }
-      },
-      "isRLSEnabled": false
     }
   },
   "enums": {
+    "public.login_kind": {
+      "name": "login_kind",
+      "schema": "public",
+      "values": [
+        "sign_in",
+        "second_factor",
+        "password_reset"
+      ]
+    },
+    "public.login_outcome": {
+      "name": "login_outcome",
+      "schema": "public",
+      "values": [
+        "success",
+        "failure",
+        "locked",
+        "second_factor_required"
+      ]
+    },
     "public.audience": {
       "name": "audience",
       "schema": "public",
@@ -873,6 +3543,18 @@
       "values": [
         "personal",
         "household"
+      ]
+    },
+    "public.history_operation": {
+      "name": "history_operation",
+      "schema": "public",
+      "values": [
+        "create",
+        "update",
+        "trash",
+        "restore",
+        "move",
+        "audience"
       ]
     }
   },

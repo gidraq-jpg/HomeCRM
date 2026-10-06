@@ -19,7 +19,10 @@ export const AUDIENCE_LABELS: Readonly<Record<Audience, string>> = {
   adults: 'Взрослые',
 };
 
-/** Кто обращается: учётная запись и её роли в общих пространствах. */
+/**
+ * Кто обращается: учётная запись и её роли в общих пространствах.
+ * Роли — только действующие: вышедший из дома или исключённый (SPACE-8, SPACE-9) в `memberships` не входит.
+ */
 export interface Viewer {
   accountId: string;
   /** id общего пространства → роль участника в нём. */
@@ -31,13 +34,18 @@ export type Placement =
   | { kind: 'personal'; spaceId: string; ownerId: string }
   | { kind: 'household'; spaceId: string; audience: Audience };
 
-/** Сведения о записи, от которых зависят права. */
+/**
+ * Сведения о записи, от которых зависят права. Ответственный — итоговый, после правила 9
+ * (`defaultAssignee`): так его видят и сервер, и база.
+ */
 export interface RecordFacts {
   placement: Placement;
   /** Вид записи: от него зависят права ребёнка. */
   type: string;
   authorId: string;
   assigneeId?: string | null;
+  /** Запись в корзине: менять и переносить её нельзя, можно только восстановить (DATA-1). */
+  trashed?: boolean;
 }
 
 const ADULT_ROLES: ReadonlySet<Role> = new Set(['admin', 'adult']);
@@ -55,16 +63,26 @@ export function canView(viewer: Viewer, placement: Placement): boolean {
 }
 
 /**
- * Может ли участник создать или изменить запись.
+ * Может ли участник изменить запись или перенести её в другое место (для переноса — новая запись).
  * В общем пространстве ребёнок пишет только покупки и дела, назначенные ему.
+ * Запись в корзине не меняют и не переносят: её можно только восстановить (`canRestore`).
  */
 export function canWrite(viewer: Viewer, record: RecordFacts): boolean {
   const { placement } = record;
+  if (record.trashed === true) return false;
   if (!canView(viewer, placement)) return false;
   if (placement.kind === 'personal') return true;
   if (roleIn(viewer, placement.spaceId) !== 'child') return true;
   if (record.type === 'shopping_item') return true;
   return record.type === 'task' && record.assigneeId === viewer.accountId;
+}
+
+/**
+ * Может ли участник создать запись. Автор записи — всегда тот, кто её создаёт: от чужого имени
+ * записи не создают, а новая запись не бывает сразу в корзине (PRD 6.2).
+ */
+export function canCreate(viewer: Viewer, record: RecordFacts): boolean {
+  return record.authorId === viewer.accountId && canWrite(viewer, record);
 }
 
 /** Может ли участник убрать запись в корзину. В общем — только взрослые. */
@@ -83,6 +101,74 @@ export function canRestore(viewer: Viewer, record: RecordFacts): boolean {
   if (placement.kind === 'personal') return true;
   const role = roleIn(viewer, placement.spaceId);
   return role === 'admin' || (role === 'adult' && record.authorId === viewer.accountId);
+}
+
+/**
+ * Ответственный по умолчанию — правило 9 (PRD 7.3). В личном — всегда владелец, кого бы ни назвали.
+ * В общем — назначенный участник, а если не назначен, то автор.
+ */
+export function defaultAssignee(
+  placement: Placement,
+  authorId: string,
+  assigneeId?: string | null,
+): string {
+  return placement.kind === 'personal' ? placement.ownerId : (assigneeId ?? authorId);
+}
+
+/**
+ * Может ли участник быть ответственным за запись в этом месте: он должен её видеть (PRD 7.3.4).
+ * Для «Взрослых» это значит — только взрослый или администратор (правило 9). Если ответственного
+ * нет, им становится администратор: так при уходе участника из дома (правило 12) база передаёт ему дела.
+ */
+export function canBeAssignee(target: Viewer, placement: Placement): boolean {
+  return canView(target, placement);
+}
+
+// Состав дома и видимость пространств (SPACE-1, SPACE-2, SPACE-8, SPACE-9, PRD 7.3.12).
+
+/** Пространство глазами правил доступа: личное — с владельцем, дом — без него. */
+export type SpaceFacts =
+  | { kind: 'personal'; id: string; ownerId: string }
+  | { kind: 'household'; id: string };
+
+/** Видит ли участник пространство: личное — только владелец, дом — его действующие участники. */
+export function canViewSpace(viewer: Viewer, space: SpaceFacts): boolean {
+  return space.kind === 'personal'
+    ? space.ownerId === viewer.accountId
+    : roleIn(viewer, space.id) !== undefined;
+}
+
+/** Видит ли участник строку учётной записи. Пока — только свою; список участников дома — R0.9. */
+export function canViewAccount(viewer: Viewer, ownerAccountId: string): boolean {
+  return viewer.accountId === ownerAccountId;
+}
+
+/** Видит ли участник строку членства. Пока — только свою; список участников дома — R0.9. */
+export function canViewMembership(viewer: Viewer, memberAccountId: string): boolean {
+  return viewer.accountId === memberAccountId;
+}
+
+/**
+ * Может ли участник исключить другого из дома (SPACE-8): только администратор этого дома и только
+ * действующего участника, не себя. Личное пространство исключённого остаётся с ним.
+ */
+export function canExclude(viewer: Viewer, houseId: string, target: Viewer): boolean {
+  return (
+    roleIn(viewer, houseId) === 'admin' &&
+    viewer.accountId !== target.accountId &&
+    roleIn(target, houseId) !== undefined
+  );
+}
+
+/**
+ * Может ли участник покинуть дом (SPACE-9): любой действующий. Последний администратор — нет:
+ * без него некому принять ответственность за записи, поэтому ему сначала назначают преемника.
+ * `adminIds` — все действующие администраторы дома.
+ */
+export function canLeave(viewer: Viewer, houseId: string, adminIds: readonly string[]): boolean {
+  const role = roleIn(viewer, houseId);
+  if (role === undefined) return false;
+  return role !== 'admin' || adminIds.some((id) => id !== viewer.accountId);
 }
 
 // Правила входа и учётных записей — PRD, раздел 10.1 (AUTH-2, AUTH-5, AUTH-8). Это не записи

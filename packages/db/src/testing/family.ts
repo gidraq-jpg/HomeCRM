@@ -6,6 +6,8 @@ import {
   AUDIENCE_LABELS,
   AUDIENCES,
   type Audience,
+  canBeAssignee,
+  defaultAssignee,
   type Placement,
   type RecordFacts,
   type Role,
@@ -16,7 +18,7 @@ import type pg from 'pg';
 import { RECORD_TYPES, type RecordType } from '../access-sql.ts';
 import { accounts, RECORD_TABLES, spaceMembers, spaces } from '../schema.ts';
 
-export const PERSON_KEYS = ['anna', 'boris', 'vera', 'gleb', 'dina'] as const;
+export const PERSON_KEYS = ['anna', 'boris', 'vera', 'gleb', 'dina', 'mila'] as const;
 export type PersonKey = (typeof PERSON_KEYS)[number];
 
 const NAMES: Readonly<Record<PersonKey, string>> = {
@@ -25,17 +27,20 @@ const NAMES: Readonly<Record<PersonKey, string>> = {
   vera: 'Вера',
   gleb: 'Глеб',
   dina: 'Дина',
+  mila: 'Мила',
 };
 
 // В доме: Анна — администратор, Борис — взрослый, Вера — ребёнок. У соседей — Дина.
+// Мила состоит в обоих домах с разными ролями: в «Доме» она ребёнок, у «Соседей» — взрослая.
 // Глеб не состоит ни в одном доме: посторонний.
 const HOUSES: ReadonlyArray<{ name: string; members: Partial<Record<PersonKey, Role>> }> = [
-  { name: 'Дом', members: { anna: 'admin', boris: 'adult', vera: 'child' } },
-  { name: 'Соседи', members: { dina: 'admin' } },
+  { name: 'Дом', members: { anna: 'admin', boris: 'adult', vera: 'child', mila: 'child' } },
+  { name: 'Соседи', members: { dina: 'admin', mila: 'adult' } },
 ];
 
 export const TYPE_LABELS: Readonly<Record<RecordType, string>> = {
   note: 'заметка',
+  note_item: 'пункт заметки',
   shopping_item: 'покупка',
   task: 'дело',
 };
@@ -61,6 +66,8 @@ export interface SeededRecord {
   facts: RecordFacts;
   trashed: boolean;
   label: string;
+  /** У дочерней записи — заметка-родитель в том же месте. */
+  parentId?: string;
 }
 
 export interface Family {
@@ -70,9 +77,13 @@ export interface Family {
   placements: readonly Placement[];
   records: readonly SeededRecord[];
   person(key: PersonKey): Person;
-  /** Кого можно сделать ответственным в этом месте — вместе с «чужими» для проверки. */
-  assigneeCandidates(placement: Placement): ReadonlyArray<string | null>;
-  describe(type: RecordType, facts: RecordFacts, trashed?: boolean): string;
+  /** Кого можно назначить ответственным в этом месте: тех, кто запись видит (правило 9). */
+  eligibleAssignees(placement: Placement): string[];
+  /** Что может прислать приложение: допустимые значения, пусто и «чужой» для личного — его база заменит владельцем. */
+  assigneeInputs(placement: Placement): ReadonlyArray<string | null>;
+  /** Заметка-родитель для дочерних записей в этом месте. */
+  parentIdFor(placement: Placement): string;
+  describe(type: RecordType, facts: RecordFacts): string;
 }
 
 export function buildFamily(): Family {
@@ -122,56 +133,91 @@ export function buildFamily(): Family {
     ),
   ];
 
-  // Авторы — те, кто мог положить запись сюда. Ответственные — ещё и «чужие» для этого места:
-  // назначение не должно открывать доступ.
+  // Авторы — те, кто мог положить запись сюда.
   const authorCandidates = (placement: Placement): string[] =>
     placement.kind === 'personal'
       ? [placement.ownerId]
       : [...houseOf(placement.spaceId).members.keys()].map((key) => person(key).id);
-  const assigneeCandidates = (placement: Placement): Array<string | null> => {
-    const child = person('vera').id;
+  // Ответственные — те, кто запись видит; остальные база не пустит (внешние ключи, правило 9).
+  const eligibleAssignees = (placement: Placement): string[] =>
+    placement.kind === 'personal'
+      ? [placement.ownerId]
+      : people.filter((someone) => canBeAssignee(someone.viewer, placement)).map((p) => p.id);
+  const assigneeInputs = (placement: Placement): Array<string | null> => {
     if (placement.kind === 'personal') {
-      const stranger = placement.ownerId === child ? person('anna').id : child;
+      // В личном ответственный всегда владелец, кого бы ни прислали: проверяем и «чужого».
+      const stranger =
+        placement.ownerId === person('vera').id ? person('anna').id : person('vera').id;
       return [null, placement.ownerId, stranger];
     }
-    const members = authorCandidates(placement);
-    return [null, ...members, ...(members.includes(child) ? [] : [child])];
+    return [null, ...eligibleAssignees(placement)];
   };
 
   const describePlacement = (placement: Placement): string =>
     placement.kind === 'personal'
       ? `личное (${nameOf(placement.ownerId)})`
       : `${houseOf(placement.spaceId).name} · ${AUDIENCE_LABELS[placement.audience]}`;
-  const describe = (type: RecordType, facts: RecordFacts, trashed = false): string =>
+  const describe = (type: RecordType, facts: RecordFacts): string =>
     [
       TYPE_LABELS[type],
       describePlacement(facts.placement),
       `автор ${nameOf(facts.authorId)}`,
       `ответственный ${nameOf(facts.assigneeId)}`,
-      ...(trashed ? ['в корзине'] : []),
+      ...(facts.trashed === true ? ['в корзине'] : []),
     ].join(' · ');
 
   const records: SeededRecord[] = [];
+  const parents = new Map<Placement, string>();
   for (const type of RECORD_TYPES) {
     for (const placement of placements) {
       for (const authorId of authorCandidates(placement)) {
-        for (const assigneeId of assigneeCandidates(placement)) {
+        for (const assigneeId of eligibleAssignees(placement)) {
           for (const trashed of [false, true]) {
-            const facts: RecordFacts = { placement, type, authorId, assigneeId };
-            records.push({
-              id: randomUUID(),
-              type,
-              facts,
-              trashed,
-              label: describe(type, facts, trashed),
-            });
+            const facts: RecordFacts = { placement, type, authorId, assigneeId, trashed };
+            const id = randomUUID();
+            if (type === 'note' && !trashed && !parents.has(placement)) parents.set(placement, id);
+            records.push({ id, type, facts, trashed, label: describe(type, facts) });
           }
         }
       }
     }
   }
+  const parentIdFor = (placement: Placement): string => {
+    const found = parents.get(placement);
+    if (found === undefined) throw new Error('No parent note in this place');
+    return found;
+  };
+  for (const record of records) {
+    if (record.type === 'note_item') record.parentId = parentIdFor(record.facts.placement);
+  }
 
-  return { people, houses, placements, records, person, assigneeCandidates, describe };
+  return {
+    people,
+    houses,
+    placements,
+    records,
+    person,
+    eligibleAssignees,
+    assigneeInputs,
+    parentIdFor,
+    describe,
+  };
+}
+
+/** Итоговые факты новой записи: ответственного определяет правило 9, как в базе. */
+export function createdFacts(
+  type: RecordType,
+  placement: Placement,
+  authorId: string,
+  assigneeInput: string | null,
+): RecordFacts {
+  return {
+    placement,
+    type,
+    authorId,
+    assigneeId: defaultAssignee(placement, authorId, assigneeInput),
+    trashed: false,
+  };
 }
 
 /** Колонки места записи: пространство, его вид и аудитория (только у общего). */
@@ -187,10 +233,9 @@ export function placementColumns(placement: Placement): {
   };
 }
 
-/** Записывает семью в базу от имени суперпользователя: он обходит RLS. */
-export async function seedFamily(admin: pg.Pool, family: Family): Promise<void> {
+/** Записывает учётные записи, пространства и участников от имени суперпользователя: он обходит RLS. */
+export async function seedPeople(admin: pg.Pool, family: Family): Promise<void> {
   const db = drizzle({ client: admin });
-  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   await db.transaction(async (tx) => {
     await tx.insert(accounts).values(
       family.people.map((someone) => ({
@@ -223,6 +268,15 @@ export async function seedFamily(admin: pg.Pool, family: Family): Promise<void> 
         })),
       ),
     );
+  });
+}
+
+/** Записывает семью и её записи в базу от имени суперпользователя: он обходит RLS. */
+export async function seedFamily(admin: pg.Pool, family: Family): Promise<void> {
+  await seedPeople(admin, family);
+  const db = drizzle({ client: admin });
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  await db.transaction(async (tx) => {
     for (const type of RECORD_TYPES) {
       const rows = family.records
         .filter((record) => record.type === type)
@@ -233,8 +287,9 @@ export async function seedFamily(admin: pg.Pool, family: Family): Promise<void> 
           assigneeId: record.facts.assigneeId ?? null,
           title: `${TYPE_LABELS[type]} для проверки`,
           deletedAt: record.trashed ? dayAgo : null,
+          ...(record.parentId === undefined ? {} : { parentId: record.parentId }),
         }));
-      await tx.insert(RECORD_TABLES[type]).values(rows);
+      await tx.insert(RECORD_TABLES[type]).values(rows as never);
     }
   });
 }

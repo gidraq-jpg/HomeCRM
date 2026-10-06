@@ -47,6 +47,8 @@ describe('правила входа: база совпадает с эталон
       'Мила',
       'Ян',
     ]);
+    const mila = world.people.find((person) => person.name === 'Мила');
+    expect([...(mila?.viewer.memberships.values() ?? [])].sort()).toEqual(['adult', 'child']);
     expect(world.houses).toHaveLength(2);
   });
 });

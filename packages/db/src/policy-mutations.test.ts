@@ -16,6 +16,8 @@ interface Mutation {
   types: RecordType[];
   /** Пример расхождения, которое матрица должна показать. */
   expected: RegExp;
+  /** Испортить до записи семьи: так, чтобы испорченный триггер не написал того, что обязан. */
+  beforeSeed?: boolean;
 }
 
 const MUTATIONS: Mutation[] = [
@@ -67,6 +69,47 @@ const MUTATIONS: Mutation[] = [
     expected:
       /^Борис · удаление мимо корзины.* · заметка · Дом · Вся семья · автор Анна .*эталон — нет, база — да$/,
   },
+  {
+    title: 'нет триггера защиты записи — взрослый правит запись в корзине, не восстанавливая',
+    sql: 'DROP TRIGGER notes_guard ON notes',
+    operation: 'edit',
+    types: ['note'],
+    expected:
+      /^Анна · изменение · заметка · Дом · Вся семья · автор Анна · ответственный Анна · в корзине: эталон — нет, база — да$/,
+  },
+  {
+    title: 'создание дел без проверки автора — Борис создаёт дело от имени Анны',
+    sql: `ALTER POLICY tasks_insert ON tasks WITH CHECK (deleted_at IS NULL AND ${canWriteSql('task')})`,
+    operation: 'create',
+    types: ['task'],
+    expected:
+      /^Борис · создание · дело · Дом · Вся семья · автор Анна · ответственный Анна · создаёт Борис: эталон — нет, база — да$/,
+  },
+  {
+    title: 'нет триггера истории — изменения записей не записываются',
+    sql: 'DROP TRIGGER notes_history ON notes',
+    beforeSeed: true,
+    operation: 'history',
+    types: ['note'],
+    expected:
+      /^Анна · чтение истории изменений по id записи · заметка · Дом · Вся семья.*эталон — да, база — нет$/,
+  },
+  {
+    title: 'история читается всеми — ребёнок видит, что менялось во «Взрослых»',
+    sql: 'ALTER POLICY notes_history_select ON notes_history USING (true)',
+    operation: 'history',
+    types: ['note'],
+    expected:
+      /^Вера · чтение истории изменений по id записи · заметка · Дом · Взрослые.*эталон — нет, база — да$/,
+  },
+  {
+    title: 'автора записи можно переписать — право выдано, а триггера защиты нет',
+    sql: 'GRANT UPDATE (author_id) ON notes TO homecrm_app; DROP TRIGGER notes_guard ON notes',
+    operation: 'rewrite',
+    types: ['note'],
+    expected:
+      /^Борис · подмена автора, времени создания и id · заметка · Дом · Вся семья · автор Борис .* · автор: эталон — нет, база — да$/,
+  },
 ];
 
 const family = buildFamily();
@@ -81,9 +124,10 @@ describe('матрица находит испорченную политику'
   for (const mutation of MUTATIONS) {
     it(mutation.title, async () => {
       database = await createTestDatabase(inject('pgAdminUrl'));
+      // Политики и триггеры меняет их владелец — так же, как это сделала бы ошибочная миграция.
+      if (mutation.beforeSeed === true) await database.owner.query(mutation.sql);
       await seedFamily(database.admin, family);
-      // Политики меняет их владелец — так же, как это сделала бы ошибочная миграция.
-      await database.owner.query(mutation.sql);
+      if (mutation.beforeSeed !== true) await database.owner.query(mutation.sql);
 
       const report = await runMatrix(
         createAppDatabase(database.app),

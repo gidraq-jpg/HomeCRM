@@ -5,7 +5,7 @@ import { sql } from 'drizzle-orm';
 import type pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { createAppDatabase, type Transaction } from './client.ts';
-import { notes, shoppingItems, tasks } from './schema.ts';
+import { RECORD_DEFINITIONS, RECORD_TABLES } from './schema.ts';
 import { createTestDatabase, type TestDatabase } from './testing/database.ts';
 import { buildFamily, seedFamily } from './testing/family.ts';
 
@@ -24,19 +24,26 @@ const AUTH_ONLY = [
   'verifications',
 ];
 // Данные и сведения, которые приложение читает под контекстом участника.
+// Таблицы записей и их истории берутся из recordTable(): новая таблица попадает сюда сама.
+const RECORD_NAMES = RECORD_DEFINITIONS.map((definition) => definition.name);
 const APP_TABLES = [
   'accounts',
   'invitations',
   'login_events',
-  'notes',
   'password_resets',
-  'shopping_items',
   'space_members',
   'spaces',
-  'tasks',
+  ...RECORD_NAMES,
+  ...RECORD_NAMES.map((name) => `${name}_history`),
 ];
 // Эти таблицы наполняет seedFamily: проверка «без контекста пусто» не вырождена.
-const SEEDED = new Set(['accounts', 'notes', 'shopping_items', 'space_members', 'spaces', 'tasks']);
+const SEEDED = new Set([
+  'accounts',
+  'space_members',
+  'spaces',
+  ...RECORD_NAMES,
+  ...RECORD_NAMES.map((name) => `${name}_history`),
+]);
 
 beforeAll(async () => {
   database = await createTestDatabase(inject('pgAdminUrl'));
@@ -130,11 +137,12 @@ describe('контекст запроса', () => {
     const app = createAppDatabase(database.app);
     for (const viewer of family.people) {
       // Никакого where: защищает только RLS.
-      const rows = await app.withAccount(viewer.id, async (tx) => [
-        ...(await tx.select().from(notes)),
-        ...(await tx.select().from(shoppingItems)),
-        ...(await tx.select().from(tasks)),
-      ]);
+      const rows = await app.withAccount(viewer.id, async (tx) => {
+        const all = [];
+        for (const table of Object.values(RECORD_TABLES))
+          all.push(...(await tx.select().from(table)));
+        return all;
+      });
       const personal = rows.filter((row) => row.spaceKind === 'personal');
       expect(
         personal.every((row) => row.spaceId === viewer.personalSpaceId),

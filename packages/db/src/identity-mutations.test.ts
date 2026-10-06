@@ -65,6 +65,18 @@ const MUTATIONS: Mutation[] = [
     expected: /^прочитать журнал входов · Анна · Вера: эталон — нет, база — да$/,
   },
   {
+    title: 'исключить можно кого угодно, было бы «left_by» — ребёнок исключает взрослого',
+    sql: 'ALTER POLICY space_members_auth_leave ON space_members WITH CHECK (left_at IS NOT NULL)',
+    operation: 'member-exclude',
+    expected: /^исключить участника из дома · Вера исключает Борис · Дом: эталон — нет, база — да$/,
+  },
+  {
+    title: 'нет триггера состава — последний администратор покидает дом',
+    sql: 'DROP TRIGGER space_members_guard ON space_members',
+    operation: 'member-leave',
+    expected: /^покинуть дом · Анна · Дом: эталон — нет, база — да$/,
+  },
+  {
     title: 'RLS на отметках о сбросе выключена — посторонний читает всё',
     sql: 'ALTER TABLE password_resets DISABLE ROW LEVEL SECURITY',
     operation: 'notice-view',
