@@ -23,7 +23,8 @@ export async function signIn(
   await page.getByLabel('Пароль', { exact: true }).fill(family.person(role).password);
   await page.getByRole('button', { name: 'Войти', exact: true }).click();
 }
-export async function checkAuth(page: Page, info: TestInfo, name: string) {
+/** `prefix` — начало имени файла скриншота: `auth` для экранов входа, `app` для рабочего приложения. */
+export async function checkAuth(page: Page, info: TestInfo, name: string, prefix = 'auth') {
   await settle(page);
   await expectNoHorizontalScroll(page);
   await expectTouchTargets(page);
@@ -45,13 +46,20 @@ export async function checkAuth(page: Page, info: TestInfo, name: string) {
   await page.evaluate(() => window.scrollTo(0, 0));
   try {
     await page.screenshot({
-      path: resolve(directory, `auth-${name}.png`),
+      path: resolve(directory, `${prefix}-${name}.png`),
       fullPage: true,
       mask,
       maskColor: '#e9eee7',
     });
   } finally {
     if (viewport) await page.setViewportSize(viewport);
+    // Возврат окна к прежней высоте приложение принимает за открытую экранную клавиатуру и прячет
+    // нижнее меню и «+». Это побочный эффект снимка, а не поведение человека: возвращаем меню.
+    await page.evaluate(async () => {
+      // Событие изменения окна приходит после возврата размера, поэтому ждём его и только потом снимаем отметку.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      delete document.documentElement.dataset.keyboard;
+    });
   }
 }
 export async function expectSignedIn(page: Page) {

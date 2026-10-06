@@ -10,7 +10,9 @@ import { argv, env } from 'node:process';
 export const E2E_PORT = Number(env.E2E_PORT ?? 5194);
 export const E2E_PREFIX = env.E2E_PREFIX ?? '/homecrm/prototype/v1/';
 
-const ROOT = resolve(import.meta.dirname, '../../dist');
+// Папка сборки и её главная страница: прототип собирается отдельно (ite build --mode prototype).
+const ROOT = resolve(import.meta.dirname, '../..', env.E2E_DIST ?? 'dist-prototype');
+const INDEX = env.E2E_INDEX ?? 'index.html';
 
 const TYPES: Readonly<Record<string, string>> = {
   '.html': 'text/html; charset=utf-8',
@@ -33,7 +35,7 @@ export function startStaticServer(port: number = E2E_PORT, prefix: string = E2E_
       response.end('Not found: the prototype is served only under its sub-folder');
       return;
     }
-    const relative = path.slice(prefix.length) || 'index.html';
+    const relative = path.slice(prefix.length) || INDEX;
     const file = normalize(join(ROOT, relative));
     if (!file.startsWith(ROOT + sep) || !existsSync(file) || !statSync(file).isFile()) {
       response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });

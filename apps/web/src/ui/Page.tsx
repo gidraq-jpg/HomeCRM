@@ -16,11 +16,16 @@ interface PageProps {
   back?: { to: string; label: string };
   /** Вкладки раздела под заголовком. */
   tabs?: ReactNode;
+  /**
+   * Название вкладки браузера, если оно должно отличаться от заголовка. Заметка так прячет
+   * свой заголовок: он не попадает в историю браузера.
+   */
+  documentTitle?: string;
   children: ReactNode;
 }
 
-export function Page({ title, eyebrow, back, tabs, children }: PageProps) {
-  usePageTitle(title);
+export function Page({ title, eyebrow, back, tabs, documentTitle, children }: PageProps) {
+  usePageTitle(documentTitle ?? title);
   return (
     <div className="page">
       {back ? (

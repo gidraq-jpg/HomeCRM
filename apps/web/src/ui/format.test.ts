@@ -5,6 +5,7 @@ import {
   type DateOnly,
   daysBetween,
   formatDecimal,
+  formatFullDate,
   formatLongDate,
   formatRelativeDays,
   formatRub,
@@ -54,6 +55,11 @@ describe('даты', () => {
     expect(asText(formatShortDate('2026-10-05'))).toBe('5 окт.');
     expect(asText(formatShortDate('2026-11-14', '2026-10-22'))).toBe('14 нояб.');
     expect(asText(formatShortDate('2027-01-14', '2026-10-22'))).toBe('14 янв. 2027');
+  });
+
+  it('дата с годом — для дат рождения', () => {
+    expect(asText(formatFullDate('1990-03-14'))).toBe('14 мар. 1990');
+    expect(asText(formatFullDate('2026-10-05'))).toBe('5 окт. 2026');
   });
 
   it('длинная дата и день недели', () => {

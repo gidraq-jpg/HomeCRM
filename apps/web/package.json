@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:prototype": "vite build --mode prototype",
     "preview": "vite preview",
     "test:e2e": "node e2e/run.ts",
     "test:e2e:auth": "node e2e/run.ts auth",
+    "test:e2e:prototype": "node e2e/run.ts prototype",
     "typecheck": "tsc -p tsconfig.json && tsc -p e2e/tsconfig.json"
   },
   "dependencies": {

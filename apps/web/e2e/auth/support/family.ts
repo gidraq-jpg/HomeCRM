@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { extname, resolve, sep } from 'node:path';
-import { createAppDatabase, createAuthDatabase } from '@homecrm/db';
+import { createAppDatabase, createAuthDatabase, createWorkerDatabase } from '@homecrm/db';
 import { createTestDatabase } from '@homecrm/db/testing';
 import type { Role } from '@homecrm/shared';
 import { buildApp } from '../../../../server/src/app.ts';
@@ -83,7 +83,11 @@ export async function createFamily() {
     secret: randomBytes(32).toString('base64url'),
     baseURL: origin,
   });
-  const app = buildApp({ LOG_LEVEL: 'silent', APP_VERSION: 'e2e' }, { auth: module });
+  // Обработчик передачи ответственности нужен уходу из дома и исключению (docs/household-api.md).
+  const app = buildApp(
+    { LOG_LEVEL: 'silent', APP_VERSION: 'e2e' },
+    { auth: module, worker: createWorkerDatabase(database.worker) },
+  );
   // В конце сценария соединения прокси уже не нужны, в том числе прерванные офлайном.
   app.addHook('preClose', async () => {
     app.server.closeAllConnections();

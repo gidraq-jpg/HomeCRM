@@ -3,6 +3,7 @@ import { type ReactNode, useEffect } from 'react';
 import { useLocation } from 'react-router';
 import { ToastRegion } from '../ui/Toast.tsx';
 import { BottomNav, type ShellSection } from './BottomNav.tsx';
+import { SideNav } from './SideNav.tsx';
 import { TopBar } from './TopBar.tsx';
 import { useKeyboardAttribute } from './useKeyboardAttribute.ts';
 
@@ -17,7 +18,8 @@ interface AppShellProps {
 
 /**
  * Каркас приложения: шапка с поиском и переключателем «Всё · Общее · Личное», нижнее меню
- * из пяти разделов и кнопка «+», доступная на всех экранах (PRD, раздел 14).
+ * из пяти разделов на телефоне, боковое меню на компьютере и кнопка «+», доступная на всех
+ * экранах (PRD, раздел 14). Какое из двух меню видно, решает ширина окна (shell.css).
  */
 export function AppShell({ sections, onAdd, overlays, children }: AppShellProps) {
   const { pathname } = useLocation();
@@ -31,10 +33,13 @@ export function AppShell({ sections, onAdd, overlays, children }: AppShellProps)
 
   return (
     <div className="app">
-      <TopBar />
-      <main className="main" id="main">
-        {children}
-      </main>
+      <SideNav sections={sections} />
+      <div className="app__content">
+        <TopBar />
+        <main className="main" id="main">
+          {children}
+        </main>
+      </div>
       <div className="chrome">
         <aside className="chrome__actions" aria-label="Быстрые действия">
           <ToastRegion />

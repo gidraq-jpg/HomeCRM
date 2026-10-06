@@ -43,6 +43,34 @@ test('«Установить на телефон»: на входе и в нас
   await checkAuth(page, info, 'install-settings');
 });
 
+test('установка не мелькает у вошедшего: ни при проверке сессии, ни на экране кода', async ({
+  page,
+  family,
+}) => {
+  const install = page.getByRole('button', { name: 'Установить на телефон' });
+  // Пока сервер не ответил о сессии, на экране «Проверяем вход…» установки нет.
+  let release: () => void = () => {};
+  const held = new Promise<void>((done) => {
+    release = done;
+  });
+  await page.route('**/api/auth/get-session', async (route) => {
+    await held;
+    await route.continue();
+  });
+  await page.goto('#/today');
+  await expect(page.getByText('Проверяем вход…')).toBeVisible();
+  await expect(install).toHaveCount(0);
+  release();
+  await expect(page.getByRole('heading', { name: 'Войти в HomeCRM' })).toBeVisible();
+  await expect(install).toBeVisible();
+  await page.unroute('**/api/auth/get-session');
+
+  await family.enroll('adult');
+  await signIn(page, family, 'adult');
+  await expect(page.getByRole('heading', { name: 'Код подтверждения' })).toBeVisible();
+  await expect(install).toHaveCount(0);
+});
+
 test('без сети видна плашка, форма недоступна, после подключения вход работает', async ({
   page,
   family,

@@ -1,52 +1,83 @@
-import type { ReactNode } from 'react';
+import { useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router';
 import { ScopeProvider } from './access/ScopeContext.tsx';
-import { AddSheet } from './prototype/AddSheet.tsx';
-import { AddRequestContext, useAddController } from './prototype/add-request.tsx';
-import { PrototypeRoutes } from './prototype/routes.tsx';
-import { PrototypeProvider } from './prototype/store.tsx';
+import type { Me } from './auth/api.ts';
+import { ExportScreen } from './auth/ExportScreen.tsx';
+import { SecurityScreen } from './auth/SecurityScreen.tsx';
+import { HouseholdProvider } from './household/HouseholdContext.tsx';
+import { NewNoteScreen } from './notes/NewNoteScreen.tsx';
+import { NoteScreen } from './notes/NoteScreen.tsx';
+import { NotesScreen } from './notes/NotesScreen.tsx';
+import { TrashScreen } from './notes/TrashScreen.tsx';
+import { DocumentsScreen, HomeScreen, TodayScreen } from './screens/EmptySections.tsx';
+import { InviteScreen } from './screens/InviteScreen.tsx';
+import { MemberScreen } from './screens/MemberScreen.tsx';
+import { MoreScreen } from './screens/MoreScreen.tsx';
+import { NotFoundScreen } from './screens/NotFoundScreen.tsx';
+import { PeopleScreen } from './screens/PeopleScreen.tsx';
+import { ProfileScreen } from './screens/ProfileScreen.tsx';
+import { SearchScreen } from './screens/SearchScreen.tsx';
+import { SpacesScreen } from './screens/SpacesScreen.tsx';
+import { AddMenu } from './shell/AddMenu.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import { SECTIONS } from './shell/sections.ts';
 import { ToastProvider } from './ui/Toast.tsx';
 
-// Каркас приложения (шапка, нижнее меню, «+», переключатель) остаётся и в R0.3.
-// Всё из папки prototype/ — вымышленные данные и экраны на них — потом заменят настоящие.
+interface AppProps {
+  /** Вошедший участник: его роль и дом определяют, что показывать. */
+  me: Me;
+  reloadMe: () => Promise<void>;
+  signOut: () => void;
+}
 
-function PrototypeApp({
-  settings,
-  exportScreen,
-}: {
-  settings?: ReactNode;
-  exportScreen?: ReactNode;
-}) {
-  const add = useAddController();
+function Workspace({ me, reloadMe, signOut }: AppProps) {
+  const [adding, setAdding] = useState(false);
   return (
-    <AddRequestContext.Provider value={add.request}>
-      <AppShell
-        sections={SECTIONS}
-        onAdd={() => add.request()}
-        overlays={<AddSheet controller={add} />}
-      >
-        <PrototypeRoutes settings={settings} exportScreen={exportScreen} />
-      </AppShell>
-    </AddRequestContext.Provider>
+    <AppShell
+      sections={SECTIONS}
+      onAdd={() => setAdding(true)}
+      overlays={<AddMenu open={adding} onOpenChange={setAdding} />}
+    >
+      <Routes>
+        <Route index element={<Navigate to="/today" replace />} />
+        <Route path="today" element={<TodayScreen />} />
+        <Route path="home" element={<HomeScreen />} />
+        <Route path="documents" element={<DocumentsScreen />} />
+        <Route path="people" element={<PeopleScreen />} />
+        <Route path="people/invite" element={<InviteScreen />} />
+        <Route path="people/members/:accountId" element={<MemberScreen />} />
+        <Route path="more" element={<MoreScreen />} />
+        <Route path="more/profile" element={<ProfileScreen />} />
+        <Route
+          path="more/settings"
+          element={<SecurityScreen me={me} reload={reloadMe} onSignedOut={signOut} />}
+        />
+        <Route path="more/export" element={<ExportScreen />} />
+        <Route path="more/spaces" element={<SpacesScreen />} />
+        <Route path="more/notes" element={<NotesScreen />} />
+        <Route path="more/notes/new" element={<NewNoteScreen />} />
+        <Route path="more/notes/:noteId" element={<NoteScreen />} />
+        <Route path="more/trash" element={<TrashScreen />} />
+        <Route path="search" element={<SearchScreen />} />
+        <Route path="*" element={<NotFoundScreen />} />
+      </Routes>
+    </AppShell>
   );
 }
 
-/** Приложение без маршрутизатора: его подключает `main.tsx` (hash) или тест (в памяти). */
-export function App({
-  settings,
-  exportScreen,
-}: {
-  settings?: ReactNode;
-  exportScreen?: ReactNode;
-} = {}) {
+/**
+ * Рабочее приложение вошедшего участника: каркас с меню, шапкой и «+» и экраны на настоящем API.
+ * Вымышленные данные прототипа сюда не попадают: они живут в `prototype/` отдельной сборкой.
+ * Приложение без маршрутизатора: его подключает `main.tsx` (hash) или тест (в памяти).
+ */
+export function App(props: AppProps) {
   return (
     <ScopeProvider>
-      <PrototypeProvider>
-        <ToastProvider>
-          <PrototypeApp settings={settings} exportScreen={exportScreen} />
-        </ToastProvider>
-      </PrototypeProvider>
+      <ToastProvider>
+        <HouseholdProvider me={props.me} reloadMe={props.reloadMe} signOut={props.signOut}>
+          <Workspace {...props} />
+        </HouseholdProvider>
+      </ToastProvider>
     </ScopeProvider>
   );
 }
