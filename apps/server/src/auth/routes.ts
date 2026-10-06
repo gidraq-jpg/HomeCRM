@@ -132,7 +132,7 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
       const error = checkRequestSource(
         fromNodeHeaders(request.headers),
         (origin) => module.origins.has(origin),
-        request.method !== 'GET',
+        request.method === 'POST',
       );
       if (error !== null) return reply.code(403).send(error);
     },

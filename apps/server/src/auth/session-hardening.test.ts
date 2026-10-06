@@ -176,6 +176,28 @@ describe('Origin, Referer и Fetch Metadata — общее правило с п�
     },
   );
 
+  it('HEAD списка сессий без Origin остаётся безопасным чтением, чужой Origin отклонён', async () => {
+    const device = world.device();
+    await device.signIn('boris', world.boris.password);
+    const cookie = [...device.cookies].map(([name, value]) => `${name}=${value}`).join('; ');
+    const response = await world.app.inject({
+      method: 'HEAD',
+      url: ROUTES[0].path,
+      remoteAddress: device.ip,
+      headers: { cookie },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe('');
+    expect(response.headers['cache-control']).toBe('no-store');
+    const foreign = await world.app.inject({
+      method: 'HEAD',
+      url: ROUTES[0].path,
+      remoteAddress: device.ip,
+      headers: { cookie, origin: 'https://foreign.test' },
+    });
+    expect(foreign.statusCode).toBe(403);
+  });
+
   it('плагин применяет то же правило к Referer без cookie', async () => {
     const response = await world.device().post(
       '/api/auth/sign-in/username',
