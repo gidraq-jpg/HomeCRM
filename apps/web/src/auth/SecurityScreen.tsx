@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import * as z from 'zod';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { Page, Section } from '../ui/Page.tsx';
-import { ApiError, action, api, BackupCodes, Events, isAdmin, type Me, Sessions } from './api.ts';
+import { ApiError, action, api, BackupCodes, Events, isAdmin, type Me } from './api.ts';
 import {
   AuthForm,
   clearSecrets,
@@ -17,11 +17,23 @@ import {
 import { formatMoment } from './dates.ts';
 import { RecoveryCodes } from './TwoFactorSetup.tsx';
 
+const DevicesResponse = z.array(
+  z.strictObject({
+    id: z.uuid(),
+    userAgent: z.string().nullable(),
+    ipAddress: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    expiresAt: z.string(),
+    current: z.boolean(),
+  }),
+);
+
 function Devices({ onSignedOut, timeZone }: { onSignedOut: () => void; timeZone: string }) {
   const date = (value: string) => formatMoment(value, timeZone);
   const query = useQuery({
     queryKey: ['devices'],
-    queryFn: ({ signal }) => api('auth/list-sessions', Sessions, undefined, signal),
+    queryFn: ({ signal }) => api('auth/list-sessions', DevicesResponse, undefined, signal),
   });
   const state = useAction();
   const [confirm, setConfirm] = useState(false);
@@ -42,6 +54,7 @@ function Devices({ onSignedOut, timeZone }: { onSignedOut: () => void; timeZone:
           {query.data.map((session) => (
             <li key={session.id}>
               <strong>{session.userAgent || 'Неизвестное устройство'}</strong>
+              {session.current && <p>Это устройство</p>}
               <p>{session.ipAddress || 'Адрес не указан'}</p>
               <p>Вход: {date(session.createdAt)}</p>
               <p>До: {date(session.expiresAt)}</p>
@@ -51,7 +64,7 @@ function Devices({ onSignedOut, timeZone }: { onSignedOut: () => void; timeZone:
                 type="button"
                 onClick={() =>
                   void state.run(async () => {
-                    await action('auth/revoke-session', { token: session.token });
+                    await action('auth/revoke-session', { id: session.id });
                     const result = await query.refetch();
                     if (result.error instanceof ApiError && result.error.status === 401)
                       onSignedOut();

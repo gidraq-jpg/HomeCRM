@@ -8,6 +8,8 @@ import type { AuthModule } from './routes.ts';
 /** Вошедший участник глазами маршрутов данных. */
 export interface Account {
   id: string;
+  /** Идентификатор текущего устройства, без токена сессии. */
+  sessionId: string;
   displayName: string;
   username: string | null;
   /** Настоящий адрес почты; у ребёнка без почты — null. */
@@ -51,6 +53,7 @@ export function createAccountReader(module: AuthModule) {
     const viewer = await appDb.withAccount(user.id, (tx) => loadViewer(tx, user.id));
     const account: Account = {
       id: user.id,
+      sessionId: session.session.id,
       displayName: user.name,
       username: user.username ?? null,
       email: isPlaceholderEmail(user.email) ? null : user.email,

@@ -1,6 +1,7 @@
 // Настройка Better Auth для HomeCRM (ADR-0005). Всё, что отличает дом от типового приложения,
 // собрано здесь: вход по имени без почты, Argon2id, закрытая регистрация, сессии на 90 дней,
 // второй фактор, ограничения запросов, защищённые cookie, свои имена таблиц и роль базы.
+import { createHash } from 'node:crypto';
 import {
   type AppDatabase,
   accounts,
@@ -16,7 +17,13 @@ import {
   twoFactors,
   verifications,
 } from '@homecrm/db';
-import { betterAuth } from 'better-auth';
+import {
+  type BetterAuthOptions,
+  betterAuth,
+  type DBAdapter,
+  type DBTransactionAdapter,
+  type Where,
+} from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { twoFactor, username } from 'better-auth/plugins';
 import { recordLoginEvent } from './attempts.ts';
@@ -35,6 +42,134 @@ import { CLIENT_IP_HEADER, homecrm } from './plugin.ts';
 
 export const SESSION_DAYS = 90;
 const DAY = 24 * 60 * 60;
+
+/** Хэш хранения, а не второй вид токена: даже значение с h1: хэшируется заново. */
+export function hashSessionToken(token: string): string {
+  return `h1:${createHash('sha256').update(token).digest('hex')}`;
+}
+
+function sessionModel(model: string): boolean {
+  return model === 'session' || model === 'sessions';
+}
+
+function tokenData<T extends Record<string, unknown>>(model: string, data: T): T {
+  return sessionModel(model) && typeof data.token === 'string'
+    ? { ...data, token: hashSessionToken(data.token) }
+    : data;
+}
+
+function tokenWhere(model: string, where: Where[] = []): Where[] {
+  if (!sessionModel(model)) return where;
+  return where.map((condition) => {
+    if (condition.field !== 'token') return condition;
+    if (!['eq', 'ne', 'in', 'not_in'].includes(condition.operator ?? 'eq'))
+      throw new Error('Unsupported session token predicate');
+    const value = condition.value;
+    return {
+      ...condition,
+      value:
+        typeof value === 'string'
+          ? hashSessionToken(value)
+          : Array.isArray(value)
+            ? value.map((token) => {
+                if (typeof token !== 'string') throw new Error('Invalid session token predicate');
+                return hashSessionToken(token);
+              })
+            : value,
+    };
+  });
+}
+
+/** Открытое значение известно лишь при создании или запросе по самому токену. */
+function restoreToken<T>(row: T, model: string, tokens: readonly string[]): T {
+  if (!sessionModel(model) || typeof row !== 'object' || row === null || !('token' in row))
+    return row;
+  const token = tokens.find((candidate) => hashSessionToken(candidate) === row.token);
+  return token === undefined ? row : { ...row, token };
+}
+
+function queriedTokens(where: Where[] = []): string[] {
+  return where.flatMap((condition) => {
+    if (condition.field !== 'token' || !['eq', 'in'].includes(condition.operator ?? 'eq'))
+      return [];
+    return typeof condition.value === 'string'
+      ? [condition.value]
+      : Array.isArray(condition.value)
+        ? condition.value.filter((value): value is string => typeof value === 'string')
+        : [];
+  });
+}
+
+/** Обёртка внешнего контракта Drizzle: названия полей ещё те, что использует Better Auth. */
+function sessionTokenAdapter(adapter: DBTransactionAdapter): DBTransactionAdapter {
+  // Сверка схемы привязана к объекту адаптера через WeakMap библиотеки: сохраняем его.
+  const original = { ...adapter };
+  return Object.assign(adapter, {
+    ...adapter,
+    create: async <T extends Record<string, unknown>, R = T>(args: {
+      model: string;
+      data: Omit<T, 'id'>;
+      select?: string[];
+      forceAllowId?: boolean;
+    }): Promise<R> => {
+      const row = await original.create<T, R>({ ...args, data: tokenData(args.model, args.data) });
+      return restoreToken(
+        row,
+        args.model,
+        typeof args.data.token === 'string' ? [args.data.token] : [],
+      );
+    },
+    findOne: async <T>(args: Parameters<DBAdapter['findOne']>[0]) =>
+      restoreToken(
+        await original.findOne<T>({ ...args, where: tokenWhere(args.model, args.where) }),
+        args.model,
+        queriedTokens(args.where),
+      ),
+    findMany: async <T>(args: Parameters<DBAdapter['findMany']>[0]) => {
+      const rows = await original.findMany<T>({
+        ...args,
+        where: tokenWhere(args.model, args.where),
+      });
+      return rows.map((row) => restoreToken(row, args.model, queriedTokens(args.where)));
+    },
+    update: async <T>(args: Parameters<DBAdapter['update']>[0]) =>
+      restoreToken(
+        await original.update<T>({
+          ...args,
+          where: tokenWhere(args.model, args.where),
+          update: tokenData(args.model, args.update),
+        }),
+        args.model,
+        typeof args.update.token === 'string' ? [args.update.token] : queriedTokens(args.where),
+      ),
+    updateMany: (args) =>
+      original.updateMany({
+        ...args,
+        where: tokenWhere(args.model, args.where),
+        update: tokenData(args.model, args.update),
+      }),
+    delete: (args) => original.delete({ ...args, where: tokenWhere(args.model, args.where) }),
+    deleteMany: (args) =>
+      original.deleteMany({ ...args, where: tokenWhere(args.model, args.where) }),
+    count: (args) => original.count({ ...args, where: tokenWhere(args.model, args.where) }),
+    consumeOne: async <T>(args: Parameters<DBAdapter['consumeOne']>[0]) =>
+      restoreToken(
+        await original.consumeOne<T>({ ...args, where: tokenWhere(args.model, args.where) }),
+        args.model,
+        queriedTokens(args.where),
+      ),
+    incrementOne: async <T>(args: Parameters<DBAdapter['incrementOne']>[0]) =>
+      restoreToken(
+        await original.incrementOne<T>({
+          ...args,
+          where: tokenWhere(args.model, args.where),
+          ...(args.set ? { set: tokenData(args.model, args.set) } : {}),
+        }),
+        args.model,
+        typeof args.set?.token === 'string' ? [args.set.token] : queriedTokens(args.where),
+      ),
+  } satisfies DBTransactionAdapter);
+}
 
 /** Отправка писем. Если не задана — восстановление по почте выключено (AUTH-4). */
 export type Mailer = (message: { to: string; subject: string; text: string }) => Promise<void>;
@@ -74,11 +209,19 @@ export function createAuth(options: AuthOptions) {
 
     // Таблицы — наши, в схеме packages/db. Имена моделей совпадают с именами экспортов схемы:
     // так их находит адаптер. Идентификаторы выдаёт база (uuidv7), а не библиотека.
-    database: drizzleAdapter(db, {
-      provider: 'pg',
-      transaction: true,
-      schema: { accounts, sessions, credentials, verifications, twoFactors, rateLimits },
-    }),
+    database: (authOptions: BetterAuthOptions) => {
+      const adapter = drizzleAdapter(db, {
+        provider: 'pg',
+        transaction: true,
+        schema: { accounts, sessions, credentials, verifications, twoFactors, rateLimits },
+      })(authOptions);
+      const transaction = adapter.transaction.bind(adapter);
+      return Object.assign(adapter, sessionTokenAdapter(adapter), {
+        // Внутри транзакции библиотека выбирает отдельный адаптер; его тоже оборачиваем.
+        transaction: <R>(callback: (tx: DBTransactionAdapter) => Promise<R>) =>
+          transaction((tx) => callback(sessionTokenAdapter(tx))),
+      });
+    },
     user: { modelName: 'accounts', fields: { name: 'displayName' } },
     session: {
       modelName: 'sessions',
@@ -175,6 +318,10 @@ export function createAuth(options: AuthOptions) {
     // Лишние маршруты закрыты: внешних поставщиков входа, подтверждения почты, смены почты и
     // самоудаления нет, а проверка «свободно ли имя» открыла бы перебор имён без входа.
     disabledPaths: [
+      // Список без токенов и отзыв по id обслуживает Fastify (routes.ts).
+      '/list-sessions',
+      '/revoke-session',
+      '/revoke-other-sessions',
       '/sign-in/social',
       '/link-social',
       '/unlink-account',
