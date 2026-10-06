@@ -38,7 +38,14 @@ const auth = createAuthModule({
   homeTimeZone: authConfig.HOME_TIME_ZONE,
 });
 const worker = createWorkerDatabase(workerPool);
-const app = buildApp(config, { auth, worker });
+const app = buildApp(config, {
+  auth,
+  worker,
+  checkDatabase: async () => {
+    await workerPool.query('select 1');
+  },
+  ...(config.STATIC_DIR === undefined ? {} : { staticDir: config.STATIC_DIR }),
+});
 // Сообщения о сбое соединения не содержат строки подключения: pg пишет только причину.
 poolErrors.push((error) => app.log.error({ message: error.message }, 'database pool error'));
 

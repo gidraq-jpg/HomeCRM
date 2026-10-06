@@ -1,0 +1,6 @@
+# Только для теста (deploy/test/backup-cycle.ps1): окружение «прошлой версии» без последней миграции.
+# Следующий выпуск без этого файла видит одну неприменённую миграцию и обязан сделать копию перед ней (DATA-4).
+services:
+  migrate:
+    volumes:
+      - ${HOMECRM_DATA}/old-migrations:/app/packages/db/migrations:ro

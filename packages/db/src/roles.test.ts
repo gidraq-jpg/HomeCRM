@@ -84,7 +84,7 @@ describe('роли базы', () => {
     }
   });
 
-  it('SECURITY DEFINER только у двух закрытых триггеров ADR-0021; runtime-роли не вызывают их', async () => {
+  it('SECURITY DEFINER только у двух закрытых триггеров ADR-0022; runtime-роли не вызывают их', async () => {
     const { rows } = await database.admin.query(
       `SELECT p.proname, pg_get_userbyid(p.proowner) AS owner,
          has_function_privilege('homecrm_app', p.oid, 'EXECUTE') AS app,
