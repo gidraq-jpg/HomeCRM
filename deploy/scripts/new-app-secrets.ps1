@@ -9,7 +9,7 @@
     secrets\app\db.env       пароль суперпользователя базы и четырёх ролей HomeCRM
     secrets\app\server.env   три подключения к базе, BETTER_AUTH_SECRET, BASE_URL, HOME_TIME_ZONE, TRUST_PROXY
     secrets\restic-password  пароль хранилищ резервных копий (общий для рабочего окружения и предпросмотра)
-    secrets\backup.env       несекретные настройки копий (время; адрес Google Диска добавит connect-google-drive.ps1)
+    secrets\backup.env       несекретные настройки копий (время; адрес Яндекс Диска добавит connect-yandex-disk.ps1)
   Для предпросмотра вместо secrets\app используется secrets\preview.
   Существующие файлы НЕ перезаписываются. Значения на экран не выводятся: только пути.
 
@@ -82,7 +82,7 @@ TRUST_PROXY=$trustProxy
 
 "@
 $backupEnv = @"
-# Настройки резервных копий (не секреты). Адрес второго хранилища появится после connect-google-drive.ps1.
+# Настройки резервных копий (не секреты). Адрес второго хранилища появится после connect-yandex-disk.ps1.
 BACKUP_TIME=03:30
 HOME_TIME_ZONE=$TimeZone
 

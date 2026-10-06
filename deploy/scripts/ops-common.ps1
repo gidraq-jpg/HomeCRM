@@ -59,19 +59,33 @@ function Get-AgeSpan {
   return ([datetime]::UtcNow - (ConvertTo-UtcDate $Value))
 }
 
+# Скрывает значения секретов в строке вывода rclone: после слов token, secret, password, key и client_id
+# (в JSON — "access_token":"…", и в виде ключ = значение — token = {…}, --client-secret=…) остаётся ***.
+# Остальной текст не трогается: по нему видно, что случилось.
+function Hide-RcloneSecrets {
+  param([string]$Line)
+  $words = '(?:token|secret|password|key|client_id)'
+  # JSON: "имя с одним из слов": "значение"
+  $Line = [regex]::Replace($Line, "(?i)(`"[^`"\\]*$words[^`"\\]*`"\s*:\s*)`"(?:[^`"\\]|\\.)*`"", '$1"***"')
+  # ключ = значение до конца строки (значением может быть и целый JSON)
+  $Line = [regex]::Replace($Line, "(?i)(\b[\w.-]*$words[\w.-]*\s*=\s*)\S.*`$", '$1***')
+  # Одноразовые параметры входа в адресе: ?state=…&code=…
+  $Line = [regex]::Replace($Line, '(?i)([?&](?:state|code)=)[^&\s]+', '$1***')
+  return $Line
+}
+
 # Запуск rclone с очисткой вывода: rclone способен печатать токен и ключи (config create выводит весь
-# конфиг, ошибки приводят справку). Строки со словами token, secret, password, key и client_id не
-# выводятся; остальное показывается как есть. Код выхода сохраняется в $LASTEXITCODE.
+# конфиг, ошибки приводят справку). Строки выводятся целиком, чтобы была видна причина ошибки, но
+# значения секретов заменяются на *** (Hide-RcloneSecrets). Код выхода сохраняется в $LASTEXITCODE.
 function Invoke-RcloneFiltered {
-  & rclone @args 2>&1 | ForEach-Object {
-    $line = "$_"
-    if ($line -notmatch '(?i)token|secret|password|key|client_id') { Write-Host $line }
-  }
+  & rclone @args 2>&1 | ForEach-Object { Write-Host (Hide-RcloneSecrets "$_") }
 }
 
 # Создаёт подключение rclone. --no-output: rclone не печатает получившийся конфиг (в нём токен).
+# -AutoConfirm: ответы по умолчанию (для OAuth — вход через браузер этого компьютера).
 function New-RcloneRemote {
-  param([string]$Name, [string]$Type, [string]$Config, [string[]]$Options = @())
-  Invoke-RcloneFiltered config create $Name $Type @Options --config $Config --no-output
+  param([string]$Name, [string]$Type, [string]$Config, [string[]]$Options = @(), [switch]$AutoConfirm)
+  $extra = if ($AutoConfirm) { @('--auto-confirm') } else { @() }
+  Invoke-RcloneFiltered config create $Name $Type @Options --config $Config --no-output @extra
   if ($LASTEXITCODE -ne 0) { throw 'rclone не смог создать подключение.' }
 }
