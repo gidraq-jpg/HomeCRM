@@ -4,9 +4,11 @@
 import { randomUUID } from 'node:crypto';
 import {
   accounts,
+  and,
   credentials,
   type Database,
   eq,
+  isNull,
   spaceMembers,
   spaces,
   type Transaction,
@@ -113,11 +115,11 @@ export async function createHousehold(db: Database, name: string): Promise<strin
   return house.id;
 }
 
-/** Участник глазами эталона access.ts: id и роли во всех домах. */
+/** Участник глазами эталона access.ts: id и роли во всех домах, где он действующий участник (не ушёл и не исключён). */
 export async function loadViewer(db: Database | Transaction, accountId: string): Promise<Viewer> {
   const rows = await db
     .select({ spaceId: spaceMembers.spaceId, role: spaceMembers.role })
     .from(spaceMembers)
-    .where(eq(spaceMembers.accountId, accountId));
+    .where(and(eq(spaceMembers.accountId, accountId), isNull(spaceMembers.leftAt)));
   return { accountId, memberships: new Map(rows.map((row) => [row.spaceId, row.role])) };
 }

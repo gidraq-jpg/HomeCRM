@@ -5,43 +5,29 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1791194010241,
+      "when": 1791256017728,
       "tag": "0000_app_context",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1791194038018,
+      "when": 1791256025615,
       "tag": "0001_schema",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-      "when": 1791194070908,
-      "tag": "0002_force_rls_and_grants",
+      "when": 1791256043762,
+      "tag": "0002_record_functions",
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "7",
-      "when": 1791205698858,
-      "tag": "0003_trash_time",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1791207243548,
-      "tag": "0004_auth_tables",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1791207251090,
-      "tag": "0005_auth_force_rls_and_grants",
+      "when": 1791256044322,
+      "tag": "0003_attach_tables",
       "breakpoints": true
     }
   ]

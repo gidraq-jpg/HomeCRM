@@ -67,14 +67,17 @@ describe('роли базы', () => {
     }
   });
 
-  it('политики выданы приложению, обработчику и службе входа; обработчику — только очистка корзины', async () => {
+  it('политики выданы приложению, обработчику и службе входа; обработчику — очистка корзины и передача записей ушедшего', async () => {
     const { rows } = await database.admin.query<{ policyname: string; roles: string[] }>(
       `SELECT policyname, roles::text[] AS roles FROM pg_policies WHERE schemaname = 'public'`,
     );
     for (const { policyname, roles } of rows) {
       expect(roles, policyname).toHaveLength(1);
-      if (roles[0] === DB_ROLES.worker) expect(policyname).toMatch(/_purge(_select)?$/);
-      else if (roles[0] === DB_ROLES.auth) expect(policyname).toMatch(/_auth_/);
+      if (roles[0] === DB_ROLES.worker) {
+        expect(policyname).toMatch(
+          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$/,
+        );
+      } else if (roles[0] === DB_ROLES.auth) expect(policyname).toMatch(/_auth_/);
       else expect(roles[0], policyname).toBe(DB_ROLES.app);
     }
   });
@@ -153,6 +156,16 @@ describe('обойти RLS нельзя', () => {
     ]);
     expect(left.rows.map((row) => row.id).sort()).toEqual([ids.live, ids.recent].sort());
 
+    // Тексты записей обработчику не выданы: только id, место, ответственный и отметка корзины.
+    for (const statement of [
+      'SELECT title FROM notes',
+      'SELECT * FROM notes',
+      'SELECT body FROM notes',
+    ]) {
+      await expect(database.worker.query(statement), statement).rejects.toMatchObject({
+        code: '42501',
+      });
+    }
     for (const statement of [
       `UPDATE notes SET title = 'изменено'`,
       `INSERT INTO notes (space_id, space_kind, author_id, title) VALUES ('${anna.personalSpaceId}', 'personal', '${anna.id}', 'x')`,

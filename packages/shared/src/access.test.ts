@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
   AUDIENCES,
+  canBeAssignee,
+  canCreate,
+  canExclude,
   canInvite,
+  canLeave,
   canResetPassword,
   canRestore,
   canTrash,
   canView,
+  canViewAccount,
   canViewAccountJournal,
+  canViewMembership,
+  canViewSpace,
   canWrite,
+  defaultAssignee,
   mustUseSecondFactor,
   type Placement,
   type RecordFacts,
@@ -187,5 +195,127 @@ describe('canViewAccountJournal (AUTH-8)', () => {
         expect(canViewAccountJournal(viewer, owner.accountId)).toBe(viewer === owner);
       }
     }
+  });
+});
+
+describe('запись в корзине', () => {
+  it('менять и переносить её нельзя никому — только восстановить (DATA-1)', () => {
+    for (const viewer of everyone) {
+      for (const placement of [personalOf(adult), shared('household'), shared('adults')]) {
+        expect(canWrite(viewer, record(placement, { trashed: true }))).toBe(false);
+      }
+    }
+    expect(canWrite(adult, record(shared('household'), { trashed: false }))).toBe(true);
+  });
+
+  it('восстанавливает по тем же правилам, что и раньше', () => {
+    const item = record(shared('adults'), { authorId: adult.accountId, trashed: true });
+    expect(canRestore(admin, item)).toBe(true);
+    expect(canRestore(adult, item)).toBe(true);
+    expect(canRestore(child, item)).toBe(false);
+  });
+});
+
+describe('canCreate', () => {
+  it('автор записи — тот, кто её создаёт: от чужого имени нельзя', () => {
+    const placement = shared('household');
+    expect(canCreate(adult, record(placement, { authorId: adult.accountId }))).toBe(true);
+    expect(canCreate(adult, record(placement, { authorId: admin.accountId }))).toBe(false);
+  });
+
+  it('сразу в корзину создать нельзя', () => {
+    const placement = shared('household');
+    expect(canCreate(adult, record(placement, { authorId: adult.accountId, trashed: true }))).toBe(
+      false,
+    );
+  });
+
+  it('права записи сохраняются: ребёнок не создаёт общую заметку', () => {
+    const note = record(shared('household'), { authorId: child.accountId });
+    expect(canCreate(child, note)).toBe(false);
+    expect(canCreate(child, { ...note, type: 'shopping_item' })).toBe(true);
+  });
+});
+
+describe('ответственный (PRD 7.3.9)', () => {
+  it('в личном всегда владелец', () => {
+    const mine = personalOf(adult);
+    expect(defaultAssignee(mine, adult.accountId)).toBe(adult.accountId);
+    expect(defaultAssignee(mine, adult.accountId, child.accountId)).toBe(adult.accountId);
+  });
+
+  it('в общем — назначенный, а если нет — автор', () => {
+    const placement = shared('household');
+    expect(defaultAssignee(placement, adult.accountId, child.accountId)).toBe(child.accountId);
+    expect(defaultAssignee(placement, adult.accountId)).toBe(adult.accountId);
+    expect(defaultAssignee(placement, adult.accountId, null)).toBe(adult.accountId);
+  });
+
+  it('ответственным может быть только тот, кто видит запись; во «Взрослых» — взрослый', () => {
+    expect(everyone.map((v) => canBeAssignee(v, shared('household')))).toEqual([
+      true,
+      true,
+      true,
+      false,
+    ]);
+    expect(everyone.map((v) => canBeAssignee(v, shared('adults')))).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
+    expect(everyone.map((v) => canBeAssignee(v, personalOf(adult)))).toEqual([
+      false,
+      true,
+      false,
+      false,
+    ]);
+  });
+});
+
+describe('пространства и состав дома', () => {
+  const houseFacts = { kind: 'household' as const, id: HOUSE };
+
+  it('дом видят его действующие участники, личное — только владелец', () => {
+    expect(everyone.map((v) => canViewSpace(v, houseFacts))).toEqual([true, true, true, false]);
+    for (const owner of everyone) {
+      const space = {
+        kind: 'personal' as const,
+        id: `p-${owner.accountId}`,
+        ownerId: owner.accountId,
+      };
+      for (const viewer of everyone) expect(canViewSpace(viewer, space)).toBe(viewer === owner);
+    }
+  });
+
+  it('учётную запись и членство участник видит только свои', () => {
+    for (const owner of everyone) {
+      for (const viewer of everyone) {
+        expect(canViewAccount(viewer, owner.accountId)).toBe(viewer === owner);
+        expect(canViewMembership(viewer, owner.accountId)).toBe(viewer === owner);
+      }
+    }
+  });
+
+  it('исключает администратор, и только действующего участника своего дома, не себя', () => {
+    expect(everyone.map((target) => canExclude(admin, HOUSE, target))).toEqual([
+      false, // себя — нет
+      true,
+      true,
+      false, // не участник
+    ]);
+    for (const viewer of [adult, child, outsider]) {
+      for (const target of everyone) expect(canExclude(viewer, HOUSE, target)).toBe(false);
+    }
+    const neighbour = { accountId: 'n-1', memberships: new Map([['house-2', 'admin' as const]]) };
+    expect(canExclude(neighbour, HOUSE, child)).toBe(false);
+  });
+
+  it('покидает дом любой участник, но не последний администратор (SPACE-9)', () => {
+    expect(canLeave(adult, HOUSE, [admin.accountId])).toBe(true);
+    expect(canLeave(child, HOUSE, [admin.accountId])).toBe(true);
+    expect(canLeave(outsider, HOUSE, [admin.accountId])).toBe(false);
+    expect(canLeave(admin, HOUSE, [admin.accountId])).toBe(false);
+    expect(canLeave(admin, HOUSE, [admin.accountId, 'admin-2'])).toBe(true);
   });
 });

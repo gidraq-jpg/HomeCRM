@@ -48,9 +48,9 @@ export const IDENTITY_LABELS: Readonly<Record<IdentityOperation, string>> = {
 };
 
 /**
- * К семье из family.ts добавляются двое, на ком правила ломаются чаще всего: Мила — ребёнок в одном
- * доме и взрослая в другом (её пароль сбросить нельзя нигде), Ян — ребёнок только в доме соседей.
- * Все записаны от имени суперпользователя: он обходит RLS.
+ * К семье из family.ts добавляется Ян — ребёнок только в доме соседей. Мила, ребёнок в одном доме и
+ * взрослая в другом (её пароль сбросить нельзя нигде), уже в семье. Запись — от имени суперпользователя:
+ * он обходит RLS.
  */
 export async function buildIdentityWorld(
   database: TestDatabase,
@@ -60,13 +60,6 @@ export async function buildIdentityWorld(
   if (home === undefined || neighbours === undefined)
     throw new Error('The family needs two houses');
   const extra: Array<{ name: string; memberships: Array<[string, Role]> }> = [
-    {
-      name: 'Мила',
-      memberships: [
-        [home.id, 'child'],
-        [neighbours.id, 'adult'],
-      ],
-    },
     { name: 'Ян', memberships: [[neighbours.id, 'child']] },
   ];
   const people: IdentityPerson[] = family.people.map((person) => ({
@@ -76,15 +69,30 @@ export async function buildIdentityWorld(
   }));
   for (const { name, memberships } of extra) {
     const id = randomUUID();
-    await database.admin.query(
-      `INSERT INTO accounts (id, display_name, email, username) VALUES ($1, $2, $3, $4)`,
-      [id, name, `${id}@family.invalid`, id],
-    );
-    for (const [houseId, role] of memberships) {
-      await database.admin.query(
-        `INSERT INTO space_members (space_id, account_id, role) VALUES ($1, $2, $3)`,
-        [houseId, id, role],
+    const client = await database.admin.connect();
+    try {
+      // Личное пространство — в той же транзакции: без него учётную запись база не примет (SPACE-1).
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO accounts (id, display_name, email, username) VALUES ($1, $2, $3, $4)`,
+        [id, name, `${id}@family.invalid`, id],
       );
+      await client.query(
+        `INSERT INTO spaces (kind, name, owner_account_id) VALUES ('personal', $1, $2)`,
+        [`Личное: ${name}`, id],
+      );
+      for (const [houseId, role] of memberships) {
+        await client.query(
+          `INSERT INTO space_members (space_id, account_id, role) VALUES ($1, $2, $3)`,
+          [houseId, id, role],
+        );
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
     people.push({ name, id, viewer: { accountId: id, memberships: new Map(memberships) } });
   }
@@ -96,7 +104,6 @@ export async function buildIdentityWorld(
     ],
   };
 }
-
 /** Прячет в приглашениях, журнале и отметках по одной строке на дом и на человека — всё остальное матрица пробует и откатывает. */
 export async function seedIdentityRows(
   database: TestDatabase,

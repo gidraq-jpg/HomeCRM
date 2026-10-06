@@ -11,10 +11,13 @@ export interface AppDependencies {
 }
 
 export function buildApp(
-  config: Pick<Config, 'LOG_LEVEL' | 'APP_VERSION'>,
+  config: Pick<Config, 'LOG_LEVEL' | 'APP_VERSION'> & Partial<Pick<Config, 'TRUST_PROXY'>>,
   dependencies: AppDependencies = {},
 ): FastifyInstance {
   const app = fastify({
+    // Адрес клиента для ограничения попыток и журнала входов (AUTH-8) берётся из X-Forwarded-For,
+    // только если сервер за доверенным прокси; по умолчанию — адрес соединения (TRUST_PROXY, config.ts).
+    trustProxy: config.TRUST_PROXY ?? false,
     logger: {
       level: config.LOG_LEVEL,
       serializers: { req: serializeRequest },

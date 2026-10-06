@@ -1,8 +1,11 @@
 // Матрица доступа (ADR-0004, ADR-0013): перебирает участников × места × виды записей × операции
 // и сравнивает ответ базы с эталоном access.ts. База отвечает от имени роли homecrm_app,
 // контекст задаёт настоящий withAccount; каждая попытка откатывается, данные не меняются.
+// Таблицы берутся из RECORD_TABLES: новая таблица записей попадает в матрицу сама.
 import {
   type Audience,
+  canBeAssignee,
+  canCreate,
   canRestore,
   canTrash,
   canView,
@@ -13,8 +16,9 @@ import {
 import { eq, sql } from 'drizzle-orm';
 import { EXPIRED_TRASH_SQL, RECORD_TYPES, type RecordType } from '../access-sql.ts';
 import type { AppDatabase, Transaction } from '../client.ts';
-import { RECORD_TABLES } from '../schema.ts';
+import { RECORD_HISTORY_TABLES, RECORD_TABLES } from '../schema.ts';
 import {
+  createdFacts,
   type Family,
   type Person,
   placementColumns,
@@ -31,6 +35,8 @@ export const OPERATIONS = [
   'restore',
   'move',
   'delete',
+  'rewrite',
+  'history',
 ] as const;
 export type Operation = (typeof OPERATIONS)[number];
 
@@ -43,7 +49,12 @@ export const OPERATION_LABELS: Readonly<Record<Operation, string>> = {
   restore: 'восстановление из корзины',
   move: 'перенос в другое место',
   delete: 'удаление мимо корзины: DELETE или дата корзины задним числом',
+  rewrite: 'подмена автора, времени создания и id',
+  history: 'чтение истории изменений по id записи',
 };
+
+/** Операции, которые не разрешены никому: в отчёте у них нет разрешённых попыток. */
+export const FORBIDDEN_FOR_ALL: readonly Operation[] = ['delete', 'rewrite'];
 
 export interface MatrixReport {
   operation: Operation;
@@ -58,6 +69,8 @@ interface Attempt {
   label: string;
   expected: boolean;
   run(tx: Transaction): Promise<boolean>;
+  /** Коды ошибок PostgreSQL, которые тоже считаются отказом (кроме 42501): нарушение целостности. */
+  alsoDenied?: readonly string[];
 }
 
 /** Откат с результатом: попытка не должна ничего менять в общих данных матрицы. */
@@ -69,14 +82,19 @@ class Rollback extends Error {
   }
 }
 
-/** 42501 insufficient_privilege: и нарушение политики RLS, и отсутствие права на таблицу. */
-export function isDenied(error: unknown): boolean {
+function hasCode(error: unknown, codes: readonly string[]): boolean {
   let current: unknown = error;
   for (let depth = 0; depth < 5 && typeof current === 'object' && current !== null; depth++) {
-    if ((current as { code?: unknown }).code === '42501') return true;
+    const { code } = current as { code?: unknown };
+    if (typeof code === 'string' && codes.includes(code)) return true;
     current = (current as { cause?: unknown }).cause;
   }
   return false;
+}
+
+/** 42501 insufficient_privilege: и нарушение политики RLS, и отсутствие права на таблицу или колонку. */
+export function isDenied(error: unknown): boolean {
+  return hasCode(error, ['42501']);
 }
 
 async function probe(db: AppDatabase, attempt: Attempt): Promise<boolean> {
@@ -86,7 +104,7 @@ async function probe(db: AppDatabase, attempt: Attempt): Promise<boolean> {
     });
   } catch (error) {
     if (error instanceof Rollback) return error.allowed;
-    if (isDenied(error)) return false;
+    if (isDenied(error) || hasCode(error, attempt.alsoDenied ?? [])) return false;
     throw error;
   }
   throw new Error('Matrix probe finished without rollback');
@@ -125,8 +143,25 @@ function attemptsFor(
           return rows.length === 1;
         },
       }));
+    case 'history':
+      // Историю ведут у общих записей; видна тем же, кому видна запись (OBJ-6). Личные не пишутся.
+      return each(inScope, (viewer, record) => ({
+        label: record.label,
+        expected:
+          record.facts.placement.kind === 'household' &&
+          canView(viewer.viewer, record.facts.placement),
+        run: async (tx) => {
+          const table = RECORD_HISTORY_TABLES[record.type];
+          const rows = await tx
+            .select({ id: table.id })
+            .from(table)
+            .where(eq(table.recordId, record.id));
+          return rows.length > 0;
+        },
+      }));
     case 'edit':
-      return each(live, (viewer, record) => ({
+      // В корзине запись не меняют: `canWrite` для неё всегда «нет».
+      return each(inScope, (viewer, record) => ({
         label: record.label,
         expected: canWrite(viewer.viewer, record.facts),
         run: (tx) => updateRecord(tx, record, { title: 'изменено' }),
@@ -144,22 +179,37 @@ function attemptsFor(
         run: (tx) => updateRecord(tx, record, { deletedAt: null }),
       }));
     case 'move':
-      // access.ts не описывает перенос отдельно: изменение места — это изменение записи,
-      // поэтому нужно право писать и старую запись, и новую (USING и WITH CHECK политики).
+      // access.ts не описывает перенос отдельно (R0.4, SPACE-7): изменение места — это изменение записи,
+      // поэтому нужно право писать и старую запись, и новую (USING и WITH CHECK политики), а ответственный
+      // должен видеть запись на новом месте. В личном ответственный — владелец (правило 9).
+      // Дочерние записи переезжают только с родителем: отдельно их место определяет родитель.
       return family.people.flatMap((viewer) =>
-        live.flatMap((record) =>
-          family.placements
-            .filter((target) => !samePlacement(target, record.facts.placement))
-            .map((target) => {
-              const moved: RecordFacts = { ...record.facts, placement: target };
-              return {
-                viewer,
-                label: `${record.label} → ${family.describe(record.type, moved)}`,
-                expected: canWrite(viewer.viewer, record.facts) && canWrite(viewer.viewer, moved),
-                run: (tx: Transaction) => updateRecord(tx, record, placementColumns(target)),
-              };
-            }),
-        ),
+        inScope
+          .filter((record) => record.parentId === undefined)
+          .flatMap((record) =>
+            family.placements
+              .filter((target) => !samePlacement(target, record.facts.placement))
+              .map((target) => {
+                const assigneeId =
+                  target.kind === 'personal' ? target.ownerId : record.facts.assigneeId;
+                const moved: RecordFacts = { ...record.facts, placement: target, assigneeId };
+                const assignee = family.people.find((someone) => someone.id === assigneeId);
+                const assigneeFits =
+                  target.kind === 'personal' ||
+                  (assignee !== undefined && canBeAssignee(assignee.viewer, target));
+                return {
+                  viewer,
+                  label: `${record.label} → ${family.describe(record.type, moved)}`,
+                  expected:
+                    canWrite(viewer.viewer, record.facts) &&
+                    canWrite(viewer.viewer, moved) &&
+                    assigneeFits,
+                  // Ответственный, которого нет в новом доме, — нарушение внешнего ключа, а не прав.
+                  alsoDenied: ['23503'],
+                  run: (tx: Transaction) => updateRecord(tx, record, placementColumns(target)),
+                };
+              }),
+          ),
       );
     case 'delete':
       // Удаление — только через корзину на 30 дней. Мимо неё два пути, и оба закрыты для всех:
@@ -189,28 +239,79 @@ function attemptsFor(
           return backdated[0]?.expired === true;
         },
       }));
+    case 'rewrite':
+      // Автора, время создания и id не меняет никто: ни автор, ни администратор (PRD 6.2).
+      return family.people.flatMap((viewer) =>
+        live.flatMap((record) => {
+          const other = family.people.find((someone) => someone.id !== record.facts.authorId);
+          const changes: Array<[string, Parameters<typeof updateRecord>[2]]> = [
+            ['автор', { authorId: other?.id }],
+            ['время создания', { createdAt: new Date('2000-01-01T00:00:00Z') }],
+            ['id', { id: crypto.randomUUID() }],
+          ];
+          return changes.map(([what, values]) => ({
+            viewer,
+            label: `${record.label} · ${what}`,
+            expected: false,
+            run: (tx: Transaction) => updateRecord(tx, record, values),
+          }));
+        }),
+      );
     case 'create':
       return family.people.flatMap((viewer) =>
         types.flatMap((type) =>
-          family.placements.flatMap((placement) =>
-            family.assigneeCandidates(placement).map((assigneeId) => {
-              const facts: RecordFacts = { placement, type, authorId: viewer.id, assigneeId };
+          family.placements.flatMap((placement) => {
+            const parentId = type === 'note_item' ? family.parentIdFor(placement) : undefined;
+            const insert = (
+              tx: Transaction,
+              values: { authorId: string; assigneeId: string | null; deletedAt?: Date },
+            ) =>
+              tx.insert(RECORD_TABLES[type]).values({
+                ...placementColumns(placement),
+                ...values,
+                ...(parentId === undefined ? {} : { parentId }),
+                title: 'новая запись',
+              } as never);
+            const own = family.assigneeInputs(placement).map((assigneeId) => {
+              const facts = createdFacts(type, placement, viewer.id, assigneeId);
               return {
                 viewer,
                 label: family.describe(type, facts),
-                expected: canWrite(viewer.viewer, facts),
+                expected: canCreate(viewer.viewer, facts),
                 run: async (tx: Transaction) => {
-                  await tx.insert(RECORD_TABLES[type]).values({
-                    ...placementColumns(placement),
-                    authorId: viewer.id,
-                    assigneeId,
-                    title: 'новая запись',
-                  });
+                  await insert(tx, { authorId: viewer.id, assigneeId });
                   return true;
                 },
               };
-            }),
-          ),
+            });
+            // От чужого имени (автор — другой участник) и сразу в корзину: нельзя никому.
+            const stranger = family.people.find((someone) => someone.id !== viewer.id);
+            const foreign = {
+              viewer,
+              label: `${family.describe(type, createdFacts(type, placement, stranger?.id ?? '', null))} · создаёт ${viewer.name}`,
+              expected: canCreate(
+                viewer.viewer,
+                createdFacts(type, placement, stranger?.id ?? '', null),
+              ),
+              run: async (tx: Transaction) => {
+                await insert(tx, { authorId: stranger?.id ?? '', assigneeId: null });
+                return true;
+              },
+            };
+            const inTrash = {
+              viewer,
+              label: `${family.describe(type, { ...createdFacts(type, placement, viewer.id, null), trashed: true })} · сразу в корзину`,
+              expected: canCreate(viewer.viewer, {
+                ...createdFacts(type, placement, viewer.id, null),
+                trashed: true,
+              }),
+              run: async (tx: Transaction) => {
+                await insert(tx, { authorId: viewer.id, assigneeId: null, deletedAt: new Date() });
+                return true;
+              },
+            };
+            return [...own, foreign, inTrash];
+          }),
         ),
       );
     case 'list':
@@ -222,7 +323,10 @@ async function updateRecord(
   tx: Transaction,
   record: SeededRecord,
   values: Partial<{
+    id: string;
     title: string;
+    authorId: string | undefined;
+    createdAt: Date;
     deletedAt: Date | null;
     spaceId: string;
     spaceKind: Placement['kind'];
@@ -246,19 +350,39 @@ async function listMismatches(
   for (const viewer of family.people) {
     for (const type of types) {
       const table = RECORD_TABLES[type];
-      const rows = await db.withAccount(viewer.id, (tx) => tx.select({ id: table.id }).from(table));
+      const history = RECORD_HISTORY_TABLES[type];
+      const { rows, events } = await db.withAccount(viewer.id, async (tx) => ({
+        rows: await tx.select({ id: table.id }).from(table),
+        events: await tx.select({ recordId: history.recordId }).from(history),
+      }));
       const visible = new Set(rows.map((row) => row.id));
-      for (const record of family.records.filter((candidate) => candidate.type === type)) {
+      const visibleHistory = new Set(events.map((row) => row.recordId));
+      const seeded = family.records.filter((candidate) => candidate.type === type);
+      for (const record of seeded) {
         const expected = canView(viewer.viewer, record.facts.placement);
         checks++;
         if (expected) allowedByReference++;
         if (expected !== visible.has(record.id)) {
           mismatches.push(describeMismatch(viewer, 'list', record.label, expected));
         }
+        // История — тем же, кому видна запись; у личных записей её нет.
+        const expectedHistory = expected && record.facts.placement.kind === 'household';
+        checks++;
+        if (expectedHistory) allowedByReference++;
+        if (expectedHistory !== visibleHistory.has(record.id)) {
+          mismatches.push(
+            describeMismatch(viewer, 'list', `история · ${record.label}`, expectedHistory),
+          );
+        }
       }
-      if (visible.size > family.records.filter((record) => record.type === type).length) {
+      if (visible.size > seeded.length) {
         mismatches.push(
           `${viewer.name} · список (${TYPE_LABELS[type]}): база вернула лишние строки`,
+        );
+      }
+      if (visibleHistory.size > seeded.length) {
+        mismatches.push(
+          `${viewer.name} · список истории (${TYPE_LABELS[type]}): база вернула лишние строки`,
         );
       }
     }
