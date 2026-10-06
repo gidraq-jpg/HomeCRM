@@ -5,7 +5,9 @@
 import {
   type Audience,
   canBeAssignee,
+  canChangeAudience,
   canCreate,
+  canMove,
   canRestore,
   canTrash,
   canView,
@@ -180,10 +182,8 @@ function attemptsFor(
         run: (tx) => updateRecord(tx, record, { deletedAt: null }),
       }));
     case 'move':
-      // access.ts не описывает перенос отдельно (R0.4, SPACE-7): изменение места — это изменение записи,
-      // поэтому нужно право писать и старую запись, и новую (USING и WITH CHECK политики), а ответственный
-      // должен видеть запись на новом месте. В личном ответственный — владелец (правило 9).
-      // Дочерние записи переезжают только с родителем: отдельно их место определяет родитель.
+      // canMove и canChangeAudience — эталон; SQL проверяет OLD/NEW триггером, RLS — оба места.
+      // Дочерние записи переезжают каскадом. Ответственные, включая дочерних, должны видеть новое место.
       return family.people.flatMap((viewer) =>
         inScope
           .filter((record) => record.parentId === undefined)
@@ -198,13 +198,37 @@ function attemptsFor(
                 const assigneeFits =
                   target.kind === 'personal' ||
                   (assignee !== undefined && canBeAssignee(assignee.viewer, target));
+                const childrenFit =
+                  target.kind === 'personal' ||
+                  family.records
+                    .filter((child) => child.parentId === record.id)
+                    .every((child) => {
+                      const responsible = family.people.find(
+                        (person) => person.id === child.facts.assigneeId,
+                      );
+                      return responsible !== undefined && canBeAssignee(responsible.viewer, target);
+                    });
                 return {
                   viewer,
                   label: `${record.label} → ${family.describe(record.type, moved)}`,
                   expected:
-                    canWrite(viewer.viewer, record.facts) &&
+                    (record.facts.placement.kind === 'household' &&
+                    target.kind === 'household' &&
+                    record.facts.placement.spaceId === target.spaceId
+                      ? canChangeAudience(viewer.viewer, record.facts, target)
+                      : canMove(
+                          viewer.viewer,
+                          record.facts,
+                          target,
+                          family.records.some(
+                            (child) =>
+                              child.parentId === record.id &&
+                              child.facts.authorId !== record.facts.authorId,
+                          ),
+                        )) &&
                     canWrite(viewer.viewer, moved) &&
-                    assigneeFits,
+                    assigneeFits &&
+                    childrenFit,
                   // Ответственный, которого нет в новом доме, — нарушение внешнего ключа, а не прав.
                   alsoDenied: ['23503'],
                   run: (tx: Transaction) => updateRecord(tx, record, placementColumns(target)),

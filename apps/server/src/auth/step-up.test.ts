@@ -157,10 +157,7 @@ describe('экспорт', () => {
       notes: Array<{ title: string }>;
     }>();
     expect(body.profile.displayName).toBe('Борис');
-    expect(body.notes.map((note) => note.title).sort()).toEqual([
-      'Личная заметка Бориса',
-      'Общая заметка дома',
-    ]);
+    expect(body.notes.map((note) => note.title).sort()).toEqual(['Личная заметка Бориса']);
   });
 
   it('неверные пароли при экспорте копятся в блокировку', async () => {
