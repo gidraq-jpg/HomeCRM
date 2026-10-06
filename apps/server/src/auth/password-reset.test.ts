@@ -94,8 +94,10 @@ describe('администратор сбрасывает пароль ребё�
     const device = world.device();
     await device.signIn(world.vera.username, world.vera.password);
     const me = (await device.get('/api/me')).json<{
-      passwordReset: { completedAt: string } | null;
+      passwordReset: { completedAt: string; ackAllowedAt: string } | null;
+      timeZone: string;
     }>();
+    expect(me.timeZone).toBe('Asia/Yekaterinburg');
     expect(me.passwordReset?.completedAt).toBeTruthy();
     expect(Date.now() - Date.parse(me.passwordReset?.completedAt ?? '')).toBeLessThan(60_000);
 
@@ -106,6 +108,30 @@ describe('администратор сбрасывает пароль ребё�
       passwordReset: { completedAt: me.passwordReset?.completedAt },
     });
     expect((await admin.get('/api/me')).json()).toMatchObject({ passwordReset: null });
+
+    // Первые 7 дней отметку не закрыть никому: ни ребёнку, ни администратору, вошедшему от его имени.
+    expect(me.passwordReset?.ackAllowedAt).toBeTruthy();
+    const unlock = Date.parse(me.passwordReset?.ackAllowedAt ?? '');
+    expect(unlock - Date.parse(me.passwordReset?.completedAt ?? '')).toBe(7 * 86_400_000);
+    for (const who of [device, second]) {
+      const early = await who.post('/api/me/password-reset/ack');
+      expect(early.status).toBe(409);
+      expect(early.json()).toMatchObject({ code: 'RESET_NOTICE_LOCKED' });
+    }
+    expect((await device.get('/api/me')).json()).toMatchObject({
+      passwordReset: { completedAt: me.passwordReset?.completedAt },
+    });
+
+    // Сброс случился ровно 7 дней назад без двух минут — отметку всё ещё не закрыть;
+    // 7 дней и две минуты назад — можно.
+    const backdate = async (age: string) =>
+      world.database.admin.query(
+        `UPDATE password_resets SET completed_at = now() - $2::interval WHERE account_id = $1`,
+        [world.vera.id, age],
+      );
+    await backdate('6 days 23 hours 58 minutes');
+    expect((await device.post('/api/me/password-reset/ack')).status).toBe(409);
+    await backdate('7 days 2 minutes');
 
     expect((await device.post('/api/me/password-reset/ack')).json()).toEqual({ acknowledged: 1 });
     expect((await device.get('/api/me')).json()).toMatchObject({ passwordReset: null });

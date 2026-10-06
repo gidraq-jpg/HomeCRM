@@ -67,6 +67,15 @@ function parseOrigins(value: string, context: z.RefinementCtx): string[] {
   return parsed.flatMap((entry) => (entry.success ? [entry.data] : []));
 }
 
+function isTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('ru-RU', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Настройки входа (ADR-0005): три подключения к базе — по роли на каждое — и секрет библиотеки.
  * Всё это секреты: в рабочем окружении они лежат в файле окружения вне репозитория, а здесь только
@@ -85,6 +94,14 @@ const AuthEnvSchema = z.object({
   BASE_URL: HttpOrigin,
   /** Откуда ещё принимаются изменяющие запросы с cookie (адрес Vite в разработке). */
   TRUSTED_ORIGINS: z.string().default('').transform(parseOrigins),
+  /**
+   * Часовой пояс дома (IANA): в нём клиент показывает даты (PRD, раздел 13). Пока поля в базе нет —
+   * одна настройка на весь сервер; перенос в таблицу домов — в бэклоге.
+   */
+  HOME_TIME_ZONE: z
+    .string()
+    .default('Asia/Yekaterinburg')
+    .refine(isTimeZone, 'must be an IANA time zone, e.g. Europe/Moscow'),
 });
 
 export type AuthConfig = z.infer<typeof AuthEnvSchema>;
