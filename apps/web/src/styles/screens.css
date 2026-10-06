@@ -438,6 +438,12 @@
   list-style: disc;
 }
 
+/* Абзац сразу после списка: без отступа он прилипал к последнему пункту. */
+.bullets + .muted,
+.bullets + p {
+  margin-top: 14px;
+}
+
 .spaces-list {
   display: grid;
   gap: 14px;

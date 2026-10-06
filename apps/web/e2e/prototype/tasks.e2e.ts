@@ -1,4 +1,4 @@
-import { expect, test } from './support/fixtures.ts';
+import { expect, test } from '../support/fixtures.ts';
 import {
   checkScreen,
   expectNoHorizontalScroll,
@@ -6,7 +6,7 @@ import {
   openApp,
   setScope,
   startAdd,
-} from './support/helpers.ts';
+} from '../support/helpers.ts';
 
 // Пять заданий проверки из docs/stage0/navigation-test.md — как сквозные сценарии.
 // Каждое задание выполняется и «главным» путём, и запасным: так видно, что прототип позволяет

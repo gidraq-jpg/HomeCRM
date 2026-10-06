@@ -52,8 +52,11 @@ export class ApiError extends Error {
   }
 }
 
+export type ApiMethod = 'GET' | 'POST' | 'PATCH';
+
 /** Только cookie; тело и ответы не попадают в localStorage, Cache API или журнал. */
-export async function api<T>(
+export async function apiRequest<T>(
+  method: ApiMethod,
   path: string,
   schema: z.ZodType<T>,
   body?: unknown,
@@ -62,7 +65,7 @@ export async function api<T>(
   let response: Response;
   try {
     response = await fetch(`/api/${path}`, {
-      method: body === undefined ? 'GET' : 'POST',
+      method,
       credentials: 'same-origin',
       cache: 'no-store',
       signal,
@@ -87,6 +90,16 @@ export async function api<T>(
   const result = schema.safeParse(json);
   if (!result.success) throw new ApiError(502, 'INVALID_RESPONSE');
   return result.data;
+}
+
+/** GET без тела, POST — с телом: так устроены маршруты входа. */
+export function api<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  return apiRequest(body === undefined ? 'GET' : 'POST', path, schema, body, signal);
 }
 export function action(path: string, body: unknown = {}) {
   return api(path, z.unknown(), body);

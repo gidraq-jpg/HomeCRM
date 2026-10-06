@@ -25,7 +25,10 @@ test('взрослый выключает TOTP с повторным вводо�
   await expect(page.getByText('Второй фактор пока не включён.', { exact: false })).toBeVisible();
 });
 
-test('администратор приглашает ребёнка из настроек', async ({ page, family }, info) => {
+test('администратор приглашает ребёнка: из настроек — к экрану «Люди»', async ({
+  page,
+  family,
+}, info) => {
   const enrollment = await family.enroll('admin');
   await signIn(page, family, 'admin');
   await page.getByRole('button', { name: 'Использовать резервный код' }).click();
@@ -34,9 +37,11 @@ test('администратор приглашает ребёнка из нас
   await expectSignedIn(page);
   await page.goto('#/more/settings');
   await expect(page.getByRole('button', { name: 'Выключить второй фактор' })).toHaveCount(0);
-  await page.getByLabel('Роль участника').selectOption('child');
-  await page.getByRole('button', { name: 'Создать приглашение' }).click();
-  await expect(page.getByLabel('Ссылка-приглашение')).toBeVisible();
+  await page.getByRole('link', { name: 'Пригласить участника' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Пригласить участника' })).toBeVisible();
+  await page.getByRole('radio', { name: /Ребёнок/ }).check();
+  await page.getByRole('button', { name: 'Создать ссылку-приглашение' }).click();
+  await expect(page.getByTestId('issued-link')).toContainText('/invite/');
   await checkAuth(page, info, 'invite-admin');
   const { rows } = await family.database.admin.query('SELECT role FROM invitations');
   expect(rows.map((row: { role: string }) => row.role)).toEqual(['child']);

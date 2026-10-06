@@ -1,5 +1,5 @@
-import { expect, test } from './support/fixtures.ts';
-import { checkScreen, openApp, setScope } from './support/helpers.ts';
+import { expect, test } from '../support/fixtures.ts';
+import { checkScreen, openApp, setScope } from '../support/helpers.ts';
 
 // Единый поиск — PRD, SRCH-1…4: словоформы, номера, значок доступа, копирование из результата.
 

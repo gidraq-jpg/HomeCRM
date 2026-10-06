@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './support/fixtures.ts';
-import { checkScreen, goToSection, openApp, setScope } from './support/helpers.ts';
+import { expect, test } from '../support/fixtures.ts';
+import { checkScreen, goToSection, openApp, setScope } from '../support/helpers.ts';
 
 // Переключатель «Всё · Общее · Личное», значки доступа и пустые состояния — PRD, раздел 7.4.
 

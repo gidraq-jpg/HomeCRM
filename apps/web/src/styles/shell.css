@@ -17,6 +17,10 @@
   background: var(--paper);
 }
 
+.app__content {
+  min-width: 0;
+}
+
 .main {
   display: block;
 }
@@ -273,23 +277,16 @@ html[data-keyboard="open"] .chrome {
   text-transform: uppercase;
 }
 
-/* Вкладки внутри раздела */
+/* Вкладки внутри раздела: на узком экране переносятся на вторую строку, за край не уходят
+   (PRD, раздел 14: на прототипе «Лента» оказалась за краем и осталась незамеченной). */
 .tabs {
-  margin: 0 calc(-1 * var(--gutter)) 14px;
-  padding: 0 var(--gutter);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.tabs::-webkit-scrollbar {
-  display: none;
+  margin: 0 0 14px;
 }
 
 .tabs__list {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  width: max-content;
-  min-width: 100%;
 }
 
 .tabs__link {
@@ -303,14 +300,12 @@ html[data-keyboard="open"] .chrome {
   font-size: 0.9375rem;
   font-weight: 650;
   text-decoration: none;
-  white-space: nowrap;
 }
 
 .tabs__link[aria-current="page"] {
   background: var(--green);
   color: #fff;
 }
-
 /* Нижняя панель */
 .sheet-overlay {
   position: fixed;
@@ -381,5 +376,99 @@ html[data-keyboard="open"] .chrome {
 
   .sheet {
     animation: sheet-in 200ms ease-out;
+  }
+}
+
+/* Боковое меню: на телефоне его нет, на компьютере оно заменяет нижнее меню. */
+.side-nav {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .app {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    max-width: 1040px;
+    align-items: start;
+  }
+
+  .app__content {
+    max-width: 760px;
+  }
+
+  .side-nav {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    height: 100dvh;
+    padding: 24px 12px 24px 20px;
+    border-right: 1px solid var(--line);
+  }
+
+  .side-nav__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px;
+    color: var(--green);
+    font-size: 1.25rem;
+    font-weight: 650;
+  }
+
+  .side-nav__list {
+    display: grid;
+    gap: 4px;
+  }
+
+  .side-nav__link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    padding: 0 12px;
+    border-radius: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .side-nav__link:hover {
+    background: var(--soft);
+  }
+
+  .side-nav__link[aria-current="page"] {
+    background: var(--soft);
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  .scope-switch {
+    max-width: 360px;
+  }
+
+  .topbar {
+    justify-content: space-between;
+    padding-top: 18px;
+  }
+
+  .page {
+    padding-bottom: calc(var(--fab-size) + 56px);
+  }
+
+  .bottom-nav {
+    display: none;
+  }
+
+  /* Кнопка «+» и сообщения — у правого края окна, а не по центру колонки. */
+  .chrome {
+    right: 24px;
+    left: auto;
+    width: min(360px, calc(100% - 48px));
+  }
+
+  .chrome__actions {
+    padding: 0 0 24px;
   }
 }

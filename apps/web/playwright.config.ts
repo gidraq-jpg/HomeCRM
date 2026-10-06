@@ -1,12 +1,11 @@
 import { defineConfig } from '@playwright/test';
-import { E2E_PORT, E2E_PREFIX } from './e2e/support/static-server.ts';
 
-// Сквозные тесты прототипа (задача 0.5): Playwright и axe на ширине 360 и 412 px.
-// Запуск — отдельной командой `pnpm test:e2e`, в `pnpm check` они не входят: Playwright
-// в CI появится в R0.3. Тесты идут по собранному `dist`, который отдаёт статический сервер
-// из подпапки на свободном порту (по умолчанию 5194, меняется через E2E_PORT).
+// Сквозные тесты рабочего приложения: настоящий сервер и PostgreSQL на каждый сценарий
+// (e2e/auth/support/family.ts), Playwright и axe на ширине 360 и 412 px, а экраны компьютера —
+// на 1280 px. Запуск — `pnpm test:e2e:auth`; прототип навигации проверяется отдельной
+// конфигурацией (playwright.prototype.config.ts, `pnpm test:e2e:prototype`).
 
-const baseURL = `http://127.0.0.1:${E2E_PORT}${E2E_PREFIX}`;
+const DESKTOP_ONLY = '**/desktop.e2e.ts';
 
 const phone = {
   browserName: 'chromium',
@@ -18,6 +17,7 @@ const phone = {
 export default defineConfig({
   testDir: './e2e',
   testMatch: '**/*.e2e.ts',
+  testIgnore: '**/prototype/**',
   globalSetup: './e2e/auth/support/global-setup.ts',
   workers: 2,
   timeout: 45_000,
@@ -27,7 +27,6 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL,
     locale: 'ru-RU',
     timezoneId: 'Europe/Moscow',
     colorScheme: 'light',
@@ -35,13 +34,21 @@ export default defineConfig({
     permissions: ['clipboard-read', 'clipboard-write'],
   },
   projects: [
-    { name: 'w360', use: { ...phone, viewport: { width: 360, height: 740 } } },
-    { name: 'w412', use: { ...phone, viewport: { width: 412, height: 915 } } },
+    {
+      name: 'w360',
+      testIgnore: ['**/prototype/**', DESKTOP_ONLY],
+      use: { ...phone, viewport: { width: 360, height: 740 } },
+    },
+    {
+      name: 'w412',
+      testIgnore: ['**/prototype/**', DESKTOP_ONLY],
+      use: { ...phone, viewport: { width: 412, height: 915 } },
+    },
+    // Компьютер: боковое меню вместо нижнего. Только сценарии из desktop.e2e.ts.
+    {
+      name: 'desktop',
+      testMatch: DESKTOP_ONLY,
+      use: { browserName: 'chromium', viewport: { width: 1280, height: 800 } },
+    },
   ],
-  webServer: {
-    command: 'node e2e/support/static-server.ts',
-    url: baseURL,
-    reuseExistingServer: false,
-    timeout: 30_000,
-  },
 });

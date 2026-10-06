@@ -94,7 +94,7 @@ test('сброс ребёнку по прямой ссылке и отметка
   await expectSignedIn(page);
   await expect(page.getByText('Ваш пароль сбросил администратор.')).toBeVisible();
   // Первые 7 дней отметку не закрыть никому: кнопки нет, сказано, до какого дня она видна (AUTH-5).
-  await expect(page.getByText(/Эта плашка будет видна до \d{1,2} [а-я]+\./)).toBeVisible();
+  await expect(page.getByText(/Закрыть её можно будет с \d{1,2} [а-я]+\./)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Я прочитал' })).toHaveCount(0);
   const early = await page.evaluate(async () => {
     const response = await fetch('/api/me/password-reset/ack', { method: 'POST' });
@@ -112,7 +112,7 @@ test('сброс ребёнку по прямой ссылке и отметка
   );
   await page.reload();
   await expectSignedIn(page);
-  await expect(page.getByText(/Эта плашка будет видна до/)).toHaveCount(0);
+  await expect(page.getByText(/Закрыть её можно будет с/)).toHaveCount(0);
   await checkAuth(page, info, 'reset-notice-unlocked');
   await page.getByRole('button', { name: 'Я прочитал' }).click();
   await expect(page.getByText('Ваш пароль сбросил администратор.')).toHaveCount(0);

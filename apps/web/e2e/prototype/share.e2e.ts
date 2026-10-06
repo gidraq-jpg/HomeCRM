@@ -1,5 +1,5 @@
-import { expect, test } from './support/fixtures.ts';
-import { checkScreen, openApp, setScope } from './support/helpers.ts';
+import { expect, test } from '../support/fixtures.ts';
+import { checkScreen, openApp, setScope } from '../support/helpers.ts';
 
 // Действия в карточке — PRD, 7.4: «Поделиться…» у личной записи, «Кто видит» и «Сделать личной…»
 // у общей. Сужение доступа требует подтверждения и показывает, кто его потеряет (правило 7.3.8).

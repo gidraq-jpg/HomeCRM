@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './support/fixtures.ts';
-import { goToSection, openApp, plain } from './support/helpers.ts';
+import { expect, test } from '../support/fixtures.ts';
+import { goToSection, openApp, plain, screenshot } from '../support/helpers.ts';
 
 // Остальные касания: дела, главное дело, фильтры списков, вкладки объекта, «Ещё», «Коммуналка за месяц».
 // Проверяется, что всё, что выглядит нажимаемым, действительно работает.
@@ -185,16 +185,51 @@ test.describe('«Документы»: фильтры', () => {
 });
 
 test.describe('карточка объекта: шесть вкладок', () => {
-  test('«Обзор», «Коммуналка», «Счётчики», «Документы», «Люди», «Лента»', async ({ page }) => {
+  test('все вкладки видны без прокрутки вбок; «Лента» — вторая после «Обзора»', async ({
+    page,
+  }, info) => {
+    await openApp(page, '/home/sadovaya');
+    const tabs = page.getByRole('navigation', { name: 'Разделы объекта' });
+    const links = tabs.getByRole('link');
+    await expect(links).toHaveCount(6);
+    const viewport = page.viewportSize()?.width ?? 0;
+    const boxes = await links.evaluateAll((items) =>
+      items.map((item) => {
+        const { left, right, height } = item.getBoundingClientRect();
+        return { name: item.textContent ?? '', left, right, height };
+      }),
+    );
+    for (const box of boxes) {
+      expect(box.left, `«${box.name}» уходит за левый край`).toBeGreaterThanOrEqual(0);
+      expect(box.right, `«${box.name}» уходит за правый край`).toBeLessThanOrEqual(viewport);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    const scrolls = await tabs.evaluate((nav) => {
+      const scroller = nav.querySelector('ul') ?? nav;
+      return nav.scrollWidth > nav.clientWidth || scroller.scrollWidth > scroller.clientWidth;
+    });
+    expect(scrolls, 'ряд вкладок прокручивается вбок').toBe(false);
+    // На телефоне шесть вкладок не умещаются в одну строку и переносятся на следующую.
+    if (viewport <= 412) {
+      const tops = await links.evaluateAll((items) =>
+        items.map((item) => Math.round(item.getBoundingClientRect().top)),
+      );
+      expect(new Set(tops).size, 'вкладки должны перенестись на вторую строку').toBeGreaterThan(1);
+    }
+    await expect(tabs.getByRole('link').nth(1)).toHaveText('Лента');
+    await screenshot(page, info, 'property-tabs');
+  });
+
+  test('«Обзор», «Лента», «Коммуналка», «Счётчики», «Документы», «Люди»', async ({ page }) => {
     await openApp(page, '/home/sadovaya');
     const tabs = page.getByRole('navigation', { name: 'Разделы объекта' });
     await expect(tabs.getByRole('link')).toHaveText([
       'Обзор',
+      'Лента',
       'Коммуналка',
       'Счётчики',
       'Документы',
       'Люди',
-      'Лента',
     ]);
     await expect(tabs.getByRole('link', { name: 'Обзор' })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('heading', { level: 2, name: 'Ближайшее' })).toBeVisible();
@@ -348,7 +383,9 @@ test.describe('«Ещё»', () => {
 
   test('заглушки объясняют, что здесь будет', async ({ page }) => {
     await openApp(page, '/more/settings');
-    await expect(page.getByRole('heading', { name: 'Устройства', exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Безопасность: пароль, второй фактор, список устройств'),
+    ).toBeVisible();
     await openApp(page, '/more/export');
     await expect(page.getByText('Чужое личное в экспорт дома не попадает.')).toBeVisible();
     await openApp(page, '/more/trash');
@@ -366,9 +403,16 @@ test.describe('«Ещё»', () => {
     ] as const) {
       await expect(page.locator('.spaces-list li').filter({ hasText: label })).toContainText(hint);
     }
-    await expect(
-      page.getByText('технически может прочитать любые незашифрованные записи'),
-    ).toBeVisible();
+    const caveat = page.getByText('технически может прочитать любые незашифрованные записи');
+    await expect(caveat).toBeVisible();
+    // Абзац об ограничениях защиты отделён от списка над ним (бэклог: он прилипал к пункту).
+    const gap = await caveat.evaluate((paragraph) => {
+      const list = paragraph.previousElementSibling;
+      return list
+        ? paragraph.getBoundingClientRect().top - list.getBoundingClientRect().bottom
+        : -1;
+    });
+    expect(gap).toBeGreaterThanOrEqual(12);
   });
 
   test('«Покупки»: купить и вернуть', async ({ page }) => {
