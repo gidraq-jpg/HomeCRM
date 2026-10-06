@@ -44,3 +44,41 @@ jobs:
       - run: pnpm check
         env:
           HOMECRM_TEST_PG_ADMIN_URL: postgres://postgres@localhost:${{ job.services.postgres.ports['5432'] }}/postgres
+
+  auth-screens:
+    name: Вход · 360 и 412 px · axe
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+          --tmpfs /var/lib/postgresql
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      # Checkout доверяет каталогу во временных настройках; prepare вызывает git из обычных.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @homecrm/web test:e2e:auth
+        env:
+          HOMECRM_TEST_PG_ADMIN_URL: postgres://postgres@postgres:5432/postgres
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: auth-screens-360-412
+          path: apps/web/test-results/screens
+          if-no-files-found: error
+          retention-days: 14

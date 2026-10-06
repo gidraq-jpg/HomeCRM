@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { NotFoundScreen } from './components.tsx';
 import { DocumentScreen, DocumentsScreen } from './screens/Documents.tsx';
@@ -28,7 +29,13 @@ import { ShoppingScreen } from './screens/Shopping.tsx';
 import { AllTasksScreen, PlanScreen, TodayScreen } from './screens/Tasks.tsx';
 
 /** Все маршруты прототипа. В R0.3 их заменят настоящие экраны. */
-export function PrototypeRoutes() {
+export function PrototypeRoutes({
+  settings,
+  exportScreen,
+}: {
+  settings?: ReactNode;
+  exportScreen?: ReactNode;
+} = {}) {
   return (
     <Routes>
       <Route index element={<Navigate to="/today" replace />} />
@@ -60,9 +67,9 @@ export function PrototypeRoutes() {
       <Route path="more/notes/:noteId" element={<NoteScreen />} />
       <Route path="more/shopping" element={<ShoppingScreen />} />
       <Route path="more/radar" element={<RadarScreen />} />
-      <Route path="more/settings" element={<SettingsScreen />} />
+      <Route path="more/settings" element={settings ?? <SettingsScreen />} />
       <Route path="more/trash" element={<TrashScreen />} />
-      <Route path="more/export" element={<ExportScreen />} />
+      <Route path="more/export" element={exportScreen ?? <ExportScreen />} />
       <Route path="more/spaces" element={<SpacesScreen />} />
 
       <Route path="search" element={<SearchScreen />} />

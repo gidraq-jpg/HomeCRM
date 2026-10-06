@@ -6,6 +6,23 @@ import { test as base, expect } from '@playwright/test';
 
 export const test = base.extend({
   page: async ({ page, baseURL }, use) => {
+    // Старые сценарии прототипа проверяют оболочку. Вход проверяется отдельно с настоящим API.
+    await page.route('**/api/**', (route) => {
+      const path = new URL(route.request().url()).pathname;
+      const me = {
+        id: 'fictional-adult',
+        displayName: 'Борис',
+        username: 'boris',
+        email: null,
+        twoFactorEnabled: false,
+        secondFactorRequired: false,
+        roles: [{ householdId: 'fictional-home', role: 'adult' }],
+        passwordReset: null,
+      };
+      const data =
+        path === '/api/auth/get-session' ? { user: { id: me.id } } : path === '/api/me' ? me : [];
+      return route.fulfill({ json: data });
+    });
     const origin = new URL(baseURL ?? 'http://127.0.0.1').origin;
     const problems: string[] = [];
 
@@ -15,9 +32,15 @@ export const test = base.extend({
       }
     });
     page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
-    page.on('requestfailed', (request) =>
-      problems.push(`request failed: ${request.url()} (${request.failure()?.errorText ?? '?'})`),
-    );
+    page.on('requestfailed', (request) => {
+      // StrictMode отменяет первую проверку сессии при повторном монтировании.
+      if (
+        new URL(request.url()).pathname.startsWith('/api/') &&
+        request.failure()?.errorText === 'net::ERR_ABORTED'
+      )
+        return;
+      problems.push(`request failed: ${request.url()} (${request.failure()?.errorText ?? '?'})`);
+    });
     page.on('response', (response) => {
       if (response.status() >= 400) problems.push(`HTTP ${response.status()}: ${response.url()}`);
     });

@@ -18,6 +18,9 @@ const phone = {
 export default defineConfig({
   testDir: './e2e',
   testMatch: '**/*.e2e.ts',
+  globalSetup: './e2e/auth/support/global-setup.ts',
+  workers: 2,
+  timeout: 45_000,
   // Скриншоты экранов лежат рядом, в test-results/screens: эта папка не очищается перед прогоном.
   outputDir: './test-results/artifacts',
   fullyParallel: true,
@@ -28,7 +31,7 @@ export default defineConfig({
     locale: 'ru-RU',
     timezoneId: 'Europe/Moscow',
     colorScheme: 'light',
-    serviceWorkers: 'block',
+    serviceWorkers: 'allow',
     permissions: ['clipboard-read', 'clipboard-write'],
   },
   projects: [
