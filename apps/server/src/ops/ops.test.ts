@@ -134,6 +134,22 @@ describe('расписание копий', () => {
     expect(dueAction(at('2026-10-06T08:40:00Z'), failed, env)).toBe('backup');
   });
 
+  it('до первой удачной копии тоже выдерживает полчаса после каждой неудачи', () => {
+    const failed = status({
+      lastAttemptAt: '2026-10-06T08:00:00Z',
+      lastCheckAt: '2026-10-06T08:00:00Z',
+    });
+    for (const minutes of [1, 10, 29]) {
+      expect(
+        dueAction(at(`2026-10-06T08:${minutes.toString().padStart(2, '0')}:00Z`), failed, env),
+      ).toBeUndefined();
+    }
+    expect(dueAction(at('2026-10-06T08:30:00Z'), failed, env)).toBe('backup');
+    failed.lastAttemptAt = '2026-10-06T08:30:00Z';
+    expect(dueAction(at('2026-10-06T08:31:00Z'), failed, env)).toBeUndefined();
+    expect(dueAction(at('2026-10-06T09:00:00Z'), failed, env)).toBe('backup');
+  });
+
   it('проверка хранилищ — раз в неделю после 4:30', () => {
     const fresh = {
       lastAttemptAt: '2026-10-06T22:41:00Z',

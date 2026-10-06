@@ -55,8 +55,7 @@ export function dueAction(now: Date, status: BackupStatus | undefined, env: OpsE
   const local = localTime(now, env.HOME_TIME_ZONE);
   const retryReady =
     lastAttempt === undefined ||
-    lastSuccess === undefined ||
-    lastAttempt <= lastSuccess ||
+    (lastSuccess !== undefined && lastAttempt <= lastSuccess) ||
     now.getTime() - lastAttempt >= RETRY_MS;
 
   const overdue = lastSuccess === undefined || now.getTime() - lastSuccess > OVERDUE_MS;
