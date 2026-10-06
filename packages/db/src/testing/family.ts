@@ -192,9 +192,15 @@ export async function seedFamily(admin: pg.Pool, family: Family): Promise<void> 
   const db = drizzle({ client: admin });
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   await db.transaction(async (tx) => {
-    await tx
-      .insert(accounts)
-      .values(family.people.map((someone) => ({ id: someone.id, displayName: someone.name })));
+    await tx.insert(accounts).values(
+      family.people.map((someone) => ({
+        id: someone.id,
+        displayName: someone.name,
+        // Зона .invalid зарезервирована: письма на такие адреса не уходят.
+        email: `${someone.key}@family.invalid`,
+        username: someone.key,
+      })),
+    );
     await tx.insert(spaces).values([
       ...family.people.map((owner) => ({
         id: owner.personalSpaceId,

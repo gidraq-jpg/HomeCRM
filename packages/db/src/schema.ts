@@ -1,16 +1,20 @@
-// Схема базы для проверки 0.4: учётные записи, пространства, участники и три таблицы-примера
-// с общими полями доступа (ADR-0004, план 2.4). Миграции создаёт drizzle-kit: `pnpm --filter @homecrm/db generate`.
+// Схема базы: учётные записи, пространства, участники дома, три таблицы-примера с общими полями
+// доступа (проверка 0.4; ADR-0004, план 2.4) и таблицы входа (проверка 0.3; ADR-0005).
+// Миграции создаёт drizzle-kit: `pnpm --filter @homecrm/db generate`.
 //
-// Политики RLS — для двух ролей: homecrm_app (приложение) и homecrm_worker (обработчик).
-// У владельца таблиц homecrm_owner политик нет, а FORCE ROW LEVEL SECURITY (миграция 0002)
-// не даёт ему обойти RLS: он не видит ни одной строки.
+// Политики RLS — для трёх ролей: homecrm_app (приложение), homecrm_worker (обработчик) и
+// homecrm_auth (служба входа). У владельца таблиц homecrm_owner политик нет, а FORCE ROW LEVEL
+// SECURITY (миграции 0002 и 0005) не даёт ему обойти RLS: он не видит ни одной строки.
 import { AUDIENCES, type Placement, ROLES } from '@homecrm/shared';
 import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
+  bigint,
+  boolean,
   check,
   foreignKey,
   index,
+  integer,
   pgEnum,
   pgPolicy,
   pgRole,
@@ -19,11 +23,16 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import {
   CURRENT_ACCOUNT_SQL,
+  canInviteSql,
+  canResetPasswordSql,
   EXPIRED_TRASH_SQL,
+  INVITATION_TTL,
+  ownAccountSql,
   type RecordType,
   recordPolicySql,
 } from './access-sql.ts';
@@ -31,6 +40,7 @@ import {
 // Роли создаёт bootstrap.ts до миграций; здесь — только ссылки на них.
 export const appRole = pgRole('homecrm_app').existing();
 export const workerRole = pgRole('homecrm_worker').existing();
+export const authRole = pgRole('homecrm_auth').existing();
 
 export const SPACE_KINDS = [
   'personal',
@@ -43,20 +53,64 @@ export const audienceEnum = pgEnum('audience', AUDIENCES);
 
 const id = () => uuid('id').primaryKey().default(sql`uuidv7()`);
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
+const updatedAt = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
 
 const ME = CURRENT_ACCOUNT_SQL;
 
-/** Учётная запись — заглушка без входа: вход появится в задаче 0.3. */
+type PolicyCommand = 'select' | 'insert' | 'update' | 'delete';
+
+/**
+ * Политики службы входа (роль homecrm_auth) на таблице входа. Служба находит учётную запись и
+ * сессию до того, как известно, чья это учётная запись, поэтому условия не привязаны к участнику
+ * (`true`); защищают таблицы права ролей: службе не выдано ничего из таблиц данных, а приложению —
+ * ничего из таблиц с паролями, секретами и сессиями. Узкие условия там, где они возможны, — свои.
+ */
+function authPolicies(table: string, commands: readonly PolicyCommand[]) {
+  return commands.map((command) => authPolicy(`${table}_auth_${command}`, command));
+}
+
+function authPolicy(name: string, command: PolicyCommand) {
+  const all = sql.raw('true');
+  if (command === 'select') return pgPolicy(name, { for: 'select', to: authRole, using: all });
+  if (command === 'insert') return pgPolicy(name, { for: 'insert', to: authRole, withCheck: all });
+  if (command === 'update') {
+    return pgPolicy(name, { for: 'update', to: authRole, using: all, withCheck: all });
+  }
+  return pgPolicy(name, { for: 'delete', to: authRole, using: all });
+}
+
+/**
+ * Учётная запись. Она же модель user библиотеки Better Auth (ADR-0005): библиотека пишет
+ * свои поля через роль homecrm_auth, приложение видит только свою строку (роль homecrm_app).
+ */
 export const accounts = pgTable(
   'accounts',
   {
     id: id(),
+    /** Имя участника для интерфейса; в библиотеке — поле name. */
     displayName: text('display_name').notNull(),
     createdAt: createdAt(),
+    /**
+     * Адрес почты. Ребёнку он не нужен (AUTH-9): библиотека требует адрес у каждой записи,
+     * поэтому у ребёнка — служебный адрес в зоне .invalid, письма на него не уходят.
+     */
+    email: text('email').notNull(),
+    emailVerified: boolean('email_verified').notNull().default(false),
+    image: text('image'),
+    updatedAt: updatedAt(),
+    /** Имя для входа в нормализованном виде: уникальное, без учёта регистра. */
+    username: text('username'),
+    /** Имя для входа так, как его ввели. */
+    displayUsername: text('display_username'),
+    /** Второй фактор включён и подтверждён (AUTH-3). */
+    twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
   },
-  () => [
-    // Пока только своя учётная запись. Кто видит других участников дома — решается в R0.9.
+  (t) => [
+    unique('accounts_email_key').on(t.email),
+    unique('accounts_username_key').on(t.username),
+    // Приложению — только своя учётная запись. Кто видит других участников дома — решается в R0.9.
     pgPolicy('accounts_select', { for: 'select', to: appRole, using: sql.raw(`id = ${ME}`) }),
+    ...authPolicies('accounts', ['select', 'insert', 'update']),
   ],
 );
 
@@ -85,6 +139,8 @@ export const spaces = pgTable(
         `owner_account_id = ${ME} OR id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = ${ME})`,
       ),
     }),
+    // Служба входа создаёт личное пространство вместе с учётной записью (SPACE-1) и дом при первой настройке.
+    ...authPolicies('spaces', ['select', 'insert']),
   ],
 );
 
@@ -115,6 +171,9 @@ export const spaceMembers = pgTable(
       to: appRole,
       using: sql.raw(`account_id = ${ME}`),
     }),
+    // Служба входа добавляет участника по приглашению и проверяет, чьим администратором является
+    // тот, кто просит сбросить пароль (AUTH-5); данных семьи у неё нет.
+    ...authPolicies('space_members', ['select', 'insert']),
   ],
 );
 
@@ -218,3 +277,300 @@ export const RECORD_TABLES = {
   shopping_item: shoppingItems,
   task: tasks,
 } as const satisfies Record<RecordType, unknown>;
+
+// ---------------------------------------------------------------------------------------------
+// Таблицы входа (ADR-0005). Первые шесть — модели Better Auth: имена моделей и полей заданы в
+// настройках библиотеки (apps/server/src/auth), форма таблиц проверяется там же
+// (schema.test.ts). Остальные — своё: приглашения, журнал входов, блокировки, сброс пароля.
+// Приложению (homecrm_app) пароли, секреты и сессии не выданы вовсе: права на эти таблицы
+// есть только у службы входа (homecrm_auth).
+// ---------------------------------------------------------------------------------------------
+
+/** Сессия на устройстве (AUTH-6): срок до 90 дней, продлевается при использовании. */
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    token: text('token').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    unique('sessions_token_key').on(t.token),
+    index('sessions_user_id_idx').on(t.userId),
+    ...authPolicies('sessions', ['select', 'insert', 'update', 'delete']),
+  ],
+);
+
+/**
+ * Способ входа учётной записи; в библиотеке — модель account. Пароль — хэш Argon2id в поле
+ * password у строки с providerId = 'credential'. Поля OAuth библиотека описывает в своей схеме,
+ * но не использует: внешних поставщиков входа нет (ADR-0005).
+ */
+export const credentials = pgTable(
+  'credentials',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    password: text('password'),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    scope: text('scope'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('credentials_user_id_idx').on(t.userId),
+    // Один пароль на учётную запись.
+    uniqueIndex('credentials_one_password_idx')
+      .on(t.userId)
+      .where(sql.raw(`provider_id = 'credential'`)),
+    ...authPolicies('credentials', ['select', 'insert', 'update']),
+  ],
+);
+
+/** Одноразовые значения библиотеки: ссылки сброса пароля, незавершённый вход со вторым фактором. */
+export const verifications = pgTable(
+  'verifications',
+  {
+    id: id(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('verifications_identifier_idx').on(t.identifier),
+    ...authPolicies('verifications', ['select', 'insert', 'update', 'delete']),
+  ],
+);
+
+/** Второй фактор (AUTH-3, AUTH-4): секрет TOTP и коды восстановления — зашифрованными. */
+export const twoFactors = pgTable(
+  'two_factors',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    secret: text('secret').notNull(),
+    backupCodes: text('backup_codes').notNull(),
+    /** Секрет подтверждён кодом из приложения; до этого второй фактор при входе не требуется. */
+    verified: boolean('verified').notNull().default(true),
+    failedVerificationCount: integer('failed_verification_count').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  },
+  (t) => [
+    unique('two_factors_user_id_key').on(t.userId),
+    ...authPolicies('two_factors', ['select', 'insert', 'update', 'delete']),
+  ],
+);
+
+/** Счётчики ограничения запросов библиотеки: по адресу и пути (AUTH-8). */
+export const rateLimits = pgTable(
+  'rate_limits',
+  {
+    id: id(),
+    key: text('key').notNull(),
+    count: integer('count').notNull(),
+    /** Миллисекунды Unix: так их хранит библиотека. */
+    lastRequest: bigint('last_request', { mode: 'number' }).notNull(),
+  },
+  (t) => [
+    unique('rate_limits_key_key').on(t.key),
+    ...authPolicies('rate_limits', ['select', 'insert', 'update', 'delete']),
+  ],
+);
+
+/**
+ * Приглашение в дом с ролью (AUTH-2): одноразовая ссылка на 72 часа. В базе — только хэш
+ * ссылки. Создаёт и отзывает администратор дома (роль homecrm_app, политики canInvite);
+ * принимает служба входа: ей разрешено лишь отметить живое приглашение принятым.
+ */
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: id(),
+    householdId: uuid('household_id').notNull(),
+    spaceKind: spaceKindEnum('space_kind').notNull().default('household'),
+    role: memberRoleEnum('role').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => accounts.id),
+    createdAt: createdAt(),
+    expiresAt: timestamp('expires_at', { withTimezone: true })
+      .notNull()
+      .default(sql.raw(`now() + interval '${INVITATION_TTL}'`)),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    acceptedBy: uuid('accepted_by').references(() => accounts.id),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (t) => [
+    unique('invitations_token_hash_key').on(t.tokenHash),
+    foreignKey({
+      name: 'invitations_household_fk',
+      columns: [t.householdId, t.spaceKind],
+      foreignColumns: [spaces.id, spaces.kind],
+    }),
+    index('invitations_household_id_idx').on(t.householdId),
+    check('invitations_household_only', sql.raw(`space_kind = 'household'`)),
+    // Срок не больше 72 часов, что бы ни прислало приложение.
+    check(
+      'invitations_ttl',
+      sql.raw(
+        `expires_at > created_at AND expires_at <= created_at + interval '${INVITATION_TTL}'`,
+      ),
+    ),
+    check('invitations_accepted_pair', sql.raw(`(accepted_at IS NULL) = (accepted_by IS NULL)`)),
+    pgPolicy('invitations_select', { for: 'select', to: appRole, using: sql.raw(canInviteSql()) }),
+    pgPolicy('invitations_insert', {
+      for: 'insert',
+      to: appRole,
+      withCheck: sql.raw(
+        `${canInviteSql()} AND ${ownAccountSql('created_by')} AND accepted_at IS NULL AND revoked_at IS NULL`,
+      ),
+    }),
+    // Отозвать можно непринятое приглашение своего дома; право UPDATE выдано только на revoked_at.
+    pgPolicy('invitations_revoke', {
+      for: 'update',
+      to: appRole,
+      using: sql.raw(`${canInviteSql()} AND accepted_at IS NULL`),
+      withCheck: sql.raw(`${canInviteSql()} AND accepted_at IS NULL`),
+    }),
+    pgPolicy('invitations_auth_select', { for: 'select', to: authRole, using: sql.raw('true') }),
+    // Принять можно только живое приглашение: срок и одноразовость держит база.
+    // Право UPDATE выдано только на accepted_at и accepted_by.
+    pgPolicy('invitations_auth_accept', {
+      for: 'update',
+      to: authRole,
+      using: sql.raw(`accepted_at IS NULL AND revoked_at IS NULL AND expires_at > now()`),
+      withCheck: sql.raw(`accepted_at IS NOT NULL`),
+    }),
+  ],
+);
+
+export const LOGIN_KINDS = ['sign_in', 'second_factor', 'password_reset'] as const;
+export const LOGIN_OUTCOMES = ['success', 'failure', 'locked', 'second_factor_required'] as const;
+export const loginKindEnum = pgEnum('login_kind', LOGIN_KINDS);
+export const loginOutcomeEnum = pgEnum('login_outcome', LOGIN_OUTCOMES);
+
+/**
+ * Журнал входов (AUTH-8): попытки по известной учётной записи — устройство, адрес, результат.
+ * Участник читает только свой (canViewAccountJournal); пишет служба входа.
+ */
+export const loginEvents = pgTable(
+  'login_events',
+  {
+    id: id(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    kind: loginKindEnum('kind').notNull(),
+    outcome: loginOutcomeEnum('outcome').notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('login_events_account_id_created_at_idx').on(t.accountId, t.createdAt),
+    pgPolicy('login_events_select', {
+      for: 'select',
+      to: appRole,
+      using: sql.raw(ownAccountSql()),
+    }),
+    pgPolicy('login_events_auth_insert', {
+      for: 'insert',
+      to: authRole,
+      withCheck: sql.raw('true'),
+    }),
+  ],
+);
+
+/** Блокировка входа по учётной записи после серии неудачных попыток (AUTH-8). */
+export const loginLocks = pgTable(
+  'login_locks',
+  {
+    accountId: uuid('account_id')
+      .primaryKey()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    failures: integer('failures').notNull().default(0),
+    windowStartedAt: timestamp('window_started_at', { withTimezone: true }).notNull().defaultNow(),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  },
+  () => [...authPolicies('login_locks', ['select', 'insert', 'update', 'delete'])],
+);
+
+/**
+ * Сброс пароля ребёнка администратором (AUTH-5). Строку создаёт служба входа, когда администратор
+ * выдал ссылку; политика проверяет само правило (canResetPassword): администратор — только
+ * ребёнку своего дома. Когда ребёнок задал новый пароль, строка отмечается выполненной, и при
+ * следующем входе ребёнок видит отметку, пока не подтвердит, что прочитал её.
+ */
+export const passwordResets = pgTable(
+  'password_resets',
+  {
+    id: id(),
+    /** Ребёнок, чей пароль сбрасывают. */
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** Администратор, выдавший ссылку. */
+    requestedBy: uuid('requested_by')
+      .notNull()
+      .references(() => accounts.id),
+    createdAt: createdAt(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    /** Ребёнок задал новый пароль по ссылке. */
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    /** Ребёнок увидел отметку о сбросе. */
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('password_resets_account_id_idx').on(t.accountId),
+    check('password_resets_not_self', sql.raw('account_id <> requested_by')),
+    pgPolicy('password_resets_select', {
+      for: 'select',
+      to: appRole,
+      using: sql.raw(ownAccountSql()),
+    }),
+    // Подтвердить прочтение может только сам ребёнок и только выполненный сброс; право UPDATE — на acknowledged_at.
+    pgPolicy('password_resets_ack', {
+      for: 'update',
+      to: appRole,
+      using: sql.raw(`${ownAccountSql()} AND completed_at IS NOT NULL`),
+      withCheck: sql.raw(`${ownAccountSql()} AND completed_at IS NOT NULL`),
+    }),
+    pgPolicy('password_resets_auth_select', {
+      for: 'select',
+      to: authRole,
+      using: sql.raw('true'),
+    }),
+    pgPolicy('password_resets_auth_insert', {
+      for: 'insert',
+      to: authRole,
+      withCheck: sql.raw(canResetPasswordSql()),
+    }),
+    // Отметить выполненным можно один раз; право UPDATE — только на completed_at.
+    pgPolicy('password_resets_auth_complete', {
+      for: 'update',
+      to: authRole,
+      using: sql.raw('completed_at IS NULL'),
+      withCheck: sql.raw('completed_at IS NOT NULL'),
+    }),
+  ],
+);

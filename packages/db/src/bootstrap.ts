@@ -11,6 +11,12 @@ export const DB_ROLES = {
   app: 'homecrm_app',
   /** Системные задачи обработчика — с узкими отдельными политиками. */
   worker: 'homecrm_worker',
+  /**
+   * Служба входа (ADR-0005): Better Auth, приглашения, сброс пароля. Ей нужно находить учётную
+   * запись и сессию до входа, когда неизвестно, чья она, поэтому политики таблиц входа не
+   * привязаны к участнику. Защита — в правах: таблиц данных у этой роли нет.
+   */
+  auth: 'homecrm_auth',
 } as const;
 
 // Ни одна роль не может обойти RLS, создавать роли и базы или стать суперпользователем.
@@ -35,5 +41,7 @@ export async function createDatabase(admin: ClientBase, name: string): Promise<v
   if (!DATABASE_NAME.test(name)) throw new Error(`Invalid database name: ${name}`);
   await admin.query(`CREATE DATABASE ${name} OWNER ${DB_ROLES.owner}`);
   await admin.query(`REVOKE ALL ON DATABASE ${name} FROM PUBLIC`);
-  await admin.query(`GRANT CONNECT ON DATABASE ${name} TO ${DB_ROLES.app}, ${DB_ROLES.worker}`);
+  await admin.query(
+    `GRANT CONNECT ON DATABASE ${name} TO ${DB_ROLES.app}, ${DB_ROLES.worker}, ${DB_ROLES.auth}`,
+  );
 }
