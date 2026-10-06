@@ -294,6 +294,9 @@ function attemptsFor(
                 viewer.viewer,
                 createdFacts(type, placement, stranger?.id ?? '', null),
               ),
+              // Если политика пропустила бы чужого автора, ответственным станет он, а его может не быть
+              // в этом доме: это уже нарушение внешнего ключа, но запись всё равно не создана.
+              alsoDenied: ['23503'],
               run: async (tx: Transaction) => {
                 await insert(tx, { authorId: stranger?.id ?? '', assigneeId: null });
                 return true;

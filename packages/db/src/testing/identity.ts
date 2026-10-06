@@ -4,7 +4,9 @@
 // входов и отметку о сбросе видно (canViewAccountJournal).
 import { randomBytes, randomUUID } from 'node:crypto';
 import {
+  canExclude,
   canInvite,
+  canLeave,
   canResetPassword,
   canViewAccountJournal,
   ROLES,
@@ -35,6 +37,8 @@ export const IDENTITY_OPERATIONS = [
   'reset-record',
   'journal-view',
   'notice-view',
+  'member-leave',
+  'member-exclude',
 ] as const;
 export type IdentityOperation = (typeof IDENTITY_OPERATIONS)[number];
 
@@ -45,6 +49,8 @@ export const IDENTITY_LABELS: Readonly<Record<IdentityOperation, string>> = {
   'reset-record': 'записать сброс пароля',
   'journal-view': 'прочитать журнал входов',
   'notice-view': 'прочитать отметку о сбросе',
+  'member-leave': 'покинуть дом',
+  'member-exclude': 'исключить участника из дома',
 };
 
 /**
@@ -268,6 +274,54 @@ export async function runIdentityMatrix(
         }
       }
       break;
+    case 'member-leave':
+    case 'member-exclude': {
+      // Уход и исключение записывает служба входа; кто это делает — в left_by, правило проверяет политика
+      // и триггер (последний администратор). Попытка откатывается: состав дома матрицы не меняется.
+      const adminIds = (houseId: string) =>
+        world.people
+          .filter((person) => person.viewer.memberships.get(houseId) === 'admin')
+          .map((person) => person.id);
+      const end = async (houseId: string, accountId: string, by: string): Promise<boolean> => {
+        const client = await database.auth.connect();
+        try {
+          await client.query('BEGIN');
+          const result = await client.query(
+            `UPDATE space_members SET left_at = now(), left_by = $3 WHERE space_id = $1 AND account_id = $2`,
+            [houseId, accountId, by],
+          );
+          return (result.rowCount ?? 0) > 0;
+        } catch (error) {
+          if (deniedByDatabase(error)) return false;
+          throw error;
+        } finally {
+          await client.query('ROLLBACK');
+          client.release();
+        }
+      };
+      for (const house of world.houses) {
+        for (const person of world.people) {
+          if (operation === 'member-leave') {
+            attempts.push({
+              label: `${person.name} · ${house.name}`,
+              expected: canLeave(person.viewer, house.id, adminIds(house.id)),
+              run: () => end(house.id, person.id, person.id),
+            });
+            continue;
+          }
+          for (const target of world.people) {
+            // Сам себя участник не исключает — это уход, он проверяется отдельно.
+            if (target.id === person.id) continue;
+            attempts.push({
+              label: `${person.name} исключает ${target.name} · ${house.name}`,
+              expected: canExclude(person.viewer, house.id, target.viewer),
+              run: () => end(house.id, target.id, person.id),
+            });
+          }
+        }
+      }
+      break;
+    }
     case 'journal-view':
     case 'notice-view': {
       const table = operation === 'journal-view' ? 'login_events' : 'password_resets';
