@@ -26,6 +26,7 @@ import {
   findAccountByLogin,
   type LoginKind,
   type LoginOutcome,
+  loginInput,
   recordLoginEvent,
   reserveAttempt,
   unknownLoginSubject,
@@ -354,9 +355,10 @@ export function homecrm(deps: PluginDeps) {
         {
           matcher: (context) => SIGN_IN_PATHS.has(context.path ?? ''),
           handler: createAuthMiddleware(async (ctx) => {
-            const body = (ctx.body ?? {}) as { username?: unknown; email?: unknown };
+            const login = loginInput(ctx.path, ctx.body);
+            if (login === null) return;
             // Служебный адрес ребёнка — не способ входа: ответ такой же, как на неверный пароль.
-            if (typeof body.email === 'string' && isPlaceholderEmail(body.email)) {
+            if (login.kind === 'email' && isPlaceholderEmail(login.value)) {
               throw APIError.from('UNAUTHORIZED', {
                 code: 'INVALID_EMAIL_OR_PASSWORD',
                 message: 'Invalid email or password',
@@ -365,10 +367,9 @@ export function homecrm(deps: PluginDeps) {
             // Попытка занимается до проверки пароля: параллельные запросы выстраиваются в очередь
             // на строке счётчика. Для имени, которого нет, счётчик свой — отказ приходит так же,
             // и по блокировке нельзя узнать, есть ли такое имя (AUTH-8).
-            const account = await findAccountByLogin(deps.db, body);
+            const account = await findAccountByLogin(deps.db, login);
             const subject =
-              account === null ? unknownLoginSubject(body) : { accountId: account.id };
-            if (subject === null) return;
+              account === null ? unknownLoginSubject(login) : { accountId: account.id };
             const reservation = await reserveAttempt(deps.db, subject);
             if (reservation.allowed) return;
             if (account !== null) {
@@ -391,9 +392,9 @@ export function homecrm(deps: PluginDeps) {
             const path = ctx.path ?? '';
             let accountId: string | undefined;
             if (SIGN_IN_PATHS.has(path)) {
-              accountId = (
-                await findAccountByLogin(deps.db, (ctx.body ?? {}) as Record<string, unknown>)
-              )?.id;
+              const login = loginInput(path, ctx.body);
+              if (login === null) return;
+              accountId = (await findAccountByLogin(deps.db, login))?.id;
             } else {
               accountId = (await getSessionFromCtx(ctx))?.user.id;
               if (accountId === undefined) {
@@ -437,7 +438,7 @@ export function homecrm(deps: PluginDeps) {
               }
             }
             if (accountId === undefined) return;
-            if (await claimTotpCode(deps.db, accountId, code)) return;
+            if (await claimTotpCode(deps.db, accountId, code, ctx.context.secret)) return;
             throw APIError.from('UNAUTHORIZED', {
               code: 'INVALID_CODE',
               message: 'Invalid code',
@@ -480,10 +481,9 @@ export function homecrm(deps: PluginDeps) {
         {
           matcher: (context) => SIGN_IN_PATHS.has(context.path ?? ''),
           handler: createAuthMiddleware(async (ctx) => {
-            const account = await findAccountByLogin(
-              deps.db,
-              (ctx.body ?? {}) as { username?: unknown; email?: unknown },
-            );
+            const login = loginInput(ctx.path, ctx.body);
+            if (login === null) return;
+            const account = await findAccountByLogin(deps.db, login);
             if (account === null) return;
             const returned = ctx.context.returned;
             const info = clientInfo(ctx);

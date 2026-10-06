@@ -18,6 +18,7 @@ import {
   loginEvents,
   sql,
 } from '@homecrm/db';
+import * as z from 'zod';
 import { hashToken, normalizeUsername } from './identity.ts';
 
 /** Пять попыток за 15 минут; шестая — блокировка на 15 минут. Верный пароль счётчик сбрасывает. */
@@ -34,37 +35,47 @@ export interface ClientInfo {
 /** Кого считает счётчик: известную учётную запись или имя, которого в базе нет. */
 export type AttemptSubject = { accountId: string } | { name: string };
 
-/** Что ввели при входе: имя пользователя или адрес почты. */
+/** Только идентификатор, который проверяет выбранный маршрут входа. */
 export interface LoginInput {
-  username?: unknown;
-  email?: unknown;
+  kind: 'username' | 'email';
+  value: string;
 }
 
-/** Учётная запись по тому, что ввели при входе. */
+const UsernameLogin = z.object({ username: z.string() });
+const EmailLogin = z.object({ email: z.string() });
+
+/** Лишние поля не меняют учётную запись в блокировке, втором факторе и журнале. */
+export function loginInput(path: string | undefined, body: unknown): LoginInput | null {
+  if (path === '/sign-in/username') {
+    const parsed = UsernameLogin.safeParse(body);
+    return parsed.success
+      ? { kind: 'username', value: normalizeUsername(parsed.data.username) }
+      : null;
+  }
+  if (path === '/sign-in/email') {
+    const parsed = EmailLogin.safeParse(body);
+    return parsed.success ? { kind: 'email', value: parsed.data.email.trim().toLowerCase() } : null;
+  }
+  return null;
+}
+
+/** Учётная запись по идентификатору выбранного маршрута. */
 export async function findAccountByLogin(
   db: Database,
   login: LoginInput,
 ): Promise<{ id: string } | null> {
   const condition =
-    typeof login.username === 'string'
-      ? eq(accounts.username, normalizeUsername(login.username))
-      : typeof login.email === 'string'
-        ? eq(accounts.email, login.email.trim().toLowerCase())
-        : null;
-  if (condition === null) return null;
+    login.kind === 'username'
+      ? eq(accounts.username, login.value)
+      : eq(accounts.email, login.value);
   const [row] = await db.select({ id: accounts.id }).from(accounts).where(condition).limit(1);
   return row ?? null;
 }
 
-/** Ключ счётчика для введённого, но неизвестного имени; null — вход без имени и почты. */
-export function unknownLoginSubject(login: LoginInput): AttemptSubject | null {
-  const typed =
-    typeof login.username === 'string'
-      ? `u:${normalizeUsername(login.username)}`
-      : typeof login.email === 'string'
-        ? `e:${login.email.trim().toLowerCase()}`
-        : null;
-  return typed === null ? null : { name: hashToken(typed) };
+/** Ключ счётчика для неизвестного идентификатора выбранного маршрута. */
+export function unknownLoginSubject(login: LoginInput): AttemptSubject {
+  const prefix = login.kind === 'username' ? 'u' : 'e';
+  return { name: hashToken(`${prefix}:${login.value}`) };
 }
 
 function table(subject: AttemptSubject) {
