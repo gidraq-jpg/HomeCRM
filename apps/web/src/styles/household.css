@@ -153,9 +153,3 @@
 .add-note {
   margin-top: 14px;
 }
-
-/* Абзац сразу после списка: без отступа он прилипал к последнему пункту. */
-.bullets + .muted,
-.bullets + p {
-  margin-top: 14px;
-}

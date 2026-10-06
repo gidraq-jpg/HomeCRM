@@ -23,7 +23,8 @@ export async function signIn(
   await page.getByLabel('Пароль', { exact: true }).fill(family.person(role).password);
   await page.getByRole('button', { name: 'Войти', exact: true }).click();
 }
-export async function checkAuth(page: Page, info: TestInfo, name: string) {
+/** `prefix` — начало имени файла скриншота: `auth` для экранов входа, `app` для рабочего приложения. */
+export async function checkAuth(page: Page, info: TestInfo, name: string, prefix = 'auth') {
   await settle(page);
   await expectNoHorizontalScroll(page);
   await expectTouchTargets(page);
@@ -45,7 +46,7 @@ export async function checkAuth(page: Page, info: TestInfo, name: string) {
   await page.evaluate(() => window.scrollTo(0, 0));
   try {
     await page.screenshot({
-      path: resolve(directory, `auth-${name}.png`),
+      path: resolve(directory, `${prefix}-${name}.png`),
       fullPage: true,
       mask,
       maskColor: '#e9eee7',

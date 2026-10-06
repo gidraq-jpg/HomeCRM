@@ -59,11 +59,7 @@ export function MemberScreen() {
   const isMe = member.accountId === me.id;
   const birth = birthDateText(member.birthDate);
   return (
-    <Page
-      title={member.displayName}
-      eyebrow={isMe ? 'Это вы' : ROLE_LABELS[member.role]}
-      back={back}
-    >
+    <Page title={member.displayName} {...(isMe ? { eyebrow: 'Это вы' } : {})} back={back}>
       <div className="member-head">
         <Avatar name={member.displayName} large />
         <div className="member-head__text">
@@ -88,35 +84,29 @@ export function MemberScreen() {
       ) : null}
 
       <Section title="О человеке">
-        <dl className="facts">
-          <div className="facts__item">
-            <dt>Роль</dt>
-            <dd>{ROLE_LABELS[member.role]}</dd>
-          </div>
-          {member.formerMember ? null : (
-            <>
-              <div className="facts__item">
-                <dt>Дата рождения</dt>
-                <dd>{birth ?? 'Не указана'}</dd>
-              </div>
-              <div className="facts__item">
-                <dt>Телефон</dt>
-                <dd>
-                  {member.phone ? (
-                    <>
-                      <a href={toTelHref(member.phone)} className="mono">
-                        {member.phone}
-                      </a>
-                      <CopyButton value={member.phone} what="телефон" />
-                    </>
-                  ) : (
-                    'Не указан'
-                  )}
-                </dd>
-              </div>
-            </>
-          )}
-        </dl>
+        {member.formerMember ? null : (
+          <dl className="facts">
+            <div className="facts__item">
+              <dt>Дата рождения</dt>
+              <dd>{birth ?? 'Не указана'}</dd>
+            </div>
+            <div className="facts__item">
+              <dt>Телефон</dt>
+              <dd>
+                {member.phone ? (
+                  <>
+                    <a href={toTelHref(member.phone)} className="mono">
+                      {member.phone}
+                    </a>
+                    <CopyButton value={member.phone} what="телефон" />
+                  </>
+                ) : (
+                  'Не указан'
+                )}
+              </dd>
+            </div>
+          </dl>
+        )}
         {member.formerMember ? (
           <p className="muted">
             Фото, дата рождения и телефон бывшего участника в доме не показываются. Сохраняется

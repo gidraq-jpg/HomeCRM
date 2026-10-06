@@ -249,52 +249,23 @@ function FactorSettings({ me, reload }: { me: Me; reload: () => Promise<void> })
   );
 }
 
-function InviteParticipant({ me }: { me: Me }) {
-  const state = useAction();
-  const [link, setLink] = useState('');
-  const house = me.roles.find(({ role }) => role === 'admin');
-  if (!house) return null;
+/** Приглашения и состав дома живут в разделе «Люди»; из настроек администратору — короткая дорога. */
+function HouseholdLinks({ me }: { me: Me }) {
+  if (!isAdmin(me)) return null;
   return (
-    <Section title="Пригласить участника">
-      <AuthForm
-        state={state}
-        submit="Создать приглашение"
-        onSubmit={(event) => {
-          const { text } = formValues(event);
-          void state.run(async () => {
-            const result = await api('invitations', z.object({ url: z.string() }), {
-              householdId: house.householdId,
-              role: text('role'),
-            });
-            setLink(result.url);
-          });
-        }}
-      >
-        <label className="auth-field">
-          <span>Роль участника</span>
-          <select name="role" defaultValue="adult">
-            <option value="adult">Взрослый</option>
-            <option value="child">Ребёнок</option>
-            <option value="admin">Администратор</option>
-          </select>
-        </label>
-      </AuthForm>
-      {link && (
-        <>
-          <Notice>Ссылка действует 72 часа, только один раз. Передайте её участнику лично.</Notice>
-          <label className="auth-field">
-            <span>Ссылка-приглашение</span>
-            <textarea value={link} readOnly rows={3} />
-          </label>
-          <button className="text-button" type="button" onClick={() => setLink('')}>
-            Скрыть ссылку
-          </button>
-        </>
-      )}
+    <Section title="Дом и участники">
+      <p className="auth-hint">Приглашения, роли и состав дома — в разделе «Люди».</p>
+      <div className="auth-links">
+        <Link className="text-button" to="/people/invite">
+          Пригласить участника
+        </Link>
+        <Link className="text-button" to="/people">
+          Состав дома
+        </Link>
+      </div>
     </Section>
   );
 }
-
 export function SecurityScreen({
   me,
   reload,
@@ -331,7 +302,7 @@ export function SecurityScreen({
       <ChangePassword />
       <Devices onSignedOut={onSignedOut} timeZone={me.timeZone} />
       <LoginEvents timeZone={me.timeZone} />
-      <InviteParticipant me={me} />
+      <HouseholdLinks me={me} />
       <InstallApp inline />
     </Page>
   );

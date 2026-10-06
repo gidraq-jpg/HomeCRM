@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:prototype": "vite build --mode prototype",
     "preview": "vite preview",
     "test:e2e": "node e2e/run.ts",
     "test:e2e:auth": "node e2e/run.ts auth",

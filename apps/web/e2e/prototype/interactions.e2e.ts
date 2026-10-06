@@ -382,7 +382,9 @@ test.describe('«Ещё»', () => {
 
   test('заглушки объясняют, что здесь будет', async ({ page }) => {
     await openApp(page, '/more/settings');
-    await expect(page.getByRole('heading', { name: 'Устройства', exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Безопасность: пароль, второй фактор, список устройств'),
+    ).toBeVisible();
     await openApp(page, '/more/export');
     await expect(page.getByText('Чужое личное в экспорт дома не попадает.')).toBeVisible();
     await openApp(page, '/more/trash');
@@ -400,9 +402,16 @@ test.describe('«Ещё»', () => {
     ] as const) {
       await expect(page.locator('.spaces-list li').filter({ hasText: label })).toContainText(hint);
     }
-    await expect(
-      page.getByText('технически может прочитать любые незашифрованные записи'),
-    ).toBeVisible();
+    const caveat = page.getByText('технически может прочитать любые незашифрованные записи');
+    await expect(caveat).toBeVisible();
+    // Абзац об ограничениях защиты отделён от списка над ним (бэклог: он прилипал к пункту).
+    const gap = await caveat.evaluate((paragraph) => {
+      const list = paragraph.previousElementSibling;
+      return list
+        ? paragraph.getBoundingClientRect().top - list.getBoundingClientRect().bottom
+        : -1;
+    });
+    expect(gap).toBeGreaterThanOrEqual(12);
   });
 
   test('«Покупки»: купить и вернуть', async ({ page }) => {

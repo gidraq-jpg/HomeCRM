@@ -1,3 +1,5 @@
+import { existsSync, renameSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { env } from 'node:process';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
@@ -12,6 +14,7 @@ const api = `http://127.0.0.1:${env.PORT ?? 8310}`;
 // своя страница prototype.html, своя папка dist-prototype, без PWA, входа и сервера.
 export default defineConfig(({ mode }) => {
   const prototype = mode === 'prototype';
+  let outDir = '';
   return {
     // По умолчанию — корень сайта: ссылки сервера /invite/... и /reset-password должны
     // открываться сразу. WEB_BASE позволяет собрать оболочку для заданной подпапки;
@@ -20,7 +23,19 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       ...(prototype
-        ? []
+        ? [
+            {
+              // Страница прототипа называется index.html: папку можно класть на любой хостинг.
+              name: 'prototype-index-page',
+              configResolved(config: { root: string; build: { outDir: string } }) {
+                outDir = resolve(config.root, config.build.outDir);
+              },
+              closeBundle() {
+                const page = resolve(outDir, 'prototype.html');
+                if (existsSync(page)) renameSync(page, resolve(outDir, 'index.html'));
+              },
+            },
+          ]
         : [
             VitePWA({
               strategies: 'injectManifest',

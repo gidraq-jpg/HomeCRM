@@ -105,11 +105,11 @@ function ExcludeSheet({
     >
       <ul className="bullets sheet__block">
         <li>
-          Учётная запись и личное пространство {member.displayName} останутся при нём: исключение их
-          не затрагивает.
+          Учётная запись и личное пространство остаются у самого участника: исключение их не
+          затрагивает.
         </li>
         <li>Общие записи останутся в доме, а автор будет помечен как «бывший участник».</li>
-        <li>Ответственность за его записи перейдёт администратору.</li>
+        <li>Ответственность за записи участника перейдёт администратору.</li>
       </ul>
       <ActionError error={state.error} action="exclude" />
       <button
@@ -129,7 +129,7 @@ function ExcludeSheet({
             }
             await refresh.members();
             toast.show({
-              message: `${member.displayName} исключён из дома`,
+              message: `Исключён из дома: ${member.displayName}`,
               ...(pending
                 ? {
                     detail:
@@ -188,8 +188,8 @@ function ResetSheet({
           </Notice>
           <IssuedLinkBox url={issued.url} what="ссылка для сброса пароля" />
           <p className="muted">
-            Действует до {formatMoment(issued.expiresAt, me.timeZone)}. Передайте её только{' '}
-            {member.displayName}.
+            Действует до {formatMoment(issued.expiresAt, me.timeZone)}. Передайте её только самому
+            ребёнку.
           </p>
           <button
             type="button"

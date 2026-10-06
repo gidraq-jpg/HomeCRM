@@ -12,7 +12,7 @@ export const E2E_PREFIX = env.E2E_PREFIX ?? '/homecrm/prototype/v1/';
 
 // Папка сборки и её главная страница: прототип собирается отдельно (ite build --mode prototype).
 const ROOT = resolve(import.meta.dirname, '../..', env.E2E_DIST ?? 'dist-prototype');
-const INDEX = env.E2E_INDEX ?? 'prototype.html';
+const INDEX = env.E2E_INDEX ?? 'index.html';
 
 const TYPES: Readonly<Record<string, string>> = {
   '.html': 'text/html; charset=utf-8',
