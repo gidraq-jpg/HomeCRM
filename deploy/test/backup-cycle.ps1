@@ -28,7 +28,7 @@ $here = $PSScriptRoot
 $scripts = Join-Path $here '..\scripts'
 . (Join-Path $scripts 'ops-common.ps1')
 
-$branch = (git -C $script:Repo rev-parse --abbrev-ref HEAD).Trim()
+$branch = (git -C $script:RepoRoot rev-parse --abbrev-ref HEAD).Trim()
 $slug = ($branch.ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-')
 $project = "homecrm-test-$slug-ops"
 $checkProject = "$project-check"
@@ -78,7 +78,7 @@ try {
   Write-TextFile $backupEnv ((Get-Content $backupEnv -Raw) + "BACKUP_CLOUD_REPOSITORY=rclone:cloud-test:/cloud/restic`n")
 
   # Каталог миграций «прошлой версии»: без последней записи журнала.
-  $migrations = Join-Path $script:Repo 'packages\db\migrations'
+  $migrations = Join-Path $script:RepoRoot 'packages\db\migrations'
   $old = Join-Path $data 'old-migrations'
   Copy-Item $migrations $old -Recurse
   $journalFile = Join-Path $old 'meta\_journal.json'
@@ -125,6 +125,10 @@ await pool.end();
   $accountsBefore = Invoke-Psql 'select count(*) from accounts'
   $householdsBefore = Invoke-Psql 'select count(*) from spaces'
   Assert-That ([int]$accountsBefore -ge 1 -and [int]$householdsBefore -ge 1) "в базе есть данные: пространств $householdsBefore, учётных записей $accountsBefore"
+  # Строка с «чувствительным» маркером и ограничение, которое проваливает восстановление, когда задан
+  # параметр ops.inject_failure: так проверяется, что текст строки из ошибки COPY не попадает в журнал и статус.
+  $marker = 'SECRET-MARKER-' + [guid]::NewGuid().ToString('n')
+  [void](Invoke-Psql "create table public.ops_marker_probe (id int primary key, note text, constraint ops_inject check (current_setting('ops.inject_failure', true) is distinct from '1')); insert into public.ops_marker_probe values (1, '$marker')")
   # Файл приложения: проверяет, что в копию входят и файлы.
   & docker @compose --profile app exec -T app node -e "require('node:fs').writeFileSync('/data/files/probe.bin', Buffer.alloc(4096, 7))"
   Assert-That ($LASTEXITCODE -eq 0) 'в том файлов лёг тестовый файл'
@@ -148,6 +152,10 @@ await pool.end();
   Assert-That (($files -join '').Trim() -eq '4096') 'файл приложения восстановлен'
   Assert-That ((Get-Health).database -eq 'ok') '/health: база отвечает'
 
+  # Копии есть, а восстановление ещё не проверено: состояние не должно считаться исправным (DATA-3).
+  & (Join-Path $scripts 'backup-status.ps1') -DataDir $data | Out-Null
+  Assert-That ($LASTEXITCODE -eq 1) 'backup-status.ps1: без проверки восстановления состояние не «в порядке» (код 1)'
+
   # --- 5. Проверка восстановления в отдельном проекте ---------------------------------------------
   Write-Host '== 5. Проверка восстановления (оба хранилища)'
   & (Join-Path $scripts 'restore-check.ps1') -DataDir $data -Project $checkProject -From local, cloud -ExtraComposeFiles $cycle
@@ -159,6 +167,23 @@ await pool.end();
   & (Join-Path $scripts 'backup-status.ps1') -DataDir $data
   Assert-That ($LASTEXITCODE -eq 0) 'backup-status.ps1: состояние в порядке'
 
+  # --- 6. Сбой восстановления: текст строки данных не попадает в журнал и статус ------------------
+  Write-Host '== 6. Сбой восстановления с маркером в данных'
+  $checkCompose = Get-ComposeArgs -Project $checkProject -ExtraFiles @($cycle)
+  & docker @checkCompose --profile app --profile ops down --volumes --remove-orphans 2>&1 | Out-Null
+  $failOutput = & docker @checkCompose --profile app --profile ops run --rm -T -e BACKUP_ENABLED=0 -e 'PGOPTIONS=-c ops.inject_failure=1' ops node apps/server/src/ops/cli.ts restore --check --from local 2>&1 | Out-String
+  $failCode = $LASTEXITCODE
+  & docker @checkCompose --profile app --profile ops down --volumes --remove-orphans 2>&1 | Out-Null
+  Assert-That ($failCode -ne 0) 'восстановление с внедрённым сбоем завершилось ошибкой'
+  if ($failOutput -notmatch 'pg_restore failed at restore') { Write-Host $failOutput.Substring(0, [Math]::Min(1500, $failOutput.Length)) }
+  Assert-That ($failOutput -match 'pg_restore failed at restore \(exit code') 'в журнале — этап и код выхода pg_restore'
+  Assert-That (-not $failOutput.Contains($marker)) 'маркера из данных нет в журнале (stdout и stderr)'
+  $failStatus = Get-Content (Join-Path $data 'backups\status\restore-check-local.json') -Raw
+  Assert-That (-not $failStatus.Contains($marker)) 'маркера из данных нет в отметке restore-check-local.json'
+  Assert-That (($failStatus | ConvertFrom-Json).ok -eq $false) 'отметка проверки показывает неудачу'
+  & (Join-Path $scripts 'backup-status.ps1') -DataDir $data | Out-Null
+  Assert-That ($LASTEXITCODE -eq 1) 'backup-status.ps1: после неудачной проверки восстановления — код 1'
+
   # --- Секреты не в журналах ---------------------------------------------------------------------
   $logs = (& docker @compose --profile app --profile ops logs --no-color) -join "`n"
   $secretValues = @()
@@ -167,6 +192,7 @@ await pool.end();
       if ($line -match '^[A-Z_]+_(PASSWORD|SECRET)=(.+)$') { $secretValues += $Matches[2] } elseif ($file -like '*restic-password' -and $line) { $secretValues += $line }
     }
   }
+  $secretValues += $marker
   $leaked = @($secretValues | Where-Object { $logs.Contains($_) })
   Assert-That ($leaked.Count -eq 0) "секреты ($($secretValues.Count) значений) не найдены в журналах контейнеров"
 }

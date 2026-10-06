@@ -2,6 +2,7 @@
 // Читаются из окружения контейнера. Пароли приходят из файлов окружения в E:\HomeCRM-data\secrets
 // и нигде не печатаются: ни в журнал, ни в статус, ни в текст ошибки.
 import { z } from 'zod';
+import { OpsError } from './process.ts';
 
 const Flag = z
   .enum(['0', '1'])
@@ -66,7 +67,7 @@ export function loadOpsEnv(env: NodeJS.ProcessEnv = process.env): OpsEnv {
   const problems = parsed.error.issues.map(
     (issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`,
   );
-  throw new Error(`Invalid operations configuration: ${problems.join('; ')}`);
+  throw new OpsError(`Invalid operations configuration: ${problems.join('; ')}`);
 }
 
 /** Адрес подключения к базе; пароль, если есть, кодируется. */

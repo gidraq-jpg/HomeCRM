@@ -3,7 +3,7 @@ import { createPool, DB_ROLES, runMigrations } from '@homecrm/db';
 import { type BackupResult, runBackup } from './backup.ts';
 import { bootstrapDatabase, migrationState } from './database.ts';
 import { databaseUrl, type OpsEnv } from './env.ts';
-import type { Log } from './process.ts';
+import { type Log, OpsError } from './process.ts';
 
 export interface MigrateOptions {
   env: OpsEnv;
@@ -37,7 +37,7 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
       } else {
         const result = await backup({ env, kind: 'pre-migration', log });
         if (!result.ok) {
-          throw new Error('The copy before the migration failed: migration cancelled');
+          throw new OpsError('The copy before the migration failed: migration cancelled');
         }
         log.info('copy before the migration saved');
       }

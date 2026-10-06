@@ -2,7 +2,7 @@
 # Общее для скриптов эксплуатации (R0.11): аргументы docker compose и проверки. Подключается точкой:
 #   . "$PSScriptRoot\ops-common.ps1"
 
-$script:Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 
 # Аргументы docker compose: проект, файл окружения, основной compose-файл и дополнительные.
 function Get-ComposeArgs {
@@ -14,7 +14,7 @@ function Get-ComposeArgs {
   $result = @('compose')
   if ($Project) { $result += @('-p', $Project) }
   if ($EnvFile) { $result += @('--env-file', $EnvFile) }
-  $result += @('-f', (Join-Path $script:Repo 'deploy\compose.yaml'))
+  $result += @('-f', (Join-Path $script:RepoRoot 'deploy\compose.yaml'))
   foreach ($file in $ExtraFiles) { $result += @('-f', $file) }
   return $result
 }
@@ -57,4 +57,21 @@ function ConvertTo-UtcDate {
 function Get-AgeSpan {
   param($Value)
   return ([datetime]::UtcNow - (ConvertTo-UtcDate $Value))
+}
+
+# Запуск rclone с очисткой вывода: rclone способен печатать токен и ключи (config create выводит весь
+# конфиг, ошибки приводят справку). Строки со словами token, secret, password, key и client_id не
+# выводятся; остальное показывается как есть. Код выхода сохраняется в $LASTEXITCODE.
+function Invoke-RcloneFiltered {
+  & rclone @args 2>&1 | ForEach-Object {
+    $line = "$_"
+    if ($line -notmatch '(?i)token|secret|password|key|client_id') { Write-Host $line }
+  }
+}
+
+# Создаёт подключение rclone. --no-output: rclone не печатает получившийся конфиг (в нём токен).
+function New-RcloneRemote {
+  param([string]$Name, [string]$Type, [string]$Config, [string[]]$Options = @())
+  Invoke-RcloneFiltered config create $Name $Type @Options --config $Config --no-output
+  if ($LASTEXITCODE -ne 0) { throw 'rclone не смог создать подключение.' }
 }

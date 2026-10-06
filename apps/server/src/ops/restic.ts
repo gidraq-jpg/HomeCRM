@@ -2,7 +2,7 @@
 import { copyFile, mkdir, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { OpsEnv } from './env.ts';
-import { run, tail } from './process.ts';
+import { commandFailure, OpsError, run } from './process.ts';
 
 export type RepoName = 'local' | 'cloud';
 
@@ -28,7 +28,7 @@ export function configuredRepos(env: OpsEnv): Repo[] {
 
 export function repoByName(env: OpsEnv, name: RepoName): Repo {
   const repo = configuredRepos(env).find((candidate) => candidate.name === name);
-  if (repo === undefined) throw new Error(`Repository "${name}" is not configured`);
+  if (repo === undefined) throw new OpsError(`Repository "${name}" is not configured`);
   return repo;
 }
 
@@ -53,7 +53,7 @@ export async function resticEnv(env: OpsEnv, repo: Repo): Promise<Record<string,
   };
   if (repo.repository.startsWith('rclone:')) {
     if (!(await exists(env.RCLONE_CONFIG_SOURCE))) {
-      throw new Error('rclone configuration is missing: connect Google Drive (docs/runbook.md)');
+      throw new OpsError('rclone configuration is missing: connect Google Drive (docs/runbook.md)');
     }
     await mkdir(dirname(RCLONE_WORKING_CONFIG), { recursive: true });
     await copyFile(env.RCLONE_CONFIG_SOURCE, RCLONE_WORKING_CONFIG);
@@ -61,6 +61,14 @@ export async function resticEnv(env: OpsEnv, repo: Repo): Promise<Record<string,
   }
   return result;
 }
+
+/** Коды выхода restic, по которым причина известна без его вывода (вывод restic может цитировать имена файлов). */
+const RESTIC_HINTS: Readonly<Record<number, string>> = {
+  3: 'some files could not be read',
+  10: 'repository does not exist',
+  11: 'repository is locked',
+  12: 'wrong repository password',
+};
 
 /** Параметры rclone при работе restic: удалённое не уходит в корзину Google Диска и не съедает объём. */
 const RCLONE_OPTIONS = ['-o', 'rclone.args=serve restic --stdio --drive-use-trash=false'];
@@ -76,7 +84,7 @@ export async function resticFor(env: OpsEnv, repo: Repo): Promise<Restic> {
   return async (args, options = {}) => {
     const result = await run('restic', [...RCLONE_OPTIONS, ...args], { env: resticEnvironment });
     if (result.code !== 0 && !(options.allowCodes ?? []).includes(result.code)) {
-      throw new Error(`restic ${args[0]} failed (code ${result.code}): ${tail(result.stderr)}`);
+      throw commandFailure('restic', args[0] ?? 'command', result.code, RESTIC_HINTS[result.code]);
     }
     return { code: result.code, stdout: result.stdout };
   };
@@ -115,7 +123,7 @@ export function parseSnapshotId(output: string): string {
       // Не строка JSON — пропускаем.
     }
   }
-  throw new Error('restic did not report a snapshot id');
+  throw new OpsError('restic did not report a snapshot id');
 }
 
 export interface SnapshotInfo {

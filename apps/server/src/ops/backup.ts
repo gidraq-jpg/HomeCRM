@@ -3,7 +3,7 @@ import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { connectAdmin, countRows, type RowCounts } from './database.ts';
 import { type OpsEnv, pgEnv } from './env.ts';
-import { errorMessage, type Log, run, tail } from './process.ts';
+import { commandFailure, errorMessage, type Log, OpsError, run } from './process.ts';
 import {
   configuredRepos,
   ensureRepo,
@@ -84,7 +84,7 @@ export async function dumpDatabase(
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const snapshot = (await client.query<{ id: string }>('select pg_export_snapshot() as id'))
       .rows[0]?.id;
-    if (snapshot === undefined) throw new Error('database did not export a snapshot');
+    if (snapshot === undefined) throw new OpsError('database did not export a snapshot');
     tables = await countRows(client);
     // Без сжатия pg_dump: restic сжимает и дедуплицирует сам, а несжатый дамп дедуплицируется лучше.
     const dump = await run(
@@ -98,8 +98,7 @@ export async function dumpDatabase(
       ],
       { env: pgEnv(env, env.DB_NAME) },
     );
-    if (dump.code !== 0)
-      throw new Error(`pg_dump failed (code ${dump.code}): ${tail(dump.stderr)}`);
+    if (dump.code !== 0) throw commandFailure('pg_dump', 'dump', dump.code);
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
@@ -110,7 +109,7 @@ export async function dumpDatabase(
   }
   const listing = await run('pg_restore', ['--list', join(stage, DUMP_FILE)]);
   if (listing.code !== 0) {
-    throw new Error(`the dump is not readable (code ${listing.code}): ${tail(listing.stderr)}`);
+    throw commandFailure('pg_restore', 'dump check', listing.code);
   }
   const manifest: Manifest = {
     version: 1,

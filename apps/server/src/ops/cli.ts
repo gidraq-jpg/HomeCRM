@@ -10,7 +10,7 @@
 import { checkRepositories, runBackup } from './backup.ts';
 import { loadOpsEnv } from './env.ts';
 import { runMigrate } from './migrate.ts';
-import { createLog, errorMessage } from './process.ts';
+import { createLog, errorMessage, OpsError } from './process.ts';
 import { ensureRepo, repoByName, resticFor } from './restic.ts';
 import { runRestore } from './restore.ts';
 import { runScheduler } from './scheduler.ts';
@@ -31,7 +31,7 @@ async function main(): Promise<number> {
       return 0;
     case 'backup': {
       const kind = option(args, '--kind') ?? 'daily';
-      if (kind !== 'daily' && kind !== 'pre-migration') throw new Error(`Unknown kind: ${kind}`);
+      if (kind !== 'daily' && kind !== 'pre-migration') throw new OpsError(`Unknown kind: ${kind}`);
       return (await runBackup({ env, kind, log })).ok ? 0 : 1;
     }
     case 'scheduler':
@@ -40,7 +40,7 @@ async function main(): Promise<number> {
       return (await checkRepositories(env, log)) ? 0 : 1;
     case 'restore': {
       const from = option(args, '--from') ?? 'local';
-      if (from !== 'local' && from !== 'cloud') throw new Error(`Unknown repository: ${from}`);
+      if (from !== 'local' && from !== 'cloud') throw new OpsError(`Unknown repository: ${from}`);
       const report = await runRestore({
         env,
         log,
@@ -53,7 +53,7 @@ async function main(): Promise<number> {
     }
     case 'snapshots': {
       const from = option(args, '--from') ?? 'local';
-      if (from !== 'local' && from !== 'cloud') throw new Error(`Unknown repository: ${from}`);
+      if (from !== 'local' && from !== 'cloud') throw new OpsError(`Unknown repository: ${from}`);
       const restic = await resticFor(env, repoByName(env, from));
       const { stdout } = await restic(['snapshots', '--json', '--host', env.BACKUP_HOST]);
       const list = JSON.parse(stdout || '[]') as Array<{

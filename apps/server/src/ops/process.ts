@@ -47,7 +47,8 @@ export function run(command: string, args: string[], options: RunOptions = {}): 
         : setTimeout(() => child.kill('SIGKILL'), options.timeoutMs);
     child.on('error', (error) => {
       if (timer) clearTimeout(timer);
-      reject(new Error(`${command}: ${error.message}`));
+      const code = errorCode(error);
+      reject(new OpsError(`${command} could not be started${code ? ` (${code})` : ''}`));
     });
     child.on('close', (code) => {
       if (timer) clearTimeout(timer);
@@ -60,11 +61,39 @@ export function run(command: string, args: string[], options: RunOptions = {}): 
   });
 }
 
-/** Последние строки вывода программы для сообщения об ошибке. */
-export function tail(text: string, lines = 6): string {
-  return text.trim().split(/\r?\n/).slice(-lines).join(' | ');
+/**
+ * Ошибка с заведомо безопасным текстом: только наши слова, коды и имена этапов. Именно такой текст
+ * разрешено писать в журнал и в отметки о копиях и проверках (PRD, раздел 13).
+ */
+export class OpsError extends Error {}
+
+/** Сбой внешней программы: этап и код выхода. Её собственный вывод не используется никогда:
+ *  pg_restore и restic в сообщениях об ошибках цитируют строки данных и имена файлов. */
+export function commandFailure(
+  command: string,
+  stage: string,
+  code: number,
+  hint?: string,
+): OpsError {
+  return new OpsError(
+    `${command} failed at ${stage} (exit code ${code})${hint === undefined ? '' : `: ${hint}`}`,
+  );
 }
 
+function errorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  const { code, cause } = error as { code?: unknown; cause?: unknown };
+  if (typeof code === 'string' && /^[A-Za-z0-9_]{1,16}$/.test(code)) return code;
+  return cause === undefined ? undefined : errorCode(cause);
+}
+
+/**
+ * Текст ошибки для журнала и статуса. Свои ошибки (OpsError) — как есть. Чужие (драйвер базы, Drizzle,
+ * Node) — только код: SQLSTATE или системный, потому что их сообщения могут содержать SQL, значения
+ * строк и строки подключения.
+ */
 export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'unknown error';
+  if (error instanceof OpsError) return error.message;
+  const code = errorCode(error);
+  return code === undefined ? 'unexpected error' : `unexpected error (code ${code})`;
 }

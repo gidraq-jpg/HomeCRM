@@ -5,7 +5,7 @@ import type { BackupResult } from './backup.ts';
 import { bootstrapDatabase, countRows, migrationState } from './database.ts';
 import { databaseUrl, loadOpsEnv, type OpsEnv } from './env.ts';
 import { runMigrate } from './migrate.ts';
-import { createLog, silentLog } from './process.ts';
+import { commandFailure, createLog, errorMessage, OpsError, run, silentLog } from './process.ts';
 import { configuredRepos, forgetArgs, parseSnapshotId, RETENTION } from './restic.ts';
 import { compareCounts } from './restore.ts';
 import { dueAction, localTime } from './scheduler.ts';
@@ -220,5 +220,46 @@ describe('база: роли, миграции, копия перед ними (
     }).catch(() => {});
     expect(noBackups).not.toHaveBeenCalled();
     await pool.end();
+  });
+});
+
+describe('безопасный текст сбоев (PRD, раздел 13)', () => {
+  const MARKER = 'SECRET-MARKER-do-not-log';
+
+  it('сбой внешней программы называет этап и код выхода, но не её вывод', async () => {
+    const failure = commandFailure('pg_restore', 'restore', 1);
+    expect(errorMessage(failure)).toBe('pg_restore failed at restore (exit code 1)');
+    // Программа, которая печатает строку данных в stderr и падает: её вывод не должен попасть в ошибку.
+    const result = await run(process.execPath, [
+      '-e',
+      `console.error('COPY failed, line 1: "${MARKER}"'); process.exit(1)`,
+    ]);
+    expect(result.stderr).toContain(MARKER);
+    const message = errorMessage(commandFailure('pg_restore', 'restore', result.code));
+    expect(message).not.toContain(MARKER);
+  });
+
+  it('чужие ошибки (драйвер базы, Drizzle) дают только код: SQL и значения не выходят', () => {
+    const driver = Object.assign(new Error(`insert ... values ('${MARKER}') violates check`), {
+      code: '23514',
+    });
+    expect(errorMessage(driver)).toBe('unexpected error (code 23514)');
+    const wrapped = new Error(`Failed query: insert ... params: ${MARKER}`, { cause: driver });
+    expect(errorMessage(wrapped)).toBe('unexpected error (code 23514)');
+    expect(errorMessage(new Error(`postgres://user:${MARKER}@db/homecrm`))).toBe(
+      'unexpected error',
+    );
+    expect(errorMessage('строка')).toBe('unexpected error');
+  });
+
+  it('свои сообщения проходят как есть', () => {
+    expect(errorMessage(new OpsError('The repository has no snapshots'))).toBe(
+      'The repository has no snapshots',
+    );
+  });
+
+  it('программы, которой нет, — понятное сообщение без пути и окружения', async () => {
+    const error = await run('homecrm-no-such-program', []).catch((reason: unknown) => reason);
+    expect(errorMessage(error)).toBe('homecrm-no-such-program could not be started (ENOENT)');
   });
 });

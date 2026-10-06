@@ -60,17 +60,24 @@ else {
   }
 }
 
-foreach ($repo in 'local', 'cloud') {
+# Проверка восстановления обязательна для каждого настроенного хранилища (DATA-3): её отсутствие,
+# провал или давность больше 35 дней — ошибка, а не «всё в порядке». Отсутствие облачного хранилища
+# уже учтено выше как проблема.
+$cloudConfigured = [bool](Get-EnvSetting (Join-Path $DataDir 'secrets\backup.env') 'BACKUP_CLOUD_REPOSITORY')
+$checked = if ($cloudConfigured) { 'local', 'cloud' } else { 'local' }
+foreach ($repo in $checked) {
   $file = Join-Path $statusDir "restore-check-$repo.json"
   if (-not (Test-Path $file)) {
-    if ($repo -eq 'local' -or (Test-Path (Join-Path $statusDir 'backup.json'))) { Write-Host "Проверка восстановления ($($names[$repo])): ещё не проводилась." }
+    Write-Host "Проверка восстановления ($($names[$repo])): НЕ ПРОВОДИЛАСЬ. Запустите: pwsh deploy/scripts/restore-check.ps1"
+    $problems++
     continue
   }
   $check = Get-Content $file -Raw | ConvertFrom-Json
   $at = ConvertTo-UtcDate $check.at
   $state = if ($check.ok) { "ок: $($check.tables) таблиц, $($check.rows) строк, файлов $($check.files)" } else { "НЕ СОШЛОСЬ: $($check.error) $($check.mismatches -join '; ')" }
   Write-Host "Проверка восстановления ($($names[$repo])): $state, $(Format-Age $at)"
-  if (-not $check.ok -or (Get-AgeSpan $at).TotalDays -gt 35) { $problems++ }
+  if (-not $check.ok) { $problems++ }
+  elseif ((Get-AgeSpan $at).TotalDays -gt 35) { Write-Host '  ВНИМАНИЕ: проверка старше 35 дней.'; $problems++ }
 }
 
 if ($Snapshots) {

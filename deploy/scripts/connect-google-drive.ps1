@@ -48,12 +48,12 @@ if ($existing) {
 else {
   Write-Host 'Сейчас откроется браузер. Войдите в тот аккаунт Google, на Диске которого будут лежать копии,'
   Write-Host 'и нажмите "Разрешить". Если Google пишет "приложение не проверено", выберите "Дополнительно" -> "Перейти".'
-  & rclone config create $Remote drive scope=drive.file --config $config
-  if ($LASTEXITCODE -ne 0) { throw 'rclone не смог подключить Google Диск.' }
+  # Вывод rclone фильтруется: токен не должен попасть на экран и в запись консоли.
+  New-RcloneRemote -Name $Remote -Type drive -Config $config -Options 'scope=drive.file'
 }
 
 # Проверка доступа и создание папки. С областью drive.file видна только папка, созданная этим приложением.
-& rclone mkdir "${Remote}:$Folder" --config $config
+Invoke-RcloneFiltered mkdir "${Remote}:$Folder" --config $config
 if ($LASTEXITCODE -ne 0) { throw 'Не удалось создать папку копий на Google Диске.' }
 Write-Host "Папка на Google Диске: $Folder"
 

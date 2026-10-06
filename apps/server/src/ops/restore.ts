@@ -7,7 +7,7 @@ import { countFiles, DUMP_FILE, MANIFEST_FILE, type Manifest } from './backup.ts
 import { bootstrapDatabase, connectAdmin, countRows, type RowCounts } from './database.ts';
 import { type OpsEnv, pgEnv } from './env.ts';
 import { runMigrate } from './migrate.ts';
-import { errorMessage, type Log, run, tail } from './process.ts';
+import { commandFailure, errorMessage, type Log, OpsError, run } from './process.ts';
 import { latestSnapshot, type RepoName, repoByName, resticFor } from './restic.ts';
 import { type RestoreCheckStatus, restoreCheckFile, writeStatus } from './status.ts';
 
@@ -73,7 +73,7 @@ export async function runRestore(options: RestoreOptions): Promise<RestoreReport
     try {
       const existing = await countRows(pool);
       if (Object.keys(existing).length > 0) {
-        throw new Error(
+        throw new OpsError(
           `The target database is not empty (${Object.keys(existing).length} tables): restore is only into an empty database`,
         );
       }
@@ -83,7 +83,7 @@ export async function runRestore(options: RestoreOptions): Promise<RestoreReport
 
     const restic = await resticFor(env, repoByName(env, options.from));
     const latest = await latestSnapshot(restic, env.BACKUP_HOST);
-    if (latest === undefined) throw new Error('The repository has no snapshots');
+    if (latest === undefined) throw new OpsError('The repository has no snapshots');
     if (options.snapshot === 'latest') snapshotId = latest.id;
     snapshotTime = latest.id === snapshotId ? latest.time : undefined;
     await rm(work, { recursive: true, force: true });
@@ -94,7 +94,7 @@ export async function runRestore(options: RestoreOptions): Promise<RestoreReport
     const dump = await findFile(work, DUMP_FILE);
     const manifestFile = await findFile(work, MANIFEST_FILE);
     if (dump === undefined || manifestFile === undefined) {
-      throw new Error('The snapshot has no dump or manifest');
+      throw new OpsError('The snapshot has no dump or manifest');
     }
     const manifest = JSON.parse(await readFile(manifestFile, 'utf8')) as Manifest;
 
@@ -104,7 +104,7 @@ export async function runRestore(options: RestoreOptions): Promise<RestoreReport
       { env: pgEnv(env, env.DB_NAME) },
     );
     if (restored.code !== 0) {
-      throw new Error(`pg_restore failed (code ${restored.code}): ${tail(restored.stderr)}`);
+      throw commandFailure('pg_restore', 'restore', restored.code);
     }
 
     const after = await connectAdmin(env, env.DB_NAME, log);
@@ -172,6 +172,6 @@ export async function runRestore(options: RestoreOptions): Promise<RestoreReport
     await writeStatus(env.BACKUP_STATUS_DIR, restoreCheckFile(options.from), status);
   }
   if (failure !== undefined) throw failure;
-  if (report === undefined) throw new Error('restore produced no report');
+  if (report === undefined) throw new OpsError('restore produced no report');
   return report;
 }

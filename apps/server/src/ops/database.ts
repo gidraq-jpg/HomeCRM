@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createDatabase, createPool, createRoles, DB_ROLES, MIGRATIONS_DIR } from '@homecrm/db';
 import { adminUrl, type OpsEnv } from './env.ts';
-import type { Log } from './process.ts';
+import { type Log, OpsError } from './process.ts';
 
 type Pool = ReturnType<typeof createPool>;
 export interface Queryable {
@@ -34,7 +34,7 @@ export async function connectAdmin(
     } catch (error) {
       if (attempt >= attempts) {
         await pool.end();
-        throw new Error('Database is not reachable', { cause: error });
+        throw new OpsError('Database is not reachable', { cause: error });
       }
       if (attempt === 1) log.info('waiting for the database');
       await sleep(2000);
