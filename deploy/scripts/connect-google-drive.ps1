@@ -66,6 +66,6 @@ Write-Host "Адрес хранилища записан в $settings"
 
 # Проверка всего пути: restic -> rclone -> Google Диск. Хранилище создаётся при первом запуске.
 $compose = Get-ComposeArgs
-Invoke-Docker @compose --profile ops run --rm -T --no-deps ops node apps/server/src/ops/cli.ts cloud-check
+Invoke-Docker @compose --profile app --profile ops run --rm -T --no-deps ops node apps/server/src/ops/cli.ts cloud-check
 Write-Host ''
 Write-Host 'Google Диск подключён. Первая копия уйдёт ночью в 3:30 или сразу: pwsh deploy/scripts/backup-now.ps1'

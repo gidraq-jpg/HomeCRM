@@ -29,7 +29,7 @@ $ErrorActionPreference = 'Stop'
 $env:HOMECRM_DATA = $DataDir -replace '\\', '/'
 
 $compose = Get-ComposeArgs -Project $Project -EnvFile $EnvFile -ExtraFiles $ExtraComposeFiles
-Write-Host "Проект $Project: поднимаю пустую базу."
+Write-Host "Проект ${Project}: поднимаю пустую базу."
 # Приложение и копии на время восстановления остановлены: в базе не должно быть новых записей.
 & docker @compose --profile app --profile backup stop app backup 2>&1 | Out-Null
 Invoke-Docker @compose --profile app up -d --wait db

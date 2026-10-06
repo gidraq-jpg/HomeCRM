@@ -79,7 +79,7 @@ if ($Snapshots) {
   foreach ($repo in $repos) {
     Write-Host ''
     Write-Host "Снимки $($names[$repo]):"
-    & docker @compose --profile ops run --rm -T --no-deps ops node apps/server/src/ops/cli.ts snapshots --from $repo
+    & docker @compose --profile app --profile ops run --rm -T --no-deps ops node apps/server/src/ops/cli.ts snapshots --from $repo
   }
 }
 

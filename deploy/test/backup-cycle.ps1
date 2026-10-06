@@ -63,7 +63,7 @@ function Read-Status([string]$File) {
 
 function Get-Snapshots([string]$Repo) {
   $compose = Get-ComposeArgs -Project $project -ExtraFiles @($cycle)
-  (& docker @compose --profile ops run --rm -T --no-deps ops node apps/server/src/ops/cli.ts snapshots --from $Repo) -join "`n"
+  (& docker @compose --profile app --profile ops run --rm -T --no-deps ops node apps/server/src/ops/cli.ts snapshots --from $Repo) -join "`n"
 }
 
 try {
@@ -123,8 +123,8 @@ await pool.end();
   & docker @compose --profile app --profile ops run --rm -T -e "TEST_PASSWORD=$password" ops node --input-type=module -e $setup
   Assert-That ($LASTEXITCODE -eq 0) 'первая настройка создала дом и администратора (вымышленные данные)'
   $accountsBefore = Invoke-Psql 'select count(*) from accounts'
-  $householdsBefore = Invoke-Psql 'select count(*) from households'
-  Assert-That ([int]$accountsBefore -ge 1 -and [int]$householdsBefore -ge 1) "в базе есть данные: домов $householdsBefore, учётных записей $accountsBefore"
+  $householdsBefore = Invoke-Psql 'select count(*) from spaces'
+  Assert-That ([int]$accountsBefore -ge 1 -and [int]$householdsBefore -ge 1) "в базе есть данные: пространств $householdsBefore, учётных записей $accountsBefore"
   # Файл приложения: проверяет, что в копию входят и файлы.
   & docker @compose --profile app exec -T app node -e "require('node:fs').writeFileSync('/data/files/probe.bin', Buffer.alloc(4096, 7))"
   Assert-That ($LASTEXITCODE -eq 0) 'в том файлов лёг тестовый файл'
@@ -143,7 +143,7 @@ await pool.end();
   Assert-That ($LASTEXITCODE -eq 0) 'окружение поднялось на восстановленной базе'
   Assert-That ((Invoke-Psql 'select count(*) from public.ops_cycle_probe') -eq '250') 'строки таблицы на месте: 250'
   Assert-That ((Invoke-Psql 'select count(*) from accounts') -eq $accountsBefore) 'учётные записи на месте'
-  Assert-That ((Invoke-Psql 'select count(*) from households') -eq $householdsBefore) 'дом на месте'
+  Assert-That ((Invoke-Psql 'select count(*) from spaces') -eq $householdsBefore) 'пространства на месте'
   $files = & docker @compose --profile app exec -T app node -e "console.log(require('node:fs').statSync('/data/files/probe.bin').size)"
   Assert-That (($files -join '').Trim() -eq '4096') 'файл приложения восстановлен'
   Assert-That ((Get-Health).database -eq 'ok') '/health: база отвечает'
@@ -172,9 +172,9 @@ await pool.end();
 }
 finally {
   if (-not $KeepEnvironment) {
+    # Только свои проекты, по имени: файлы окружения для этого не нужны.
     foreach ($name in $project, $checkProject) {
-      $compose = Get-ComposeArgs -Project $name -ExtraFiles @($cycle)
-      & docker @compose --profile app --profile ops --profile backup down --volumes --remove-orphans 2>&1 | Out-Null
+      & docker compose -p $name down --volumes --remove-orphans 2>&1 | Out-Null
     }
     & docker rmi "homecrm-app:$version" 2>&1 | Out-Null
     Remove-Item $data -Recurse -Force -ErrorAction SilentlyContinue

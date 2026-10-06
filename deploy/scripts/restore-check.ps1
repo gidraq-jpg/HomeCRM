@@ -53,7 +53,7 @@ foreach ($repo in $From) {
     # В этом проекте копий не делается (BACKUP_ENABLED=0): восстановление ничего не пишет в хранилища.
     & docker @compose --profile app --profile ops run --rm -T -e BACKUP_ENABLED=0 ops `
       node apps/server/src/ops/cli.ts restore --check --migrate --from $repo
-    if ($LASTEXITCODE -ne 0) { $failed = $true; Write-Host "Проверка $repo: НЕ ПРОШЛА (код $LASTEXITCODE)." }
+    if ($LASTEXITCODE -ne 0) { $failed = $true; Write-Host "Проверка ${repo}: НЕ ПРОШЛА (код $LASTEXITCODE)." }
     else { Write-Host "Проверка ${repo}: ок." }
   }
   finally {

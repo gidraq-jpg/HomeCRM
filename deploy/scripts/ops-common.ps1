@@ -22,9 +22,9 @@ function Get-ComposeArgs {
 # Запускает docker и останавливается при ошибке. Вывод передаётся как есть; секретов в нём нет:
 # контейнеры их не печатают (ADR-0020).
 function Invoke-Docker {
-  param([Parameter(ValueFromRemainingArguments)][string[]]$Arguments)
-  & docker @Arguments
-  if ($LASTEXITCODE -ne 0) { throw "docker $($Arguments[0..2] -join ' ') ... завершился с кодом $LASTEXITCODE" }
+  # Простая функция без param: ключи вроде -e и -T попадают в $args как обычные строки.
+  & docker @args
+  if ($LASTEXITCODE -ne 0) { throw "docker $($args[0..2] -join ' ') ... завершился с кодом $LASTEXITCODE" }
 }
 
 # Значение настройки из файла окружения (не секретной); пусто, если строки нет или она закомментирована.
