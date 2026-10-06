@@ -100,18 +100,22 @@ test('переключатель «Всё · Общее · Личное» зап
   await expect(page.getByRole('list', { name: 'Участники дома' })).toBeVisible();
 });
 
-test('«+»: взрослому — объяснение, что добавлять пока нечего', async ({ page, family }, info) => {
+test('«+»: взрослому — только заметка и объяснение, что остальное не готово', async ({
+  page,
+  family,
+}, info) => {
   await signInAs(page, family, 'adult');
   await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Добавить' });
   await expect(dialog).toContainText('пока создавать нельзя');
   await expect(dialog.getByRole('button', { name: /Участник дома/ })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /^Заметка/ })).toHaveCount(1);
   await checkApp(page, info, 'add-adult');
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
 
-test('«+»: администратору — только приглашение участника', async ({ page, family }, info) => {
+test('«+»: администратору — заметка и приглашение участника', async ({ page, family }, info) => {
   await signInAs(page, family, 'admin');
   await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Добавить' });

@@ -14,7 +14,6 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
 import { Page, Section } from '../ui/Page.tsx';
-import { Status } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {
   creatableVisibilities,
@@ -238,10 +237,10 @@ function NoteView({ card }: { card: NoteCard }) {
           <p className="property-meta">
             <AccessBadge visibility={visibility} showLabel />
             {card.pinned ? (
-              <Status tone="neutral">
-                <PushPin size={14} weight="fill" aria-hidden />
-                Закреплена
-              </Status>
+              <span className="access-badge access-badge--labeled">
+                <PushPin size={18} weight="fill" aria-hidden />
+                <span>Закреплена</span>
+              </span>
             ) : null}
           </p>
 
