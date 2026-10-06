@@ -395,7 +395,8 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
       })
       .from(spaceMembers)
       .innerJoin(memberProfiles, eq(memberProfiles.accountId, spaceMembers.accountId))
-      .where(and(eq(spaceMembers.spaceId, old.spaceId), isNull(spaceMembers.leftAt)));
+      .where(and(eq(spaceMembers.spaceId, old.spaceId), isNull(spaceMembers.leftAt)))
+      .orderBy(memberProfiles.displayName, memberProfiles.accountId);
     return members
       .filter((member) => {
         if (!canViewMembership(account.viewer, member.id, old.spaceId)) return false;
