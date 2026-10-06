@@ -34,6 +34,7 @@ import {
   HISTORY_WORKER_INSERT_SQL,
   leftAssigneeSql,
   type RecordType,
+  reassignSelectSql,
   recordPolicySql,
 } from './access-sql.ts';
 import {
@@ -164,7 +165,7 @@ function recordRules(name: string, type: RecordType, t: CommonColumns, hasParent
     pgPolicy(`${name}_reassign_select`, {
       for: 'select',
       to: workerRole,
-      using: sql.raw(leftAssigneeSql(name)),
+      using: sql.raw(reassignSelectSql(name)),
     }),
     pgPolicy(`${name}_reassign`, {
       for: 'update',

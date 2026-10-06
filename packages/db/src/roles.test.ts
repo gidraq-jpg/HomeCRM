@@ -146,8 +146,16 @@ describe('обойти RLS нельзя', () => {
       [ids.live, ids.recent, ids.expired, anna.personalSpaceId, anna.id],
     );
 
-    const visible = await database.worker.query('SELECT id FROM notes');
+    // Из корзины обработчик видит только просроченное; личного и живого личного — не видит вовсе.
+    // (Живые общие записи он видит лишь в части передачи записей ушедшего: id, место и ответственный.)
+    const visible = await database.worker.query(
+      'SELECT id FROM notes WHERE deleted_at IS NOT NULL',
+    );
     expect(visible.rows).toEqual([{ id: ids.expired }]);
+    const personalLive = await database.worker.query(
+      `SELECT id FROM notes WHERE deleted_at IS NULL AND space_kind = 'personal'`,
+    );
+    expect(personalLive.rows).toEqual([]);
     // Даже без условия в запросе удаляется только просроченное.
     const purged = await database.worker.query('DELETE FROM notes');
     expect(purged.rowCount).toBe(1);

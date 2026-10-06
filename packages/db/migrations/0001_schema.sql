@@ -432,10 +432,14 @@ CREATE POLICY "note_items_update" ON "note_items" AS PERMISSIVE FOR UPDATE TO "h
   ))));--> statement-breakpoint
 CREATE POLICY "note_items_purge_select" ON "note_items" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING (deleted_at < now() - interval '30 days');--> statement-breakpoint
 CREATE POLICY "note_items_purge" ON "note_items" AS PERMISSIVE FOR DELETE TO "homecrm_worker" USING (deleted_at < now() - interval '30 days');--> statement-breakpoint
-CREATE POLICY "note_items_reassign_select" ON "note_items" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING (note_items.space_kind = 'household' AND note_items.deleted_at IS NULL AND EXISTS (
+CREATE POLICY "note_items_reassign_select" ON "note_items" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING ((note_items.space_kind = 'household' AND note_items.deleted_at IS NULL AND EXISTS (
     SELECT 1 FROM space_members l
     WHERE l.space_id = note_items.space_id AND l.account_id = note_items.assignee_id AND l.left_at IS NOT NULL
-  ));--> statement-breakpoint
+  )) OR (note_items.space_kind = 'household' AND note_items.deleted_at IS NULL AND EXISTS (
+    SELECT 1 FROM space_members a
+    WHERE a.space_id = note_items.space_id AND a.account_id = note_items.assignee_id
+      AND a.role = 'admin' AND a.left_at IS NULL
+  )));--> statement-breakpoint
 CREATE POLICY "note_items_reassign" ON "note_items" AS PERMISSIVE FOR UPDATE TO "homecrm_worker" USING (note_items.space_kind = 'household' AND note_items.deleted_at IS NULL AND EXISTS (
     SELECT 1 FROM space_members l
     WHERE l.space_id = note_items.space_id AND l.account_id = note_items.assignee_id AND l.left_at IS NOT NULL
@@ -506,10 +510,14 @@ CREATE POLICY "notes_update" ON "notes" AS PERMISSIVE FOR UPDATE TO "homecrm_app
   ))));--> statement-breakpoint
 CREATE POLICY "notes_purge_select" ON "notes" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING (deleted_at < now() - interval '30 days');--> statement-breakpoint
 CREATE POLICY "notes_purge" ON "notes" AS PERMISSIVE FOR DELETE TO "homecrm_worker" USING (deleted_at < now() - interval '30 days');--> statement-breakpoint
-CREATE POLICY "notes_reassign_select" ON "notes" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING (notes.space_kind = 'household' AND notes.deleted_at IS NULL AND EXISTS (
+CREATE POLICY "notes_reassign_select" ON "notes" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING ((notes.space_kind = 'household' AND notes.deleted_at IS NULL AND EXISTS (
     SELECT 1 FROM space_members l
     WHERE l.space_id = notes.space_id AND l.account_id = notes.assignee_id AND l.left_at IS NOT NULL
-  ));--> statement-breakpoint
+  )) OR (notes.space_kind = 'household' AND notes.deleted_at IS NULL AND EXISTS (
+    SELECT 1 FROM space_members a
+    WHERE a.space_id = notes.space_id AND a.account_id = notes.assignee_id
+      AND a.role = 'admin' AND a.left_at IS NULL
+  )));--> statement-breakpoint
 CREATE POLICY "notes_reassign" ON "notes" AS PERMISSIVE FOR UPDATE TO "homecrm_worker" USING (notes.space_kind = 'household' AND notes.deleted_at IS NULL AND EXISTS (
     SELECT 1 FROM space_members l
     WHERE l.space_id = notes.space_id AND l.account_id = notes.assignee_id AND l.left_at IS NOT NULL
@@ -602,10 +610,14 @@ CREATE POLICY "shopping_items_update" ON "shopping_items" AS PERMISSIVE FOR UPDA
   ))));--> statement-breakpoint
 CREATE POLICY "shopping_items_purge_select" ON "shopping_items" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING (deleted_at < now() - interval '30 days');--> statement-breakpoint
 CREATE POLICY "shopping_items_purge" ON "shopping_items" AS PERMISSIVE FOR DELETE TO "homecrm_worker" USING (deleted_at < now() - interval '30 days');--> statement-breakpoint
-CREATE POLICY "shopping_items_reassign_select" ON "shopping_items" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING (shopping_items.space_kind = 'household' AND shopping_items.deleted_at IS NULL AND EXISTS (
+CREATE POLICY "shopping_items_reassign_select" ON "shopping_items" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING ((shopping_items.space_kind = 'household' AND shopping_items.deleted_at IS NULL AND EXISTS (
     SELECT 1 FROM space_members l
     WHERE l.space_id = shopping_items.space_id AND l.account_id = shopping_items.assignee_id AND l.left_at IS NOT NULL
-  ));--> statement-breakpoint
+  )) OR (shopping_items.space_kind = 'household' AND shopping_items.deleted_at IS NULL AND EXISTS (
+    SELECT 1 FROM space_members a
+    WHERE a.space_id = shopping_items.space_id AND a.account_id = shopping_items.assignee_id
+      AND a.role = 'admin' AND a.left_at IS NULL
+  )));--> statement-breakpoint
 CREATE POLICY "shopping_items_reassign" ON "shopping_items" AS PERMISSIVE FOR UPDATE TO "homecrm_worker" USING (shopping_items.space_kind = 'household' AND shopping_items.deleted_at IS NULL AND EXISTS (
     SELECT 1 FROM space_members l
     WHERE l.space_id = shopping_items.space_id AND l.account_id = shopping_items.assignee_id AND l.left_at IS NOT NULL
@@ -679,10 +691,14 @@ CREATE POLICY "tasks_update" ON "tasks" AS PERMISSIVE FOR UPDATE TO "homecrm_app
   ))));--> statement-breakpoint
 CREATE POLICY "tasks_purge_select" ON "tasks" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING (deleted_at < now() - interval '30 days');--> statement-breakpoint
 CREATE POLICY "tasks_purge" ON "tasks" AS PERMISSIVE FOR DELETE TO "homecrm_worker" USING (deleted_at < now() - interval '30 days');--> statement-breakpoint
-CREATE POLICY "tasks_reassign_select" ON "tasks" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING (tasks.space_kind = 'household' AND tasks.deleted_at IS NULL AND EXISTS (
+CREATE POLICY "tasks_reassign_select" ON "tasks" AS PERMISSIVE FOR SELECT TO "homecrm_worker" USING ((tasks.space_kind = 'household' AND tasks.deleted_at IS NULL AND EXISTS (
     SELECT 1 FROM space_members l
     WHERE l.space_id = tasks.space_id AND l.account_id = tasks.assignee_id AND l.left_at IS NOT NULL
-  ));--> statement-breakpoint
+  )) OR (tasks.space_kind = 'household' AND tasks.deleted_at IS NULL AND EXISTS (
+    SELECT 1 FROM space_members a
+    WHERE a.space_id = tasks.space_id AND a.account_id = tasks.assignee_id
+      AND a.role = 'admin' AND a.left_at IS NULL
+  )));--> statement-breakpoint
 CREATE POLICY "tasks_reassign" ON "tasks" AS PERMISSIVE FOR UPDATE TO "homecrm_worker" USING (tasks.space_kind = 'household' AND tasks.deleted_at IS NULL AND EXISTS (
     SELECT 1 FROM space_members l
     WHERE l.space_id = tasks.space_id AND l.account_id = tasks.assignee_id AND l.left_at IS NOT NULL

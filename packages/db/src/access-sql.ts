@@ -116,6 +116,15 @@ export function leftAssigneeSql(table: string): string {
   )`;
 }
 
+/**
+ * Что обработчик вправе видеть при передаче записей: строки с ушедшим ответственным и те, что уже
+ * переданы администратору. Вторая часть нужна самой передаче: PostgreSQL проверяет по политикам
+ * чтения и новую строку после UPDATE.
+ */
+export function reassignSelectSql(table: string): string {
+  return `(${leftAssigneeSql(table)}) OR (${table}.space_kind = 'household' AND ${table}.deleted_at IS NULL AND ${adminAssigneeSql(table)})`;
+}
+
 /** Новый ответственный — действующий администратор того же дома. */
 export function adminAssigneeSql(table: string): string {
   return `EXISTS (

@@ -1,6 +1,6 @@
 {
-  "id": "ede5930d-9a7b-438c-805d-dbb8f46ba5c9",
-  "prevId": "517a7d93-749e-45dd-b02e-dfbfa8bbbe65",
+  "id": "e4fbd300-fe3b-40b5-9d6f-f30e8724d41a",
+  "prevId": "aab2f0f7-59f7-4f9f-b5c7-6d9615888b8d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -900,7 +900,7 @@
           "to": [
             "homecrm_worker"
           ],
-          "using": "note_items.space_kind = 'household' AND note_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = note_items.space_id AND l.account_id = note_items.assignee_id AND l.left_at IS NOT NULL\n  )"
+          "using": "(note_items.space_kind = 'household' AND note_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = note_items.space_id AND l.account_id = note_items.assignee_id AND l.left_at IS NOT NULL\n  )) OR (note_items.space_kind = 'household' AND note_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = note_items.space_id AND a.account_id = note_items.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  ))"
         },
         "note_items_reassign": {
           "name": "note_items_reassign",
@@ -1378,7 +1378,7 @@
           "to": [
             "homecrm_worker"
           ],
-          "using": "notes.space_kind = 'household' AND notes.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = notes.space_id AND l.account_id = notes.assignee_id AND l.left_at IS NOT NULL\n  )"
+          "using": "(notes.space_kind = 'household' AND notes.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = notes.space_id AND l.account_id = notes.assignee_id AND l.left_at IS NOT NULL\n  )) OR (notes.space_kind = 'household' AND notes.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = notes.space_id AND a.account_id = notes.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  ))"
         },
         "notes_reassign": {
           "name": "notes_reassign",
@@ -2238,7 +2238,7 @@
           "to": [
             "homecrm_worker"
           ],
-          "using": "shopping_items.space_kind = 'household' AND shopping_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = shopping_items.space_id AND l.account_id = shopping_items.assignee_id AND l.left_at IS NOT NULL\n  )"
+          "using": "(shopping_items.space_kind = 'household' AND shopping_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = shopping_items.space_id AND l.account_id = shopping_items.assignee_id AND l.left_at IS NOT NULL\n  )) OR (shopping_items.space_kind = 'household' AND shopping_items.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = shopping_items.space_id AND a.account_id = shopping_items.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  ))"
         },
         "shopping_items_reassign": {
           "name": "shopping_items_reassign",
@@ -2721,7 +2721,7 @@
           "to": [
             "homecrm_worker"
           ],
-          "using": "tasks.space_kind = 'household' AND tasks.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = tasks.space_id AND l.account_id = tasks.assignee_id AND l.left_at IS NOT NULL\n  )"
+          "using": "(tasks.space_kind = 'household' AND tasks.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = tasks.space_id AND l.account_id = tasks.assignee_id AND l.left_at IS NOT NULL\n  )) OR (tasks.space_kind = 'household' AND tasks.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = tasks.space_id AND a.account_id = tasks.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  ))"
         },
         "tasks_reassign": {
           "name": "tasks_reassign",

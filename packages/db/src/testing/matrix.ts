@@ -82,7 +82,8 @@ class Rollback extends Error {
   }
 }
 
-function hasCode(error: unknown, codes: readonly string[]): boolean {
+/** Есть ли в ошибке (или её причинах) один из кодов SQLSTATE: Drizzle заворачивает ошибки PostgreSQL. */
+export function hasCode(error: unknown, codes: readonly string[]): boolean {
   let current: unknown = error;
   for (let depth = 0; depth < 5 && typeof current === 'object' && current !== null; depth++) {
     const { code } = current as { code?: unknown };
