@@ -46,10 +46,30 @@ if ($existing) {
   Write-Host 'Чтобы подключить заново, удалите этот файл. Важно: копии, созданные прежним входом, новый вход может не увидеть.'
 }
 else {
+  # Общий ключ rclone для Google Диска в 2026 году перестаёт работать: нужен свой OAuth-клиент владельца
+  # (тип «Приложение для компьютера», runbook, раздел 9). Ключ не передаётся в командной строке — её
+  # видно в списке процессов: он сразу пишется в конфиг, а вход делает `config reconnect`.
+  Write-Host 'Нужен ваш ключ Google (OAuth-клиент «Приложение для компьютера»): как его создать — docs/runbook.md, раздел 9.'
+  $clientId = (Read-Host 'Вставьте Client ID и нажмите Enter').Trim()
+  if ($clientId -notmatch '^[0-9A-Za-z_-]+\.apps\.googleusercontent\.com$') {
+    throw 'Это не похоже на Client ID: он заканчивается на .apps.googleusercontent.com.'
+  }
+  $secure = Read-Host -AsSecureString 'Вставьте Client secret (символы не отображаются) и нажмите Enter'
+  $clientSecret = [System.Net.NetworkCredential]::new('', $secure).Password.Trim()
+  if ($clientSecret.Length -lt 10) { throw 'Client secret слишком короткий — похоже, он не вставился.' }
+  $before = if (Test-Path $config) { (Get-Content $config -Raw).TrimEnd() + "`n`n" } else { '' }
+  Write-TextFile $config ($before + "[$Remote]`ntype = drive`nscope = drive.file`nclient_id = $clientId`nclient_secret = $clientSecret`n")
+  $clientSecret = $null
+
   Write-Host 'Сейчас откроется браузер. Войдите в тот аккаунт Google, на Диске которого будут лежать копии,'
   Write-Host 'и нажмите "Разрешить". Если Google пишет "приложение не проверено", выберите "Дополнительно" -> "Перейти".'
+  # --auto-confirm берёт ответы по умолчанию: вход через браузер этого компьютера, не общий диск.
   # Вывод rclone фильтруется: токен не должен попасть на экран и в запись консоли.
-  New-RcloneRemote -Name $Remote -Type drive -Config $config -Options 'scope=drive.file'
+  Invoke-RcloneFiltered config reconnect "${Remote}:" --config $config --auto-confirm
+  if ($LASTEXITCODE -ne 0) {
+    Write-TextFile $config $before
+    throw 'Вход в Google не завершился. Проверьте Client ID и secret и запустите скрипт ещё раз.'
+  }
 }
 
 # Проверка доступа и создание папки. С областью drive.file видна только папка, созданная этим приложением.
