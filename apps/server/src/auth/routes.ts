@@ -13,6 +13,7 @@ import {
   loginEvents,
   memberProfiles,
   passwordResets,
+  sessions,
   sql,
 } from '@homecrm/db';
 import { canInvite, ROLES } from '@homecrm/shared';
@@ -109,12 +110,60 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
     });
   });
 
-  // ---- Маршруты данных: нужен вошедший участник ---------------------------------------------
+  // ---- Устройства: наружу только метаданные, отзыв проверяет id и владельца вместе ----------
   /**
    * Сессия из cookie → участник. Продление сессии библиотека сообщает заголовками Set-Cookie:
    * они пересылаются клиенту, иначе cookie истекла бы раньше записи в базе.
    */
   const currentAccount = createAccountReader(module);
+  app.get('/api/auth/list-sessions', async (request, reply) => {
+    const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
+    if (account === null) return reply;
+    const devices = await db
+      .select({
+        id: sessions.id,
+        userAgent: sessions.userAgent,
+        ipAddress: sessions.ipAddress,
+        createdAt: sessions.createdAt,
+        updatedAt: sessions.updatedAt,
+        expiresAt: sessions.expiresAt,
+      })
+      .from(sessions)
+      .where(
+        and(
+          eq(sessions.userId, account.id),
+          sql`${sessions.expiresAt} > now()`,
+          sql`${sessions.token} ~ '^h1:[0-9a-f]{64}$'`,
+        ),
+      )
+      .orderBy(desc(sessions.createdAt), desc(sessions.id));
+    return devices.map((device) => ({ ...device, current: device.id === account.sessionId }));
+  });
+
+  const revokeDevice = z.strictObject({ id: z.uuid() });
+  app.post('/api/auth/revoke-session', async (request, reply) => {
+    const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
+    if (account === null) return reply;
+    const parsed = revokeDevice.safeParse(request.body);
+    if (!parsed.success) return fail(reply, 400, 'INVALID_BODY', 'Invalid session id');
+    const removed = await db
+      .delete(sessions)
+      .where(and(eq(sessions.id, parsed.data.id), eq(sessions.userId, account.id)))
+      .returning({ id: sessions.id });
+    if (removed.length === 0) return fail(reply, 404, 'NOT_FOUND', 'Session not found');
+    return { status: true };
+  });
+
+  app.post('/api/auth/revoke-other-sessions', async (request, reply) => {
+    const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
+    if (account === null) return reply;
+    await db
+      .delete(sessions)
+      .where(and(eq(sessions.userId, account.id), sql`${sessions.id} <> ${account.sessionId}`));
+    return { status: true };
+  });
+
+  // ---- Маршруты данных: нужен вошедший участник ---------------------------------------------
 
   /** Повторный ввод пароля перед чувствительным действием (AUTH-7); неверные пароли копятся в блокировку. */
   async function confirmPassword(

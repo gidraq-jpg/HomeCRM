@@ -41,3 +41,46 @@ test('администратор приглашает ребёнка из нас
   const { rows } = await family.database.admin.query('SELECT role FROM invitations');
   expect(rows.map((row: { role: string }) => row.role)).toEqual(['child']);
 });
+
+test('устройства без токенов: текущее отмечено, другое отзывается по id', async ({
+  page,
+  family,
+  browser,
+}, info) => {
+  const other = await browser.newContext();
+  const otherPage = await other.newPage();
+  try {
+    await otherPage.goto(family.baseURL);
+    await signIn(otherPage, family, 'child');
+    await expectSignedIn(otherPage);
+    await signIn(page, family, 'child');
+    await expectSignedIn(page);
+    const response = page.waitForResponse('**/api/auth/list-sessions');
+    await page.goto('#/more/settings');
+    const list = (await (await response).json()) as Array<{ id: string; current: boolean }>;
+    expect(list).toHaveLength(2);
+    for (const session of list) {
+      expect(Object.keys(session).sort()).toEqual(
+        ['id', 'userAgent', 'ipAddress', 'createdAt', 'updatedAt', 'expiresAt', 'current'].sort(),
+      );
+    }
+    await expect(page.getByText('Это устройство', { exact: true })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Завершить сессию' })).toHaveCount(2);
+    await checkAuth(page, info, 'session-devices');
+    const otherRow = page.locator('.security-list li').filter({
+      has: page.getByRole('button', { name: 'Завершить сессию' }),
+      hasNotText: 'Это устройство',
+    });
+    const revoke = page.waitForRequest('**/api/auth/revoke-session');
+    await otherRow.getByRole('button', { name: 'Завершить сессию' }).click();
+    expect((await revoke).postDataJSON()).toEqual({
+      id: list.find((session) => !session.current)?.id,
+    });
+    await expect(page.getByRole('button', { name: 'Завершить сессию' })).toHaveCount(1);
+    await expect(page.getByText('Это устройство', { exact: true })).toBeVisible();
+    await otherPage.reload();
+    await expect(otherPage.getByRole('heading', { name: 'Войти в HomeCRM' })).toBeVisible();
+  } finally {
+    await other.close();
+  }
+});
