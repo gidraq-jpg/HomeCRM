@@ -16,7 +16,7 @@ export interface RadarState {
 /** Один запрос несёт наступления и сведения источника под его RLS. */
 export function useRadar(): RadarState {
   const { me } = useHousehold();
-  const radar = useRadarItems(me.timeZone);
+  const radar = useRadarItems(me.id, me.timeZone);
   const rows = useMemo(() => {
     const now = new Date();
     return buildRows(radar.data?.items ?? [], {

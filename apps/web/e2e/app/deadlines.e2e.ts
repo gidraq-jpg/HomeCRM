@@ -504,6 +504,23 @@ test('срок скрыт вместе с записью: ребёнок не в
       secret.id,
     );
     expect(status).toBe(404);
+    // Сессия может смениться в другой вкладке, а QueryClient текущей вкладки остаётся.
+    // Даже свежий кэш взрослого не должен появиться у ребёнка после перечитывания /me.
+    const next = await openAs(browser, family, info, 'child');
+    try {
+      await setScope(anna.page, 'Всё');
+      await anna.page.context().clearCookies();
+      await anna.page.context().addCookies(await next.page.context().cookies());
+      await anna.page.bringToFront();
+      const changed = anna.page.waitForResponse((response) => response.url().endsWith('/api/me'));
+      await anna.page.evaluate(() => globalThis.dispatchEvent(new Event('visibilitychange')));
+      expect((await (await changed).json()).roles[0].role).toBe('child');
+      await expect(anna.page.getByText('Счета на квартиру')).toHaveCount(0);
+      await expect(anna.page.getByText('Правила дома')).toBeVisible();
+      expect(await radarSummary(anna.page)).toEqual({ '7 дней': 1 });
+    } finally {
+      await next.close();
+    }
   } finally {
     await anna.close();
   }

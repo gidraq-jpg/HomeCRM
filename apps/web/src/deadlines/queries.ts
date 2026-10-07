@@ -23,10 +23,10 @@ export function useRefreshDeadlines() {
 /** Радар охватывает 90 дней вперёд и всё, что просрочено, без ограничения давности. */
 export const RADAR_FROM = '2000-01-01';
 
-export function useRadarItems(timeZone: string) {
+export function useRadarItems(accountId: string, timeZone: string) {
   const to = addDays(todayIn(timeZone), 91);
   return useQuery({
-    queryKey: [DEADLINES, 'radar', timeZone, to],
+    queryKey: [DEADLINES, 'radar', accountId, timeZone, to],
     queryFn: ({ signal }) => fetchRadar(RADAR_FROM, to, signal),
     staleTime: 30_000,
     gcTime: 300_000,
