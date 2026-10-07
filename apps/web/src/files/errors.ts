@@ -6,7 +6,7 @@ import { ApiError, errorMessage } from '../auth/api.ts';
 export type FileAction = 'upload' | 'trash' | 'restore' | 'photo';
 
 /** Причины, которые клиент находит сам, до отправки на сервер. */
-export type LocalReason = 'size' | 'type' | 'empty';
+export type LocalReason = 'size' | 'type' | 'empty' | 'photo';
 
 export const LIMIT_TEXT = '25 МБ';
 
@@ -14,6 +14,7 @@ export const LOCAL_MESSAGES: Readonly<Record<LocalReason, string>> = {
   size: `Файл больше ${LIMIT_TEXT}. Уменьшите его или выберите другой.`,
   type: 'Этот формат не подходит. Добавьте фото (JPEG, PNG, WebP, HEIC) или PDF.',
   empty: 'Файл пустой. Выберите другой.',
+  photo: 'Для фото профиля нужна картинка: JPEG, PNG, WebP или HEIC. PDF не подходит.',
 };
 
 export function fileErrorMessage(error: unknown, action: FileAction): string {
@@ -23,12 +24,17 @@ export function fileErrorMessage(error: unknown, action: FileAction): string {
   if (status === 401) return 'Вход истёк. Войдите заново.';
   if (status === 413) return LOCAL_MESSAGES.size;
   if (status === 415) {
-    return 'Не удалось принять файл: формат не подходит или файл повреждён. Подойдут фото (JPEG, PNG, WebP, HEIC) и PDF.';
+    return action === 'photo'
+      ? 'Не удалось принять фото: формат не подходит или файл повреждён. Подойдут JPEG, PNG, WebP и HEIC.'
+      : 'Не удалось принять файл: формат не подходит или файл повреждён. Подойдут фото (JPEG, PNG, WebP, HEIC) и PDF.';
   }
   if (status === 404) {
+    if (action === 'photo')
+      return 'Этого фото больше нет: возможно, оно удалено. Обновите страницу.';
     return 'Записи или файла больше нет, либо они стали вам недоступны. Обновите страницу.';
   }
   if (status === 403) {
+    if (action === 'photo') return 'Менять фото профиля может только его владелец.';
     if (action === 'trash') return 'Убрать этот файл в корзину могут только взрослые участники.';
     if (action === 'restore') {
       return 'Вернуть файл может его автор-взрослый или администратор.';

@@ -68,7 +68,7 @@ test('вкладка «Файлы»: пустое состояние, загру
 
   // Большое фото уменьшается до 2560 px по длинной стороне ещё на телефоне, PDF уходит как есть.
   await filePicker(page).setInputFiles([
-    { name: PHOTO, mimeType: PNG_MIME, buffer: makePng(3200, 1800) },
+    { name: PHOTO, mimeType: PNG_MIME, buffer: makePng(3200, 1800, true) },
     { name: RECEIPT, mimeType: PDF_MIME, buffer: PDF },
   ]);
   await expect(fileRows(page)).toHaveCount(2);

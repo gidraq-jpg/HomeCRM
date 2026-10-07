@@ -240,7 +240,7 @@ export function ObjectOverview() {
         facts={factsOf(card, viewer, 'object')}
       />
 
-      <ObjectError error={quick.error} action="trash" />
+      <ObjectError error={quick.error} action={trashed ? 'restore' : 'trash'} />
       {!trashed ? (
         <div className="btn-row">
           {abilities.edit ? (

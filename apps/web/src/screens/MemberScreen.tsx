@@ -21,7 +21,7 @@ function birthDateText(value: string | null): string | null {
     : null;
 }
 
-/** Карточка участника: имя, фото-заглушка, роль, дата рождения, телефон (SPACE-10). */
+/** Карточка участника: имя, фото, роль, дата рождения, телефон (SPACE-10). */
 export function MemberScreen() {
   const { accountId } = useParams();
   const { me, isAdmin } = useHousehold();

@@ -14,6 +14,7 @@ import { type DateOnly, formatFullDate, toTelHref } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
+import { ProfilePhoto } from './ProfilePhoto.tsx';
 
 function birthDateText(value: string | null): string | null {
   return value !== null && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -175,7 +176,7 @@ function LeaveSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
 
 /**
  * «Обо мне» (SPACE-10): имя, фото, дата рождения и телефон видны семье, остальное — только
- * владельцу. Фото пока только место: загрузка файлов появится в R0.5b.
+ * владельцу. Фото загружается, меняется, снимается и возвращается здесь же (ProfilePhoto).
  */
 export function ProfileScreen() {
   const { me, householdId, role } = useHousehold();
@@ -217,9 +218,10 @@ export function ProfileScreen() {
         <Avatar name={profile.displayName} large photoFileId={profile.photoFileId} />
         <div className="member-head__text">
           <p className="member-head__name">{profile.displayName}</p>
-          <p className="muted">Фото загружать пока нельзя: место под него готово.</p>
         </div>
       </div>
+
+      <ProfilePhoto photoFileId={profile.photoFileId} />
 
       <Section title="Профиль">
         {editing ? (

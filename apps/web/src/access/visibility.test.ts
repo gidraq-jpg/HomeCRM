@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SCOPES } from './scope.ts';
 import {
+  defaultObjectVisibility,
   defaultVisibility,
   isVisibility,
   type NewRecordKind,
@@ -78,6 +79,14 @@ describe('значение «Кто видит» по умолчанию', () =>
       for (const kind of KINDS) {
         expect(isVisibility(defaultVisibility(kind, scope))).toBe(true);
       }
+    }
+  });
+
+  it('у объекта любого типа — «Взрослые», как у недвижимости (таблица 7.2)', () => {
+    for (const type of ['property', 'car', 'appliance', 'other'] as const) {
+      expect(defaultObjectVisibility(type, 'all')).toBe('adults');
+      expect(defaultObjectVisibility(type, 'shared')).toBe('adults');
+      expect(defaultObjectVisibility(type, 'personal')).toBe('personal');
     }
   });
 });

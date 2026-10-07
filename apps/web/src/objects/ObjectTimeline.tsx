@@ -69,6 +69,7 @@ function ManualItem({
   const nameOf = usePersonName();
   const quick = useAction();
   const save = useAction();
+  const [conflict, setConflict] = useState(false);
   const today = todayIn(me.timeZone);
 
   function saveEdited(values: EventInput) {
@@ -76,13 +77,38 @@ function ManualItem({
       try {
         await patchEvent(card.id, event.id, { ...values, expectedUpdatedAt: event.updatedAt });
       } catch (error) {
-        if (isStaleVersion(error)) await refresh();
+        // Версию не перечитываем: повторное «Сохранить» снова даст конфликт, а не затрёт чужую правку.
+        if (isStaleVersion(error)) {
+          setConflict(true);
+          return;
+        }
         throw error;
       }
       await refresh();
+      setConflict(false);
       onClose();
       toast.show({ message: 'Событие сохранено' });
     });
+  }
+
+  function saveAsCopy(values: EventInput) {
+    void save.run(async () => {
+      await createEvent(card.id, values);
+      await refresh();
+      setConflict(false);
+      onClose();
+      toast.show({
+        message: 'Ваша версия сохранена отдельным событием',
+        detail: 'Свежая версия исходного события осталась как есть.',
+      });
+    });
+  }
+
+  function reload() {
+    save.setError(null);
+    setConflict(false);
+    onClose();
+    void refresh();
   }
 
   function trash() {
@@ -125,8 +151,10 @@ function ManualItem({
           onSubmit={saveEdited}
           onCancel={() => {
             save.setError(null);
+            setConflict(false);
             onClose();
           }}
+          {...(conflict ? { conflict: { onReload: reload, onSaveCopy: saveAsCopy } } : {})}
         />
       </li>
     );

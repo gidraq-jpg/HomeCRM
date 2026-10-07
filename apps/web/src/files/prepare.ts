@@ -57,6 +57,37 @@ export function withExtension(name: string, extension: string): string {
   return `${base}.${extension}`;
 }
 
+type OutputType = 'image/jpeg' | 'image/png' | 'image/webp';
+
+/**
+ * В чём сохранять уменьшенное фото: PNG и WebP остаются собой (прозрачность не пропадает),
+ * остальное (JPEG, HEIC, неизвестный тип) уходит JPEG.
+ */
+export function outputTypeFor(type: string): OutputType {
+  const lower = type.toLowerCase();
+  if (lower === 'image/png') return 'image/png';
+  if (lower === 'image/webp') return 'image/webp';
+  return 'image/jpeg';
+}
+
+const EXTENSIONS: Readonly<Record<OutputType, string>> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+/**
+ * Что отправлять после уменьшения: если получилось больше или столько же, чем исходный файл,
+ * уходит исходный — сервер всё равно ограничит и перекодирует его сам.
+ */
+export function chooseUpload(original: File, reduced: Blob | null): File {
+  if (reduced === null || reduced.size === 0 || reduced.size >= original.size) return original;
+  // Если браузер не умеет кодировать запрошенный формат, он отдаёт PNG: расширение — по факту.
+  const extension = (EXTENSIONS as Readonly<Record<string, string | undefined>>)[reduced.type];
+  const name = extension === undefined ? original.name : withExtension(original.name, extension);
+  return new File([reduced], name, { type: reduced.type, lastModified: original.lastModified });
+}
+
 /**
  * Уменьшает фото больше `MAX_SIDE`; остальное отдаёт как есть. Если браузер не умеет читать
  * формат (например, HEIC в Chrome), отправляется оригинал: сервер сам перекодирует его.
@@ -79,15 +110,13 @@ export async function prepareForUpload(file: File): Promise<File> {
     if (context === null) return file;
     context.imageSmoothingQuality = 'high';
     context.drawImage(bitmap, 0, 0, target.width, target.height);
-    const png = file.type === 'image/png';
+    const output = outputTypeFor(file.type);
     const blob = await new Promise<Blob | null>((done) =>
-      canvas.toBlob(done, png ? 'image/png' : 'image/jpeg', png ? undefined : JPEG_QUALITY),
+      canvas.toBlob(done, output, output === 'image/png' ? undefined : JPEG_QUALITY),
     );
     canvas.width = 0;
     canvas.height = 0;
-    if (blob === null || blob.size === 0) return file;
-    const name = png ? file.name : withExtension(file.name, 'jpg');
-    return new File([blob], name, { type: blob.type, lastModified: file.lastModified });
+    return chooseUpload(file, blob);
   } finally {
     bitmap.close();
   }

@@ -16,8 +16,12 @@ function chunk(type: string, data: Buffer): Buffer {
   return Buffer.concat([head, data, tail]);
 }
 
-/** Настоящий PNG из полос двух цветов: сжимается мелко даже при размере в тысячи пикселей. */
-export function makePng(width: number, height: number): Buffer {
+/**
+ * Настоящий PNG из полос двух цветов: сжимается мелко даже при размере в тысячи пикселей.
+ * С `noisy` поверх полос ложится негромкий шум: такой снимок сжимается хуже, и уменьшенная
+ * копия получается заметно меньше исходной, как у настоящей фотографии.
+ */
+export function makePng(width: number, height: number, noisy = false): Buffer {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width, 0);
   header.writeUInt32BE(height, 4);
@@ -25,13 +29,20 @@ export function makePng(width: number, height: number): Buffer {
   header[9] = 2; // RGB
   const row = Buffer.alloc(1 + width * 3);
   const rows: Buffer[] = [];
+  let seed = 123_456_789;
+  const noise = () => {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return noisy ? (seed >>> 0) & 15 : 0;
+  };
   for (let y = 0; y < height; y += 1) {
     const copy = Buffer.from(row);
     const stripe = Math.floor(y / 40) % 2 === 0;
     for (let x = 0; x < width; x += 1) {
-      copy[1 + x * 3] = stripe ? 52 : 233;
-      copy[2 + x * 3] = stripe ? 93 : 238;
-      copy[3 + x * 3] = stripe ? 72 : 231;
+      copy[1 + x * 3] = (stripe ? 52 : 233) + noise();
+      copy[2 + x * 3] = (stripe ? 93 : 238) + noise();
+      copy[3 + x * 3] = (stripe ? 72 : 231) + noise();
     }
     rows.push(copy);
   }
