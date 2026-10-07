@@ -1,6 +1,8 @@
 import { Copy } from '@phosphor-icons/react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { Notice } from '../auth/components.tsx';
+import { previewUrl } from '../files/api.ts';
 import { copyText } from '../ui/CopyButton.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {
@@ -10,11 +12,30 @@ import {
   SECOND_FACTOR_TEXT,
 } from './errors.ts';
 
-/** Круглая заглушка вместо фото: первая буква имени. Загрузка фото — R0.5b. */
-export function Avatar({ name, large = false }: { name: string; large?: boolean }) {
+/** Фото профиля или, пока его нет, первая буква имени. */
+export function Avatar({
+  name,
+  large = false,
+  photoFileId = null,
+}: {
+  name: string;
+  large?: boolean;
+  /** Если файла не видно или он не открылся, остаётся буква имени. */
+  photoFileId?: string | null;
+}) {
+  const [brokenFor, setBrokenFor] = useState<string | null>(null);
   return (
     <span className={large ? 'avatar avatar--large' : 'avatar'} aria-hidden>
-      {name.trim().slice(0, 1).toUpperCase() || '?'}
+      {photoFileId !== null && brokenFor !== photoFileId ? (
+        <img
+          className="avatar__photo"
+          src={previewUrl(photoFileId)}
+          alt=""
+          onError={() => setBrokenFor(photoFileId)}
+        />
+      ) : (
+        name.trim().slice(0, 1).toUpperCase() || '?'
+      )}
     </span>
   );
 }

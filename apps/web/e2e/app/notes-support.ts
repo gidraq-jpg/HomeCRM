@@ -7,6 +7,16 @@ export interface Api {
   get(path: string): Promise<{ status: number; body: unknown }>;
   post(path: string, body: unknown): Promise<{ status: number; body: unknown }>;
   patch(path: string, body: unknown): Promise<{ status: number; body: unknown }>;
+  /** Загрузка файла (multipart), как её делает приложение. */
+  upload(path: string, file: UploadPayload): Promise<{ status: number; body: unknown }>;
+  /** Ответ без разбора тела: для файлов и проверок кода ответа. */
+  raw(path: string): Promise<Response>;
+}
+
+export interface UploadPayload {
+  name: string;
+  type: string;
+  data: Buffer;
 }
 
 /** Взрослый и ребёнок входят по паролю; администратору нужен второй фактор, он ходит через экран. */
@@ -38,6 +48,20 @@ export async function apiAs(family: Family, role: 'adult' | 'child'): Promise<Ap
     get: (path) => call('GET', path),
     post: (path, body) => call('POST', path, body),
     patch: (path, body) => call('PATCH', path, body),
+    async upload(path, file) {
+      const form = new FormData();
+      form.append('file', new Blob([new Uint8Array(file.data)], { type: file.type }), file.name);
+      const response = await fetch(`${origin}/api/${path}`, {
+        method: 'POST',
+        headers: { origin, cookie },
+        body: form,
+      });
+      return {
+        status: response.status,
+        body: (await response.json().catch(() => null)) as unknown,
+      };
+    },
+    raw: (path) => fetch(`${origin}/api/${path}`, { headers: { origin, cookie } }),
   };
 }
 
