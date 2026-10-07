@@ -1,7 +1,10 @@
-import type { Database } from '@homecrm/db';
+import { type Database, deadlines, eq, spaces } from '@homecrm/db';
 import { type FastifyInstance, fastify } from 'fastify';
+import { createAccountReader } from './auth/account.ts';
 import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
+import { initializeHouseTimeZones } from './deadlines/engine.ts';
+import { deadlinesRoutes } from './deadlines/routes.ts';
 import { filesRoutes } from './files/routes.ts';
 import { type FileServices, fileTransactions } from './files/service.ts';
 import { householdRoutes } from './household/routes.ts';
@@ -100,7 +103,48 @@ export function buildApp(
         }
       : dependencies.auth;
   if (auth !== undefined) {
+    // Дополняем контракты существующих маршрутов без изменений модуля входа.
+    app.addHook('preSerialization', async (request, reply, payload) => {
+      if (reply.statusCode !== 200 || !payload || typeof payload !== 'object') return payload;
+      if (request.routeOptions.url === '/api/me') {
+        const me = payload as {
+          id: string;
+          roles: { householdId: string; role: string }[];
+          timeZone: string;
+        };
+        if (!me.id || !Array.isArray(me.roles)) return payload;
+        if (dependencies.worker)
+          await initializeHouseTimeZones(dependencies.worker, auth.homeTimeZone);
+        const houses = await auth.appDb.withAccount(me.id, (tx) =>
+          tx
+            .select({ householdId: spaces.id, timeZone: spaces.timeZone })
+            .from(spaces)
+            .where(eq(spaces.kind, 'household'))
+            .orderBy(spaces.createdAt, spaces.id),
+        );
+        return {
+          ...me,
+          timeZone: houses[0]?.timeZone ?? auth.homeTimeZone,
+          households: houses,
+        };
+      }
+      if (request.routeOptions.url === '/api/export') {
+        const account = await createAccountReader(auth)(request, reply);
+        if (!account) return payload;
+        const rules = await auth.appDb.withAccount(account.id, (tx) => tx.select().from(deadlines));
+        return {
+          ...payload,
+          deadlines: rules.filter(
+            (rule) =>
+              rule.spaceKind === 'personal' ||
+              account.viewer.memberships.get(rule.spaceId) === 'admin',
+          ),
+        };
+      }
+      return payload;
+    });
     void app.register(authRoutes, auth);
+    void app.register(deadlinesRoutes, auth);
     if (dependencies.files) void app.register(filesRoutes, { ...auth, files: dependencies.files });
     void app.register(notesRoutes, auth);
     void app.register(objectsRoutes, auth);

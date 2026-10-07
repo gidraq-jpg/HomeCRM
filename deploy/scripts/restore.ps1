@@ -9,7 +9,8 @@
   Сценарии:
     - потеря компьютера или базы: новый пустой проект `homecrm`, копия из Яндекс Диска (-From cloud);
     - проверка выпуска на реальных данных: проект `homecrm-preview` (-Project, -EnvFile deploy/preview.env).
-  Дальше запустите окружение как обычно (runbook, раздел 7): миграции применятся сами.
+  После успеха запустите app, worker и backup через release.ps1 выбранной версии (runbook, раздел 7).
+  Версия выбирается отдельно: восстановление может готовить откат на прежний образ.
 
 .EXAMPLE
   pwsh deploy/scripts/restore.ps1 -From cloud
@@ -30,10 +31,10 @@ $env:HOMECRM_DATA = $DataDir -replace '\\', '/'
 
 $compose = Get-ComposeArgs -Project $Project -EnvFile $EnvFile -ExtraFiles $ExtraComposeFiles
 Write-Host "Проект ${Project}: поднимаю пустую базу."
-# Приложение и копии на время восстановления остановлены: в базе не должно быть новых записей.
-& docker @compose --profile app --profile backup stop app backup 2>&1 | Out-Null
+# Приложение, worker и копии остановлены: в базе не должно быть новых записей.
+Invoke-Docker @compose --profile app --profile backup stop app worker backup
 Invoke-Docker @compose --profile app up -d --wait db
 Invoke-Docker @compose --profile app --profile ops run --rm -T -e BACKUP_ENABLED=0 ops `
   node apps/server/src/ops/cli.ts restore --from $From --snapshot $Snapshot
 Write-Host ''
-Write-Host 'Восстановлено. Запустите окружение: docker compose ... up -d (runbook, раздел 7).'
+Write-Host 'Восстановлено. Запустите app, worker и backup через release.ps1 выбранной версии (runbook, раздел 7).'

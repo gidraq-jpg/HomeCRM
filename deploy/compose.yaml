@@ -100,6 +100,21 @@ services:
       retries: 3
       start_period: 20s
 
+  worker:
+    <<: *app
+    profiles: [app]
+    restart: unless-stopped
+    init: true
+    command: ["node", "apps/server/src/worker.ts"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file:
+      - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/worker.env
+    read_only: true
+    tmpfs:
+      - /tmp
+
   # Ежедневная копия в 3:30 по времени дома, недельная проверка хранилищ; пропущенное делается сразу.
   backup:
     <<: *app

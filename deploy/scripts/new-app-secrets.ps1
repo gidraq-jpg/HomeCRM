@@ -8,6 +8,7 @@
   Записывает:
     secrets\app\db.env       пароль суперпользователя базы и четырёх ролей HomeCRM
     secrets\app\server.env   три подключения к базе, BETTER_AUTH_SECRET, BASE_URL, HOME_TIME_ZONE, TRUST_PROXY
+    secrets\app\worker.env   только DATABASE_URL_WORKER и HOME_TIME_ZONE из server.env
     secrets\restic-password  пароль хранилищ резервных копий (общий для рабочего окружения и предпросмотра)
     secrets\backup.env       несекретные настройки копий (время; адрес Яндекс Диска добавит connect-yandex-disk.ps1)
   Для предпросмотра вместо secrets\app используется secrets\preview.
@@ -99,6 +100,16 @@ if ((Test-Path $dbFile) -ne (Test-Path $serverFile)) {
 }
 [void](Save-NewFile $dbFile $dbEnv)
 [void](Save-NewFile $serverFile $serverEnv)
+# При обновлении берём действующее подключение: новые случайные пароли выше не используются.
+$workerFile = Join-Path $dir 'worker.env'
+if (-not (Test-Path $workerFile)) {
+  $workerUrl = Get-EnvSetting -File $serverFile -Name 'DATABASE_URL_WORKER'
+  $workerTimeZone = Get-EnvSetting -File $serverFile -Name 'HOME_TIME_ZONE'
+  if (-not $workerUrl -or -not $workerTimeZone) {
+    throw 'Для worker.env нужны DATABASE_URL_WORKER и HOME_TIME_ZONE в существующем server.env.'
+  }
+  [void](Save-NewFile $workerFile "DATABASE_URL_WORKER=$workerUrl`nHOME_TIME_ZONE=$workerTimeZone`n")
+}
 # Собственный ключ окружения: существующий никогда не заменяется.
 [void](Save-NewFile (Join-Path $dir 'file-master-key-1') (New-Secret -Bytes 32))
 

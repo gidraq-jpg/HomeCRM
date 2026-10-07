@@ -75,7 +75,7 @@ describe('роли базы', () => {
       expect(roles, policyname).toHaveLength(1);
       if (roles[0] === DB_ROLES.worker) {
         expect(policyname).toMatch(
-          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$/,
+          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$|^spaces_timezone_(worker|initialize)$|^deadlines_(engine|refresh)$|^deadline_(occurrences|notifications)_worker_(select|insert|update|delete)$|^(notes|objects)_deadline_worker_select$/,
         );
       } else if (roles[0] === DB_ROLES.owner) {
         expect([
@@ -198,12 +198,14 @@ describe('обойти RLS нельзя', () => {
       `UPDATE notes SET title = 'изменено'`,
       `INSERT INTO notes (space_id, space_kind, author_id, title) VALUES ('${anna.personalSpaceId}', 'personal', '${anna.id}', 'x')`,
       'SELECT id FROM accounts',
-      'SELECT id FROM spaces',
+      'SELECT name FROM spaces',
     ]) {
       await expect(database.worker.query(statement), statement).rejects.toMatchObject({
         code: '42501',
       });
     }
+    const workerHouses = await database.worker.query('SELECT id,kind,time_zone FROM spaces');
+    expect(workerHouses.rows.every((row) => row.kind === 'household')).toBe(true);
   });
 });
 

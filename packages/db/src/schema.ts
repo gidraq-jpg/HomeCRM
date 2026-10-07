@@ -51,6 +51,7 @@ import {
 import { recordTable } from './records.ts';
 
 export * from './core.ts';
+export * from './deadlines-schema.ts';
 export * from './records.ts';
 export * from './search-schema.ts';
 
@@ -58,12 +59,25 @@ export * from './search-schema.ts';
 // recordTable; всё остальное (политики, права, триггеры, история) делает помощник.
 
 /** Заметки: личные и общие. Ребёнок в общем пространстве их не пишет. */
-const notesDefinition = recordTable('notes', 'note', {
-  body: text('body').notNull().default(''),
-  pinned: boolean('pinned').notNull().default(false),
-  /** Будущий поиск NOTE-3; HTML не хранится (ADR-0020). */
-  searchText: text('search_text').generatedAlwaysAs(sql`title || ' ' || body`),
-});
+const notesDefinition = recordTable(
+  'notes',
+  'note',
+  {
+    body: text('body').notNull().default(''),
+    pinned: boolean('pinned').notNull().default(false),
+    /** Будущий поиск NOTE-3; HTML не хранится (ADR-0020). */
+    searchText: text('search_text').generatedAlwaysAs(sql`title || ' ' || body`),
+  },
+  {
+    extraPolicies: [
+      pgPolicy('notes_deadline_worker_select', {
+        for: 'select',
+        to: workerRole,
+        using: sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.note_id = notes.id)`,
+      }),
+    ],
+  },
+);
 export const notes = notesDefinition.table;
 export const notesHistory = notesDefinition.history;
 
@@ -103,11 +117,24 @@ export const tasksHistory = tasksDefinition.history;
 
 /** OBJ-1: поля конкретного типа появятся вместе с UTIL и DOC; пока контейнер пуст. */
 export const objectTypeEnum = pgEnum('object_type', OBJECT_TYPES);
-const objectsDefinition = recordTable('objects', 'object', {
-  objectType: objectTypeEnum('object_type').notNull().default('other'),
-  typeData: jsonb('type_data').notNull().default({}),
-  searchText: text('search_text').generatedAlwaysAs(sql`title`),
-});
+const objectsDefinition = recordTable(
+  'objects',
+  'object',
+  {
+    objectType: objectTypeEnum('object_type').notNull().default('other'),
+    typeData: jsonb('type_data').notNull().default({}),
+    searchText: text('search_text').generatedAlwaysAs(sql`title`),
+  },
+  {
+    extraPolicies: [
+      pgPolicy('objects_deadline_worker_select', {
+        for: 'select',
+        to: workerRole,
+        using: sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.object_id = objects.id)`,
+      }),
+    ],
+  },
+);
 export const objects = objectsDefinition.table;
 export const objectsHistory = objectsDefinition.history;
 
