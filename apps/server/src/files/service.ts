@@ -1,7 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { type AppDatabase, eq, noteFiles, objectFiles, sql, type Transaction } from '@homecrm/db';
+import {
+  type AppDatabase,
+  eq,
+  memberProfiles,
+  noteFiles,
+  objectFiles,
+  profileFiles,
+  sql,
+  type Transaction,
+} from '@homecrm/db';
 import type { Account } from '../auth/account.ts';
-import { columnsOf, placementOf, type Row } from '../objects/support.ts';
+import { columnsOf, deny, placementOf, type Row } from '../objects/support.ts';
 import type { FileCipher } from './crypto.ts';
 import type { FileStorage } from './storage.ts';
 
@@ -110,14 +119,61 @@ export async function insertFile(
   if (!context) throw new Error('File transaction is unavailable');
   return insertPreparedFile(tx, account, type, parent, prepareUpload(context.services, input));
 }
-export function fileSummary(row: FileRow) {
+export async function insertProfileFile(tx: Transaction, account: Account, input: PreparedUpload) {
+  await storeBlock(tx, input.block);
+  if (input.preview) await storeBlock(tx, input.preview);
+  const [row] = await tx
+    .insert(profileFiles)
+    .values({
+      accountId: account.id,
+      title: input.name,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      storageKey: input.block.key,
+      envelope: input.block.envelope,
+      previewStorageKey: input.preview?.key ?? null,
+      previewEnvelope: input.preview?.envelope ?? null,
+    })
+    .returning();
+  if (!row) throw new Error('Profile file insert returned no row');
+  return row;
+}
+/** Блокировка профиля сериализует замену, снятие фото и восстановление. */
+export async function lockProfile(tx: Transaction, account: Account) {
+  const [profile] = await tx
+    .select()
+    .from(memberProfiles)
+    .where(eq(memberProfiles.accountId, account.id))
+    .for('update');
+  if (!profile) deny();
+  return profile;
+}
+export async function setProfilePhoto(tx: Transaction, account: Account, id: string | null) {
+  const profile = await lockProfile(tx, account);
+  if (id) {
+    const [file] = await tx.select().from(profileFiles).where(eq(profileFiles.id, id));
+    if (!file || file.accountId !== account.id || file.deletedAt !== null) deny();
+  }
+  const [updated] = await tx
+    .update(memberProfiles)
+    .set({ photoFileId: id })
+    .where(eq(memberProfiles.accountId, account.id))
+    .returning();
+  if (profile.photoFileId && profile.photoFileId !== id)
+    await tx
+      .update(profileFiles)
+      .set({ deletedAt: new Date() })
+      .where(eq(profileFiles.id, profile.photoFileId));
+  return updated;
+}
+export function fileSummary(row: FileRow | typeof profileFiles.$inferSelect) {
   return {
     id: row.id,
     name: row.title,
     mimeType: row.mimeType,
     sizeBytes: row.sizeBytes,
     hasPreview: row.previewStorageKey !== null,
-    authorId: row.authorId,
+    authorId: 'authorId' in row ? row.authorId : row.accountId,
     createdAt: row.createdAt,
     deletedAt: row.deletedAt,
   };

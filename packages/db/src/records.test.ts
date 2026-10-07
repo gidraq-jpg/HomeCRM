@@ -177,6 +177,7 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'profile_files', // profile-files-matrix.test.ts: фото действующей семьи и корзина владельца.
       'file_blobs', // files.test.ts: реестр ключей, без пользовательских метаданных.
       'record_links', // objects-matrix.test.ts: оба конца и право записи хотя бы в один.
       ...SPACES,
