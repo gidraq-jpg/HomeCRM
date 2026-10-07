@@ -28,6 +28,10 @@ const FROZEN = ['id', 'author_id', 'created_at', 'updated_at'];
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
+    export_events: {
+      SELECT: 'all',
+      INSERT: ['account_id', 'kind', 'household_id', 'counts', 'size_bytes'],
+    },
     push_subscriptions: {
       SELECT: 'all',
       INSERT: 'all',

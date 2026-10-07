@@ -29,7 +29,11 @@ export interface AppDatabase {
    * поэтому при пуле соединений контекст не достаётся следующему запросу.
    * Ошибка внутри `fn` откатывает транзакцию и пробрасывается дальше.
    */
-  withAccount<T>(accountId: string, fn: (tx: Transaction) => Promise<T>): Promise<T>;
+  withAccount<T>(
+    accountId: string,
+    fn: (tx: Transaction) => Promise<T>,
+    options?: { isolationLevel: 'repeatable read' },
+  ): Promise<T>;
 }
 
 /**
@@ -39,7 +43,7 @@ export interface AppDatabase {
 export function createAppDatabase(pool: Pool): AppDatabase {
   const db: Database = drizzle({ client: pool, schema });
   return {
-    withAccount(accountId, fn) {
+    withAccount(accountId, fn, options) {
       const parsed = AccountId.safeParse(accountId);
       if (!parsed.success) {
         return Promise.reject(new TypeError('withAccount: accountId must be a UUID'));
@@ -47,7 +51,7 @@ export function createAppDatabase(pool: Pool): AppDatabase {
       return db.transaction(async (tx) => {
         await tx.execute(sql`select set_config('app.account_id', ${parsed.data}, true)`);
         return fn(tx);
-      });
+      }, options);
     },
   };
 }

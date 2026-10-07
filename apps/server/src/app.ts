@@ -6,6 +6,7 @@ import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
 import { initializeHouseTimeZones } from './deadlines/engine.ts';
 import { deadlinesRoutes } from './deadlines/routes.ts';
+import { exportRoutes } from './export/routes.ts';
 import { filesRoutes } from './files/routes.ts';
 import { type FileServices, fileTransactions } from './files/service.ts';
 import { householdRoutes } from './household/routes.ts';
@@ -151,6 +152,10 @@ export function buildApp(
       return payload;
     });
     void app.register(authRoutes, auth);
+    void app.register(exportRoutes, {
+      ...auth,
+      ...(dependencies.files ? { files: dependencies.files } : {}),
+    });
     void app.register(deadlinesRoutes, auth);
     void app.register(notificationRoutes, {
       ...auth,
