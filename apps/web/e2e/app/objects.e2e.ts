@@ -31,7 +31,9 @@ test('пустой «Дом» объясняет разницу личного �
   await page.goto('#/home');
   const empty = page.getByRole('region', { name: 'Объектов пока нет' });
   await expect(empty).toBeVisible();
-  await expect(empty).toContainText('Недвижимость по умолчанию видят взрослые дома');
+  await expect(empty).toContainText(
+    'Недвижимость, машину, технику и другое по умолчанию видят взрослые дома',
+  );
   await checkApp(page, info, 'objects-empty');
 
   await setScope(page, 'Личное');

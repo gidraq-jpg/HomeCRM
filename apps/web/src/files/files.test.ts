@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { ApiError } from '../auth/api.ts';
 import { fileErrorMessage } from './errors.ts';
 import {
+  chooseUpload,
   classify,
   fitSize,
   localProblem,
   MAX_FILE_BYTES,
   MAX_SIDE,
+  outputTypeFor,
   withExtension,
 } from './prepare.ts';
 import { formatFileSize } from './size.ts';
@@ -76,7 +78,66 @@ describe('formatFileSize', () => {
     expect(formatFileSize(512)).toBe(`512${NBSP}Б`);
     expect(formatFileSize(340 * 1024)).toBe(`340${NBSP}КБ`);
     expect(formatFileSize(Math.round(2.4 * 1024 * 1024))).toBe(`2,4${NBSP}МБ`);
-    expect(formatFileSize(MAX_FILE_BYTES)).toBe(`25,0${NBSP}МБ`);
+    expect(formatFileSize(MAX_FILE_BYTES)).toBe(`25${NBSP}МБ`);
+  });
+
+  it('у границы килобайта и мегабайта не пишет «1023 КБ» и «1024 КБ»', () => {
+    expect(formatFileSize(999 * 1024)).toBe(`999${NBSP}КБ`);
+    expect(formatFileSize(1023 * 1024)).toBe(`1${NBSP}МБ`);
+    expect(formatFileSize(1_048_000)).toBe(`1${NBSP}МБ`);
+    expect(formatFileSize(1_048_500)).toBe(`1${NBSP}МБ`);
+    expect(formatFileSize(1024 * 1024)).toBe(`1${NBSP}МБ`);
+    expect(formatFileSize(1_500_000)).toBe(`1,4${NBSP}МБ`);
+  });
+});
+
+describe('outputTypeFor', () => {
+  it('PNG и WebP остаются собой, остальное уходит JPEG', () => {
+    expect(outputTypeFor('image/png')).toBe('image/png');
+    expect(outputTypeFor('image/webp')).toBe('image/webp');
+    expect(outputTypeFor('image/jpeg')).toBe('image/jpeg');
+    expect(outputTypeFor('image/heic')).toBe('image/jpeg');
+    expect(outputTypeFor('')).toBe('image/jpeg');
+  });
+});
+
+describe('chooseUpload', () => {
+  const original = (type: string, name: string, size: number) =>
+    new File([new Uint8Array(size)], name, { type });
+
+  it('уменьшенный WebP остаётся WebP и не превращается в JPEG', () => {
+    const chosen = chooseUpload(
+      original('image/webp', 'логотип.webp', 5000),
+      new Blob([new Uint8Array(1000)], { type: 'image/webp' }),
+    );
+    expect(chosen.type).toBe('image/webp');
+    expect(chosen.name).toBe('логотип.webp');
+    expect(chosen.size).toBe(1000);
+  });
+
+  it('если браузер не умеет кодировать WebP и отдал PNG, расширение следует за содержимым', () => {
+    const chosen = chooseUpload(
+      original('image/webp', 'логотип.webp', 5000),
+      new Blob([new Uint8Array(1000)], { type: 'image/png' }),
+    );
+    expect(chosen.type).toBe('image/png');
+    expect(chosen.name).toBe('логотип.png');
+  });
+
+  it('если уменьшенный файл не меньше исходного, уходит исходный', () => {
+    const file = original('image/jpeg', 'снимок.jpg', 1000);
+    expect(chooseUpload(file, new Blob([new Uint8Array(1001)], { type: 'image/jpeg' }))).toBe(file);
+    expect(chooseUpload(file, new Blob([new Uint8Array(1000)], { type: 'image/jpeg' }))).toBe(file);
+    expect(chooseUpload(file, new Blob([], { type: 'image/jpeg' }))).toBe(file);
+    expect(chooseUpload(file, null)).toBe(file);
+  });
+
+  it('HEIC после уменьшения получает имя JPEG', () => {
+    const chosen = chooseUpload(
+      original('image/heic', 'IMG_0001.HEIC', 9000),
+      new Blob([new Uint8Array(3000)], { type: 'image/jpeg' }),
+    );
+    expect(chosen.name).toBe('IMG_0001.jpg');
   });
 });
 
@@ -92,6 +153,14 @@ describe('fileErrorMessage', () => {
     expect(fileErrorMessage(new ApiError(403), 'trash')).toContain('корзину');
     expect(fileErrorMessage(new ApiError(403), 'restore')).toContain('автор');
     expect(fileErrorMessage(new ApiError(403), 'upload')).toContain('Добавлять');
+  });
+
+  it('для фото профиля формат называется без PDF, права — про владельца', () => {
+    const unsupported = fileErrorMessage(new ApiError(415, 'UNSUPPORTED_FILE'), 'photo');
+    expect(unsupported).toContain('HEIC');
+    expect(unsupported).not.toContain('PDF');
+    expect(fileErrorMessage(new ApiError(403), 'photo')).toContain('владелец');
+    expect(fileErrorMessage(new ApiError(404), 'photo')).toContain('фото');
   });
 
   it('сеть и неизвестные сбои — общие тексты', () => {

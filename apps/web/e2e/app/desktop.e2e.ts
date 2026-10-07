@@ -159,6 +159,49 @@ test('«Дом» на компьютере: список, карточка с в
   await checkApp(page, info, 'desktop-object-timeline');
 });
 
+test('фото профиля и «Корзина» с файлами на компьютере рядом с боковым меню', async ({
+  page,
+  family,
+}, info) => {
+  const boris = await apiAs(family, 'adult');
+  const flat = await seedObject(boris, family, {
+    title: 'Квартира у парка',
+    objectType: 'property',
+    audience: 'household',
+  });
+  const answer = await boris.upload(`objects/${flat.id}/files`, {
+    name: 'Квитанция за воду.pdf',
+    type: PDF_MIME,
+    data: PDF,
+  });
+  const fileId = (answer.body as { id: string }).id;
+  await boris.post(`objects/${flat.id}/files/${fileId}/trash`, {});
+  await signInAs(page, family, 'adult');
+
+  await page.goto('#/more/profile');
+  await expect(page.getByRole('button', { name: 'Загрузить фото' })).toBeVisible();
+  await filePicker(page).setInputFiles({
+    name: 'Мой портрет.png',
+    mimeType: PNG_MIME,
+    buffer: makePng(900, 900),
+  });
+  await expect(page.getByRole('button', { name: 'Сменить фото' })).toBeVisible();
+  await expectImageLoaded(page, '.member-head .avatar__photo');
+  await checkApp(page, info, 'desktop-profile-photo');
+
+  await page.goto('#/more/trash');
+  await expect(page.getByRole('list', { name: 'Удалённые файлы' })).toContainText(
+    'Квитанция за воду.pdf',
+  );
+  await checkApp(page, info, 'desktop-trash-files');
+
+  await page.goto(`#/home/${flat.id}/files`);
+  await expect(page.getByRole('list', { name: 'Удалённые файлы' })).toContainText(
+    'Квитанция за воду.pdf',
+  );
+  await checkApp(page, info, 'desktop-files-deleted');
+});
+
 test('вкладка «Файлы» на компьютере: загрузка фото и PDF, превью рядом с боковым меню', async ({
   page,
   family,

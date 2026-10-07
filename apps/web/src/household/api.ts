@@ -12,7 +12,7 @@ export const Member = z.object({
   isAdult: z.boolean(),
   formerMember: z.boolean(),
   leftAt: z.string().nullable(),
-  /** Фото пока только идентификатор будущего файла: загрузка — R0.5b. */
+  /** Файл фото профиля (ADR-0026); у бывшего участника сервер его не отдаёт. */
   photoFileId: z.string().nullable(),
   /** `YYYY-MM-DD` или `null`. */
   birthDate: z.string().nullable(),

@@ -1,5 +1,5 @@
 import { type FormEvent, useId, useState } from 'react';
-import type { useAction } from '../auth/components.tsx';
+import { Notice, type useAction } from '../auth/components.tsx';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
 import { type EventInput, MAX_EVENT_TEXT } from './api.ts';
 import { ObjectError } from './components.tsx';
@@ -19,6 +19,18 @@ interface EventFormProps {
   state: ReturnType<typeof useAction>;
   onSubmit: (values: EventInput) => void;
   onCancel: () => void;
+  /** Событие изменили, пока его правили: выбор вместо молчаливой перезаписи. */
+  conflict?: {
+    /** Взять версию с сервера: правка пропадёт. */
+    onReload: () => void;
+    /** Сохранить введённое отдельным событием и оставить версию сервера как есть. */
+    onSaveCopy: (values: EventInput) => void;
+  };
+}
+
+function focusField(id: string): null {
+  document.getElementById(id)?.focus();
+  return null;
 }
 
 const RATINGS = [
@@ -41,6 +53,7 @@ export function EventForm({
   state,
   onSubmit,
   onCancel,
+  conflict,
 }: EventFormProps) {
   const [occurredOn, setOccurredOn] = useState(draft.occurredOn);
   const [text, setText] = useState(draft.text);
@@ -56,18 +69,24 @@ export function EventForm({
   const textMissing = touched && text.trim() === '';
   const amountInvalid = touched && !parsed.ok;
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  /** Введённое, если всё в порядке; иначе подсвечивает и фокусирует первое неверное поле. */
+  function values(): EventInput | null {
     setTouched(true);
-    if (occurredOn === '') return document.getElementById(ids.date)?.focus();
-    if (text.trim() === '') return document.getElementById(ids.text)?.focus();
-    if (!parsed.ok) return document.getElementById(ids.amount)?.focus();
-    onSubmit({
+    if (occurredOn === '') return focusField(ids.date);
+    if (text.trim() === '') return focusField(ids.text);
+    if (!parsed.ok) return focusField(ids.amount);
+    return {
       occurredOn,
       text: text.trim(),
       amountKopecks: parsed.kopecks,
       rating: rating === '' ? null : Number(rating),
-    });
+    };
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const next = values();
+    if (next) onSubmit(next);
   }
 
   return (
@@ -152,6 +171,31 @@ export function EventForm({
         />
       </div>
 
+      {conflict ? (
+        <Notice error>
+          <strong>Событие изменили, пока вы его правили.</strong>
+          <p>
+            «Обновить» покажет свежую версию, а то, что вы ввели, пропадёт. «Сохранить мою версию
+            отдельным событием» добавит ваш текст новой записью в ленту, а свежую версию не тронет.
+          </p>
+          <div className="btn-row">
+            <button type="button" className="btn btn--secondary" onClick={conflict.onReload}>
+              Обновить
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={state.disabled}
+              onClick={() => {
+                const next = values();
+                if (next) conflict.onSaveCopy(next);
+              }}
+            >
+              Сохранить мою версию отдельным событием
+            </button>
+          </div>
+        </Notice>
+      ) : null}
       <ObjectError error={state.error} action="event" />
 
       <div className="btn-row">

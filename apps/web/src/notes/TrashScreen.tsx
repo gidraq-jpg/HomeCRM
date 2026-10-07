@@ -1,11 +1,26 @@
-import { ArrowCounterClockwise, Note, Trash } from '@phosphor-icons/react';
+import {
+  ArrowCounterClockwise,
+  Camera,
+  DownloadSimple,
+  FilePdf,
+  ImageSquare,
+  Note,
+  Trash,
+} from '@phosphor-icons/react';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
 import { VISIBILITY_LABELS } from '../access/visibility.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
+import { fileUrl, restoreFile, restoreProfilePhoto, type TrashedFile } from '../files/api.ts';
+import { fileErrorMessage } from '../files/errors.ts';
+import { isPdf } from '../files/FilesSection.tsx';
+import { useRefreshFiles, useTrashedFiles } from '../files/queries.ts';
+import { formatFileSize } from '../files/size.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { useRefresh } from '../household/queries.ts';
 import { objectAbilities } from '../objects/abilities.ts';
 import { type ObjectSummary, restoreObject } from '../objects/api.ts';
 import { ObjectError } from '../objects/components.tsx';
@@ -131,18 +146,112 @@ function ObjectTrashRow({ object }: { object: ObjectSummary }) {
   );
 }
 
+const PARENT_LABELS = {
+  note: 'из заметки',
+  object: 'из объекта',
+  profile: 'фото профиля',
+} as const;
+
+function FileTrashRow({ file }: { file: TrashedFile }) {
+  const { me } = useHousehold();
+  const refresh = useRefreshFiles();
+  const refreshProfile = useRefresh();
+  const toast = useToast();
+  const state = useAction();
+  const [done, setDone] = useState(false);
+  const deletedAt = file.deletedAt ?? file.createdAt;
+  const profile = file.parentType === 'profile';
+  const parentPath =
+    file.parentType === 'note'
+      ? `/more/notes/${file.parentId}`
+      : file.parentType === 'object'
+        ? `/home/${file.parentId}/files`
+        : null;
+
+  return (
+    <li className="trash-item">
+      <div className="row">
+        <RowContent
+          icon={
+            profile ? (
+              <Camera size={22} aria-hidden />
+            ) : isPdf(file) ? (
+              <FilePdf size={22} aria-hidden />
+            ) : (
+              <ImageSquare size={22} aria-hidden />
+            )
+          }
+          title={profile ? 'Фото профиля' : file.name}
+          meta={`${PARENT_LABELS[file.parentType]} · ${formatFileSize(file.sizeBytes)} · удалён ${formatDay(deletedAt, me.timeZone)}, хранится до ${formatDay(keepUntil(deletedAt), me.timeZone)}`}
+        />
+      </div>
+      <div className="file-row__actions">
+        {file.canRestore ? (
+          <button
+            type="button"
+            className="btn btn--secondary"
+            disabled={state.disabled || done}
+            aria-label={`Восстановить файл: ${profile ? 'фото профиля' : file.name}`}
+            onClick={() =>
+              void state.run(async () => {
+                if (profile) await restoreProfilePhoto(file.id);
+                else
+                  await restoreFile(
+                    { kind: file.parentType === 'note' ? 'note' : 'object', id: file.parentId },
+                    file.id,
+                  );
+                setDone(true);
+                await Promise.all([
+                  refresh(),
+                  ...(profile ? [refreshProfile.profile(), refreshProfile.members()] : []),
+                ]);
+                toast.show({
+                  message: 'Файл возвращён',
+                  detail: profile
+                    ? 'Это фото снова ваше текущее фото профиля.'
+                    : 'Он снова в карточке записи.',
+                });
+              })
+            }
+          >
+            <ArrowCounterClockwise size={20} aria-hidden />
+            {state.pending ? 'Возвращаем…' : 'Восстановить'}
+          </button>
+        ) : null}
+        <a className="btn btn--secondary" href={fileUrl(file.id)} download>
+          <DownloadSimple size={20} aria-hidden />
+          Скачать
+        </a>
+        {parentPath === null ? null : (
+          <Link className="btn btn--secondary" to={parentPath}>
+            {file.parentType === 'note' ? 'К заметке' : 'К объекту'}
+          </Link>
+        )}
+      </div>
+      {file.canRestore ? null : (
+        <p className="muted trash-item__note">
+          Вернуть этот файл может его автор-взрослый или администратор.
+        </p>
+      )}
+      {state.error ? <Notice error>{fileErrorMessage(state.error, 'restore')}</Notice> : null}
+    </li>
+  );
+}
+
+const fileCount = (count: number) => countWord(count, ['файл', 'файла', 'файлов']);
 const recordCount = (count: number) => countWord(count, ['запись', 'записи', 'записей']);
 
 /**
- * «Корзина»: удалённые заметки и объекты хранятся 30 дней, восстановить можно по правилам 7.3.
- * У заметок и объектов свои загрузка и ошибка: сбой одного блока не ломает второй.
+ * «Корзина»: удалённые заметки, объекты и файлы хранятся 30 дней, восстановить можно по правилам
+ * 7.3. У заметок, объектов и файлов свои загрузка и ошибка: сбой одного блока не ломает другие.
  */
 export function TrashScreen() {
   const notesQuery = useNotesList(true);
   const objectsQuery = useObjectsList(true);
+  const filesQuery = useTrashedFiles();
   const { scope, setScope } = useScope();
 
-  if (notesQuery.isPending || objectsQuery.isPending) {
+  if (notesQuery.isPending || objectsQuery.isPending || filesQuery.isPending) {
     return (
       <Page title="Корзина" back={BACK}>
         <Notice>Загружаем корзину…</Notice>
@@ -168,8 +277,10 @@ export function TrashScreen() {
   }
   const notes = notesQuery.data?.pages.flat() ?? [];
   const objects = objectsQuery.data?.pages.flat() ?? [];
-  const total = notes.length + objects.length;
-  const failed = notesQuery.data === undefined || objectsQuery.data === undefined;
+  const files = filesQuery.data ?? [];
+  const total = notes.length + objects.length + files.length;
+  const failed =
+    notesQuery.data === undefined || objectsQuery.data === undefined || filesQuery.isError;
 
   return (
     <Page title="Корзина" back={BACK} {...(total > 0 ? { eyebrow: recordCount(total) } : {})}>
@@ -190,11 +301,22 @@ export function TrashScreen() {
         </>
       ) : null}
 
+      {filesQuery.isError ? (
+        <>
+          <Notice error>
+            Не удалось загрузить удалённые файлы. Проверьте подключение и повторите.
+          </Notice>
+          <button className="text-button" type="button" onClick={() => void filesQuery.refetch()}>
+            Повторить загрузку файлов из корзины
+          </button>
+        </>
+      ) : null}
+
       {total === 0 && !failed ? (
         <EmptyState icon={<Trash size={24} aria-hidden />} title="В корзине пусто">
           <p>
-            Удалённые заметки и объекты хранятся здесь 30 дней, потом исчезают навсегда. Пока ничего
-            не удалено.
+            Удалённые заметки, объекты и файлы хранятся здесь 30 дней, потом исчезают навсегда. Пока
+            ничего не удалено.
           </p>
           <p>{EMPTY_SCOPE_EXPLANATION[scope]}</p>
           {scope === 'all' ? null : (
@@ -258,6 +380,16 @@ export function TrashScreen() {
               {objectsQuery.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё объекты'}
             </button>
           ) : null}
+        </Section>
+      ) : null}
+
+      {files.length > 0 ? (
+        <Section title="Файлы" aside={<span className="muted">{fileCount(files.length)}</span>}>
+          <ul className="trash-list" aria-label="Удалённые файлы">
+            {files.map((file) => (
+              <FileTrashRow key={file.id} file={file} />
+            ))}
+          </ul>
         </Section>
       ) : null}
     </Page>

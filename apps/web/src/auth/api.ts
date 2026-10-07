@@ -52,7 +52,7 @@ export class ApiError extends Error {
   }
 }
 
-export type ApiMethod = 'GET' | 'POST' | 'PATCH';
+export type ApiMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 /** Только cookie; тело и ответы не попадают в localStorage, Cache API или журнал. */
 export async function apiRequest<T>(

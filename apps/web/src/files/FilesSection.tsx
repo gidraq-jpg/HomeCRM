@@ -25,11 +25,13 @@ import {
   type FileMeta,
   type FileParent,
   fileUrl,
+  inlineUrl,
   previewUrl,
   restoreFile,
   trashFile,
 } from './api.ts';
 import { fileErrorMessage } from './errors.ts';
+import { useDeletedFiles, useRefreshFiles } from './queries.ts';
 import { formatFileSize } from './size.ts';
 import { type UploadItem, useUploads } from './useUploads.ts';
 
@@ -45,6 +47,9 @@ export interface FilesCard extends PlacedRecord {
   files: FileMeta[];
 }
 
+/** Файл в списке: у удалённых живой записи сервер добавляет `canRestore`. */
+type ListedFile = FileMeta & { canRestore?: boolean };
+
 interface FilesSectionProps {
   parent: FileParent;
   card: FilesCard;
@@ -54,11 +59,15 @@ interface FilesSectionProps {
   refresh: () => Promise<unknown>;
 }
 
-function isImage(file: FileMeta) {
+export function isImage(file: Pick<FileMeta, 'mimeType'>) {
   return file.mimeType.startsWith('image/');
 }
 
-function Thumbnail({ file }: { file: FileMeta }) {
+export function isPdf(file: Pick<FileMeta, 'mimeType'>) {
+  return file.mimeType === 'application/pdf';
+}
+
+export function Thumbnail({ file }: { file: Pick<FileMeta, 'id' | 'mimeType' | 'hasPreview'> }) {
   const [broken, setBroken] = useState(false);
   if (file.hasPreview && !broken) {
     return (
@@ -82,15 +91,12 @@ function FileRow({
   parent,
   card,
   refresh,
-  onTrashed,
-  onRestored,
 }: {
-  file: FileMeta;
+  file: ListedFile;
   parent: FileParent;
   card: FilesCard;
+  /** Перечитать карточку и списки удалённых файлов. */
   refresh: () => Promise<unknown>;
-  onTrashed: (file: FileMeta) => void;
-  onRestored: (id: string) => void;
 }) {
   const { me } = useHousehold();
   const nameOf = usePersonName();
@@ -107,34 +113,39 @@ function FileRow({
     trashed: deleted,
   };
   const mayTrash = !deleted && !parentTrashed && canTrash(viewer, facts);
-  const mayRestore = deleted && !parentTrashed && canRestore(viewer, facts);
+  // Удалённый файл возвращает тот, кому это разрешает сервер (`canRestore` в списке).
+  const mayRestore = deleted && !parentTrashed && file.canRestore === true;
+  // Отмена в уведомлении нужна только тому, кто потом сможет вернуть файл.
+  const mayUndo = canRestore(viewer, { ...facts, trashed: true });
 
   function trash() {
     void state.run(async () => {
-      const trashed = await trashFile(parent, file.id);
-      onTrashed(trashed);
+      await trashFile(parent, file.id);
       await refresh();
       toast.show({
         message: 'Файл в корзине',
-        detail: 'Хранится 30 дней',
+        detail: mayUndo
+          ? 'Хранится 30 дней'
+          : 'Вернуть его сможет автор-взрослый или администратор. Хранится 30 дней.',
         durationMs: UNDO_MS,
-        action: {
-          label: 'Отменить',
-          onClick: () => {
-            restoreFile(parent, file.id)
-              .then(() => {
-                onRestored(file.id);
-                return refresh();
-              })
-              .then(() => toast.show({ message: 'Файл возвращён' }))
-              .catch(() =>
-                toast.show({
-                  message: 'Не удалось вернуть файл',
-                  detail: 'Он остался в разделе «Удалённые файлы» этой записи.',
-                }),
-              );
-          },
-        },
+        ...(mayUndo
+          ? {
+              action: {
+                label: 'Отменить',
+                onClick: () => {
+                  restoreFile(parent, file.id)
+                    .then(() => refresh())
+                    .then(() => toast.show({ message: 'Файл возвращён' }))
+                    .catch(() =>
+                      toast.show({
+                        message: 'Не удалось вернуть файл',
+                        detail: 'Он остался в разделе «Удалённые файлы» этой записи.',
+                      }),
+                    );
+                },
+              },
+            }
+          : {}),
       });
     });
   }
@@ -142,7 +153,6 @@ function FileRow({
   function restore() {
     void state.run(async () => {
       await restoreFile(parent, file.id);
-      onRestored(file.id);
       await refresh();
       toast.show({ message: 'Файл возвращён' });
     });
@@ -177,6 +187,18 @@ function FileRow({
             Открыть
           </button>
         ) : null}
+        {isPdf(file) ? (
+          <a
+            className="btn btn--secondary"
+            href={inlineUrl(file.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Открыть PDF в новой вкладке: ${file.name}`}
+          >
+            <Eye size={20} aria-hidden />
+            Открыть
+          </a>
+        ) : null}
         <a
           className="btn btn--secondary"
           href={fileUrl(file.id)}
@@ -210,6 +232,11 @@ function FileRow({
           </button>
         ) : null}
       </div>
+      {deleted && !mayRestore && !parentTrashed ? (
+        <p className="muted file-row__note">
+          Вернуть этот файл может его автор-взрослый или администратор.
+        </p>
+      ) : null}
       {state.error ? (
         <Notice error>{fileErrorMessage(state.error, deleted ? 'restore' : 'trash')}</Notice>
       ) : null}
@@ -301,25 +328,27 @@ function UploadRow({
 /**
  * Файлы записи (OBJ-4): список с превью, «Добавить файл», просмотр, скачивание и корзина.
  * Файл наследует доступ записи: чего не видно в записи, того нет и здесь. Скачивается файл
- * только через `/api/files/:id` с сессией, публичных ссылок нет.
+ * только через `/api/files/:id` с сессией, публичных ссылок нет. PDF открывается в новой вкладке
+ * через `?inline=1`. «Удалённые файлы» приходят от сервера, поэтому видны и после перезагрузки.
  */
 export function FilesSection({ parent, card, canAdd, refresh }: FilesSectionProps) {
   const toast = useToast();
   const picker = useRef<HTMLInputElement>(null);
-  const [trashedHere, setTrashedHere] = useState<FileMeta[]>([]);
+  const refreshFiles = useRefreshFiles();
+  const parentTrashed = card.deletedAt !== null;
+  const deletedQuery = useDeletedFiles(parent, !parentTrashed);
+  const refreshAll = () => Promise.all([refresh(), refreshFiles()]);
   const uploads = useUploads(parent, () => {
-    void refresh();
+    void refreshAll();
     toast.show({ message: 'Файл добавлен' });
   });
 
-  const parentTrashed = card.deletedAt !== null;
   const live = card.files.filter((file) => file.deletedAt === null);
-  // Отдельно удалённые файлы живой записи API не отдаёт, поэтому показываем те, что убрали здесь.
-  const deletedInCard = card.files.filter((file) => file.deletedAt !== null);
-  const deleted = [
-    ...deletedInCard,
-    ...trashedHere.filter((file) => !deletedInCard.some((known) => known.id === file.id)),
-  ];
+  // В карточке удалённой записи сервер отдаёт все файлы с отметками; в живой — только живые,
+  // а отдельно удалённые приходят отдельным запросом вместе с правом на восстановление.
+  const deleted: ListedFile[] = parentTrashed
+    ? card.files.filter((file) => file.deletedAt !== null)
+    : (deletedQuery.data ?? []);
 
   function choose(list: FileList | null) {
     if (list === null || list.length === 0) return;
@@ -387,19 +416,20 @@ export function FilesSection({ parent, card, canAdd, refresh }: FilesSectionProp
       {live.length > 0 ? (
         <ul className="file-list" aria-label="Файлы записи">
           {live.map((file) => (
-            <FileRow
-              key={file.id}
-              file={file}
-              parent={parent}
-              card={card}
-              refresh={refresh}
-              onTrashed={(trashed) =>
-                setTrashedHere((list) => [trashed, ...list.filter((f) => f.id !== trashed.id)])
-              }
-              onRestored={(id) => setTrashedHere((list) => list.filter((f) => f.id !== id))}
-            />
+            <FileRow key={file.id} file={file} parent={parent} card={card} refresh={refreshAll} />
           ))}
         </ul>
+      ) : null}
+
+      {deletedQuery.isError && !parentTrashed ? (
+        <>
+          <Notice error>
+            Не удалось загрузить удалённые файлы. Проверьте подключение и повторите.
+          </Notice>
+          <button className="text-button" type="button" onClick={() => void deletedQuery.refetch()}>
+            Повторить загрузку удалённых файлов
+          </button>
+        </>
       ) : null}
 
       {deleted.length > 0 ? (
@@ -408,15 +438,7 @@ export function FilesSection({ parent, card, canAdd, refresh }: FilesSectionProp
           <p className="muted">Хранятся 30 дней, потом исчезают навсегда.</p>
           <ul className="file-list" aria-label="Удалённые файлы">
             {deleted.map((file) => (
-              <FileRow
-                key={file.id}
-                file={file}
-                parent={parent}
-                card={card}
-                refresh={refresh}
-                onTrashed={() => undefined}
-                onRestored={(id) => setTrashedHere((list) => list.filter((f) => f.id !== id))}
-              />
+              <FileRow key={file.id} file={file} parent={parent} card={card} refresh={refreshAll} />
             ))}
           </ul>
         </div>

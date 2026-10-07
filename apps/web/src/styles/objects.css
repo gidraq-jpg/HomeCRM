@@ -59,6 +59,11 @@
   overflow-wrap: anywhere;
 }
 
+/* «Свои поля» отделены от строк карточки, в том числе от «Изменён» */
+.facts + .section {
+  margin-top: 22px;
+}
+
 /* Лента */
 .timeline {
   display: grid;
