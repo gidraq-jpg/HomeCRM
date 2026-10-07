@@ -29,6 +29,7 @@ const AUTH_ONLY = [
 // Таблицы записей и их истории берутся из recordTable(): новая таблица попадает сюда сама.
 const RECORD_NAMES = RECORD_DEFINITIONS.map((definition) => definition.name);
 const APP_TABLES = [
+  'export_events',
   'push_subscriptions',
   'notification_settings',
   'push_attempts',
@@ -52,6 +53,7 @@ const APP_TABLES = [
 ];
 // Эти таблицы наполняет seedFamily: проверка «без контекста пусто» не вырождена.
 const SEEDED = new Set([
+  'export_events',
   'search_index',
   'profile_files',
   'file_blobs',
@@ -67,6 +69,10 @@ const SEEDED = new Set([
 beforeAll(async () => {
   database = await createTestDatabase(inject('pgAdminUrl'));
   await seedFamily(database.admin, family);
+  await database.admin.query(
+    `INSERT INTO export_events(account_id,kind,counts,size_bytes) VALUES ($1,'personal','{}',1)`,
+    [anna.id],
+  );
   const file = await database.admin.query(
     `INSERT INTO profile_files(account_id,title,mime_type,size_bytes,storage_key,envelope) VALUES ($1,'Фото','image/jpeg',32,gen_random_uuid(),'{}') RETURNING id`,
     [anna.id],
