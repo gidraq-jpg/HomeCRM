@@ -11,6 +11,10 @@ import { NewNoteScreen } from './notes/NewNoteScreen.tsx';
 import { NoteScreen } from './notes/NoteScreen.tsx';
 import { NotesScreen } from './notes/NotesScreen.tsx';
 import { TrashScreen } from './notes/TrashScreen.tsx';
+import { DeliveriesScreen } from './notifications/DeliveriesScreen.tsx';
+import { NotificationsScreen } from './notifications/NotificationsScreen.tsx';
+import { OpenRecordScreen } from './notifications/OpenRecordScreen.tsx';
+import { PushBridge } from './notifications/PushBridge.tsx';
 import { NewObjectScreen } from './objects/NewObjectScreen.tsx';
 import { ObjectFiles } from './objects/ObjectFiles.tsx';
 import { ObjectOverview } from './objects/ObjectOverview.tsx';
@@ -46,6 +50,7 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
       onAdd={() => setAdding(true)}
       overlays={<AddMenu open={adding} onOpenChange={setAdding} />}
     >
+      <PushBridge accountId={me.id} />
       <Routes>
         <Route index element={<Navigate to="/today" replace />} />
         <Route path="today" element={<TodayScreen />} />
@@ -74,6 +79,9 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="more/trash" element={<TrashScreen />} />
         <Route path="more/radar" element={<RadarScreen />} />
         <Route path="more/house" element={<HouseScreen />} />
+        <Route path="more/notifications" element={<NotificationsScreen />} />
+        <Route path="more/notifications/log" element={<DeliveriesScreen />} />
+        <Route path="open/:recordId" element={<OpenRecordScreen />} />
         <Route path="search" element={<SearchScreen />} />
         <Route path="*" element={<NotFoundScreen />} />
       </Routes>

@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -27,10 +27,25 @@ const TYPES: Record<string, string> = {
   '.webmanifest': 'application/manifest+json',
 };
 
+// Открытый ключ VAPID для /api/push/key: временная пара P-256, созданная в этом прогоне. Закрытый ключ не нужен —
+// диспетчер в сквозных тестах не запускается и в службы push ничего не отправляет.
+function temporaryVapidPublicKey(): string {
+  const { x, y } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' }).publicKey.export({
+    format: 'jwk',
+  });
+  if (!x || !y) throw new Error('Temporary VAPID key was not created');
+  return Buffer.concat([
+    Buffer.from([4]),
+    Buffer.from(x, 'base64url'),
+    Buffer.from(y, 'base64url'),
+  ]).toString('base64url');
+}
+
 export async function createFamily() {
   const adminUrl = process.env.HOMECRM_TEST_PG_ADMIN_URL;
   if (!adminUrl) throw new Error('E2E PostgreSQL is not configured');
   const database = await createTestDatabase(adminUrl);
+  const vapidPublicKey = temporaryVapidPublicKey();
   let upstream = '';
   // HTTP-прокси и статика на своём свободном порту. Cookie проходят через настоящий браузер.
   const server = createServer(async (request, response) => {
@@ -92,7 +107,7 @@ export async function createFamily() {
   await mkdir(FILES_ROOT, { recursive: true });
   const filesDir = await mkdtemp(resolve(FILES_ROOT, 'run-'));
   const app = buildApp(
-    { LOG_LEVEL: 'silent', APP_VERSION: 'e2e' },
+    { LOG_LEVEL: 'silent', APP_VERSION: 'e2e', VAPID_PUBLIC_KEY: vapidPublicKey },
     {
       auth: module,
       worker: createWorkerDatabase(database.worker),
@@ -135,6 +150,7 @@ export async function createFamily() {
     database,
     person,
     houseId,
+    vapidPublicKey,
     async post(path: string, body: unknown, cookie = '') {
       return fetch(`${origin}/api/${path}`, {
         method: 'POST',

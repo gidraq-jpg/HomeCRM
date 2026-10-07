@@ -1,0 +1,121 @@
+/* Уведомления: карточка на «Сегодня», экран «Уведомления», журнал доставки. Цели нажатия — не меньше 44 px. */
+
+.push-card {
+  margin: 18px 0;
+}
+
+.notif-form + .section {
+  margin-top: 28px;
+}
+
+.push-card__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.push-card__icon {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--green);
+}
+
+.push-card .btn-row {
+  margin-bottom: 4px;
+}
+
+.notif-help {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--soft);
+  font-size: 0.9375rem;
+}
+
+.notif-help ol {
+  display: grid;
+  gap: 6px;
+  padding-left: 22px;
+  list-style: decimal;
+}
+
+.notif-form {
+  display: block;
+}
+
+.notif-form > .btn,
+.notif-form > .auth-notice,
+.notif-form > .field__error {
+  margin-top: 18px;
+}
+
+.notif-time {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.check-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.device-list,
+.log-list {
+  border-top: 1px solid var(--line);
+}
+
+.device {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.device__body {
+  display: grid;
+  flex: 1 1 200px;
+  gap: 2px;
+  min-width: 0;
+  justify-items: start;
+  overflow-wrap: anywhere;
+}
+
+.device__body p {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.log-item {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.log-item__kind,
+.log-item__device {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.log-list {
+  margin-top: 12px;
+}
