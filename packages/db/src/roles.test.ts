@@ -75,7 +75,7 @@ describe('роли базы', () => {
       expect(roles, policyname).toHaveLength(1);
       if (roles[0] === DB_ROLES.worker) {
         expect(policyname).toMatch(
-          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$/,
+          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$/,
         );
       } else if (roles[0] === DB_ROLES.owner) {
         expect(['household_access_sync', 'member_profiles_initialize']).toContain(policyname);
