@@ -1,0 +1,81 @@
+import { ApiError, errorMessage } from '../auth/api.ts';
+
+// Тексты ответов API объектов (ADR-0023). Технические сообщения сервера не показываются. Каждое
+// объяснение говорит, что делать дальше; названий, значений полей и текстов событий в них нет.
+
+export type ObjectAction =
+  | 'load'
+  | 'create'
+  | 'save'
+  | 'trash'
+  | 'restore'
+  | 'share'
+  | 'personal'
+  | 'audience'
+  | 'copy'
+  | 'preview'
+  | 'event'
+  | 'link';
+
+/** Запись изменили после того, как её открыли: правку нужно сверить с новой версией. */
+export function isStaleVersion(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409 && error.code === 'STALE_VERSION';
+}
+
+const INVALID: Readonly<Partial<Record<ObjectAction, string>>> = {
+  event:
+    'Проверьте событие: нужны дата и текст (до 10 000 знаков), сумма — в рублях, оценка — от 1 до 5.',
+  link: 'Не удалось связать записи. Проверьте подпись: она не длиннее 200 знаков.',
+};
+
+export function objectErrorMessage(error: unknown, action: ObjectAction): string {
+  if (!(error instanceof ApiError)) return errorMessage(error);
+  const { status, code } = error;
+  if (status === 0 || status === 429) return errorMessage(error);
+  if (status === 401) return 'Вход истёк. Войдите заново.';
+  if (status === 404) {
+    return action === 'link' || action === 'event'
+      ? 'Запись больше недоступна: её удалили или она стала вам недоступна. Обновите страницу.'
+      : 'Объекта больше нет, или он стал вам недоступен. Вернитесь в «Дом» и обновите список.';
+  }
+  if (status === 403) {
+    switch (action) {
+      case 'personal':
+        return 'Сделать объект личным нельзя: в нём есть правки других участников. Скопируйте его в личное.';
+      case 'trash':
+        return 'Убрать общий объект в корзину могут только взрослые.';
+      case 'restore':
+        return 'Вернуть общий объект из корзины может его автор-взрослый или администратор.';
+      case 'share':
+        return 'Поделиться можно только своим личным объектом.';
+      case 'audience':
+        return 'Менять, кто видит объект, могут только взрослые.';
+      case 'link':
+        return 'Связать записи нельзя: нужно право менять хотя бы одну из них.';
+      case 'event':
+        return 'Менять ленту этого объекта вам нельзя. Обновите страницу: возможно, права изменились.';
+      default:
+        return 'Это действие вам недоступно. Обновите страницу и повторите.';
+    }
+  }
+  if (status === 409) {
+    if (isStaleVersion(error)) {
+      return action === 'event'
+        ? 'Событие изменили, пока вы его правили. Обновите ленту и повторите.'
+        : 'Объект изменили, пока вы его правили. Обновите его и повторите.';
+    }
+    if (code === 'ASSIGNEE_CANNOT_SEE') {
+      return 'Этот участник не увидит объект. Выберите ответственным того, кто его видит, а при доступе «Взрослые» — взрослого.';
+    }
+    if (code === 'CONFIRMATION_REQUIRED') return 'Нужно подтвердить действие. Повторите его.';
+    return 'Данные изменились, пока вы работали. Обновите страницу и повторите.';
+  }
+  if (status === 400) {
+    return (
+      INVALID[action] ??
+      'Проверьте объект: название обязательно и не длиннее 200 знаков; у каждого поля нужно название (до 100 знаков), значение — до 4000; полей не больше 50.'
+    );
+  }
+  if (action === 'load') return 'Не удалось загрузить данные. Проверьте подключение и повторите.';
+  return errorMessage(error);
+}

@@ -28,23 +28,26 @@ type SheetName = 'share' | 'audience' | 'personal';
 
 const SHARE_OPTIONS: readonly Visibility[] = ['adults', 'household'];
 
-function names(people: readonly { displayName: string }[]): string {
+export function names(people: readonly { displayName: string }[]): string {
   return people.map((person) => person.displayName).join(', ');
 }
 
 /** Кто потеряет доступ: имена из предпросмотра сервера, не из памяти страницы. */
-function LosesAccess({
+export function LosesAccess({
   people,
   empty,
+  what = 'Заметка',
 }: {
   people: readonly { displayName: string }[];
   empty: string;
+  /** Что исчезнет у них из списков: «Заметка», «Объект». */
+  what?: string;
 }) {
   if (people.length === 0) return <p className="muted sheet__block">{empty}</p>;
   return (
     <div className="warning-box" role="alert">
       <p>Доступ потеряют: {names(people)}.</p>
-      <p>Заметка исчезнет у них из списков и поиска.</p>
+      <p>{what} исчезнет у них из списков и поиска.</p>
     </div>
   );
 }

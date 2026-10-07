@@ -1,7 +1,7 @@
-import { Buildings, CalendarBlank, FileText } from '@phosphor-icons/react';
+import { CalendarBlank, FileText } from '@phosphor-icons/react';
 import { SectionPlaceholder } from './SectionPlaceholder.tsx';
 
-// Три раздела, данных у которых ещё нет: в них пока нечего создавать.
+// Два раздела, данных у которых ещё нет: в них пока нечего создавать.
 
 export function TodayScreen() {
   return (
@@ -11,18 +11,6 @@ export function TodayScreen() {
       lead="На сегодня пока ничего нет"
       now="Дел, сроков и документов в приложении ещё нет, поэтому собирать нечего. Создавать их пока нельзя: эти разделы не готовы."
       will="Когда в приложении появятся дела и сроки, здесь соберутся срочное, главное дело и дела на сегодня."
-    />
-  );
-}
-
-export function HomeScreen() {
-  return (
-    <SectionPlaceholder
-      title="Дом"
-      icon={<Buildings size={24} aria-hidden />}
-      lead="Объектов пока нет"
-      now="Завести квартиру или дачу в приложении пока нельзя: раздел не готов."
-      will="Здесь будут объекты недвижимости, коммуналка за месяц и карточки объектов."
     />
   );
 }
