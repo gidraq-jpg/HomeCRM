@@ -12,6 +12,7 @@ import {
   createDeadline,
   type DeadlineItem,
   patchDeadline,
+  restoreDeadline,
   type SourceKind,
   trashDeadline,
 } from './api.ts';
@@ -26,7 +27,6 @@ import {
   occurrenceRelative,
   occurrenceWhen,
 } from './labels.ts';
-import { cancelTrash, scheduleTrash, UNDO_MS, usePendingTrash } from './pending.ts';
 import { useRefreshDeadlines, useSourceDeadlines } from './queries.ts';
 
 interface DeadlinesSectionProps {
@@ -72,7 +72,6 @@ export function DeadlinesSection({ source, card }: DeadlinesSectionProps) {
   const toast = useToast();
   const refresh = useRefreshDeadlines();
   const query = useSourceDeadlines(source, card.id);
-  const hidden = usePendingTrash();
   const save = useAction();
   const [mode, setMode] = useState<Mode>({ kind: 'idle' });
 
@@ -82,7 +81,7 @@ export function DeadlinesSection({ source, card }: DeadlinesSectionProps) {
     !trashed &&
     canWriteDeadline(viewer, factsOf(card, viewer, source === 'notes' ? 'note' : 'object'));
   const today = todayIn(me.timeZone);
-  const items = (query.data ?? []).filter((item) => !hidden.has(item.id));
+  const items = query.data ?? [];
 
   function close() {
     save.setError(null);
@@ -113,23 +112,22 @@ export function DeadlinesSection({ source, card }: DeadlinesSectionProps) {
   }
 
   function trash(id: string) {
-    scheduleTrash(
-      id,
-      async () => {
-        await trashDeadline(id);
-        await refresh();
-      },
-      () =>
-        toast.show({
-          message: 'Не удалось убрать срок в корзину',
-          detail: 'Срок остался на месте. Повторите.',
-        }),
-    );
-    toast.show({
-      message: 'Срок в корзине',
-      detail: 'Отменить можно в течение 7 секунд',
-      durationMs: UNDO_MS,
-      action: { label: 'Отменить', onClick: () => cancelTrash(id) },
+    void save.run(async () => {
+      await trashDeadline(id);
+      await refresh();
+      toast.show({
+        message: 'Срок в корзине',
+        detail: 'Восстановить можно также из «Корзины».',
+        action: {
+          label: 'Отменить',
+          onClick: () => {
+            void save.run(async () => {
+              await restoreDeadline(id);
+              await refresh();
+            });
+          },
+        },
+      });
     });
   }
 

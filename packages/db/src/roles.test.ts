@@ -83,6 +83,10 @@ describe('роли базы', () => {
           'member_profiles_initialize',
           'search_index_sync',
           'push_subscriptions_leave',
+          'deadlines_owner_select',
+          'deadlines_owner_update',
+          'deadline_occurrences_owner_select',
+          'deadline_occurrences_owner_update',
         ]).toContain(policyname);
       } else if (roles[0] === DB_ROLES.auth) expect(policyname).toMatch(/_auth_/);
       else expect(roles[0], policyname).toBe(DB_ROLES.app);
@@ -100,10 +104,12 @@ describe('роли базы', () => {
     );
     expect(rows).toEqual(
       [
+        'claim_push_endpoint',
         'initialize_member_profile',
         'remove_member_push',
         'sync_household_access',
         'sync_search_entry',
+        'sync_source_deadlines',
       ].map((proname) => ({
         proname,
         owner: DB_ROLES.owner,

@@ -50,17 +50,26 @@ export function patchDeadline(id: string, rule: DeadlineRule) {
 export function trashDeadline(id: string) {
   return apiRequest('DELETE', `deadlines/${id}`, DeadlineItem);
 }
+export function restoreDeadline(id: string) {
+  return apiRequest('POST', `deadlines/${id}/restore`, DeadlineItem, {});
+}
+export const TrashedDeadline = DeadlineItem.extend({ title: z.string(), canRestore: z.boolean() });
+export type TrashedDeadline = z.infer<typeof TrashedDeadline>;
+export function fetchTrashedDeadlines(signal?: AbortSignal) {
+  return apiRequest('GET', 'deadlines/trash', z.array(TrashedDeadline), undefined, signal);
+}
 
 /**
- * Наступление срока для радара. Источник (запись) в ответе не назван: связь «срок → запись»
- * приходится собирать по карточкам (см. `sources.ts`); если сервер добавит `noteId` и `objectId`,
- * они используются сразу.
+ * Наступление несёт источник, название и правило под RLS источника. Для показа
+ * и перехода в карточку дополнительный запрос к записи не нужен.
  */
 export const RadarItem = z.object({
   id: z.string(),
   deadlineId: z.string(),
   noteId: z.string().nullish(),
   objectId: z.string().nullish(),
+  title: z.string().optional(),
+  rule: DeadlineRule.optional(),
   /** Календарная дата начала в поясе дома: `YYYY-MM-DD`. */
   date: z.string(),
   startsAt: z.string(),
@@ -77,6 +86,7 @@ export type RadarItem = z.infer<typeof RadarItem>;
 const Radar = z.object({
   items: z.array(RadarItem),
   groups: z.record(z.string(), z.number()),
+  recalculating: z.boolean().default(false),
 });
 
 /** Все ещё не выполненные наступления до `to`; давно прошедшие разовые сроки тоже приходят. */

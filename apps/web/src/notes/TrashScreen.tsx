@@ -1,5 +1,6 @@
 import {
   ArrowCounterClockwise,
+  CalendarBlank,
   Camera,
   DownloadSimple,
   FilePdf,
@@ -10,10 +11,14 @@ import {
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
-import { SCOPE_LABELS } from '../access/scope.ts';
+import { matchesScope, SCOPE_LABELS } from '../access/scope.ts';
 import { VISIBILITY_LABELS } from '../access/visibility.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
+import { restoreDeadline, type TrashedDeadline } from '../deadlines/api.ts';
+import { DeadlineError } from '../deadlines/components.tsx';
+import { describeRule } from '../deadlines/labels.ts';
+import { useRefreshDeadlines, useTrashedDeadlines } from '../deadlines/queries.ts';
 import { fileUrl, restoreFile, restoreProfilePhoto, type TrashedFile } from '../files/api.ts';
 import { fileErrorMessage } from '../files/errors.ts';
 import { isPdf } from '../files/FilesSection.tsx';
@@ -24,6 +29,7 @@ import { useRefresh } from '../household/queries.ts';
 import { objectAbilities } from '../objects/abilities.ts';
 import { type ObjectSummary, restoreObject } from '../objects/api.ts';
 import { ObjectError } from '../objects/components.tsx';
+import { todayIn } from '../objects/dates.ts';
 import { useObjectsList, useRefreshObjects } from '../objects/queries.ts';
 import { OBJECT_TYPE_ICONS, objectCount } from '../objects/types.ts';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
@@ -241,6 +247,47 @@ function FileTrashRow({ file }: { file: TrashedFile }) {
 const fileCount = (count: number) => countWord(count, ['файл', 'файла', 'файлов']);
 const recordCount = (count: number) => countWord(count, ['запись', 'записи', 'записей']);
 
+function DeadlineTrashRow({ item }: { item: TrashedDeadline }) {
+  const { me } = useHousehold();
+  const refresh = useRefreshDeadlines();
+  const state = useAction();
+  const toast = useToast();
+  return (
+    <li className="trash-item">
+      <div className="row">
+        <RowContent
+          icon={<CalendarBlank size={22} aria-hidden />}
+          title={item.title}
+          meta={`${describeRule(item.rule, todayIn(me.timeZone))} · удалён ${formatDay(item.deletedAt ?? item.updatedAt, me.timeZone)}, хранится до ${formatDay(keepUntil(item.deletedAt ?? item.updatedAt), me.timeZone)}`}
+          badge={visibilityOf(item)}
+        />
+      </div>
+      {item.canRestore ? (
+        <button
+          type="button"
+          className="btn btn--secondary btn--block"
+          disabled={state.disabled}
+          onClick={() =>
+            void state.run(async () => {
+              await restoreDeadline(item.id);
+              await refresh();
+              toast.show({ message: 'Срок возвращён' });
+            })
+          }
+        >
+          <ArrowCounterClockwise size={20} aria-hidden />
+          {state.pending ? 'Возвращаем…' : 'Восстановить срок'}
+        </button>
+      ) : (
+        <p className="muted trash-item__note">
+          Сначала восстановите запись. Вернуть срок может его автор-взрослый или администратор.
+        </p>
+      )}
+      <DeadlineError error={state.error} action="save" />
+    </li>
+  );
+}
+
 /**
  * «Корзина»: удалённые заметки, объекты и файлы хранятся 30 дней, восстановить можно по правилам
  * 7.3. У заметок, объектов и файлов свои загрузка и ошибка: сбой одного блока не ломает другие.
@@ -249,6 +296,7 @@ export function TrashScreen() {
   const notesQuery = useNotesList(true);
   const objectsQuery = useObjectsList(true);
   const filesQuery = useTrashedFiles();
+  const deadlinesQuery = useTrashedDeadlines();
   const { scope, setScope } = useScope();
 
   if (notesQuery.isPending || objectsQuery.isPending || filesQuery.isPending) {
@@ -278,12 +326,41 @@ export function TrashScreen() {
   const notes = notesQuery.data?.pages.flat() ?? [];
   const objects = objectsQuery.data?.pages.flat() ?? [];
   const files = filesQuery.data ?? [];
-  const total = notes.length + objects.length + files.length;
+  const deadlines = (deadlinesQuery.data ?? []).filter((item) =>
+    matchesScope(visibilityOf(item), scope),
+  );
+  const total = notes.length + objects.length + files.length + deadlines.length;
   const failed =
-    notesQuery.data === undefined || objectsQuery.data === undefined || filesQuery.isError;
+    notesQuery.data === undefined ||
+    objectsQuery.data === undefined ||
+    filesQuery.isError ||
+    deadlinesQuery.isError ||
+    deadlinesQuery.isPending;
 
   return (
     <Page title="Корзина" back={BACK} {...(total > 0 ? { eyebrow: recordCount(total) } : {})}>
+      {deadlinesQuery.isPending ? <Notice>Загружаем удалённые сроки…</Notice> : null}
+      {deadlinesQuery.isError ? (
+        <>
+          <DeadlineError error={deadlinesQuery.error} action="load" />
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => void deadlinesQuery.refetch()}
+          >
+            Повторить загрузку сроков из корзины
+          </button>
+        </>
+      ) : null}
+      {deadlines.length > 0 ? (
+        <Section title="Сроки">
+          <ul className="trash-list" aria-label="Удалённые сроки">
+            {deadlines.map((item) => (
+              <DeadlineTrashRow key={item.id} item={item} />
+            ))}
+          </ul>
+        </Section>
+      ) : null}
       {notesQuery.data === undefined ? (
         <>
           <NoteError error={notesQuery.error} action="load" />

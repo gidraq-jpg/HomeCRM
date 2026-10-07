@@ -12,19 +12,21 @@ const Environment = z.object({
     .refine((x) => /^postgres(ql)?:/.test(x)),
   HOME_TIME_ZONE: TimeZone.default('Asia/Yekaterinburg'),
 });
-const parsed = Environment.extend(VapidConfig.shape).safeParse(process.env);
+const parsed = Environment.safeParse(process.env);
 if (!parsed.success) {
   reportWorkerError(parsed.error, 'Invalid worker configuration');
   process.exit(1);
 }
 const report = reportWorkerError;
+const vapid = VapidConfig.safeParse(process.env);
+if (!vapid.success) console.info('Push delivery disabled: VAPID is not configured');
 const pool = createPool(parsed.data.DATABASE_URL_WORKER, { max: 4, onError: report });
 try {
   const stop = await startDeadlineJobs(
     pool,
     parsed.data.HOME_TIME_ZONE,
     report,
-    createPushSender(parsed.data),
+    vapid.success ? createPushSender(vapid.data) : undefined,
   );
   for (const signal of ['SIGINT', 'SIGTERM'] as const)
     process.once(signal, () => {

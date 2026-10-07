@@ -5,7 +5,6 @@ import {
   eq,
   isNull,
   notes,
-  deadlineNotifications as notifications,
   objects,
   deadlineOccurrencesTable as occurrences,
   spaces,
@@ -103,13 +102,17 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
           await tx.delete(occurrences).where(eq(occurrences.id, old.id));
       }
       for (const item of calculated) {
+        const old = previous.find((row) => row.date === item.date);
         const values = {
           deadlineId: id,
           date: item.date,
           startsAt: item.startsAt,
           endsAt: item.endsAt,
           timeZone: zone,
-          warningsAt: item.warningsAt.map((x) => x.toISOString()),
+          // Новое предупреждение не досылает прошлое; уже рассчитанное переживает простой.
+          warningsAt: item.warningsAt
+            .filter((x) => !old || x >= now || old.warningsAt.includes(x.toISOString()))
+            .map((x) => x.toISOString()),
           spaceId: deadline.spaceId,
           spaceKind: deadline.spaceKind,
           audience: deadline.audience,
@@ -181,18 +184,9 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
       // R0.7 досылает пропущенное после простоя; старше суток диспетчер направляет в сводку.
       for (const warning of row.warningsAt)
         if (new Date(warning) <= now)
-          await tx
-            .insert(notifications)
-            .values({ occurrenceId: row.id, recipientId: recipient, warningAt: new Date(warning) })
-            .onConflictDoUpdate({
-              target: [
-                notifications.occurrenceId,
-                notifications.recipientId,
-                notifications.warningAt,
-              ],
-              set: { status: 'pending' },
-              setWhere: eq(notifications.status, 'cancelled'),
-            });
+          await tx.execute(sql`INSERT INTO deadline_notifications(occurrence_id,recipient_id,warning_at)
+            VALUES(${row.id},${recipient},${new Date(warning)})
+            ON CONFLICT (occurrence_id,recipient_id,warning_at) WHERE status<>'cancelled' OR cancellation_reason IS NOT NULL DO NOTHING`);
     }
   });
 }

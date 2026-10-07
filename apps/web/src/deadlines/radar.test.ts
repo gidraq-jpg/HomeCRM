@@ -71,6 +71,22 @@ function rows(items: RadarItem[]): RadarRow[] {
 }
 
 describe('радар: пункты и группы (DEAD-3)', () => {
+  it('название, правило и пояс приходят в пункте; пояс me не меняет подпись времени', () => {
+    const [row] = rows([
+      item('server', {
+        noteId: 'server-note',
+        title: 'Вымышленное название из API',
+        rule: DeadlineRule.parse({ kind: 'date', date: '2026-10-10', time: '09:00' }),
+        timeZone: 'Asia/Yekaterinburg',
+        startsAt: '2026-10-10T04:00:00Z',
+        endsAt: '2026-10-10T04:00:00Z',
+      }),
+    ]);
+    expect(row?.title).toBe('Вымышленное название из API');
+    expect(row?.to).toBe('/more/notes/server-note');
+    expect(row?.when).toContain('9:00');
+    expect(row?.what).toBe('Дата');
+  });
   it('пункт называет запись, вид срока, дату, значок пространства и ссылку в карточку', () => {
     const [object, note] = rows([
       item('1', { deadlineId: 'deadline-a' }),

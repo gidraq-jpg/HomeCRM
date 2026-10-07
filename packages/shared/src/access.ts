@@ -62,9 +62,9 @@ export function canView(viewer: Viewer, placement: Placement): boolean {
   return placement.audience === 'household' || ADULT_ROLES.has(role);
 }
 
-/** DEAD-1, OBJ-5: срок и его наступления наследуют доступ живого источника. */
+/** DEAD-1, OBJ-5: срок наследует доступ источника, включая корзину. */
 export function canViewDeadline(viewer: Viewer, source: RecordFacts): boolean {
-  return source.trashed !== true && canView(viewer, source.placement);
+  return canView(viewer, source.placement);
 }
 export function canWriteDeadline(viewer: Viewer, source: RecordFacts): boolean {
   return canWrite(viewer, source);

@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { canView, canWriteDeadline, DeadlineRule, type RecordFacts } from '@homecrm/shared';
+import {
+  canRestore,
+  canView,
+  canViewDeadline,
+  canWriteDeadline,
+  DeadlineRule,
+  type RecordFacts,
+} from '@homecrm/shared';
 import { afterAll, beforeAll, expect, inject, it } from 'vitest';
 import { createAppDatabase } from './client.ts';
 import { deadlines, eq, sql } from './index.ts';
@@ -113,6 +120,63 @@ it('матрица: чтение правил, наступлений и счё�
       }
     });
   expect(checks).toBeGreaterThan(90);
+});
+it('матрица: источник в корзине сохраняет доступ к правилу и названию, но не к наступлениям; restore совпадает с эталоном', async () => {
+  for (const example of examples) {
+    for (const trashSource of [true, false]) {
+      const client = await db.app.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query("SELECT set_config('app.account_id',$1,true)", [example.facts.authorId]);
+        if (trashSource)
+          await client.query(`UPDATE ${example.table} SET deleted_at=now() WHERE id=$1`, [
+            example.sourceId,
+          ]);
+        else await client.query('UPDATE deadlines SET deleted_at=now() WHERE id=$1', [example.id]);
+        for (const person of family.people) {
+          await client.query("SELECT set_config('app.account_id',$1,true)", [person.id]);
+          const rows = await client.query(
+            `SELECT d.id,p.title FROM deadlines d JOIN ${example.table} p ON p.id=coalesce(d.note_id,d.object_id) WHERE d.id=$1`,
+            [example.id],
+          );
+          expect(rows.rowCount === 1).toBe(
+            canViewDeadline(person.viewer, { ...example.facts, trashed: trashSource }),
+          );
+          expect(rows.rows.every((x) => x.title === 'Вымышленный источник')).toBe(true);
+          expect(
+            (
+              await client.query('SELECT id FROM deadline_occurrences WHERE deadline_id=$1', [
+                example.id,
+              ])
+            ).rowCount,
+          ).toBe(0);
+          if (!trashSource) {
+            await client.query('SAVEPOINT restore_check');
+            let allowed = false;
+            try {
+              allowed =
+                (
+                  await client.query(
+                    'UPDATE deadlines SET deleted_at=NULL WHERE id=$1 RETURNING id',
+                    [example.id],
+                  )
+                ).rowCount === 1;
+            } catch (error) {
+              if (!hasCode(error, ['42501'])) throw error;
+            } finally {
+              await client.query('ROLLBACK TO SAVEPOINT restore_check');
+            }
+            expect(allowed, `${person.name} restore ${example.table}`).toBe(
+              canRestore(person.viewer, example.facts),
+            );
+          }
+        }
+      } finally {
+        await client.query('ROLLBACK');
+        client.release();
+      }
+    }
+  }
 });
 it('матрица: создание, правка и корзина разрешены только редактору источника', async () => {
   for (const person of family.people)

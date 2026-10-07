@@ -113,6 +113,10 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
         ).rows[0];
         const settings = NotificationSettings.parse(raw ?? DEFAULT_SETTINGS);
         if (!settings.enabledKinds.includes('deadline')) {
+          await client.query(
+            "UPDATE deadline_notifications SET status='cancelled',cancellation_reason='settings' WHERE id=$1",
+            [delivery.notification_id],
+          );
           await finish(client, delivery, 'cancelled');
           return false;
         }

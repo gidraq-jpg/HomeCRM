@@ -81,7 +81,13 @@ export function buildRows(items: readonly RadarItem[], context: RowContext): Rad
       startsAt: new Date(item.startsAt),
       endsAt: new Date(item.endsAt),
     };
-    const located = context.locate(item.deadlineId);
+    const located = item.rule
+      ? {
+          rule: item.rule,
+          kind: item.noteId ? ('notes' as const) : ('objects' as const),
+          sourceId: item.noteId ?? item.objectId ?? '',
+        }
+      : context.locate(item.deadlineId);
     // Если сервер сам назвал источник, берём его; иначе — найденный по карточкам записей.
     const direct: SourceKind | null = item.noteId ? 'notes' : item.objectId ? 'objects' : null;
     const kind = located?.kind ?? direct;
@@ -89,14 +95,14 @@ export function buildRows(items: readonly RadarItem[], context: RowContext): Rad
     return {
       id: item.id,
       group: item.group,
-      title: kind && sourceId ? (context.titleOf(kind, sourceId) ?? null) : null,
+      title: item.title ?? (kind && sourceId ? (context.titleOf(kind, sourceId) ?? null) : null),
       what: located
         ? located.rule.kind === 'date' || located.rule.kind === 'window'
           ? KIND_LABELS[located.rule.kind]
           : `${KIND_LABELS[located.rule.kind]}: ${describeRule(located.rule, context.today)}`
         : 'Срок',
-      when: occurrenceWhen(timing, context.timeZone, context.now),
-      relative: occurrenceRelative(timing, context.timeZone, context.now),
+      when: occurrenceWhen(timing, item.timeZone, context.now),
+      relative: occurrenceRelative(timing, item.timeZone, context.now),
       visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
       assigneeId: item.assigneeId,
       startsAt: timing.startsAt.getTime(),

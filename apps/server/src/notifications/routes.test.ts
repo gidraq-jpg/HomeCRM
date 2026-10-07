@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { TZDate } from '@date-fns/tz';
-import { createWorkerDatabase } from '@homecrm/db';
+import { createWorkerDatabase, sql } from '@homecrm/db';
 import { format } from 'date-fns';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import webpush from 'web-push';
@@ -98,7 +98,9 @@ it('API возвращает defaults, валидирует настройки �
       })
     ).status,
   ).toBe(400);
-  expect((await admin.post('/api/push/subscriptions', { ...sub, id: undefined })).status).toBe(409);
+  expect((await admin.post('/api/push/subscriptions', { ...sub, id: undefined })).status).toBe(201);
+  expect((await adult.get('/api/push/subscriptions')).json()).toEqual([]);
+  expect((await admin.get('/api/push/subscriptions')).json<unknown[]>()).toHaveLength(1);
   const updated = await adult.request('PATCH', '/api/notifications/settings', {
     json: { hideText: false, dailyBudget: 2 },
   });
@@ -358,4 +360,130 @@ it('отзыв сессии и уход из дома немедленно уд�
     );
     await world.database.admin.query('ALTER TABLE space_members ENABLE TRIGGER USER');
   }
+});
+
+it('пересчёт и A→B→A создают новую доставку вместо оживления отменённой; sent не повторяется', async () => {
+  await subscribe();
+  const id = await warning(adult, '2026-10-07', true);
+  const db = createWorkerDatabase(world.database.worker);
+  await world.module.appDb.withAccount(world.boris.id, (tx) =>
+    tx.execute(sql`UPDATE notes SET assignee_id=${world.anna.id} WHERE id=${id}`),
+  );
+  await dispatchNotifications(world.database.worker, send, now);
+  expect(send).not.toHaveBeenCalled();
+  const cancelled = (await world.database.admin.query('SELECT id,status FROM push_deliveries'))
+    .rows;
+  expect(cancelled).toHaveLength(1);
+  expect(cancelled[0]?.status).toBe('cancelled');
+  await world.module.appDb.withAccount(world.anna.id, (tx) =>
+    tx.execute(sql`UPDATE notes SET assignee_id=${world.boris.id} WHERE id=${id}`),
+  );
+  await refreshDeadlines(db, now, true);
+  await enqueueDeadlineWarnings(db, now);
+  await dispatchNotifications(world.database.worker, send, now);
+  expect(send).toHaveBeenCalledTimes(1);
+  expect(
+    (
+      await world.database.admin.query('SELECT id,status FROM push_deliveries WHERE id=$1', [
+        cancelled[0]?.id,
+      ])
+    ).rows,
+  ).toEqual(cancelled);
+  const sent = send.mock.calls[0]?.[2];
+  expect(sent).not.toBe(cancelled[0]?.id);
+  await refreshDeadlines(db, now, true);
+  await enqueueDeadlineWarnings(db, now);
+  await dispatchNotifications(world.database.worker, send, now);
+  expect(send).toHaveBeenCalledTimes(1);
+});
+it('окно пересчёта не теряет напоминание: отменённая попытка остаётся, новая отправляется', async () => {
+  await subscribe();
+  const id = await warning();
+  const db = createWorkerDatabase(world.database.worker);
+  const deadline = (
+    await world.database.admin.query('SELECT id,rule FROM deadlines WHERE note_id=$1', [id])
+  ).rows[0];
+  expect(
+    (
+      await adult.request('PATCH', `/api/deadlines/${deadline.id}`, {
+        json: { rule: deadline.rule },
+      })
+    ).status,
+  ).toBe(200);
+  await dispatchNotifications(world.database.worker, send, now);
+  expect(send).not.toHaveBeenCalled();
+  await refreshDeadlines(db, now, true);
+  await enqueueDeadlineWarnings(db, now);
+  await dispatchNotifications(world.database.worker, send, now);
+  expect(send).toHaveBeenCalledTimes(1);
+  expect(
+    (await world.database.admin.query('SELECT status FROM push_deliveries ORDER BY id')).rows,
+  ).toEqual([{ status: 'cancelled' }, { status: 'sent' }]);
+});
+it('передача endpoint другому участнику удаляет прежний UUID и не отправляет ему push по чужой записи', async () => {
+  const sub = await subscribe();
+  await warning();
+  const transfer = await admin.post('/api/push/subscriptions', {
+    endpoint: sub.endpoint,
+    keys: sub.keys,
+    deviceName: 'Другой вымышленный телефон',
+  });
+  expect(transfer.status, transfer.text).toBe(201);
+  expect(transfer.json<{ id: string }>().id).not.toBe(sub.id);
+  expect((await adult.get('/api/push/subscriptions')).json()).toEqual([]);
+  await dispatchNotifications(world.database.worker, send, now);
+  expect(send).not.toHaveBeenCalled();
+  await warning(admin);
+  await dispatchNotifications(world.database.worker, send, now);
+  expect(send).toHaveBeenCalledTimes(1);
+});
+it('диспетчер проверяет именно аудиторию: ребёнок остаётся ответственным за устаревшую запись «Взрослые»', async () => {
+  await subscribe(child);
+  const id = await warning(child);
+  // Только одноразовая БД: намеренно моделируем устаревшие данные в обход FK и каскада.
+  await world.database.admin.query('ALTER TABLE notes DISABLE TRIGGER ALL');
+  try {
+    await world.database.admin.query(
+      "UPDATE notes SET space_id=$2,space_kind='household',audience='adults',assignee_id=$3 WHERE id=$1",
+      [id, world.houseId, world.vera.id],
+    );
+  } finally {
+    await world.database.admin.query('ALTER TABLE notes ENABLE TRIGGER ALL');
+  }
+  expect(
+    (await world.database.admin.query('SELECT assignee_id FROM notes WHERE id=$1', [id])).rows[0]
+      ?.assignee_id,
+  ).toBe(world.vera.id);
+  await dispatchNotifications(world.database.worker, send, now);
+  expect(send).not.toHaveBeenCalled();
+  expect((await world.database.admin.query('SELECT status FROM push_deliveries')).rows).toEqual([
+    { status: 'cancelled' },
+  ]);
+});
+it('диспетчер не отправляет ушедшему участнику даже при оставшейся подписке и готовой очереди', async () => {
+  await subscribe();
+  await warning(adult, '2026-10-07', true);
+  await world.database.admin.query(
+    'ALTER TABLE space_members DISABLE TRIGGER space_members_push_cleanup',
+  );
+  try {
+    await world.database.admin.query(
+      'UPDATE space_members SET left_at=now(),left_by=account_id WHERE space_id=$1 AND account_id=$2',
+      [world.houseId, world.boris.id],
+    );
+  } finally {
+    await world.database.admin.query(
+      'ALTER TABLE space_members ENABLE TRIGGER space_members_push_cleanup',
+    );
+  }
+  expect((await world.database.admin.query('SELECT id FROM push_subscriptions')).rowCount).toBe(1);
+  expect(
+    (
+      await world.database.admin.query(
+        "SELECT id FROM deadline_notifications WHERE status='pending'",
+      )
+    ).rowCount,
+  ).toBe(1);
+  await dispatchNotifications(world.database.worker, send, now);
+  expect(send).not.toHaveBeenCalled();
 });

@@ -3,6 +3,8 @@ import {
   deadlineOccurrencesTable,
   deadlines,
   eq,
+  getTableColumns,
+  isNotNull,
   isNull,
   notes,
   objects,
@@ -11,6 +13,7 @@ import {
 } from '@homecrm/db';
 import {
   CalendarDate,
+  canRestore,
   canViewDeadline,
   canWriteDeadline,
   DeadlineRule,
@@ -57,6 +60,7 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
       const [parent] = await tx.select().from(table).where(eq(table.id, sourceId));
       if (
         !parent ||
+        parent.deletedAt !== null ||
         !canViewDeadline(account.viewer, {
           type: source === 'notes' ? 'note' : 'object',
           placement: placementOf(parent),
@@ -121,10 +125,10 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
     });
     return reply.code(201).send(created);
   });
-  for (const method of ['PATCH', 'DELETE'] as const)
+  for (const method of ['PATCH', 'DELETE', 'POST'] as const)
     app.route({
       method,
-      url: '/api/deadlines/:id',
+      url: method === 'POST' ? '/api/deadlines/:id/restore' : '/api/deadlines/:id',
       handler: async (request, reply) => {
         const account = await currentAccount(request, reply);
         if (!account) return reply;
@@ -135,7 +139,12 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
           const [item] = await tx
             .select()
             .from(deadlines)
-            .where(and(eq(deadlines.id, id), isNull(deadlines.deletedAt)));
+            .where(
+              and(
+                eq(deadlines.id, id),
+                method === 'POST' ? isNotNull(deadlines.deletedAt) : isNull(deadlines.deletedAt),
+              ),
+            );
           if (!item) throw new Failure(404, 'NOT_FOUND');
           const table = item.noteId ? notes : objects;
           const [parent] = await tx
@@ -145,6 +154,14 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
             .for('update');
           if (
             !parent ||
+            parent.deletedAt !== null ||
+            (method === 'POST' &&
+              !canRestore(account.viewer, {
+                type: item.noteId ? 'note' : 'object',
+                placement: placementOf(parent),
+                authorId: item.authorId,
+                trashed: true,
+              })) ||
             !canWriteDeadline(account.viewer, {
               type: item.noteId ? 'note' : 'object',
               placement: placementOf(parent),
@@ -155,8 +172,13 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
             throw new Failure(403, 'ACCESS_DENIED');
           const [changed] = await tx
             .update(deadlines)
-            .set(body ? { rule: body.rule } : { deletedAt: sql`now()` })
-            .where(and(eq(deadlines.id, id), isNull(deadlines.deletedAt)))
+            .set(body ? { rule: body.rule } : { deletedAt: method === 'POST' ? null : sql`now()` })
+            .where(
+              and(
+                eq(deadlines.id, id),
+                method === 'POST' ? isNotNull(deadlines.deletedAt) : isNull(deadlines.deletedAt),
+              ),
+            )
             .returning();
           if (!changed) throw new Failure(409, 'CONFLICT');
           return changed;
@@ -171,10 +193,27 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
       request.query,
     );
     return options.appDb.withAccount(account.id, async (tx) => {
+      // План с вложенным RLS дороже компилировать, чем выполнить на сотнях сроков.
+      await tx.execute(sql`SET LOCAL jit=off`);
       const rows = await tx
-        .select()
+        .select({
+          ...getTableColumns(deadlineOccurrencesTable),
+          noteId: deadlines.noteId,
+          objectId: deadlines.objectId,
+          rule: deadlines.rule,
+          title: sql<string>`coalesce(${notes.title}, ${objects.title})`,
+        })
         .from(deadlineOccurrencesTable)
-        .where(sql`date <= ${to}`)
+        .innerJoin(deadlines, eq(deadlines.id, deadlineOccurrencesTable.deadlineId))
+        .leftJoin(notes, eq(notes.id, deadlines.noteId))
+        .leftJoin(objects, eq(objects.id, deadlines.objectId))
+        .where(
+          and(
+            sql`${deadlineOccurrencesTable.date} <= ${to}`,
+            isNull(notes.deletedAt),
+            isNull(objects.deletedAt),
+          ),
+        )
         .orderBy(deadlineOccurrencesTable.startsAt, deadlineOccurrencesTable.id);
       const now = new Date();
       const items = rows
@@ -183,11 +222,55 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
         .filter((x) => x.group !== null);
       return {
         items,
+        recalculating:
+          (
+            await tx
+              .select({ id: deadlines.id })
+              .from(deadlines)
+              .leftJoin(spaces, eq(spaces.id, deadlines.householdId))
+              .where(
+                and(
+                  isNull(deadlines.deletedAt),
+                  sql`(${deadlines.needsRefresh} OR EXISTS (SELECT 1 FROM deadline_occurrences o WHERE o.deadline_id=${deadlines.id} AND o.time_zone<>${spaces.timeZone}))`,
+                ),
+              )
+              .limit(1)
+          ).length > 0,
         groups: Object.fromEntries(
           RADAR_GROUPS.map((group) => [group, items.filter((x) => x.group === group).length]),
         ),
       };
     });
+  });
+  app.get('/api/deadlines/trash', async (request, reply) => {
+    const account = await currentAccount(request, reply);
+    if (!account) return reply;
+    return options.appDb.withAccount(account.id, (tx) =>
+      tx
+        .select({
+          ...getTableColumns(deadlines),
+          title: sql<string>`coalesce(${notes.title}, ${objects.title})`,
+          sourceTrashed: sql<boolean>`coalesce(${notes.deletedAt}, ${objects.deletedAt}) IS NOT NULL`,
+        })
+        .from(deadlines)
+        .leftJoin(notes, eq(notes.id, deadlines.noteId))
+        .leftJoin(objects, eq(objects.id, deadlines.objectId))
+        .where(isNotNull(deadlines.deletedAt))
+        .orderBy(deadlines.deletedAt, deadlines.id)
+        .then((rows) =>
+          rows.map((item) => ({
+            ...item,
+            canRestore:
+              !item.sourceTrashed &&
+              canRestore(account.viewer, {
+                type: item.noteId ? 'note' : 'object',
+                placement: placementOf(item),
+                authorId: item.authorId,
+                trashed: true,
+              }),
+          })),
+        ),
+    );
   });
   app.patch('/api/households/:householdId/time-zone', async (request, reply) => {
     const account = await currentAccount(request, reply);

@@ -73,6 +73,8 @@ export async function openRadar(page: Page) {
   // Сначала в другой раздел: тот же адрес не пересоздаёт экран, а нужны свежие данные сервера.
   await page.goto('#/more');
   await page.goto('#/more/radar');
+  // Данные, заведённые тестом через API, обходят клиентскую инвалидацию.
+  await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: 'Радар', exact: true })).toBeVisible();
   await expect(page.getByText('Загружаем радар…')).toHaveCount(0);
 }
