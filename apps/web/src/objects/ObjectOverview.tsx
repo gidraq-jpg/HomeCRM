@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
+import { DeadlinesSection } from '../deadlines/DeadlinesSection.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
 import { LinksSection } from '../links/LinksSection.tsx';
@@ -234,6 +235,8 @@ export function ObjectOverview() {
           </dl>
         )}
       </section>
+
+      {!trashed ? <DeadlinesSection source="objects" card={card} /> : null}
 
       <LinksSection
         record={{ type: 'object', id: card.id }}

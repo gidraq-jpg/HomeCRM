@@ -47,10 +47,12 @@ test('пустые разделы честно говорят, что созда
   family,
 }, info) => {
   await signInAs(page, family, 'adult');
+  await expect(page.getByRole('region', { name: 'Дел на сегодня пока нет' })).toBeVisible();
   await expect(
-    page.getByText('Дел, сроков и документов в приложении ещё нет', { exact: false }),
+    page.getByText('Создавать дела в приложении пока нельзя', { exact: false }),
   ).toBeVisible();
-  await expect(page.getByText('Создавать их пока нельзя', { exact: false })).toBeVisible();
+  // Радар на «Сегодня»: срочного пока нет, сроков ни у кого нет.
+  await expect(page.getByText('Срочного нет', { exact: false })).toBeVisible();
   await setScope(page, 'Личное');
   await expect(
     page.getByText('Здесь только ваши записи. Их не видит никто, кроме вас.'),

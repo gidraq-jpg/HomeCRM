@@ -1,8 +1,17 @@
-import { Export, GearSix, Lock, Note, Trash, UserCircle } from '@phosphor-icons/react';
+import {
+  CalendarCheck,
+  Export,
+  GearSix,
+  House,
+  Lock,
+  Note,
+  Trash,
+  UserCircle,
+} from '@phosphor-icons/react';
 import { Page } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
 
-/** «Ещё»: то, что в приложении уже работает. Покупки и радар — позже. */
+/** «Ещё»: то, что в приложении уже работает. Покупки — позже. */
 export function MoreScreen() {
   return (
     <Page title="Ещё" eyebrow="Под рукой">
@@ -14,10 +23,22 @@ export function MoreScreen() {
           meta="Личные и общие, с чек-листом"
         />
         <Row
+          to="/more/radar"
+          icon={<CalendarCheck size={22} aria-hidden />}
+          title="Радар"
+          meta="Сроки: просрочено, сейчас, 7, 30 и 90 дней"
+        />
+        <Row
           to="/more/trash"
           icon={<Trash size={22} aria-hidden />}
           title="Корзина"
           meta="Удалённые заметки и объекты хранятся 30 дней"
+        />
+        <Row
+          to="/more/house"
+          icon={<House size={22} aria-hidden />}
+          title="Настройки дома"
+          meta="Часовой пояс, по которому считаются сроки"
         />
         <Row
           to="/more/profile"
@@ -44,9 +65,7 @@ export function MoreScreen() {
           meta="Кто что видит"
         />
       </RowList>
-      <p className="muted more-note">
-        Покупок и радара в приложении пока нет: эти разделы не готовы.
-      </p>
+      <p className="muted more-note">Покупок в приложении пока нет: раздел не готов.</p>
     </Page>
   );
 }

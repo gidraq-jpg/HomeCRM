@@ -1,0 +1,109 @@
+/* Сроки и радар: блок в карточке записи, форма срока, пункты радара. Цели нажатия — не меньше 44 px (--tap). */
+
+.deadline-list {
+  border-top: 1px solid var(--line);
+}
+
+.deadline-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.deadline-item__kind {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.deadline-item__rule {
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.deadline-item__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.9375rem;
+}
+
+.deadline-item__warn {
+  font-size: 0.875rem;
+}
+
+.deadline-item__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.deadline-item__tools .btn {
+  flex: 1 1 140px;
+}
+
+.deadline-item--editing {
+  padding-bottom: 16px;
+}
+
+.deadline-add {
+  margin-top: 12px;
+}
+
+/* Форма срока */
+.deadline-form {
+  display: block;
+}
+
+.deadline-form > .field:first-child {
+  margin-top: 4px;
+}
+
+.deadline-form .btn-row {
+  margin-top: 18px;
+}
+
+.deadline-warnings {
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.deadline-warnings legend {
+  padding: 0;
+}
+
+.deadline-warnings__custom {
+  margin-top: 12px;
+}
+
+.deadline-warnings__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+/* Радар */
+.radar-line {
+  display: block;
+}
+
+.radar-view {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.radar-note {
+  margin-top: 18px;
+}
+
+.house-zone__save {
+  margin-top: 16px;
+}

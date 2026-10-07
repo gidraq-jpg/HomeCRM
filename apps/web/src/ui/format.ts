@@ -100,6 +100,11 @@ export function addDays(date: DateOnly, days: number): DateOnly {
   return toDateOnly(moment.getUTCFullYear(), moment.getUTCMonth() + 1, moment.getUTCDate());
 }
 
+/** Короткое название месяца по номеру 1–12: «окт.». */
+export function monthShortName(month: number): string {
+  return MONTHS_SHORT[month - 1] ?? '';
+}
+
 /** Название дня недели: «Четверг». */
 export function weekdayName(date: DateOnly): string {
   const index = new Date(toUtcDays(date) * 86_400_000).getUTCDay();

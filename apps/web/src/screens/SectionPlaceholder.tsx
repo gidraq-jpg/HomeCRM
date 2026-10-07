@@ -16,17 +16,20 @@ interface SectionPlaceholderProps {
   now: string;
   /** Что появится, когда раздел заработает: по PRD, раздел 14. */
   will: string;
+  /** Блок над пустым состоянием: то, что в разделе уже работает (например, радар на «Сегодня»). */
+  top?: ReactNode;
 }
 
 /**
  * Раздел, у которого ещё нет данных (TPL-4). Говорит правду: что здесь будет, что делать сейчас,
  * чем различаются личное и общее. Не обещает функций, которых в приложении нет.
  */
-export function SectionPlaceholder({ title, icon, lead, now, will }: SectionPlaceholderProps) {
+export function SectionPlaceholder({ title, icon, lead, now, will, top }: SectionPlaceholderProps) {
   const { scope, setScope } = useScope();
   const { isAdmin } = useHousehold();
   return (
     <Page title={title}>
+      {top}
       <EmptyState
         icon={scope === 'personal' ? <Lock size={24} aria-hidden /> : icon}
         title={lead}

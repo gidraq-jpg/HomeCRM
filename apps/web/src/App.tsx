@@ -4,7 +4,9 @@ import { ScopeProvider } from './access/ScopeContext.tsx';
 import type { Me } from './auth/api.ts';
 import { ExportScreen } from './auth/ExportScreen.tsx';
 import { SecurityScreen } from './auth/SecurityScreen.tsx';
+import { RadarScreen } from './deadlines/RadarScreen.tsx';
 import { HouseholdProvider } from './household/HouseholdContext.tsx';
+import { HouseScreen } from './household/HouseScreen.tsx';
 import { NewNoteScreen } from './notes/NewNoteScreen.tsx';
 import { NoteScreen } from './notes/NoteScreen.tsx';
 import { NotesScreen } from './notes/NotesScreen.tsx';
@@ -70,6 +72,8 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="more/notes/new" element={<NewNoteScreen />} />
         <Route path="more/notes/:noteId" element={<NoteScreen />} />
         <Route path="more/trash" element={<TrashScreen />} />
+        <Route path="more/radar" element={<RadarScreen />} />
+        <Route path="more/house" element={<HouseScreen />} />
         <Route path="search" element={<SearchScreen />} />
         <Route path="*" element={<NotFoundScreen />} />
       </Routes>
