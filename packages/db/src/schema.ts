@@ -163,6 +163,12 @@ const objectEventsDefinition = recordTable(
     visibleSql: eventVisibilitySql,
     updateVisibilitySql: eventUpdateVisibilitySql,
     extraPolicies: [
+      // SELECT нужен ограниченному UPDATE каскада; прямой запрос не получает служебного доступа.
+      pgPolicy('object_events_cascade_select', {
+        for: 'select',
+        to: appRole,
+        using: sql.raw(eventCascadeSql),
+      }),
       pgPolicy('object_events_contact_purge_select', {
         for: 'select',
         to: workerRole,

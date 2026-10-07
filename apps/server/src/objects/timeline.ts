@@ -1,4 +1,4 @@
-import { and, eq, objectEvents, objects, sql, type Transaction } from '@homecrm/db';
+import { and, canRestoreSql, eq, objectEvents, objects, sql, type Transaction } from '@homecrm/db';
 import {
   canRestore,
   canTrash,
@@ -6,8 +6,9 @@ import {
   canViewTimelineEvent,
   type Placement,
 } from '@homecrm/shared';
-import type { z } from 'zod';
+import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
+import { referenceRows } from './references.ts';
 import { getObject, type ObjectRow } from './routes.ts';
 import {
   Confirm,
@@ -101,6 +102,7 @@ async function eventValues(tx: Transaction, account: Account, body: z.infer<type
 }
 interface FeedRow extends Record<string, unknown> {
   id: string;
+  object_id: string;
   at: string;
   source: 'object' | 'field' | 'manual';
   payload: Record<string, unknown>;
@@ -119,51 +121,71 @@ interface FeedRow extends Record<string, unknown> {
 async function feed(
   tx: Transaction,
   account: Account,
-  record: ObjectRow,
-  limit: number | null,
+  records: ObjectRow[],
+  limit: number,
   cursor: z.infer<typeof TimelineCursor> | null,
   includeDeleted = false,
 ) {
+  const ids = sql.join(
+    records.map((record) => sql`${record.id}::uuid`),
+    sql`,`,
+  );
   // UNION ALL и ключ времени выбираются до LIMIT; RLS действует на каждом источнике.
   const result = await tx.execute<FeedRow>(sql`
-    WITH feed AS (
-      SELECT h.id,h.created_at AS at,'object'::text AS source,
+    WITH wanted AS MATERIALIZED (
+      SELECT DISTINCT contact_table AS table_name,contact_id AS id FROM object_events
+      WHERE parent_id IN (${ids}) AND contact_id IS NOT NULL
+    ), refs AS MATERIALIZED (${referenceRows}), feed AS (
+      SELECT h.id,h.record_id AS object_id,h.created_at AS at,'object'::text AS source,
         jsonb_build_object('operation',h.operation,'actorId',h.actor_id,'changes',h.changes) AS payload,
         h.space_id,h.space_kind,h.audience,s.owner_account_id AS owner_id,NULL::uuid AS contact_id,NULL::jsonb AS contact_facts
-      FROM objects_history h LEFT JOIN spaces s ON s.id=h.space_id WHERE h.record_id=${record.id}
+      FROM objects_history h LEFT JOIN spaces s ON s.id=h.space_id WHERE h.record_id IN (${ids})
         AND (h.operation='create' OR (h.operation='update' AND h.changes ?| ARRAY['title','object_type','type_data','assignee_id']))
       UNION ALL
-      SELECT h.id,h.created_at,'field',jsonb_build_object('operation',h.operation,'actorId',h.actor_id,'fieldId',h.record_id,'changes',h.changes),
+      SELECT h.id,f.parent_id,h.created_at,'field',jsonb_build_object('operation',h.operation,'actorId',h.actor_id,'fieldId',h.record_id,'changes',h.changes),
         h.space_id,h.space_kind,h.audience,s.owner_account_id,NULL::uuid,NULL::jsonb
       FROM object_fields_history h JOIN object_fields f ON f.id=h.record_id LEFT JOIN spaces s ON s.id=h.space_id
-      WHERE f.parent_id=${record.id} AND (h.operation='create' OR (h.operation='update' AND h.changes ?| ARRAY['title','value','position']))
+      WHERE f.parent_id IN (${ids}) AND (${includeDeleted} OR f.deleted_at IS NULL) AND (h.operation='create' OR (h.operation='update' AND h.changes ?| ARRAY['title','value','position']))
       UNION ALL
-      SELECT e.id,e.occurred_on::timestamp AT TIME ZONE 'UTC','manual',
+      SELECT e.id,e.parent_id,e.occurred_on::timestamp AT TIME ZONE 'UTC','manual',
         jsonb_build_object('parentId',e.parent_id,'occurredOn',e.occurred_on,'text',e.title,'amountKopecks',e.amount_kopecks,'rating',e.rating,
           'contact',CASE WHEN e.contact_id IS NULL THEN NULL ELSE jsonb_build_object('type',e.contact_table,'id',e.contact_id) END,
           'authorId',e.author_id,'createdAt',e.created_at,'updatedAt',e.updated_at,'deletedAt',e.deleted_at),
         e.origin_space_id,e.origin_space_kind,e.origin_audience,s.owner_account_id,e.contact_id,
-        CASE WHEN e.contact_id IS NOT NULL THEN app.record_ref_facts(e.contact_table,e.contact_id) END
-      FROM object_events e LEFT JOIN spaces s ON s.id=e.origin_space_id WHERE e.parent_id=${record.id} AND (${includeDeleted} OR e.deleted_at IS NULL)
-    ) SELECT id,to_char(at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS at,source,payload,
+        CASE WHEN c.id IS NOT NULL THEN jsonb_build_object('spaceId',c.space_id,'spaceKind',c.space_kind,'audience',c.audience,'ownerId',c.assignee_id) END
+      FROM object_events e LEFT JOIN spaces s ON s.id=e.origin_space_id
+      LEFT JOIN refs c ON (c.table_name,c.id)=(e.contact_table,e.contact_id) WHERE e.parent_id IN (${ids}) AND (${includeDeleted} OR e.deleted_at IS NULL)
+    ) SELECT id,object_id,to_char(at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS at,source,payload,
       space_id,space_kind,audience,owner_id,contact_id,contact_facts FROM feed
       WHERE (${cursor === null} OR (at,source,id)<(${cursor?.at ?? null}::timestamptz,${cursor?.source ?? null}::text,${cursor?.id ?? null}::uuid))
-      ORDER BY at DESC,source DESC,id DESC LIMIT ${limit === null ? null : limit + 1}`);
+      ORDER BY at DESC,source DESC,id DESC LIMIT ${limit + 1}`);
   return result.rows
     .filter((row) => {
       const original: Placement =
         row.space_kind === 'personal'
           ? { kind: 'personal', spaceId: row.space_id, ownerId: row.owner_id ?? '' }
           : { kind: 'household', spaceId: row.space_id, audience: row.audience ?? 'household' };
-      if (!canViewTimelineEvent(account.viewer, factsOf(record), original)) return false;
+      const record = records.find((value) => value.id === row.object_id);
+      if (!record || !canViewTimelineEvent(account.viewer, factsOf(record), original)) return false;
       return true;
     })
     .map((row) => ({
+      objectId: row.object_id,
       id: row.id,
       at: row.at,
       source: row.source,
       ...row.payload,
-      ...(row.source === 'manual' ? { contact: feedContact(account, row) } : {}),
+      ...(row.source === 'manual'
+        ? {
+            contact: feedContact(account, row),
+            createdAt: new Date(String(row.payload.createdAt)).toISOString(),
+            updatedAt: new Date(String(row.payload.updatedAt)).toISOString(),
+            deletedAt:
+              row.payload.deletedAt === null
+                ? null
+                : new Date(String(row.payload.deletedAt)).toISOString(),
+          }
+        : {}),
     }));
 }
 
@@ -193,8 +215,8 @@ export function registerTimeline(route: DataRoute) {
         parse(TimelineCursor, null);
       }
     }
-    const rows = await feed(tx, account, record, query.limit, cursor);
-    const items = rows.slice(0, query.limit);
+    const rows = await feed(tx, account, [record], query.limit, cursor);
+    const items = rows.slice(0, query.limit).map(({ objectId: _objectId, ...item }) => item);
     const last = items.at(-1);
     return {
       items,
@@ -205,6 +227,39 @@ export function registerTimeline(route: DataRoute) {
             )
           : null,
     };
+  });
+  route('GET', '/api/objects/:id/events', 200, async (tx, account, request) => {
+    const parent = await getObject(tx, account, parse(Id, request.params).id);
+    const query = parse(
+      z.strictObject({
+        trash: z.literal('true'),
+        limit: z.coerce.number().int().min(1).max(100).default(50),
+        offset: z.coerce.number().int().min(0).max(50000).default(0),
+      }),
+      request.query,
+    );
+    const rows = await tx
+      .select()
+      .from(objectEvents)
+      .where(
+        and(
+          eq(objectEvents.parentId, parent.id),
+          sql`${objectEvents.deletedAt} IS NOT NULL`,
+          sql.raw(canRestoreSql()),
+        ),
+      )
+      .orderBy(objectEvents.deletedAt, objectEvents.id)
+      .limit(query.limit)
+      .offset(query.offset);
+    const result = [];
+    for (const row of rows) {
+      if (
+        canRestore(account.viewer, factsOf(row, 'object_event')) &&
+        (await visible(tx, account, row))
+      )
+        result.push(await summary(tx, account, row));
+    }
+    return result;
   });
   route('POST', '/api/objects/:id/events', 201, async (tx, account, request) => {
     const record = await getObject(tx, account, parse(Id, request.params).id);
@@ -305,6 +360,24 @@ export async function copyEvents(
     }
   }
 }
-export async function exportEvents(tx: Transaction, account: Account, record: ObjectRow) {
-  return feed(tx, account, record, null, null, true);
+/** Обход общей ленты пачки объектов: число запросов зависит от страниц, а не карточек. */
+export async function exportEvents(tx: Transaction, account: Account, records: ObjectRow[]) {
+  const result = new Map<
+    string,
+    Array<Omit<Awaited<ReturnType<typeof feed>>[number], 'objectId'>>
+  >();
+  let cursor: z.infer<typeof TimelineCursor> | null = null;
+  for (;;) {
+    const rows = await feed(tx, account, records, 100, cursor, true);
+    const page = rows.slice(0, 100);
+    for (const { objectId, ...item } of page) {
+      const events = result.get(objectId) ?? [];
+      events.push(item);
+      result.set(objectId, events);
+    }
+    const last = page.at(-1);
+    if (rows.length <= 100 || !last) break;
+    cursor = { at: last.at, source: last.source, id: last.id };
+  }
+  return result;
 }

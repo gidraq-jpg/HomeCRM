@@ -6,6 +6,7 @@ import {
   memberProfiles,
   objectEvents,
   objectFields,
+  objectFiles,
   objects,
   spaceMembers,
   sql,
@@ -167,7 +168,7 @@ async function responsible(
   tx: Transaction,
   account: Account,
   place: Placement,
-  id: string | undefined,
+  id: string | null | undefined,
 ) {
   if (!id || place.kind === 'personal') return;
   const [member] = await tx
@@ -305,13 +306,14 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
     const record = await getObject(tx, account, id, true);
     requireWrite(account, record);
     version(body.expectedUpdatedAt, record.updatedAt);
-    await responsible(tx, account, placementOf(record), body.assigneeId);
+    const assigneeId = body.responsibleId !== undefined ? body.responsibleId : body.assigneeId;
+    await responsible(tx, account, placementOf(record), assigneeId);
     const [updated] = await tx
       .update(objects)
       .set({
         title: body.title ?? record.title,
         objectType: body.objectType ?? record.objectType,
-        assigneeId: body.assigneeId ?? record.assigneeId,
+        assigneeId: assigneeId === undefined ? record.assigneeId : assigneeId,
       })
       .where(eq(objects.id, id))
       .returning();
@@ -431,18 +433,65 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
   registerLinks(route);
   registerTimeline(route);
   route('GET', '/api/objects/export', 200, async (tx, account) => {
-    const rows = (await tx.select().from(objects)).filter(
-      (record) =>
-        canView(account.viewer, placementOf(record)) &&
-        (record.spaceKind === 'personal' ||
-          account.viewer.memberships.get(record.spaceId) === 'admin'),
-    );
+    const adminSpaces = [...account.viewer.memberships]
+      .filter(([, role]) => role === 'admin')
+      .map(([id]) => sql`${id}::uuid`);
+    const eligible = adminSpaces.length
+      ? sql`${objects.spaceId} IN (${sql.join(adminSpaces, sql`,`)})`
+      : sql`false`;
     const exported = [];
-    for (const record of rows)
-      exported.push({
-        ...(await card(tx, account, record, true)),
-        events: await exportEvents(tx, account, record),
-      });
+    let after: string | undefined;
+    for (;;) {
+      const rows = await tx
+        .select()
+        .from(objects)
+        .where(
+          and(
+            sql`(${objects.spaceKind}='personal' OR ${eligible})`,
+            after ? sql`${objects.id} > ${after}::uuid` : undefined,
+          ),
+        )
+        .orderBy(objects.id)
+        .limit(100);
+      if (rows.length === 0) break;
+      const ids = sql.join(
+        rows.map((row) => sql`${row.id}::uuid`),
+        sql`,`,
+      );
+      const fields = await tx
+        .select()
+        .from(objectFields)
+        .where(sql`${objectFields.parentId} IN (${ids})`)
+        .orderBy(objectFields.position, objectFields.id);
+      const files = await tx
+        .select()
+        .from(objectFiles)
+        .where(sql`${objectFiles.parentId} IN (${ids})`)
+        .orderBy(objectFiles.createdAt, objectFiles.id);
+      const events = await exportEvents(tx, account, rows);
+      for (const record of rows) {
+        if (!canView(account.viewer, placementOf(record))) continue;
+        exported.push({
+          ...summary(record),
+          fields: fields
+            .filter(
+              (field) =>
+                field.parentId === record.id && canView(account.viewer, placementOf(field)),
+            )
+            .map(({ id, title, value, position, deletedAt }) => ({
+              id,
+              name: title,
+              value,
+              position,
+              deletedAt,
+            })),
+          files: files.filter((file) => file.parentId === record.id).map(fileSummary),
+          events: events.get(record.id) ?? [],
+        });
+      }
+      if (rows.length < 100) break;
+      after = rows.at(-1)?.id;
+    }
     return {
       version: 1,
       exportedAt: new Date().toISOString(),

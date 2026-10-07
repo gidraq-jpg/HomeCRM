@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 import { createWorkerDatabase } from '@homecrm/db';
 import sharp from 'sharp';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -268,6 +269,12 @@ it('сбой блока и COMMIT не оставляет строки и бло
     }),
   ).rejects.toThrow();
   expect(handlerFinished).toBe(true);
+  // При неизвестном исходе COMMIT решение принимает сверка с реестром живых блоков.
+  await cleanupFiles(
+    createWorkerDatabase(world.database.worker),
+    storage,
+    new Date(Date.now() + 1000),
+  );
   expect(await readdir(folder)).toEqual(before);
 });
 it('очистка корзины стирает блоки, живые ссылки сохраняются; осиротевший блок удаляется', async () => {
@@ -386,4 +393,115 @@ it('экспорт готовит только своё личное и обще
   expect(JSON.stringify(files.map(({ data, ...meta }) => meta))).not.toMatch(
     /storage|envelope|wrappedKey/,
   );
+});
+
+it('R0.5d: медленная загрузка не держит блокировку; повторная проверка отклоняет родителя из корзины', async () => {
+  const id = await create('objects');
+  const before = await readdir(folder);
+  let release!: () => void, started!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const began = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  async function* body() {
+    yield Buffer.from(
+      '--SlowBoundary\r\nContent-Disposition: form-data; name="file"; filename="fictional.pdf"\r\nContent-Type: application/pdf\r\n\r\n',
+    );
+    yield pdf;
+    started();
+    await gate;
+    yield Buffer.from('\r\n--SlowBoundary--\r\n');
+  }
+  const pending = world.app
+    .inject({
+      method: 'POST',
+      url: `/api/objects/${id}/files`,
+      headers: { ...headers(adult), 'content-type': 'multipart/form-data; boundary=SlowBoundary' },
+      remoteAddress: adult.ip,
+      payload: Readable.from(body()),
+    })
+    .then((value) => value);
+  await began;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const result = await Promise.race([
+      adult.post(`/api/objects/${id}/trash`, {}),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Upload held parent lock')), 1500);
+      }),
+    ]);
+    expect(result.status, result.text).toBe(200);
+  } finally {
+    if (timer) clearTimeout(timer);
+    release();
+  }
+  expect((await pending).statusCode).toBe(403);
+  expect(await readdir(folder)).toEqual(before);
+});
+it('R0.5d: шифрование загрузки выполняется вне транзакции участника', async () => {
+  const id = await create('notes');
+  const originalDb = world.module.appDb.withAccount.bind(world.module.appDb);
+  const originalSeal = cipher.seal.bind(cipher);
+  let active = 0,
+    sealed = 0;
+  world.module.appDb.withAccount = (id, fn) =>
+    originalDb(id, async (tx) => {
+      active++;
+      try {
+        return await fn(tx);
+      } finally {
+        active--;
+      }
+    });
+  cipher.seal = (...args) => {
+    expect(active).toBe(0);
+    sealed++;
+    return originalSeal(...args);
+  };
+  try {
+    const result = await upload('notes', id, adult, photo, 'fictional.jpg', 'image/jpeg');
+    expect(result.statusCode, result.body).toBe(201);
+    expect(sealed).toBe(2);
+  } finally {
+    world.module.appDb.withAccount = originalDb;
+    cipher.seal = originalSeal;
+  }
+});
+it('R0.5d: ошибка после успешного COMMIT сохраняет блоки живой строки', async () => {
+  const id = await create('notes');
+  const wrapped = fileTransactions(
+    {
+      async withAccount(accountId, fn) {
+        await world.module.appDb.withAccount(accountId, fn);
+        throw new Error('Commit response lost');
+      },
+    },
+    { storage, cipher },
+  );
+  let fileId = '';
+  await expect(
+    wrapped.withAccount(world.boris.id, async (tx) => {
+      const { insertFile } = await import('./service.ts');
+      const { notes, eq } = await import('@homecrm/db');
+      const [parent] = await tx.select().from(notes).where(eq(notes.id, id));
+      if (!parent) throw new Error('parent');
+      fileId = (
+        await insertFile(tx, { id: world.boris.id } as never, 'note', parent, {
+          data: pdf,
+          mimeType: 'application/pdf',
+          name: 'Сохранённый.pdf',
+        })
+      ).id;
+    }),
+  ).rejects.toThrow('Commit response lost');
+  await cleanupFiles(
+    createWorkerDatabase(world.database.worker),
+    storage,
+    new Date(Date.now() + 1000),
+  );
+  const result = await download(fileId);
+  expect(result.statusCode, result.body).toBe(200);
+  expect(result.rawPayload).toEqual(pdf);
 });

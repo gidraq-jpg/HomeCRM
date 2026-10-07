@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildApp } from './app.ts';
-import { loadConfig, type TrustProxy } from './config.ts';
+import { ConfigError, configurationErrorMessage, loadConfig, type TrustProxy } from './config.ts';
 
 describe('GET /health', () => {
   it('отвечает ok и версией', async () => {
@@ -100,4 +100,18 @@ describe('Cache-Control для /api', () => {
       await app.close();
     }
   });
+});
+
+it('R0.5d: неизвестная ошибка настройки не обвиняет ключ файлов и не раскрывает значения', () => {
+  expect(configurationErrorMessage(new Error('fictional secret in parser error'))).toBe(
+    'Invalid server configuration',
+  );
+  expect(
+    configurationErrorMessage(
+      new ConfigError('File encryption master key is missing, unreadable or invalid'),
+    ),
+  ).toBe('File encryption master key is missing, unreadable or invalid');
+  expect(
+    configurationErrorMessage(new ConfigError('Invalid sign-in configuration: DATABASE_URL_APP')),
+  ).toContain('sign-in');
 });

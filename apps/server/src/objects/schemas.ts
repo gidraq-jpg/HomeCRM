@@ -30,11 +30,20 @@ export const PatchObject = z
   .strictObject({
     title: title.optional(),
     objectType: z.enum(OBJECT_TYPES).optional(),
-    assigneeId: z.uuid().optional(),
+    assigneeId: z.uuid().nullable().optional(),
+    responsibleId: z.uuid().nullable().optional(),
     fields: Fields.optional(),
     expectedUpdatedAt: z.iso.datetime().optional(),
   })
-  .refine((body) => ['title', 'objectType', 'assigneeId', 'fields'].some((key) => key in body));
+  .refine((body) =>
+    ['title', 'objectType', 'assigneeId', 'responsibleId', 'fields'].some((key) => key in body),
+  )
+  .refine(
+    (body) =>
+      body.assigneeId === undefined ||
+      body.responsibleId === undefined ||
+      body.assigneeId === body.responsibleId,
+  );
 export const ListObjects = z.strictObject({
   scope: z.enum(['all', 'personal', 'household']).default('all'),
   spaceId: z.uuid().optional(),

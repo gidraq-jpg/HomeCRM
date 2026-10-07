@@ -92,16 +92,18 @@ export async function householdRoutes(
       .leftJoin(memberProfiles, eq(memberProfiles.accountId, spaceMembers.accountId))
       .where(eq(spaceMembers.spaceId, householdId))
       .orderBy(spaceMembers.createdAt, spaceMembers.accountId);
-    return Promise.all(
-      rows
-        .filter((row) => canViewMembership(account.viewer, row.accountId, householdId))
-        .map(async (row) => ({
-          ...row,
-          photoFileId: await visibleProfileFile(tx, account, row.photoFileId),
-          formerMember: row.leftAt !== null,
-          ...(row.leftAt !== null ? { photoFileId: null, birthDate: null, phone: null } : {}),
-        })),
-    );
+    const result = [];
+    for (const row of rows) {
+      if (!canViewMembership(account.viewer, row.accountId, householdId)) continue;
+      result.push({
+        ...row,
+        photoFileId:
+          row.leftAt === null ? await visibleProfileFile(tx, account, row.photoFileId) : null,
+        formerMember: row.leftAt !== null,
+        ...(row.leftAt !== null ? { birthDate: null, phone: null } : {}),
+      });
+    }
+    return result;
   }
   app.get('/api/me/profile', async (request, reply) => {
     const account = await currentAccount(request, reply);

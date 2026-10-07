@@ -115,6 +115,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           `${name}.${name}_reassign:UPDATE`,
           ...(name === 'object_events'
             ? [
+                'object_events.object_events_cascade_select:SELECT',
                 'object_events.object_events_contact_purge_select:SELECT',
                 'object_events.object_events_contact_purge:UPDATE',
               ]
