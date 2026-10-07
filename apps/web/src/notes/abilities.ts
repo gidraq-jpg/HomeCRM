@@ -92,8 +92,7 @@ const personalPlace = (viewer: Viewer): Placement => ({
   ownerId: viewer.accountId,
 });
 
-/** Права на запись; 	ype — вид записи для правил ребёнка (
-ote, object). */
+/** Права на запись; `type` — вид записи для правил ребёнка (`note`, `object`). */
 export function noteAbilities(
   viewer: Viewer,
   note: PlacedRecord,
