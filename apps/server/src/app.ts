@@ -1,4 +1,5 @@
-import { type Database, deadlines, eq, spaces } from '@homecrm/db';
+import { type Database, deadlines, eq, notificationSettings, spaces } from '@homecrm/db';
+import { NotificationSettings } from '@homecrm/shared';
 import { type FastifyInstance, fastify } from 'fastify';
 import { createAccountReader } from './auth/account.ts';
 import { type AuthModule, authRoutes } from './auth/routes.ts';
@@ -10,6 +11,7 @@ import { type FileServices, fileTransactions } from './files/service.ts';
 import { householdRoutes } from './household/routes.ts';
 import { serializeRequest } from './logging.ts';
 import { notesRoutes } from './notes/routes.ts';
+import { notificationRoutes } from './notifications/routes.ts';
 import { objectsRoutes } from './objects/routes.ts';
 import { searchRoutes } from './search/routes.ts';
 import { createStaticHandler } from './static.ts';
@@ -32,7 +34,8 @@ export interface AppDependencies {
 const HEALTH_DB_TIMEOUT_MS = 3000;
 
 export function buildApp(
-  config: Pick<Config, 'LOG_LEVEL' | 'APP_VERSION'> & Partial<Pick<Config, 'TRUST_PROXY'>>,
+  config: Pick<Config, 'LOG_LEVEL' | 'APP_VERSION'> &
+    Partial<Pick<Config, 'TRUST_PROXY' | 'VAPID_PUBLIC_KEY'>>,
   dependencies: AppDependencies = {},
 ): FastifyInstance {
   const app = fastify({
@@ -132,8 +135,12 @@ export function buildApp(
         const account = await createAccountReader(auth)(request, reply);
         if (!account) return payload;
         const rules = await auth.appDb.withAccount(account.id, (tx) => tx.select().from(deadlines));
+        const [settings] = await auth.appDb.withAccount(account.id, (tx) =>
+          tx.select().from(notificationSettings),
+        );
         return {
           ...payload,
+          notificationSettings: NotificationSettings.strip().parse(settings ?? {}),
           deadlines: rules.filter(
             (rule) =>
               rule.spaceKind === 'personal' ||
@@ -145,6 +152,10 @@ export function buildApp(
     });
     void app.register(authRoutes, auth);
     void app.register(deadlinesRoutes, auth);
+    void app.register(notificationRoutes, {
+      ...auth,
+      ...(config.VAPID_PUBLIC_KEY ? { publicKey: config.VAPID_PUBLIC_KEY } : {}),
+    });
     if (dependencies.files) void app.register(filesRoutes, { ...auth, files: dependencies.files });
     void app.register(notesRoutes, auth);
     void app.register(objectsRoutes, auth);

@@ -153,7 +153,10 @@ export const deadlineNotifications = pgTable(
   },
   (t) => [
     unique('deadline_notifications_once').on(t.occurrenceId, t.recipientId, t.warningAt),
-    check('deadline_notifications_status', sql`status IN ('pending', 'sent', 'cancelled')`),
+    check(
+      'deadline_notifications_status',
+      sql`status IN ('pending', 'sent', 'cancelled', 'summary')`,
+    ),
     pgPolicy('deadline_notifications_select', {
       for: 'select',
       to: appRole,

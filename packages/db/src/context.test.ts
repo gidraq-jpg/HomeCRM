@@ -16,6 +16,7 @@ let tables: string[];
 
 // Таблицы входа, которых у приложения нет вовсе: пароли, секреты, сессии, счётчики (ADR-0005).
 const AUTH_ONLY = [
+  'push_deliveries',
   'credentials',
   'login_locks',
   'login_name_attempts',
@@ -28,6 +29,9 @@ const AUTH_ONLY = [
 // Таблицы записей и их истории берутся из recordTable(): новая таблица попадает сюда сама.
 const RECORD_NAMES = RECORD_DEFINITIONS.map((definition) => definition.name);
 const APP_TABLES = [
+  'push_subscriptions',
+  'notification_settings',
+  'push_attempts',
   'deadlines',
   'deadline_occurrences',
   'deadline_notifications',

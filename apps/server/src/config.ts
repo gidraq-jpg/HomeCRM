@@ -28,6 +28,10 @@ function parseTrustProxy(value: string, context: z.RefinementCtx): TrustProxy {
 }
 
 const EnvSchema = z.object({
+  VAPID_PUBLIC_KEY: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{87}$/)
+    .optional(),
   HOST: z.string().min(1).default('127.0.0.1'),
   // 8310 — разработка; в рабочем окружении 8300, в предпросмотре 8301 (план, раздел 2.2).
   PORT: z.coerce.number().int().min(1).max(65535).default(8310),

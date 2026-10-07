@@ -75,13 +75,14 @@ describe('роли базы', () => {
       expect(roles, policyname).toHaveLength(1);
       if (roles[0] === DB_ROLES.worker) {
         expect(policyname).toMatch(
-          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$|^spaces_timezone_(worker|initialize)$|^deadlines_(engine|refresh)$|^deadline_(occurrences|notifications)_worker_(select|insert|update|delete)$|^(notes|objects)_deadline_worker_select$/,
+          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$|^spaces_timezone_(worker|initialize)$|^deadlines_(engine|refresh)$|^deadline_(occurrences|notifications)_worker_(select|insert|update|delete)$|^(notes|objects)_deadline_worker_select$|^(push_(subscriptions|attempts|deliveries)|notification_settings)_worker_(select|insert|update|delete)$/,
         );
       } else if (roles[0] === DB_ROLES.owner) {
         expect([
           'household_access_sync',
           'member_profiles_initialize',
           'search_index_sync',
+          'push_subscriptions_leave',
         ]).toContain(policyname);
       } else if (roles[0] === DB_ROLES.auth) expect(policyname).toMatch(/_auth_/);
       else expect(roles[0], policyname).toBe(DB_ROLES.app);
@@ -98,15 +99,18 @@ describe('роли базы', () => {
        WHERE n.nspname IN ('public', 'app') AND p.prosecdef ORDER BY p.proname`,
     );
     expect(rows).toEqual(
-      ['initialize_member_profile', 'sync_household_access', 'sync_search_entry'].map(
-        (proname) => ({
-          proname,
-          owner: DB_ROLES.owner,
-          app: false,
-          auth: false,
-          worker: false,
-        }),
-      ),
+      [
+        'initialize_member_profile',
+        'remove_member_push',
+        'sync_household_access',
+        'sync_search_entry',
+      ].map((proname) => ({
+        proname,
+        owner: DB_ROLES.owner,
+        app: false,
+        auth: false,
+        worker: false,
+      })),
     );
   });
 });

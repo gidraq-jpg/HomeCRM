@@ -28,6 +28,18 @@ const FROZEN = ['id', 'author_id', 'created_at', 'updated_at'];
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
+    push_subscriptions: {
+      SELECT: 'all',
+      INSERT: 'all',
+      UPDATE: ['endpoint', 'p256dh', 'auth', 'device_name'],
+      DELETE: 'all',
+    },
+    notification_settings: {
+      SELECT: 'all',
+      INSERT: 'all',
+      UPDATE: ['quiet_start', 'quiet_end', 'daily_budget', 'enabled_kinds', 'hide_text'],
+    },
+    push_attempts: { SELECT: 'all' },
     search_index: { SELECT: 'all' },
     profile_files: { SELECT: 'all', INSERT: 'all', UPDATE: ['deleted_at'] },
     // Реестр UUID доступен приложению только из триггеров; строки ограничены RLS.
@@ -65,6 +77,10 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     password_resets: { SELECT: 'all', UPDATE: ['acknowledged_at'] },
   };
   const worker: Record<string, TableGrants> = {
+    push_subscriptions: { SELECT: 'all', UPDATE: ['last_success_at'], DELETE: 'all' },
+    notification_settings: { SELECT: 'all' },
+    push_deliveries: { SELECT: 'all', INSERT: 'all', UPDATE: 'all', DELETE: 'all' },
+    push_attempts: { SELECT: 'all', INSERT: 'all', DELETE: 'all' },
     spaces: { SELECT: ['id', 'kind', 'time_zone'], UPDATE: ['time_zone'] },
     deadlines: {
       SELECT: [
@@ -150,6 +166,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         'assignee_id',
         'deleted_at',
         ...columns.filter((column) => column.name === 'parent_id').map((column) => column.name),
+        ...(['notes', 'objects'].includes(name) ? ['audience'] : []),
         ...(name === 'object_events' ? ['contact_table', 'contact_id'] : []),
       ],
       UPDATE: ['assignee_id', ...(name === 'object_events' ? ['contact_table', 'contact_id'] : [])],
