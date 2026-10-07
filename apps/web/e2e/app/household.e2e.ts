@@ -79,7 +79,7 @@ test('«Обо мне»: просмотр и правка имени, даты �
   await expect(page.getByRole('heading', { level: 1, name: 'Обо мне' })).toBeVisible();
   await expect(page.getByText('Борис', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('2 нояб. 1986')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Загрузить фото' })).toBeVisible();
+  await expect(page.getByText('Фото загружать пока нельзя', { exact: false })).toBeVisible();
   await expect(
     page.getByText('Имя, фото, дата рождения и телефон: видят все в доме.'),
   ).toBeVisible();

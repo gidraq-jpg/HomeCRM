@@ -12,7 +12,7 @@ export const Member = z.object({
   isAdult: z.boolean(),
   formerMember: z.boolean(),
   leftAt: z.string().nullable(),
-  /** Файл фото: показывается только тем, кто видит запись, где он лежит. */
+  /** Фото пока только идентификатор будущего файла: загрузка — R0.5b. */
   photoFileId: z.string().nullable(),
   /** `YYYY-MM-DD` или `null`. */
   birthDate: z.string().nullable(),
@@ -30,8 +30,6 @@ export type Profile = z.infer<typeof Profile>;
 
 export interface ProfileChange {
   displayName?: string;
-  /** Своё живое изображение записи; null убирает фото. */
-  photoFileId?: string | null;
   birthDate?: string | null;
   phone?: string | null;
 }

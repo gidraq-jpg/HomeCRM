@@ -34,8 +34,8 @@ import { formatFileSize } from './size.ts';
 import { type UploadItem, useUploads } from './useUploads.ts';
 
 /** Типы, которые предлагает окно выбора файла. Сервер всё равно проверяет содержимое. */
-export const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
-export const FILE_ACCEPT = `${IMAGE_ACCEPT},application/pdf,.pdf`;
+export const FILE_ACCEPT =
+  'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,application/pdf,.pdf';
 
 const fileCount = (count: number) => countWord(count, ['файл', 'файла', 'файлов']);
 /** Сколько секунд даётся на отмену (TASK-7). */

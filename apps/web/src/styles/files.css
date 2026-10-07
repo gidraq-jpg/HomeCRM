@@ -130,12 +130,6 @@
   overflow: hidden;
 }
 
-.profile-photo {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
 .member-head .avatar {
   flex: none;
 }
