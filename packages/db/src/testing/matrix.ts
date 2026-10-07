@@ -23,6 +23,7 @@ import { RECORD_HISTORY_TABLES, RECORD_TABLES } from '../schema.ts';
 import {
   createdFacts,
   type Family,
+  fileFixture,
   type Person,
   placementColumns,
   type SeededRecord,
@@ -306,7 +307,13 @@ function attemptsFor(
       return family.people.flatMap((viewer) =>
         types.flatMap((type) =>
           family.placements.flatMap((placement) => {
-            const parentId = ['note_item', 'object_field', 'object_event'].includes(type)
+            const parentId = [
+              'note_item',
+              'object_field',
+              'object_event',
+              'note_file',
+              'object_file',
+            ].includes(type)
               ? family.parentIdFor(placement, type)
               : undefined;
             const insert = (
@@ -314,6 +321,7 @@ function attemptsFor(
               values: { authorId: string; assigneeId: string | null; deletedAt?: Date },
             ) =>
               tx.insert(RECORD_TABLES[type]).values({
+                ...fileFixture(type),
                 ...placementColumns(placement),
                 ...values,
                 ...(parentId === undefined ? {} : { parentId }),

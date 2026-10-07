@@ -62,6 +62,11 @@ export function canView(viewer: Viewer, placement: Placement): boolean {
   return placement.audience === 'household' || ADULT_ROLES.has(role);
 }
 
+/** OBJ-4, OBJ-5: выдача файла требует видимости файла и его родителя. */
+export function canViewFile(viewer: Viewer, file: RecordFacts, parent: RecordFacts): boolean {
+  return canView(viewer, file.placement) && canView(viewer, parent.placement);
+}
+
 /** OBJ-2: связь не раскрывает ни один из концов, включая записи в корзине. */
 export function canViewLink(viewer: Viewer, left: RecordFacts, right: RecordFacts): boolean {
   return canView(viewer, left.placement) && canView(viewer, right.placement);

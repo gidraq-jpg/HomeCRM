@@ -231,6 +231,58 @@ export const recordLinks = pgTable(
   ],
 );
 
+/** OBJ-4: метаданные и конверт ключа находятся только в базе, блоки — на томе. */
+const fileColumns = () => ({
+  parentId: uuid('parent_id').notNull(),
+  mimeType: text('mime_type').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  storageKey: uuid('storage_key').notNull(),
+  envelope: jsonb('envelope').notNull(),
+  previewStorageKey: uuid('preview_storage_key'),
+  previewEnvelope: jsonb('preview_envelope'),
+});
+const noteFilesDefinition = recordTable('note_files', 'note_file', fileColumns(), {
+  parent: notes,
+});
+export const noteFiles = noteFilesDefinition.table;
+export const noteFilesHistory = noteFilesDefinition.history;
+const objectFilesDefinition = recordTable('object_files', 'object_file', fileColumns(), {
+  parent: objects,
+});
+export const objectFiles = objectFilesDefinition.table;
+export const objectFilesHistory = objectFilesDefinition.history;
+
+/** Реестр действующих блоков: обработчик видит только случайные ключи, без имён и конвертов. */
+export const fileBlobs = pgTable(
+  'file_blobs',
+  {
+    key: uuid('key').primaryKey(),
+  },
+  () => [
+    pgPolicy('file_blobs_worker_select', { for: 'select', to: workerRole, using: sql`true` }),
+    pgPolicy('file_blobs_app_select', {
+      for: 'select',
+      to: appRole,
+      using: sql`pg_trigger_depth() > 0`,
+    }),
+    pgPolicy('file_blobs_app_insert', {
+      for: 'insert',
+      to: appRole,
+      withCheck: sql`pg_trigger_depth() > 0`,
+    }),
+    pgPolicy('file_blobs_app_delete', {
+      for: 'delete',
+      to: appRole,
+      using: sql`pg_trigger_depth() > 0`,
+    }),
+    pgPolicy('file_blobs_worker_delete', {
+      for: 'delete',
+      to: workerRole,
+      using: sql`pg_trigger_depth() > 0`,
+    }),
+  ],
+);
+
 /** Таблица-пример для каждого вида записи. */
 export const RECORD_TABLES = {
   note: notes,
@@ -240,6 +292,8 @@ export const RECORD_TABLES = {
   object: objects,
   object_field: objectFields,
   object_event: objectEvents,
+  note_file: noteFiles,
+  object_file: objectFiles,
 } as const satisfies Record<RecordType, unknown>;
 
 /** История изменений каждого вида записи (OBJ-6). */
@@ -251,6 +305,8 @@ export const RECORD_HISTORY_TABLES = {
   object: objectsHistory,
   object_field: objectFieldsHistory,
   object_event: objectEventsHistory,
+  note_file: noteFilesHistory,
+  object_file: objectFilesHistory,
 } as const satisfies Record<RecordType, unknown>;
 // ---------------------------------------------------------------------------------------------
 // Таблицы входа (ADR-0005). Первые шесть — модели Better Auth: имена моделей и полей заданы в

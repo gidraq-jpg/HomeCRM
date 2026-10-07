@@ -16,6 +16,7 @@ import { buildApp } from '../app.ts';
 import type { Mailer } from '../auth/auth.ts';
 import { createHousehold, provisionAccount } from '../auth/provision.ts';
 import { type AuthModule, createAuthModule } from '../auth/routes.ts';
+import type { FileServices } from '../files/service.ts';
 import { BASE_URL, Device } from './device.ts';
 
 export interface Person {
@@ -64,6 +65,7 @@ export interface World {
 }
 
 export interface WorldOptions {
+  files?: FileServices;
   /** Почта настроена: восстановление по e-mail работает (AUTH-4). */
   mail?: boolean;
   /** Не создавать вымышленную семью: пустой дом без участников. */
@@ -121,6 +123,7 @@ export async function createWorld(options: WorldOptions = {}): Promise<World> {
     { LOG_LEVEL: 'info', APP_VERSION: 'test' },
     {
       auth: module,
+      ...(options.files ? { files: options.files } : {}),
       worker: createWorkerDatabase(database.worker),
       logStream: { write: (line) => void requestLog.push(line) },
     },
