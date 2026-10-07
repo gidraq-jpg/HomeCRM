@@ -4,6 +4,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { isPlaceholderEmail } from './identity.ts';
 import { loadViewer } from './provision.ts';
+import { checkRequestSource } from './request-source.ts';
 import type { AuthModule } from './routes.ts';
 /** Вошедший участник глазами маршрутов данных. */
 export interface Account {
@@ -35,10 +36,12 @@ export function createAccountReader(module: AuthModule) {
   ): Promise<Account | null> {
     // Изменяющие запросы принимаются только со своего происхождения: сверх SameSite=Lax.
     if (!SAFE_METHODS.has(request.method)) {
-      const origin = request.headers.origin ?? originOf(request.headers.referer);
-      if (origin === undefined || !module.origins.has(origin)) {
-        return fail(reply, 403, 'INVALID_ORIGIN', 'Request origin is not allowed');
-      }
+      const error = checkRequestSource(
+        fromNodeHeaders(request.headers),
+        (origin) => module.origins.has(origin),
+        true,
+      );
+      if (error !== null) return fail(reply, 403, error.code, error.message);
     }
     const result = await auth.api.getSession({
       headers: fromNodeHeaders(request.headers),
@@ -68,12 +71,4 @@ export function createAccountReader(module: AuthModule) {
   }
 
   return currentAccount;
-}
-function originOf(referer: string | undefined): string | undefined {
-  if (referer === undefined) return undefined;
-  try {
-    return new URL(referer).origin;
-  } catch {
-    return undefined;
-  }
 }

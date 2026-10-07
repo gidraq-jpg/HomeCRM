@@ -65,9 +65,29 @@ describe('рабочее приложение', () => {
   });
 
   it('разделы без данных честно говорят, что создавать пока нечего', () => {
-    expect(text(render('/home'))).toContain('Объектов пока нет');
     expect(text(render('/documents'))).toContain('Документов пока нет');
     expect(text(render('/today'))).toContain('На сегодня пока ничего нет');
+  });
+
+  it('«Дом»: экраны объектов открываются и ждут данные API', () => {
+    expect(text(render('/home'))).toContain('Загружаем объекты');
+    expect(text(render('/home/abc'))).toContain('Загружаем объект');
+    // Форма создания: название — единственное обязательное поле, «Кто видит» над «Сохранить».
+    const form = text(render('/home/new'));
+    expect(form).toContain('Новый объект');
+    expect(form.indexOf('Кто видит')).toBeLessThan(form.indexOf('>Сохранить<'));
+    // Недвижимость по умолчанию — «Взрослые» (таблица 7.2 PRD).
+    expect(form).toMatch(/value="adults"[^>]*checked|checked[^>]*value="adults"/);
+    for (const value of ['personal', 'adults', 'household']) {
+      expect(form).toContain(`value="${value}"`);
+    }
+  });
+
+  it('ребёнку в форме объекта доступно только «Только я»', () => {
+    const form = text(render('/home/new', 'child'));
+    expect(form).toContain('value="personal"');
+    expect(form).not.toContain('value="adults"');
+    expect(form).not.toContain('value="household"');
   });
 
   it('администратор видит приглашение на «Сегодня»; взрослый и ребёнок — нет', () => {

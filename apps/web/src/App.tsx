@@ -9,7 +9,13 @@ import { NewNoteScreen } from './notes/NewNoteScreen.tsx';
 import { NoteScreen } from './notes/NoteScreen.tsx';
 import { NotesScreen } from './notes/NotesScreen.tsx';
 import { TrashScreen } from './notes/TrashScreen.tsx';
-import { DocumentsScreen, HomeScreen, TodayScreen } from './screens/EmptySections.tsx';
+import { NewObjectScreen } from './objects/NewObjectScreen.tsx';
+import { ObjectFiles } from './objects/ObjectFiles.tsx';
+import { ObjectOverview } from './objects/ObjectOverview.tsx';
+import { ObjectScreen } from './objects/ObjectScreen.tsx';
+import { ObjectsScreen } from './objects/ObjectsScreen.tsx';
+import { ObjectTimeline } from './objects/ObjectTimeline.tsx';
+import { DocumentsScreen, TodayScreen } from './screens/EmptySections.tsx';
 import { InviteScreen } from './screens/InviteScreen.tsx';
 import { MemberScreen } from './screens/MemberScreen.tsx';
 import { MoreScreen } from './screens/MoreScreen.tsx';
@@ -41,7 +47,13 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
       <Routes>
         <Route index element={<Navigate to="/today" replace />} />
         <Route path="today" element={<TodayScreen />} />
-        <Route path="home" element={<HomeScreen />} />
+        <Route path="home" element={<ObjectsScreen />} />
+        <Route path="home/new" element={<NewObjectScreen />} />
+        <Route path="home/:objectId" element={<ObjectScreen />}>
+          <Route index element={<ObjectOverview />} />
+          <Route path="timeline" element={<ObjectTimeline />} />
+          <Route path="files" element={<ObjectFiles />} />
+        </Route>
         <Route path="documents" element={<DocumentsScreen />} />
         <Route path="people" element={<PeopleScreen />} />
         <Route path="people/invite" element={<InviteScreen />} />

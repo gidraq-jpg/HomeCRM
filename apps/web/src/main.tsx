@@ -11,6 +11,7 @@ import './styles/screens.css';
 import './styles/auth.css';
 import './styles/household.css';
 import './styles/notes.css';
+import './styles/objects.css';
 import { registerShell } from './pwa/register.ts';
 
 const root = document.getElementById('root');

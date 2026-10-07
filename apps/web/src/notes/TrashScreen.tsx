@@ -6,8 +6,14 @@ import { VISIBILITY_LABELS } from '../access/visibility.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { objectAbilities } from '../objects/abilities.ts';
+import { type ObjectSummary, restoreObject } from '../objects/api.ts';
+import { ObjectError } from '../objects/components.tsx';
+import { useObjectsList, useRefreshObjects } from '../objects/queries.ts';
+import { OBJECT_TYPE_ICONS, objectCount } from '../objects/types.ts';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
-import { Page } from '../ui/Page.tsx';
+import { countWord } from '../ui/format.ts';
+import { Page, Section } from '../ui/Page.tsx';
 import { RowContent } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { noteAbilities, viewerOf, visibilityOf } from './abilities.ts';
@@ -74,41 +80,121 @@ function TrashRow({ note }: { note: NoteSummary }) {
   );
 }
 
-/** «Корзина» заметок: удалённое хранится 30 дней, восстановить можно по правилам 7.3. */
+function ObjectTrashRow({ object }: { object: ObjectSummary }) {
+  const { me, householdId } = useHousehold();
+  const refresh = useRefreshObjects();
+  const toast = useToast();
+  const state = useAction();
+  const [done, setDone] = useState(false);
+  const abilities = objectAbilities(viewerOf(me), object, householdId);
+  const visibility = visibilityOf(object);
+  const deletedAt = object.deletedAt ?? object.updatedAt;
+  const TypeIcon = OBJECT_TYPE_ICONS[object.objectType];
+
+  return (
+    <li className="trash-item">
+      <div className="row">
+        <RowContent
+          icon={<TypeIcon size={22} aria-hidden />}
+          title={object.title}
+          meta={`${VISIBILITY_LABELS[visibility]} · удалён ${formatDay(deletedAt, me.timeZone)}, хранится до ${formatDay(keepUntil(deletedAt), me.timeZone)}`}
+          badge={visibility}
+        />
+      </div>
+      {abilities.restore ? (
+        <button
+          type="button"
+          className="btn btn--secondary btn--block"
+          disabled={state.disabled || done}
+          onClick={() =>
+            void state.run(async () => {
+              await restoreObject(object.id);
+              setDone(true);
+              await refresh();
+              toast.show({
+                message: 'Объект возвращён',
+                detail: 'Он снова в разделе «Дом», вместе с полями и событиями ленты.',
+              });
+            })
+          }
+        >
+          <ArrowCounterClockwise size={20} aria-hidden />
+          {state.pending ? 'Возвращаем…' : 'Восстановить'}
+        </button>
+      ) : (
+        <p className="muted trash-item__note">
+          Вернуть этот объект может его автор-взрослый или администратор.
+        </p>
+      )}
+      <ObjectError error={state.error} action="restore" />
+    </li>
+  );
+}
+
+const recordCount = (count: number) => countWord(count, ['запись', 'записи', 'записей']);
+
+/**
+ * «Корзина»: удалённые заметки и объекты хранятся 30 дней, восстановить можно по правилам 7.3.
+ * У заметок и объектов свои загрузка и ошибка: сбой одного блока не ломает второй.
+ */
 export function TrashScreen() {
-  const query = useNotesList(true);
+  const notesQuery = useNotesList(true);
+  const objectsQuery = useObjectsList(true);
   const { scope, setScope } = useScope();
 
-  if (query.isPending) {
+  if (notesQuery.isPending || objectsQuery.isPending) {
     return (
       <Page title="Корзина" back={BACK}>
         <Notice>Загружаем корзину…</Notice>
       </Page>
     );
   }
-  if (query.data === undefined) {
+  if (notesQuery.data === undefined && objectsQuery.data === undefined) {
     return (
       <Page title="Корзина" back={BACK}>
-        <NoteError error={query.error} action="load" />
-        <button className="text-button" type="button" onClick={() => void query.refetch()}>
+        <NoteError error={notesQuery.error} action="load" />
+        <button
+          className="text-button"
+          type="button"
+          onClick={() => {
+            void notesQuery.refetch();
+            void objectsQuery.refetch();
+          }}
+        >
           Повторить загрузку корзины
         </button>
       </Page>
     );
   }
-  const notes = query.data.pages.flat();
+  const notes = notesQuery.data?.pages.flat() ?? [];
+  const objects = objectsQuery.data?.pages.flat() ?? [];
+  const total = notes.length + objects.length;
+  const failed = notesQuery.data === undefined || objectsQuery.data === undefined;
 
   return (
-    <Page
-      title="Корзина"
-      back={BACK}
-      {...(notes.length > 0 ? { eyebrow: noteCount(notes.length) } : {})}
-    >
-      {notes.length === 0 ? (
+    <Page title="Корзина" back={BACK} {...(total > 0 ? { eyebrow: recordCount(total) } : {})}>
+      {notesQuery.data === undefined ? (
+        <>
+          <NoteError error={notesQuery.error} action="load" />
+          <button className="text-button" type="button" onClick={() => void notesQuery.refetch()}>
+            Повторить загрузку заметок из корзины
+          </button>
+        </>
+      ) : null}
+      {objectsQuery.data === undefined ? (
+        <>
+          <ObjectError error={objectsQuery.error} action="load" />
+          <button className="text-button" type="button" onClick={() => void objectsQuery.refetch()}>
+            Повторить загрузку объектов из корзины
+          </button>
+        </>
+      ) : null}
+
+      {total === 0 && !failed ? (
         <EmptyState icon={<Trash size={24} aria-hidden />} title="В корзине пусто">
           <p>
-            Удалённые заметки хранятся здесь 30 дней, потом исчезают навсегда. Пока ничего не
-            удалено.
+            Удалённые заметки и объекты хранятся здесь 30 дней, потом исчезают навсегда. Пока ничего
+            не удалено.
           </p>
           <p>{EMPTY_SCOPE_EXPLANATION[scope]}</p>
           {scope === 'all' ? null : (
@@ -121,30 +207,59 @@ export function TrashScreen() {
             </button>
           )}
         </EmptyState>
-      ) : (
-        <>
-          <p className="muted trash-lead">
-            Удалённые заметки хранятся {RETENTION_DAYS} дней, потом исчезают навсегда. Менять их
-            нельзя, можно только вернуть.
-          </p>
+      ) : null}
+
+      {total > 0 ? (
+        <p className="muted trash-lead">
+          Удалённое хранится {RETENTION_DAYS} дней, потом исчезает навсегда. Менять его нельзя,
+          можно только вернуть.
+        </p>
+      ) : null}
+
+      {notes.length > 0 ? (
+        <Section title="Заметки" aside={<span className="muted">{noteCount(notes.length)}</span>}>
           <ul className="trash-list" aria-label="Удалённые заметки">
             {notes.map((note) => (
               <TrashRow key={note.id} note={note} />
             ))}
           </ul>
-          {query.isError ? <NoteError error={query.error} action="load" /> : null}
-          {query.hasNextPage ? (
+          {notesQuery.isError ? <NoteError error={notesQuery.error} action="load" /> : null}
+          {notesQuery.hasNextPage ? (
             <button
               type="button"
               className="btn btn--secondary btn--block list-action"
-              disabled={query.isFetchingNextPage}
-              onClick={() => void query.fetchNextPage()}
+              disabled={notesQuery.isFetchingNextPage}
+              onClick={() => void notesQuery.fetchNextPage()}
             >
-              {query.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
+              {notesQuery.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё заметки'}
             </button>
           ) : null}
-        </>
-      )}
+        </Section>
+      ) : null}
+
+      {objects.length > 0 ? (
+        <Section
+          title="Объекты"
+          aside={<span className="muted">{objectCount(objects.length)}</span>}
+        >
+          <ul className="trash-list" aria-label="Удалённые объекты">
+            {objects.map((object) => (
+              <ObjectTrashRow key={object.id} object={object} />
+            ))}
+          </ul>
+          {objectsQuery.isError ? <ObjectError error={objectsQuery.error} action="load" /> : null}
+          {objectsQuery.hasNextPage ? (
+            <button
+              type="button"
+              className="btn btn--secondary btn--block list-action"
+              disabled={objectsQuery.isFetchingNextPage}
+              onClick={() => void objectsQuery.fetchNextPage()}
+            >
+              {objectsQuery.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё объекты'}
+            </button>
+          ) : null}
+        </Section>
+      ) : null}
     </Page>
   );
 }

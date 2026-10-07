@@ -126,3 +126,42 @@ export async function expectNothingStored(page: Page, secrets: readonly string[]
   // В кэше сервис-воркера только файлы сборки, никакого /api.
   expect(dump).not.toContain('/api/');
 }
+
+export interface CreatedObject {
+  id: string;
+  title: string;
+  updatedAt: string;
+  fields: { id: string; name: string; value: string }[];
+}
+
+/** Заводит объект через API. `audience` задаёт общее место в доме; без него объект личный. */
+export async function seedObject(
+  api: Api,
+  family: Family,
+  object: {
+    title: string;
+    objectType?: 'property' | 'car' | 'appliance' | 'other';
+    fields?: { name: string; value: string }[];
+    audience?: 'household' | 'adults';
+  },
+): Promise<CreatedObject> {
+  const { audience, ...rest } = object;
+  const created = await api.post('objects', {
+    ...rest,
+    ...(audience ? { placement: { spaceId: family.houseId, audience } } : {}),
+  });
+  if (created.status !== 201) throw new Error(`Test object was not created: ${created.status}`);
+  return created.body as CreatedObject;
+}
+
+/** Список объектов на экране «Дом»: ссылки по названию. */
+export const objectLinks = (page: Page) =>
+  page.getByRole('main').getByRole('link', { name: /Кто видит:/ });
+
+export async function openHome(page: Page) {
+  // Сначала в другой раздел: тот же адрес не пересоздаёт экран, а нужны свежие данные сервера.
+  await page.goto('#/more');
+  await page.goto('#/home');
+  await expect(page.getByRole('heading', { level: 1, name: 'Дом', exact: true })).toBeVisible();
+  await expect(page.getByText('Загружаем объекты…')).toHaveCount(0);
+}

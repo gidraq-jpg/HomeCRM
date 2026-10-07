@@ -14,7 +14,7 @@ import {
 } from '@homecrm/shared';
 import { VISIBILITIES, type Visibility } from '../access/visibility.ts';
 import type { Me } from '../auth/api.ts';
-import type { Placement as NewPlacement, NoteSummary } from './api.ts';
+import type { Placement as NewPlacement } from './api.ts';
 
 // Что можно делать с заметкой. Решения принимает эталонный модуль правил доступа из общего
 // пакета (access.ts): интерфейс только спрашивает его и прячет недоступные действия.
@@ -29,16 +29,26 @@ export function viewerOf(me: Pick<Me, 'id' | 'roles'>): Viewer {
   };
 }
 
-/** Где лежит заметка. Личное видит только владелец, поэтому владелец — тот, кто её открыл. */
-export function placementOf(note: NoteSummary, viewer: Viewer): Placement {
+/** Что нужно правилам доступа от записи: место, автор, ответственный и корзина. */
+export interface PlacedRecord {
+  spaceId: string;
+  spaceKind: 'personal' | 'household';
+  audience: Audience | null;
+  authorId: string;
+  assigneeId: string | null;
+  deletedAt: string | null;
+}
+
+/** Где лежит запись. Личное видит только владелец, поэтому владелец — тот, кто её открыл. */
+export function placementOf(note: PlacedRecord, viewer: Viewer): Placement {
   return note.spaceKind === 'personal'
     ? { kind: 'personal', spaceId: note.spaceId, ownerId: note.assigneeId ?? viewer.accountId }
     : { kind: 'household', spaceId: note.spaceId, audience: note.audience ?? 'household' };
 }
 
-export function factsOf(note: NoteSummary, viewer: Viewer): RecordFacts {
+export function factsOf(note: PlacedRecord, viewer: Viewer, type = 'note'): RecordFacts {
   return {
-    type: 'note',
+    type,
     placement: placementOf(note, viewer),
     authorId: note.authorId,
     assigneeId: note.assigneeId,
@@ -47,12 +57,12 @@ export function factsOf(note: NoteSummary, viewer: Viewer): RecordFacts {
 }
 
 /** Значок и подпись «Кто видит»: «Только я», «Взрослые» или «Вся семья». */
-export function visibilityOf(note: Pick<NoteSummary, 'spaceKind' | 'audience'>): Visibility {
+export function visibilityOf(note: Pick<PlacedRecord, 'spaceKind' | 'audience'>): Visibility {
   return note.spaceKind === 'personal' ? 'personal' : (note.audience ?? 'household');
 }
 
 /** Заметка, которую читатель видит в общем пространстве. */
-export function isShared(note: Pick<NoteSummary, 'spaceKind'>): boolean {
+export function isShared(note: Pick<PlacedRecord, 'spaceKind'>): boolean {
   return note.spaceKind === 'household';
 }
 
@@ -82,12 +92,14 @@ const personalPlace = (viewer: Viewer): Placement => ({
   ownerId: viewer.accountId,
 });
 
+/** Права на запись; `type` — вид записи для правил ребёнка (`note`, `object`). */
 export function noteAbilities(
   viewer: Viewer,
-  note: NoteSummary,
+  note: PlacedRecord,
   householdId: string | null,
+  type = 'note',
 ): NoteAbilities {
-  const facts = factsOf(note, viewer);
+  const facts = factsOf(note, viewer, type);
   const shared = isShared(note);
   const target: Placement | null =
     householdId === null
@@ -114,12 +126,16 @@ export function noteAbilities(
  * Значения «Кто видит» для новой заметки: те, что разрешает `canCreate`. Ребёнок создаёт общие
  * записи только покупок и дел (PRD 6.2), поэтому для него остаётся «Только я».
  */
-export function creatableVisibilities(viewer: Viewer, householdId: string | null): Visibility[] {
+export function creatableVisibilities(
+  viewer: Viewer,
+  householdId: string | null,
+  type = 'note',
+): Visibility[] {
   return VISIBILITIES.filter((visibility) => {
     if (visibility === 'personal') return true;
     if (householdId === null) return false;
     return canCreate(viewer, {
-      type: 'note',
+      type,
       authorId: viewer.accountId,
       placement: { kind: 'household', spaceId: householdId, audience: visibility },
     });
