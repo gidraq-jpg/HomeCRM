@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { extname, resolve, sep } from 'node:path';
@@ -9,10 +9,15 @@ import type { Role } from '@homecrm/shared';
 import { buildApp } from '../../../../server/src/app.ts';
 import { createHousehold, provisionAccount } from '../../../../server/src/auth/provision.ts';
 import { createAuthModule } from '../../../../server/src/auth/routes.ts';
+import { FileCipher } from '../../../../server/src/files/crypto.ts';
+import { DirectoryStorage } from '../../../../server/src/files/storage.ts';
 import { currentCode } from '../../../../server/src/testing/totp.ts';
 import { E2E_PREFIX } from '../../support/static-server.ts';
 
 const ROOT = resolve(import.meta.dirname, '../../../dist');
+// Зашифрованные файлы сценария лежат в test-results (в git не попадает); главный ключ — случайный,
+// только в памяти этого прогона: ни рабочий ключ, ни рабочие данные не используются.
+const FILES_ROOT = resolve(import.meta.dirname, '../../../test-results/files');
 const TYPES: Record<string, string> = {
   '.html': 'text/html',
   '.js': 'text/javascript',
@@ -84,9 +89,18 @@ export async function createFamily() {
     baseURL: origin,
   });
   // Обработчик передачи ответственности нужен уходу из дома и исключению (docs/household-api.md).
+  await mkdir(FILES_ROOT, { recursive: true });
+  const filesDir = await mkdtemp(resolve(FILES_ROOT, 'run-'));
   const app = buildApp(
     { LOG_LEVEL: 'silent', APP_VERSION: 'e2e' },
-    { auth: module, worker: createWorkerDatabase(database.worker) },
+    {
+      auth: module,
+      worker: createWorkerDatabase(database.worker),
+      files: {
+        storage: new DirectoryStorage(filesDir),
+        cipher: new FileCipher(randomBytes(32), 1),
+      },
+    },
   );
   // В конце сценария соединения прокси уже не нужны, в том числе прерванные офлайном.
   app.addHook('preClose', async () => {
@@ -163,6 +177,7 @@ export async function createFamily() {
       });
       await app.close();
       await database.drop();
+      await rm(filesDir, { recursive: true, force: true });
     },
   };
 }

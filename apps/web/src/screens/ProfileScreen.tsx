@@ -214,7 +214,7 @@ export function ProfileScreen() {
   return (
     <Page title="Обо мне" back={back}>
       <div className="member-head">
-        <Avatar name={profile.displayName} large />
+        <Avatar name={profile.displayName} large photoFileId={profile.photoFileId} />
         <div className="member-head__text">
           <p className="member-head__name">{profile.displayName}</p>
           <p className="muted">Фото загружать пока нельзя: место под него готово.</p>

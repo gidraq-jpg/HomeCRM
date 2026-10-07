@@ -12,6 +12,7 @@ import './styles/auth.css';
 import './styles/household.css';
 import './styles/notes.css';
 import './styles/objects.css';
+import './styles/files.css';
 import { registerShell } from './pwa/register.ts';
 
 const root = document.getElementById('root');

@@ -52,7 +52,7 @@ function Members() {
             <Row
               key={member.accountId}
               to={`/people/members/${member.accountId}`}
-              icon={<Avatar name={member.displayName} />}
+              icon={<Avatar name={member.displayName} photoFileId={member.photoFileId} />}
               title={member.accountId === me.id ? `${member.displayName} (вы)` : member.displayName}
               meta={ROLE_LABELS[member.role]}
               badge="household"
@@ -67,7 +67,7 @@ function Members() {
               <Row
                 key={member.accountId}
                 to={`/people/members/${member.accountId}`}
-                icon={<Avatar name={member.displayName} />}
+                icon={<Avatar name={member.displayName} photoFileId={member.photoFileId} />}
                 title={member.displayName}
                 meta={
                   member.leftAt

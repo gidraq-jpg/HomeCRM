@@ -1,6 +1,7 @@
 import { AUDIENCES, type Audience } from '@homecrm/shared';
 import * as z from 'zod';
 import { apiRequest } from '../auth/api.ts';
+import { FileMeta } from '../files/api.ts';
 
 // Заметки — ADR-0020 и apps/server/src/notes. Ответы проверяются схемами: сервер мог измениться,
 // а экран не должен ломаться на неожиданной форме. Заголовки и тексты заметок живут только в
@@ -39,6 +40,8 @@ export type ChecklistItem = z.infer<typeof ChecklistItem>;
 export const NoteCard = NoteSummary.extend({
   body: z.string(),
   checklist: z.array(ChecklistItem),
+  /** Файлы записи (OBJ-4): метаданные без ключей хранения. */
+  files: z.array(FileMeta),
 });
 export type NoteCard = z.infer<typeof NoteCard>;
 

@@ -1,6 +1,7 @@
 import { AUDIENCES, OBJECT_TYPES } from '@homecrm/shared';
 import * as z from 'zod';
 import { apiRequest } from '../auth/api.ts';
+import { FileMeta } from '../files/api.ts';
 import { AccessPreview, type ListScope, type Placement } from '../notes/api.ts';
 
 // Объекты, связи и лента — ADR-0023, docs/objects-api.md. Ответы проверяются схемами: сервер мог
@@ -40,7 +41,11 @@ export const ObjectField = z.object({
 });
 export type ObjectField = z.infer<typeof ObjectField>;
 
-export const ObjectCard = ObjectSummary.extend({ fields: z.array(ObjectField) });
+export const ObjectCard = ObjectSummary.extend({
+  fields: z.array(ObjectField),
+  /** Файлы объекта (OBJ-4): метаданные без ключей хранения. */
+  files: z.array(FileMeta),
+});
 export type ObjectCard = z.infer<typeof ObjectCard>;
 
 /** Своё поле при сохранении: у уже сохранённого есть `id`, у нового его нет. */

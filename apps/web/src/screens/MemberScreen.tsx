@@ -61,7 +61,7 @@ export function MemberScreen() {
   return (
     <Page title={member.displayName} {...(isMe ? { eyebrow: 'Это вы' } : {})} back={back}>
       <div className="member-head">
-        <Avatar name={member.displayName} large />
+        <Avatar name={member.displayName} large photoFileId={member.photoFileId} />
         <div className="member-head__text">
           {member.formerMember ? (
             <Status tone="neutral">Бывший участник</Status>

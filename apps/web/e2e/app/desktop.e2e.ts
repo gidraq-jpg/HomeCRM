@@ -1,5 +1,14 @@
 import { test } from '../auth/support/fixtures.ts';
 import { setScope } from '../support/helpers.ts';
+import {
+  expectImageLoaded,
+  filePicker,
+  fileRows,
+  makePng,
+  PDF,
+  PDF_MIME,
+  PNG_MIME,
+} from './files-support.ts';
 import { apiAs, noteLinks, objectLinks, seedNote, seedObject } from './notes-support.ts';
 import { checkApp, expect, seedProfiles, signInAs } from './support.ts';
 
@@ -148,4 +157,28 @@ test('«Дом» на компьютере: список, карточка с в
     'Заменили смеситель',
   );
   await checkApp(page, info, 'desktop-object-timeline');
+});
+
+test('вкладка «Файлы» на компьютере: загрузка фото и PDF, превью рядом с боковым меню', async ({
+  page,
+  family,
+}, info) => {
+  const boris = await apiAs(family, 'adult');
+  const flat = await seedObject(boris, family, {
+    title: 'Квартира у парка',
+    objectType: 'property',
+    audience: 'household',
+  });
+  await signInAs(page, family, 'adult');
+  await page.goto(`#/home/${flat.id}/files`);
+  await expect(page.getByRole('region', { name: 'Файлов пока нет' })).toBeVisible();
+  await checkApp(page, info, 'desktop-files-empty');
+
+  await filePicker(page).setInputFiles([
+    { name: 'Фото счётчика.png', mimeType: PNG_MIME, buffer: makePng(1200, 800) },
+    { name: 'Квитанция за воду.pdf', mimeType: PDF_MIME, buffer: PDF },
+  ]);
+  await expect(fileRows(page)).toHaveCount(2);
+  await expectImageLoaded(page, '.file-row__image');
+  await checkApp(page, info, 'desktop-files');
 });
