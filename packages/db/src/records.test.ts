@@ -28,7 +28,14 @@ describe('таблицы записей в коде и в базе', () => {
          AND EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attname = 'deleted_at' AND NOT a.attisdropped)
          AND c.relname NOT LIKE '%\\_history'`,
     );
-    expect(names(rows)).toEqual(RECORD_DEFINITIONS.map((definition) => definition.name).sort());
+    // Производные сроки имеют отдельную матрицу и узкие права записи (ADR-0028).
+    expect(names(rows)).toEqual(
+      [
+        ...RECORD_DEFINITIONS.map((definition) => definition.name),
+        'deadlines',
+        'deadline_occurrences',
+      ].sort(),
+    );
   });
 
   it('у каждого вида записи есть таблица, история и своя запись в перечне матрицы', () => {
@@ -71,6 +78,9 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         [`${name}_guard`]: 'record_guard',
         [`${name}_trash_time`]: 'guard_trash_time',
         [`${name}_history`]: 'record_history',
+        ...(['notes', 'objects'].includes(name)
+          ? { [`${name}_deadlines`]: 'sync_source_deadlines' }
+          : {}),
         ...(name === 'notes' ? { notes_placement: 'cascade_note_placement' } : {}),
         ...(name === 'note_items' ? { note_items_00_parent_lock: 'lock_note_parent' } : {}),
         [`${name}_links_purge`]: 'purge_record_links',
@@ -116,6 +126,9 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           `${name}.${name}_purge:DELETE`,
           `${name}.${name}_reassign_select:SELECT`,
           `${name}.${name}_reassign:UPDATE`,
+          ...(['notes', 'objects'].includes(name)
+            ? [`${name}.${name}_deadline_worker_select:SELECT`]
+            : []),
           ...(name === 'object_events'
             ? [
                 'object_events.object_events_cascade_select:SELECT',
@@ -180,6 +193,9 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'deadlines',
+      'deadline_occurrences',
+      'deadline_notifications', // deadlines-matrix.test.ts
       'search_index', // search-matrix.test.ts: видимость, снимки событий и закрытые изменения индекса.
       'profile_files', // profile-files-matrix.test.ts: фото действующей семьи и корзина владельца.
       'file_blobs', // files.test.ts: реестр ключей, без пользовательских метаданных.

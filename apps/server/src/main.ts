@@ -13,6 +13,7 @@ import {
   loadConfig,
   loadFilesConfig,
 } from './config.ts';
+import { initializeHouseTimeZones } from './deadlines/engine.ts';
 import { scheduleFileCleanup } from './files/cleanup.ts';
 import { readMasterKey } from './files/crypto.ts';
 import type { FileServices } from './files/service.ts';
@@ -56,6 +57,7 @@ const auth = createAuthModule({
   homeTimeZone: authConfig.HOME_TIME_ZONE,
 });
 const worker = createWorkerDatabase(workerPool);
+await initializeHouseTimeZones(worker, authConfig.HOME_TIME_ZONE);
 const app = buildApp(config, {
   auth,
   worker,

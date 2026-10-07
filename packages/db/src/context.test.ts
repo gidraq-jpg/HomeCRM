@@ -28,6 +28,9 @@ const AUTH_ONLY = [
 // Таблицы записей и их истории берутся из recordTable(): новая таблица попадает сюда сама.
 const RECORD_NAMES = RECORD_DEFINITIONS.map((definition) => definition.name);
 const APP_TABLES = [
+  'deadlines',
+  'deadline_occurrences',
+  'deadline_notifications',
   'search_index',
   'profile_files',
   'file_blobs',

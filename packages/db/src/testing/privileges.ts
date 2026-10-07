@@ -34,7 +34,26 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     file_blobs: { SELECT: 'all', INSERT: 'all', DELETE: 'all' },
     record_links: { SELECT: 'all', INSERT: 'all', UPDATE: ['role', 'deleted_at'] },
     accounts: { SELECT: 'all' },
-    spaces: { SELECT: 'all' },
+    spaces: { SELECT: 'all', UPDATE: ['time_zone'] },
+    deadlines: {
+      SELECT: 'all',
+      INSERT: 'all',
+      UPDATE: [
+        'rule',
+        'deleted_at',
+        'space_id',
+        'space_kind',
+        'audience',
+        'assignee_id',
+        'household_id',
+        'needs_refresh',
+      ],
+    },
+    deadline_occurrences: {
+      SELECT: 'all',
+      UPDATE: ['space_id', 'space_kind', 'audience', 'assignee_id', 'deleted_at'],
+    },
+    deadline_notifications: { SELECT: 'all' },
     space_members: { SELECT: 'all', UPDATE: ['role', 'left_at', 'left_by', 'display_name'] },
     household_access: { SELECT: 'all' },
     member_profiles: {
@@ -46,6 +65,27 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     password_resets: { SELECT: 'all', UPDATE: ['acknowledged_at'] },
   };
   const worker: Record<string, TableGrants> = {
+    spaces: { SELECT: ['id', 'kind', 'time_zone'], UPDATE: ['time_zone'] },
+    deadlines: {
+      SELECT: [
+        'id',
+        'note_id',
+        'object_id',
+        'household_id',
+        'rule',
+        'space_id',
+        'space_kind',
+        'audience',
+        'author_id',
+        'assignee_id',
+        'deleted_at',
+        'needs_refresh',
+      ],
+      UPDATE: ['needs_refresh'],
+      DELETE: 'all',
+    },
+    deadline_occurrences: { SELECT: 'all', INSERT: 'all', UPDATE: 'all', DELETE: 'all' },
+    deadline_notifications: { SELECT: 'all', INSERT: 'all', UPDATE: 'all', DELETE: 'all' },
     profile_files: {
       SELECT: ['id', 'storage_key', 'preview_storage_key', 'deleted_at'],
       DELETE: 'all',

@@ -131,6 +131,8 @@ export const spaces = pgTable(
     id: id(),
     kind: spaceKindEnum('kind').notNull(),
     name: text('name').notNull(),
+    /** NULL только до первого запуска с прежней HOME_TIME_ZONE; личное берёт пояс выбранного дома. */
+    timeZone: text('time_zone'),
     ownerAccountId: uuid('owner_account_id').references(() => accounts.id),
     createdAt: createdAt(),
   },
@@ -143,6 +145,23 @@ export const spaces = pgTable(
       sql.raw(`(kind = 'personal') = (owner_account_id IS NOT NULL)`),
     ),
     pgPolicy('spaces_select', { for: 'select', to: appRole, using: sql.raw(SPACES_SELECT_SQL) }),
+    pgPolicy('spaces_timezone_admin', {
+      for: 'update',
+      to: appRole,
+      using: sql`kind = 'household' AND id IN (SELECT space_id FROM space_members WHERE account_id = app.current_account_id() AND role = 'admin' AND left_at IS NULL)`,
+      withCheck: sql`kind = 'household' AND id IN (SELECT space_id FROM space_members WHERE account_id = app.current_account_id() AND role = 'admin' AND left_at IS NULL)`,
+    }),
+    pgPolicy('spaces_timezone_worker', {
+      for: 'select',
+      to: workerRole,
+      using: sql`kind = 'household'`,
+    }),
+    pgPolicy('spaces_timezone_initialize', {
+      for: 'update',
+      to: workerRole,
+      using: sql`kind = 'household' AND time_zone IS NULL`,
+      withCheck: sql`kind = 'household' AND time_zone IS NOT NULL`,
+    }),
     ...authPolicies('spaces', ['select']),
     // Служба входа создаёт личное пространство вместе с учётной записью (SPACE-1) и дом при первой
     // настройке. Личное — только учётной записи, созданной в этой же транзакции: чужому личному

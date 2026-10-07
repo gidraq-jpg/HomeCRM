@@ -17,7 +17,7 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import type pg from 'pg';
 import { RECORD_TYPES, type RecordType } from '../access-sql.ts';
-import { accounts, RECORD_TABLES, spaces } from '../schema.ts';
+import { accounts, RECORD_TABLES } from '../schema.ts';
 
 export const PERSON_KEYS = ['anna', 'boris', 'vera', 'gleb', 'dina', 'mila'] as const;
 export type PersonKey = (typeof PERSON_KEYS)[number];
@@ -264,19 +264,15 @@ export async function seedPeople(admin: pg.Pool, family: Family): Promise<void> 
         username: someone.key,
       })),
     );
-    await tx.insert(spaces).values([
-      ...family.people.map((owner) => ({
-        id: owner.personalSpaceId,
-        kind: 'personal' as const,
-        name: `Личное: ${owner.name}`,
-        ownerAccountId: owner.id,
-      })),
-      ...family.houses.map((house) => ({
-        id: house.id,
-        kind: 'household' as const,
-        name: house.name,
-      })),
-    ]);
+    // Явные колонки: фикстура также используется до миграции time_zone.
+    for (const owner of family.people)
+      await tx.execute(
+        sql`INSERT INTO spaces(id,kind,name,owner_account_id) VALUES (${owner.personalSpaceId},'personal',${`Личное: ${owner.name}`},${owner.id})`,
+      );
+    for (const house of family.houses)
+      await tx.execute(
+        sql`INSERT INTO spaces(id,kind,name) VALUES (${house.id},'household',${house.name})`,
+      );
     // Явные колонки сохраняют пригодность фикстуры для теста обновления старой схемы:
     // Drizzle иначе перечисляет новые колонки даже со значением DEFAULT.
     for (const house of family.houses)
