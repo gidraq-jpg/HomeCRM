@@ -110,6 +110,11 @@ export type AuthConfig = z.infer<typeof AuthEnvSchema>;
 
 export class ConfigError extends Error {}
 
+/** Не печатаем содержимое непредвиденной ошибки настройки: оно может содержать секреты. */
+export function configurationErrorMessage(error: unknown): string {
+  return error instanceof ConfigError ? error.message : 'Invalid server configuration';
+}
+
 export function loadAuthConfig(env: NodeJS.ProcessEnv = process.env): AuthConfig {
   const parsed = AuthEnvSchema.safeParse(env);
   if (parsed.success) return parsed.data;

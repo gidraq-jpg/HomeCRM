@@ -110,3 +110,57 @@ it('HEIC с чрезмерными размерами отклоняется д�
   input.writeUInt32BE(400_000, offset + 12);
   await expect(prepareFile(input)).rejects.toMatchObject({ status: 415 });
 });
+
+it('R0.5d: короткий GCM-тег обёртки ключа отклоняется', () => {
+  const cipher = new FileCipher(randomBytes(32), 1),
+    key = randomUUID();
+  const sealed = cipher.seal(Buffer.from('Вымышленный файл'), key);
+  const shortTag = {
+    ...sealed.envelope,
+    tag: Buffer.from(sealed.envelope.tag, 'base64').subarray(0, 4).toString('base64'),
+  };
+  expect(() => cipher.open(sealed.block, shortTag, key)).toThrow();
+});
+it('R0.5d: JPEG с предупреждением о лишних байтах принимается, тяжёлое повреждение отклоняется', async () => {
+  const source = await sharp({
+    create: { width: 32, height: 24, channels: 3, background: '#aabbcc' },
+  })
+    .jpeg()
+    .toBuffer();
+  const position = 4 + source.readUInt16BE(4);
+  const minor = Buffer.concat([
+    source.subarray(0, position),
+    Buffer.from([1, 2, 3, 4]),
+    source.subarray(position),
+  ]);
+  await expect(sharp(minor, { failOn: 'warning' }).toBuffer()).rejects.toThrow();
+  const result = await prepareFile(minor);
+  expect(await sharp(result.data).metadata()).toMatchObject({
+    width: 32,
+    height: 24,
+    format: 'jpeg',
+  });
+  expect((await sharp(result.preview).metadata()).format).toBe('webp');
+  await expect(prepareFile(source.subarray(0, 30))).rejects.toMatchObject({ status: 415 });
+});
+it('R0.5d: ICC сохраняется в фото и превью; EXIF и GPS удаляются', async () => {
+  const source = await sharp({
+    create: { width: 32, height: 24, channels: 3, background: '#aabbcc' },
+  })
+    .jpeg()
+    .withIccProfile('p3')
+    .withExif({
+      IFD0: { Artist: 'Fictional' },
+      IFD3: { GPSLatitudeRef: 'N', GPSLatitude: '55/1 1/1 1/1' },
+    })
+    .toBuffer();
+  const expected = (await sharp(source).metadata()).icc;
+  expect(expected).toBeDefined();
+  const result = await prepareFile(source);
+  for (const data of [result.data, result.preview]) {
+    const metadata = await sharp(data).metadata();
+    expect(metadata.icc).toEqual(expected);
+    expect(metadata.exif).toBeUndefined();
+    expect(metadata.xmp).toBeUndefined();
+  }
+});

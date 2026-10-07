@@ -57,12 +57,13 @@ export async function prepareFile(input: Buffer) {
       } finally {
         images.dispose();
       }
-    } else image = sharp(input, { limitInputPixels: MAX_PIXELS, failOn: 'warning' }).autoOrient();
-    // Повторное кодирование удаляет EXIF, GPS, XMP, ICC и произвольные хвосты исходника.
+    } else image = sharp(input, { limitInputPixels: MAX_PIXELS, failOn: 'error' }).autoOrient();
+    // Сохраняем цветовой профиль; EXIF, GPS, XMP и произвольные хвосты удаляются.
     const format = type.mime === 'image/png' ? 'png' : type.mime === 'image/webp' ? 'webp' : 'jpeg';
-    const data = await image.toFormat(format).toBuffer();
+    const data = await image.keepIccProfile().toFormat(format).toBuffer();
     if (data.length > MAX_FILE_BYTES) throw new Failure(413, 'FILE_TOO_LARGE');
     const preview = await sharp(data)
+      .keepIccProfile()
       .resize({ width: 480, height: 480, fit: 'inside', withoutEnlargement: true })
       .webp()
       .toBuffer();

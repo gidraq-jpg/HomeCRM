@@ -1,7 +1,8 @@
-import { and, eq, isNull, recordLinks, sql, type Transaction } from '@homecrm/db';
+import { eq, recordLinks, sql, type Transaction } from '@homecrm/db';
 import { canViewLink, canWriteLink } from '@homecrm/shared';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
+import { referenceRows } from './references.ts';
 import { Confirm, CreateLink, Id, PatchLink, Reference } from './schemas.ts';
 import {
   type DataRoute,
@@ -24,12 +25,25 @@ async function endpoints(tx: Transaction, account: Account, link: Link) {
   if (!canViewLink(account.viewer, left.facts, right.facts)) missing();
   return { left, right };
 }
-function summary(link: Link) {
+function endSummary(
+  type: ReturnType<typeof typeFor>,
+  row: Awaited<ReturnType<typeof readReference>>['row'],
+) {
+  return {
+    type,
+    id: row.id,
+    title: row.title,
+    trashed: row.deletedAt !== null,
+    deletedAt: row.deletedAt,
+    ...('objectType' in row ? { objectType: row.objectType } : {}),
+  };
+}
+function summary(link: Link, ends: Awaited<ReturnType<typeof endpoints>>) {
   const { id, role, authorId, createdAt, updatedAt, deletedAt } = link;
   return {
     id,
-    left: { type: typeFor(link.leftTable), id: link.leftId },
-    right: { type: typeFor(link.rightTable), id: link.rightId },
+    left: endSummary(typeFor(link.leftTable), ends.left.row),
+    right: endSummary(typeFor(link.rightTable), ends.right.row),
     role,
     authorId,
     createdAt,
@@ -37,23 +51,51 @@ function summary(link: Link) {
     deletedAt,
   };
 }
-async function visibleLinks(tx: Transaction, account: Account, rows: Link[], trash = false) {
-  const result = [];
-  for (const link of rows)
-    try {
-      const { left, right } = await endpoints(tx, account, link);
-      if (trash || (left.row.deletedAt === null && right.row.deletedAt === null))
-        result.push(summary(link));
-    } catch (error) {
-      if (!(error instanceof Failure && error.status === 404)) throw error;
-    }
-  return result;
+type LinkSummary = ReturnType<typeof summary>;
+interface ListedLink extends Record<string, unknown> {
+  id: string;
+  left: LinkSummary['left'];
+  right: LinkSummary['right'];
+  role: string;
+  authorId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+}
+async function listLinks(
+  tx: Transaction,
+  candidates: ReturnType<typeof sql>,
+  where: ReturnType<typeof sql>,
+  limit: number,
+  offset = 0,
+  byId = false,
+) {
+  return (
+    await tx.execute<ListedLink>(sql`
+    WITH candidates AS MATERIALIZED (SELECT l.* FROM record_links l WHERE ${candidates}),
+      wanted AS MATERIALIZED (
+        SELECT left_table AS table_name,left_id AS id FROM candidates
+        UNION SELECT right_table,right_id FROM candidates
+      ), refs AS MATERIALIZED (${referenceRows})
+    SELECT l.id,l.role,l.author_id AS "authorId",l.created_at AS "createdAt",
+      l.updated_at AS "updatedAt",l.deleted_at AS "deletedAt",
+      jsonb_build_object('type',a.type,'id',a.id,'title',a.title,'trashed',a.deleted_at IS NOT NULL,
+        'deletedAt',a.deleted_at,'objectType',a.object_type) AS "left",
+      jsonb_build_object('type',b.type,'id',b.id,'title',b.title,'trashed',b.deleted_at IS NOT NULL,
+        'deletedAt',b.deleted_at,'objectType',b.object_type) AS "right"
+    FROM candidates l
+      JOIN refs a ON (a.table_name,a.id)=(l.left_table,l.left_id)
+      JOIN refs b ON (b.table_name,b.id)=(l.right_table,l.right_id)
+    WHERE ${where}
+    ORDER BY ${byId ? sql`l.id` : sql`l.created_at,l.id`} LIMIT ${limit} OFFSET ${offset}`)
+  ).rows;
 }
 export function registerLinks(route: DataRoute) {
   route('POST', '/api/links', 201, async (tx, account, request) => {
     const body = parse(CreateLink, request.body);
     const left = await readReference(tx, account, body.left);
     const right = await readReference(tx, account, body.right);
+    if (left.facts.trashed || right.facts.trashed) throw new Failure(409, 'CONFLICT');
     if (!canWriteLink(account.viewer, left.facts, right.facts)) deny();
     const [link] = await tx
       .insert(recordLinks)
@@ -67,7 +109,7 @@ export function registerLinks(route: DataRoute) {
       })
       .returning();
     if (!link) throw new Error('Link insert returned no row');
-    return summary(link);
+    return summary(link, { left, right });
   });
   route('GET', '/api/records/:type/:id/links', 200, async (tx, account, request) => {
     const ref = parse(Reference, request.params);
@@ -81,21 +123,14 @@ export function registerLinks(route: DataRoute) {
       request.query,
     );
     const name = tableFor(ref.type);
-    const rows = await tx
-      .select()
-      .from(recordLinks)
-      .where(
-        and(
-          sql`((${recordLinks.leftTable}=${name} AND ${recordLinks.leftId}=${ref.id}) OR (${recordLinks.rightTable}=${name} AND ${recordLinks.rightId}=${ref.id}))`,
-          query.trash === 'true'
-            ? sql`${recordLinks.deletedAt} IS NOT NULL`
-            : isNull(recordLinks.deletedAt),
-        ),
-      )
-      .orderBy(recordLinks.createdAt, recordLinks.id)
-      .limit(query.limit)
-      .offset(query.offset);
-    return visibleLinks(tx, account, rows, query.trash === 'true');
+    return listLinks(
+      tx,
+      sql`((l.left_table=${name} AND l.left_id=${ref.id}) OR (l.right_table=${name} AND l.right_id=${ref.id}))
+        AND ${query.trash === 'true' ? sql`l.deleted_at IS NOT NULL` : sql`l.deleted_at IS NULL`}`,
+      query.trash === 'true' ? sql`true` : sql`a.deleted_at IS NULL AND b.deleted_at IS NULL`,
+      query.limit,
+      query.offset,
+    );
   });
   for (const action of ['patch', 'trash', 'restore'] as const)
     route(
@@ -121,23 +156,31 @@ export function registerLinks(route: DataRoute) {
           .where(eq(recordLinks.id, id))
           .returning();
         if (!updated) deny();
-        return summary(updated);
+        return summary(updated, { left, right });
       },
     );
 }
 export async function exportLinks(tx: Transaction, account: Account) {
-  const rows = await tx.select().from(recordLinks);
-  const exported = [];
-  for (const link of rows)
-    try {
-      const { left, right } = await endpoints(tx, account, link);
-      const eligible = [left.row, right.row].some(
-        (row) =>
-          row.spaceKind === 'personal' || account.viewer.memberships.get(row.spaceId) === 'admin',
-      );
-      if (eligible) exported.push(summary(link));
-    } catch (error) {
-      if (!(error instanceof Failure && error.status === 404)) throw error;
-    }
+  const adminSpaces = [...account.viewer.memberships]
+    .filter(([, role]) => role === 'admin')
+    .map(([id]) => sql`${id}::uuid`);
+  const admin = adminSpaces.length
+    ? sql`(a.space_id IN (${sql.join(adminSpaces, sql`,`)}) OR b.space_id IN (${sql.join(adminSpaces, sql`,`)}))`
+    : sql`false`;
+  const exported: ListedLink[] = [];
+  let after: string | undefined;
+  for (;;) {
+    const page = await listLinks(
+      tx,
+      after ? sql`l.id > ${after}::uuid` : sql`true`,
+      sql`(a.space_kind='personal' OR b.space_kind='personal' OR ${admin})`,
+      100,
+      0,
+      true,
+    );
+    exported.push(...page);
+    if (page.length < 100) break;
+    after = page.at(-1)?.id;
+  }
   return exported;
 }

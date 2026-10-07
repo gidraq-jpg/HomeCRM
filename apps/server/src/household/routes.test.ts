@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { createWorkerDatabase } from '@homecrm/db';
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { cleanupExpired } from '../auth/cleanup.ts';
+import * as fileExport from '../files/export.ts';
 import type { Device } from '../testing/device.ts';
 import { signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type World } from '../testing/world.ts';
@@ -61,6 +62,31 @@ it('взрослый и ребёнок видят состав и семейны
       })
     ).status,
   ).toBe(400);
+});
+
+it('R0.5d: фото участников читаются последовательно на соединении транзакции', async () => {
+  let active = 0,
+    maxActive = 0;
+  const original = fileExport.visibleProfileFile;
+  const spy = vi.spyOn(fileExport, 'visibleProfileFile').mockImplementation(async (...args) => {
+    active++;
+    maxActive = Math.max(maxActive, active);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return await original(...args);
+    } finally {
+      active--;
+    }
+  });
+  try {
+    const result = await adult.get(rosterUrl());
+    expect(result.status, result.text).toBe(200);
+    expect(result.json<unknown[]>()).toHaveLength(3);
+    expect(spy).toHaveBeenCalledTimes(3);
+    expect(maxActive).toBe(1);
+  } finally {
+    spy.mockRestore();
+  }
 });
 
 it('не-администратор не меняет роли, не исключает и не выдаёт ссылки сброса', async () => {

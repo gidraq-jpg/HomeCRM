@@ -21,8 +21,9 @@ import {
   fileSummary,
   filesOf,
   fileTable,
-  insertFile,
+  insertPreparedFile,
   type ParentType,
+  prepareUpload,
 } from './service.ts';
 
 const Id = z.strictObject({ id: z.uuid() });
@@ -82,10 +83,15 @@ export async function filesRoutes(
         .filter((row) => parent.row.deletedAt !== null || row.deletedAt === null)
         .map(fileSummary);
     });
-    route('POST', path, 201, async (tx, account, request) => {
+    app.post(path, async (request, reply) => {
+      const account = await currentAccount(request, reply);
+      if (!account) return reply;
       const id = parse(Id, request.params).id;
-      const parent = await parentOf(tx, account, type, id, true);
-      if (!canWrite(account.viewer, parent.facts)) deny();
+      // Короткая предварительная проверка; приём и обработка файла не держат соединение.
+      await options.appDb.withAccount(account.id, async (tx) => {
+        const parent = await parentOf(tx, account, type, id);
+        if (!canWrite(account.viewer, parent.facts)) deny();
+      });
       if (!request.isMultipart()) throw new Failure(415, 'UNSUPPORTED_FILE');
       let uploaded: { data: Buffer; name: string } | undefined;
       for await (const part of request.parts()) {
@@ -94,9 +100,14 @@ export async function filesRoutes(
       }
       if (!uploaded) throw new Failure(400, 'INVALID_INPUT');
       const prepared = await prepareFile(uploaded.data);
-      return fileSummary(
-        await insertFile(tx, account, type, parent.row, { ...prepared, name: uploaded.name }),
-      );
+      const sealed = prepareUpload(options.files, { ...prepared, name: uploaded.name });
+      const row = await options.appDb.withAccount(account.id, async (tx) => {
+        // Повторяем права после ожидания: родитель мог попасть в корзину или сменить доступ.
+        const parent = await parentOf(tx, account, type, id, true);
+        if (!canWrite(account.viewer, parent.facts)) deny();
+        return insertPreparedFile(tx, account, type, parent.row, sealed);
+      });
+      return reply.code(201).send(fileSummary(row));
     });
     for (const action of ['trash', 'restore'] as const)
       route('POST', `${path}/:fileId/${action}`, 200, async (tx, account, request) => {

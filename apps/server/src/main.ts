@@ -7,7 +7,12 @@ import {
 import { buildApp } from './app.ts';
 import { scheduleCleanup } from './auth/cleanup.ts';
 import { createAuthModule } from './auth/routes.ts';
-import { ConfigError, loadAuthConfig, loadConfig, loadFilesConfig } from './config.ts';
+import {
+  configurationErrorMessage,
+  loadAuthConfig,
+  loadConfig,
+  loadFilesConfig,
+} from './config.ts';
 import { scheduleFileCleanup } from './files/cleanup.ts';
 import { readMasterKey } from './files/crypto.ts';
 import type { FileServices } from './files/service.ts';
@@ -30,11 +35,7 @@ try {
     ),
   };
 } catch (error) {
-  console.error(
-    error instanceof ConfigError
-      ? error.message
-      : 'File encryption master key is missing, unreadable or invalid',
-  );
+  console.error(configurationErrorMessage(error));
   process.exit(1);
 }
 

@@ -13,21 +13,25 @@ export interface FileServices {
   cipher: FileCipher;
 }
 const transactions = new WeakMap<Transaction, { services: FileServices; keys: string[] }>();
-/** Компенсация выполняется и при ошибке отложенного FK в COMMIT. */
+/** После успешного тела исход COMMIT может быть неизвестен: блоки проверяет фоновая сверка. */
 export function fileTransactions(db: AppDatabase, services: FileServices): AppDatabase {
   return {
     async withAccount(accountId, fn) {
       const keys: string[] = [];
+      let bodyFinished = false;
       try {
         return await db.withAccount(accountId, async (tx) => {
           transactions.set(tx, { services, keys });
           try {
-            return await fn(tx);
+            const result = await fn(tx);
+            bodyFinished = true;
+            return result;
           } finally {
             transactions.delete(tx);
           }
         });
       } catch (error) {
+        if (bodyFinished) throw error;
         const cleanup = await Promise.allSettled(keys.map((key) => services.storage.delete(key)));
         if (cleanup.some((result) => result.status === 'rejected'))
           throw new Error('File transaction failed; orphan cleanup required', { cause: error });
@@ -36,25 +40,47 @@ export function fileTransactions(db: AppDatabase, services: FileServices): AppDa
     },
   };
 }
-async function storeBlock(tx: Transaction, data: Buffer) {
+type FileInput = { data: Buffer; mimeType: string; preview?: Buffer; name: string };
+type SealedBlock = ReturnType<FileCipher['seal']> & { key: string };
+export interface PreparedUpload {
+  block: SealedBlock;
+  preview?: SealedBlock;
+  mimeType: string;
+  name: string;
+  sizeBytes: number;
+}
+/** Шифрование выполняется до транзакции, блоки пока остаются в памяти. */
+export function prepareUpload(services: FileServices, input: FileInput): PreparedUpload {
+  const seal = (data: Buffer): SealedBlock => {
+    const key = randomUUID();
+    return { key, ...services.cipher.seal(data, key) };
+  };
+  return {
+    block: seal(input.data),
+    ...(input.preview ? { preview: seal(input.preview) } : {}),
+    mimeType: input.mimeType,
+    name: input.name,
+    sizeBytes: input.data.length,
+  };
+}
+async function storeBlock(tx: Transaction, block: SealedBlock) {
   const context = transactions.get(tx);
   if (!context) throw new Error('File transaction is unavailable');
-  const key = randomUUID();
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`file-block:${key}`},0))`);
-  const encrypted = context.services.cipher.seal(data, key);
-  context.keys.push(key);
-  await context.services.storage.put(key, encrypted.block);
-  return { key, envelope: encrypted.envelope };
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`file-block:${block.key}`},0))`,
+  );
+  context.keys.push(block.key);
+  await context.services.storage.put(block.key, block.block);
 }
-export async function insertFile(
+export async function insertPreparedFile(
   tx: Transaction,
   account: Account,
   type: ParentType,
   parent: Row,
-  input: { data: Buffer; mimeType: string; preview?: Buffer; name: string },
+  input: PreparedUpload,
 ) {
-  const block = await storeBlock(tx, input.data);
-  const preview = input.preview ? await storeBlock(tx, input.preview) : undefined;
+  await storeBlock(tx, input.block);
+  if (input.preview) await storeBlock(tx, input.preview);
   const [row] = await tx
     .insert(fileTable(type))
     .values({
@@ -63,15 +89,26 @@ export async function insertFile(
       authorId: account.id,
       title: input.name,
       mimeType: input.mimeType,
-      sizeBytes: input.data.length,
-      storageKey: block.key,
-      envelope: block.envelope,
-      previewStorageKey: preview?.key ?? null,
-      previewEnvelope: preview?.envelope ?? null,
+      sizeBytes: input.sizeBytes,
+      storageKey: input.block.key,
+      envelope: input.block.envelope,
+      previewStorageKey: input.preview?.key ?? null,
+      previewEnvelope: input.preview?.envelope ?? null,
     })
     .returning();
   if (!row) throw new Error('File insert returned no row');
   return row;
+}
+export async function insertFile(
+  tx: Transaction,
+  account: Account,
+  type: ParentType,
+  parent: Row,
+  input: FileInput,
+) {
+  const context = transactions.get(tx);
+  if (!context) throw new Error('File transaction is unavailable');
+  return insertPreparedFile(tx, account, type, parent, prepareUpload(context.services, input));
 }
 export function fileSummary(row: FileRow) {
   return {

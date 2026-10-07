@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
+import { ConfigError } from '../config.ts';
 
 const Envelope = z.strictObject({
   version: z.number().int().positive(),
@@ -17,7 +18,7 @@ function encrypt(key: Buffer, data: Buffer, context: string) {
   return { data: dataOut, iv, tag: cipher.getAuthTag() };
 }
 function decrypt(key: Buffer, data: Buffer, iv: Buffer, tag: Buffer, context: string) {
-  const cipher = createDecipheriv('aes-256-gcm', key, iv);
+  const cipher = createDecipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
   cipher.setAAD(Buffer.from(context));
   cipher.setAuthTag(tag);
   return Buffer.concat([cipher.update(data), cipher.final()]);
@@ -76,6 +77,6 @@ export async function readMasterKey(path: string, version: number): Promise<File
     if (!/^[a-fA-F0-9]{64}$/.test(text)) throw new Error('format');
     return new FileCipher(Buffer.from(text, 'hex'), version);
   } catch {
-    throw new Error('File encryption master key is missing, unreadable or invalid');
+    throw new ConfigError('File encryption master key is missing, unreadable or invalid');
   }
 }

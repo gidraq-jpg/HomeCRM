@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { canViewSql } from '@homecrm/db';
+import { canViewSql, objectEvents, objectFields, objects, recordLinks } from '@homecrm/db';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { provisionAccount } from '../auth/provision.ts';
 import type { Device } from '../testing/device.ts';
@@ -574,4 +574,235 @@ it('взрослый автор восстанавливает чужие пол
     expect(rows.rows.find((row) => row.id === id).deleted_at).toBeNull();
   for (const id of [separate.id, deleted.id])
     expect(rows.rows.find((row) => row.id === id).deleted_at).not.toBeNull();
+});
+
+it('R0.5d: связи содержат названия и корзину; видимость и живые концы проверяются до LIMIT/OFFSET', async () => {
+  const parent = await create(adult, { placement: common() });
+  const notes: string[] = [];
+  const links: string[] = [];
+  for (let index = 0; index < 4; index++) {
+    const note = (
+      await admin.post('/api/notes', { title: `Связь ${index}`, placement: common() })
+    ).json<{ id: string }>();
+    notes.push(note.id);
+    const link = await adult.post('/api/links', {
+      left: { type: 'object', id: parent.id },
+      right: { type: 'note', id: note.id },
+    });
+    expect(link.status, link.text).toBe(201);
+    expect(link.json()).toMatchObject({
+      left: { title: parent.title, trashed: false, objectType: 'other' },
+      right: { title: `Связь ${index}`, trashed: false },
+    });
+    links.push(link.json<{ id: string }>().id);
+  }
+  await admin.post(`/api/notes/${notes[0]}/trash`, {});
+  await admin.post(`/api/notes/${notes[1]}/personal`, { confirmed: true });
+  const list = `/api/records/object/${parent.id}/links`;
+  expect((await adult.get(`${list}?limit=1`)).json()).toMatchObject([
+    { id: links[2], right: { id: notes[2], title: 'Связь 2', trashed: false } },
+  ]);
+  expect((await adult.get(`${list}?limit=1&offset=1`)).json()).toMatchObject([{ id: links[3] }]);
+  const conflict = await adult.post('/api/links', {
+    left: { type: 'object', id: parent.id },
+    right: { type: 'note', id: notes[0] },
+  });
+  expect(conflict.status, conflict.text).toBe(409);
+  await adult.post(`/api/links/${links[0]}/trash`, {});
+  const trash = await adult.get(`${list}?trash=true`);
+  expect(trash.json()).toMatchObject([
+    { id: links[0], right: { title: 'Связь 0', trashed: true } },
+  ]);
+  expect((await adult.get(list)).text).not.toContain(notes[1]);
+});
+it('R0.5d: время ручного события из ленты пригодно для optimistic PATCH', async () => {
+  const parent = await create();
+  const manual = await event(parent.id);
+  const feed = (await adult.get(`${url(parent.id)}/timeline`)).json<Page>();
+  const entry = feed.items.find((item) => item.id === manual.id);
+  expect(entry?.updatedAt).toBe(manual.updatedAt);
+  expect(entry?.updatedAt).toMatch(/Z$/);
+  const result = await adult.request('PATCH', `${url(parent.id)}/events/${manual.id}`, {
+    json: { text: 'Правка по версии ленты', expectedUpdatedAt: entry?.updatedAt },
+  });
+  expect(result.status, result.text).toBe(200);
+});
+it('R0.5d: отдельная корзина событий показывает только доступные для восстановления события', async () => {
+  const parent = await create(adult, { placement: common() });
+  const first = await event(parent.id, adult);
+  const other = await event(parent.id, second);
+  for (const item of [first, other])
+    expect((await adult.post(`${url(parent.id)}/events/${item.id}/trash`, {})).status).toBe(200);
+  const path = `${url(parent.id)}/events?trash=true`;
+  expect((await adult.get(path)).json()).toMatchObject([{ id: first.id }]);
+  expect((await second.get(path)).json()).toMatchObject([{ id: other.id }]);
+  expect((await child.get(path)).json()).toEqual([]);
+  expect((await admin.get(path)).json<unknown[]>()).toHaveLength(2);
+  expect((await adult.get(`${url(parent.id)}/timeline`)).text).not.toContain(first.id);
+  expect((await adult.post(`${url(parent.id)}/events/${first.id}/restore`, {})).status).toBe(200);
+  expect((await adult.get(path)).json()).toEqual([]);
+  expect((await adult.get(`/api/objects/${randomUUID()}/events?trash=true`)).status).toBe(404);
+});
+it('R0.5d: история поля из корзины скрывается до восстановления поля', async () => {
+  const parent = await create(adult, {
+    placement: common(),
+    fields: [{ name: 'Поле в ленте', value: 'Исходное' }],
+  });
+  const field = parent.fields[0];
+  expect(field).toBeDefined();
+  const path = `${url(parent.id)}/timeline`;
+  expect(
+    (await adult.get(path)).json<Page>().items.some((item) => item.fieldId === field?.id),
+  ).toBe(true);
+  await patch(adult, parent.id, { fields: [] });
+  expect(
+    (await adult.get(path)).json<Page>().items.some((item) => item.fieldId === field?.id),
+  ).toBe(false);
+  await patch(adult, parent.id, {
+    fields: [{ id: field?.id, name: 'Поле в ленте', value: 'Исходное' }],
+  });
+  expect(
+    (await adult.get(path)).json<Page>().items.some((item) => item.fieldId === field?.id),
+  ).toBe(true);
+});
+it('R0.5d: null возвращает ответственность автору; старое поле assigneeId совместимо с responsibleId', async () => {
+  const parent = await create(adult, { placement: common(), assigneeId: world.anna.id });
+  expect((await patch(adult, parent.id, { responsibleId: null })).json()).toMatchObject({
+    assigneeId: world.boris.id,
+  });
+  expect(
+    (await patch(adult, parent.id, { title: 'Ответственный по умолчанию' })).json(),
+  ).toMatchObject({
+    assigneeId: world.boris.id,
+  });
+  expect((await patch(adult, parent.id, { assigneeId: world.anna.id })).json()).toMatchObject({
+    assigneeId: world.anna.id,
+  });
+  expect((await patch(adult, parent.id, { assigneeId: null })).json()).toMatchObject({
+    assigneeId: world.boris.id,
+  });
+  expect(
+    (await patch(adult, parent.id, { assigneeId: null, responsibleId: world.anna.id })).status,
+  ).toBe(400);
+  const personal = await create();
+  expect((await patch(adult, personal.id, { responsibleId: null })).json()).toMatchObject({
+    assigneeId: world.boris.id,
+  });
+});
+it('R0.5d: сброс ответственного к автору сохраняет передачу администратору при уходе автора', async () => {
+  const separate = await createWorld();
+  try {
+    const author = separate.device();
+    await author.signIn(separate.boris.username, separate.boris.password);
+    const administrator = (await signedInAdmin(separate)).device;
+    const created = await author.post('/api/objects', {
+      title: 'Вымышленный объект перед уходом',
+      placement: { spaceId: separate.houseId, audience: 'household' },
+      assigneeId: separate.anna.id,
+    });
+    expect(created.status, created.text).toBe(201);
+    const id = created.json<Card>().id;
+    const reset = await patch(administrator, id, { responsibleId: null });
+    expect(reset.status, reset.text).toBe(200);
+    expect(reset.json<Card>().assigneeId).toBe(separate.boris.id);
+    expect(
+      (await separate.database.admin.query('SELECT assignee_id FROM objects WHERE id=$1', [id]))
+        .rows[0].assignee_id,
+    ).toBe(separate.boris.id);
+    const left = await author.post(`/api/households/${separate.houseId}/leave`, {});
+    expect(left.status, left.text).toBe(200);
+    expect((await administrator.get(url(id))).json<Card>()).toMatchObject({
+      authorId: separate.boris.id,
+      assigneeId: separate.anna.id,
+    });
+    expect((await author.get(url(id))).status).toBe(404);
+  } finally {
+    await separate.close();
+  }
+});
+it('R0.5d: экспорт проходит границу 100 объектов и связей пакетно, без запросов на карточку', async () => {
+  const parent = await create();
+  const inserted = await world.module.appDb.withAccount(world.boris.id, async (tx) => {
+    const rows = await tx
+      .insert(objects)
+      .values(
+        Array.from({ length: 105 }, (_, i) => ({
+          title: `Пакетный объект ${i}`,
+          spaceId: world.boris.personalSpaceId,
+          spaceKind: 'personal' as const,
+          authorId: world.boris.id,
+        })),
+      )
+      .returning();
+    await tx.insert(objectFields).values(
+      rows.map((row) => ({
+        title: 'Поле экспорта',
+        value: row.title,
+        parentId: row.id,
+        spaceId: row.spaceId,
+        spaceKind: row.spaceKind,
+        authorId: row.authorId,
+      })),
+    );
+    await tx.insert(objectEvents).values(
+      rows.map((row) => ({
+        title: 'Событие экспорта',
+        occurredOn: '2026-10-07',
+        parentId: row.id,
+        spaceId: row.spaceId,
+        spaceKind: row.spaceKind,
+        authorId: row.authorId,
+        originSpaceId: row.spaceId,
+        originSpaceKind: row.spaceKind,
+      })),
+    );
+    await tx.insert(recordLinks).values(
+      rows.map((row) => ({
+        leftTable: 'objects',
+        leftId: parent.id,
+        rightTable: 'objects',
+        rightId: row.id,
+        authorId: world.boris.id,
+      })),
+    );
+    return rows.map((row) => row.id);
+  });
+  const original = world.module.appDb.withAccount.bind(world.module.appDb);
+  let queries = 0;
+  world.module.appDb.withAccount = (id, fn) =>
+    original(id, (tx) =>
+      fn(
+        new Proxy(tx, {
+          get(target, key, receiver) {
+            const value = Reflect.get(target, key, receiver);
+            if (key === 'select' || key === 'execute')
+              return (...args: unknown[]) => {
+                queries++;
+                return value.apply(target, args);
+              };
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+        }),
+      ),
+    );
+  try {
+    const response = await adult.get('/api/objects/export');
+    expect(response.status, response.text).toBe(200);
+    const output = response.json<{
+      version: number;
+      objects: Array<Card & { events: Page['items'] }>;
+      links: Array<{ right: { id: string } }>;
+    }>();
+    expect(output.version).toBe(1);
+    for (const id of inserted) {
+      const row = output.objects.find((row) => row.id === id);
+      expect(row?.fields).toMatchObject([{ name: 'Поле экспорта' }]);
+      expect(row?.events).toMatchObject([{ source: 'manual', text: 'Событие экспорта' }]);
+      expect(output.links.some((link) => link.right.id === id)).toBe(true);
+    }
+    expect(new Set(output.objects.map((row) => row.id)).size).toBe(output.objects.length);
+    expect(queries).toBeLessThan(35);
+  } finally {
+    world.module.appDb.withAccount = original;
+  }
 });
