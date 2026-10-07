@@ -70,13 +70,20 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         [`${name}_history`]: 'record_history',
         ...(name === 'notes' ? { notes_placement: 'cascade_note_placement' } : {}),
         ...(name === 'note_items' ? { note_items_00_parent_lock: 'lock_note_parent' } : {}),
+        [`${name}_links_purge`]: 'purge_record_links',
+        ...(name === 'objects' ? { objects_placement: 'cascade_object_placement' } : {}),
+        ...(['object_fields', 'object_events'].includes(name)
+          ? { [`${name}_00_parent_lock`]: 'lock_object_parent' }
+          : {}),
+        ...(name === 'object_events' ? { object_events_01_snapshot: 'event_snapshot' } : {}),
+        ...(name === 'object_fields' ? { object_fields_01_limits: 'object_field_limits' } : {}),
         // Живая дочерняя запись при родителе в корзине невозможна.
         ...(definition.parent === null ? {} : { [`${name}_parent_live`]: 'guard_parent_live' }),
         // Родитель убирает дочерние записи в корзину вместе с собой.
         ...Object.fromEntries(
           RECORD_DEFINITIONS.filter((child) => child.parent === name).map((child) => [
             `${name}_cascade_${child.name}`,
-            'cascade_trash',
+            child.name === 'object_events' ? 'cascade_object_events' : 'cascade_trash',
           ]),
         ),
       });
@@ -100,6 +107,12 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           `${name}.${name}_purge:DELETE`,
           `${name}.${name}_reassign_select:SELECT`,
           `${name}.${name}_reassign:UPDATE`,
+          ...(name === 'object_events'
+            ? [
+                'object_events.object_events_contact_purge_select:SELECT',
+                'object_events.object_events_contact_purge:UPDATE',
+              ]
+            : []),
           `${name}_history.${name}_history_select:SELECT`,
           `${name}_history.${name}_history_insert:INSERT`,
           `${name}_history.${name}_history_worker_insert:INSERT`,
@@ -157,6 +170,7 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'record_links', // objects-matrix.test.ts: оба конца и право записи хотя бы в один.
       ...SPACES,
       ...IDENTITY,
       ...AUTH_ONLY,

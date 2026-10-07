@@ -7,6 +7,7 @@ import {
   memberProfiles,
   noteItems,
   notes,
+  objects,
   spaceMembers,
   spaces,
   sql,
@@ -286,10 +287,11 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
               };
       }
       if (body.object) {
+        const table = body.object.type === 'object' ? objects : tasks;
         const [object] = await tx
           .select()
-          .from(tasks)
-          .where(eq(tasks.id, body.object.id))
+          .from(table)
+          .where(eq(table.id, body.object.id))
           .for('update');
         if (!object || object.deletedAt !== null || !canView(account.viewer, placementOf(object)))
           throw new Failure(404, 'OBJECT_NOT_FOUND');

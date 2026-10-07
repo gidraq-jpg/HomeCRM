@@ -62,6 +62,25 @@ export function canView(viewer: Viewer, placement: Placement): boolean {
   return placement.audience === 'household' || ADULT_ROLES.has(role);
 }
 
+/** OBJ-2: связь не раскрывает ни один из концов, включая записи в корзине. */
+export function canViewLink(viewer: Viewer, left: RecordFacts, right: RecordFacts): boolean {
+  return canView(viewer, left.placement) && canView(viewer, right.placement);
+}
+
+/** Подписать, создать или убрать связь может читатель обоих концов с правом правки хотя бы одного. */
+export function canWriteLink(viewer: Viewer, left: RecordFacts, right: RecordFacts): boolean {
+  return canViewLink(viewer, left, right) && (canWrite(viewer, left) || canWrite(viewer, right));
+}
+
+/** OBJ-3, OBJ-6: событие требует доступа сейчас и к месту, зафиксированному при его создании. */
+export function canViewTimelineEvent(
+  viewer: Viewer,
+  record: RecordFacts,
+  original: Placement,
+): boolean {
+  return canView(viewer, record.placement) && canView(viewer, original);
+}
+
 /**
  * Может ли участник изменить запись. Перенос проверяет отдельно `canMove`.
  * В общем пространстве ребёнок пишет только покупки и дела, назначенные ему.

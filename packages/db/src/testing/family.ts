@@ -44,6 +44,9 @@ export const TYPE_LABELS: Readonly<Record<RecordType, string>> = {
   note_item: 'пункт заметки',
   shopping_item: 'покупка',
   task: 'дело',
+  object: 'объект',
+  object_field: 'своё поле',
+  object_event: 'событие объекта',
 };
 
 export interface Person {
@@ -83,7 +86,7 @@ export interface Family {
   /** Что может прислать приложение: допустимые значения, пусто и «чужой» для личного — его база заменит владельцем. */
   assigneeInputs(placement: Placement): ReadonlyArray<string | null>;
   /** Заметка-родитель для дочерних записей в этом месте. */
-  parentIdFor(placement: Placement): string;
+  parentIdFor(placement: Placement, type?: RecordType): string;
   describe(type: RecordType, facts: RecordFacts): string;
 }
 
@@ -169,6 +172,7 @@ export function buildFamily(): Family {
 
   const records: SeededRecord[] = [];
   const parents = new Map<Placement, string>();
+  const objectParents = new Map<Placement, string>();
   for (const type of RECORD_TYPES) {
     for (const placement of placements) {
       for (const authorId of authorCandidates(placement)) {
@@ -177,19 +181,23 @@ export function buildFamily(): Family {
             const facts: RecordFacts = { placement, type, authorId, assigneeId, trashed };
             const id = randomUUID();
             if (type === 'note' && !trashed && !parents.has(placement)) parents.set(placement, id);
+            if (type === 'object' && !trashed && !objectParents.has(placement))
+              objectParents.set(placement, id);
             records.push({ id, type, facts, trashed, label: describe(type, facts) });
           }
         }
       }
     }
   }
-  const parentIdFor = (placement: Placement): string => {
-    const found = parents.get(placement);
+  const parentIdFor = (placement: Placement, type: RecordType = 'note_item'): string => {
+    const found = (type === 'note_item' ? parents : objectParents).get(placement);
     if (found === undefined) throw new Error('No parent note in this place');
     return found;
   };
   for (const record of records) {
     if (record.type === 'note_item') record.parentId = parentIdFor(record.facts.placement);
+    if (record.type === 'object_field' || record.type === 'object_event')
+      record.parentId = parentIdFor(record.facts.placement, record.type);
   }
 
   return {

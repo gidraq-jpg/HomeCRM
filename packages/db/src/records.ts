@@ -114,7 +114,14 @@ type CommonColumns = Record<
 >;
 
 /** Ограничения, индексы и политики записи: одинаковые для всех таблиц, кроме правил вида записи. */
-function recordRules(name: string, type: RecordType, t: CommonColumns, hasParent: boolean) {
+function recordRules(
+  name: string,
+  type: RecordType,
+  t: CommonColumns,
+  hasParent: boolean,
+  visibleSql?: string,
+  updateVisibilitySql?: string,
+) {
   const policy = recordPolicySql(type);
   return [
     foreignKey({
@@ -144,13 +151,25 @@ function recordRules(name: string, type: RecordType, t: CommonColumns, hasParent
     // Очистка корзины ищет только записи в корзине.
     index(`${name}_trash_idx`).on(t.deletedAt).where(sql.raw('deleted_at IS NOT NULL')),
     ...(hasParent ? [index(`${name}_parent_id_idx`).on(sql.raw('parent_id'))] : []),
-    pgPolicy(`${name}_select`, { for: 'select', to: appRole, using: sql.raw(policy.select) }),
+    pgPolicy(`${name}_select`, {
+      for: 'select',
+      to: appRole,
+      using: sql.raw(visibleSql ? `(${policy.select}) AND (${visibleSql})` : policy.select),
+    }),
     pgPolicy(`${name}_insert`, { for: 'insert', to: appRole, withCheck: sql.raw(policy.insert) }),
     pgPolicy(`${name}_update`, {
       for: 'update',
       to: appRole,
-      using: sql.raw(policy.updateUsing),
-      withCheck: sql.raw(policy.updateCheck),
+      using: sql.raw(
+        updateVisibilitySql
+          ? `(${policy.updateUsing}) AND (${updateVisibilitySql})`
+          : policy.updateUsing,
+      ),
+      withCheck: sql.raw(
+        updateVisibilitySql
+          ? `(${policy.updateCheck}) AND (${updateVisibilitySql})`
+          : policy.updateCheck,
+      ),
     }),
     // Обработчик видит и удаляет только то, что пролежало в корзине дольше срока хранения.
     pgPolicy(`${name}_purge_select`, {
@@ -181,6 +200,12 @@ function recordRules(name: string, type: RecordType, t: CommonColumns, hasParent
 export interface RecordTableOptions {
   /** Родитель дочерней таблицы (PRD 7.3.3). В `extra` обязательна колонка `parentId: uuid('parent_id').notNull()`. */
   parent?: PgTable;
+  /** Дополнительная видимость дочерней записи: снимок аудитории события. */
+  visibleSql?: string;
+  /** Правка также требует чтения; закрытый каскад меняет только метаданные родителя. */
+  updateVisibilitySql?: string;
+  /** Дополнительные узкие политики служебной операции. */
+  extraPolicies?: ReturnType<typeof pgPolicy>[];
 }
 
 export interface RecordDefinition {
@@ -203,9 +228,17 @@ export function recordTable<
 >(name: TName, type: RecordType, extra: TExtra, options: RecordTableOptions = {}) {
   const parentName = options.parent === undefined ? null : getTableName(options.parent);
   RECORD_DEFINITIONS.push({ name, type, parent: parentName });
-  const table = pgTable(name, { ...recordColumns(), ...extra }, (t) =>
-    recordRules(name, type, t as unknown as CommonColumns, parentName !== null),
-  );
+  const table = pgTable(name, { ...recordColumns(), ...extra }, (t) => [
+    ...recordRules(
+      name,
+      type,
+      t as unknown as CommonColumns,
+      parentName !== null,
+      options.visibleSql,
+      options.updateVisibilitySql,
+    ),
+    ...(options.extraPolicies ?? []),
+  ]);
   const history = historyTable(name, table);
   return { table, history };
 }
