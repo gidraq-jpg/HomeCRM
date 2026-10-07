@@ -14,6 +14,7 @@ import './styles/notes.css';
 import './styles/objects.css';
 import './styles/files.css';
 import './styles/deadlines.css';
+import './styles/notifications.css';
 import { registerShell } from './pwa/register.ts';
 
 const root = document.getElementById('root');

@@ -35,12 +35,47 @@ const subscribe = (listener: () => void) => {
 };
 
 /**
+ * Установка приложения: стоит ли оно уже и как его поставить. `install` показывает окно установки браузера
+ * и возвращает `help` там, где браузер окна не даёт: тогда нужна подсказка про меню браузера.
+ */
+export function useInstall() {
+  const prompt = useSyncExternalStore(
+    subscribe,
+    () => offered,
+    () => null,
+  );
+  const isInstalled = useSyncExternalStore(
+    subscribe,
+    () => installed,
+    () => false,
+  );
+  async function install(): Promise<'done' | 'help'> {
+    if (!prompt) return 'help';
+    try {
+      await prompt.prompt();
+      await prompt.userChoice;
+    } catch {
+      return 'help';
+    } finally {
+      // Событие одноразовое: после показа окна установки второго раза не будет.
+      offered = null;
+      notify();
+    }
+    return 'done';
+  }
+  return { installed: isInstalled, install };
+}
+
+export const INSTALL_HELP =
+  'В меню браузера выберите «Установить приложение». На iPhone: Safari → «Поделиться» → «На экран Домой».';
+
+/**
  * «Установить на телефон». Показывается только там, где человек сам ищет установку: на экранах
- * входа (по умолчанию) и в настройках (`inline`). Под нижним меню и на «Сегодня» его нет.
+ * входа (по умолчанию) и в настройках (`inline`). Под нижним меню его нет; на «Сегодня» установку
+ * предлагает отдельная карточка уведомлений (`PushCard`) и только пока они не включены.
  */
 export function InstallApp({ inline = false }: { inline?: boolean }) {
-  const prompt = useSyncExternalStore(subscribe, () => offered);
-  const isInstalled = useSyncExternalStore(subscribe, () => installed);
+  const { installed: isInstalled, install } = useInstall();
   const [help, setHelp] = useState(false);
   if (isInstalled) return null;
   const content = (
@@ -49,29 +84,12 @@ export function InstallApp({ inline = false }: { inline?: boolean }) {
         type="button"
         className="text-button"
         onClick={async () => {
-          if (!prompt) {
-            setHelp(!help);
-            return;
-          }
-          try {
-            await prompt.prompt();
-            await prompt.userChoice;
-          } catch {
-            setHelp(true);
-          }
-          // Событие одноразовое: после показа окна установки второго раза не будет.
-          offered = null;
-          notify();
+          if ((await install()) === 'help') setHelp(!help);
         }}
       >
         Установить на телефон
       </button>
-      {help && (
-        <p role="status">
-          В меню браузера выберите «Установить приложение». На iPhone: Safari → «Поделиться» → «На
-          экран Домой».
-        </p>
-      )}
+      {help && <p role="status">{INSTALL_HELP}</p>}
     </>
   );
   if (inline) return <Section title="Приложение на телефоне">{content}</Section>;

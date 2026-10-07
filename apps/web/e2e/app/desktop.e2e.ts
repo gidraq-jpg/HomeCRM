@@ -20,6 +20,14 @@ import {
   PNG_MIME,
 } from './files-support.ts';
 import { apiAs, noteLinks, objectLinks, seedNote, seedObject } from './notes-support.ts';
+import {
+  devicesList,
+  installFakePush,
+  openNotifications,
+  seedAttempt,
+  seedDevice,
+  thisDevice,
+} from './notifications-support.ts';
 import { checkApp, expect, seedProfiles, signInAs } from './support.ts';
 
 // Компьютер (PRD, раздел 14): боковое меню со всеми разделами; переключатель пространств и
@@ -268,4 +276,44 @@ test('сроки и радар на компьютере: блок в карто
   await page.goto('#/more/house');
   await expect(page.getByRole('heading', { level: 1, name: 'Настройки дома' })).toBeVisible();
   await checkApp(page, info, 'desktop-house');
+});
+
+test('уведомления на компьютере: карточка, экран, список устройств и журнал', async ({
+  page,
+  family,
+}, info) => {
+  const phone = await seedDevice(await apiAs(family, 'adult'), 'Телефон Бориса', 'desktop-phone');
+  await seedAttempt(family, family.person('adult').id, phone, { result: 'sent', minutesAgo: 45 });
+  await seedAttempt(family, family.person('adult').id, phone, {
+    result: 'retry',
+    errorCode: 503,
+    minutesAgo: 120,
+  });
+  await installFakePush(page, { answer: 'granted' });
+  await signInAs(page, family, 'adult');
+
+  const card = page.getByRole('region', { name: 'Уведомления о сроках' });
+  await expect(card).toBeVisible();
+  await checkApp(page, info, 'desktop-notifications-card');
+  await card.getByRole('button', { name: 'Включить уведомления' }).click();
+  await expect(card).toHaveCount(0);
+
+  await page
+    .getByRole('navigation', { name: 'Основные разделы' })
+    .getByRole('link', { name: 'Ещё' })
+    .click();
+  await page.getByRole('link', { name: /^Уведомления/ }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Уведомления', exact: true }),
+  ).toBeVisible();
+  await expect(thisDevice(page)).toContainText('Включено');
+  await expect(devicesList(page).getByRole('listitem')).toHaveCount(2);
+  await checkApp(page, info, 'desktop-notifications');
+  await openNotifications(page);
+  await page.getByRole('link', { name: /^Журнал доставки/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Журнал доставки' })).toBeVisible();
+  await expect(
+    page.getByRole('list', { name: 'Попытки отправки' }).getByRole('listitem'),
+  ).toHaveCount(2);
+  await checkApp(page, info, 'desktop-notifications-log');
 });

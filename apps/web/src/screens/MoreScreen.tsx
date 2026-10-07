@@ -1,4 +1,5 @@
 import {
+  BellRinging,
   CalendarCheck,
   Export,
   GearSix,
@@ -27,6 +28,12 @@ export function MoreScreen() {
           icon={<CalendarCheck size={22} aria-hidden />}
           title="Радар"
           meta="Сроки: просрочено, сейчас, 7, 30 и 90 дней"
+        />
+        <Row
+          to="/more/notifications"
+          icon={<BellRinging size={22} aria-hidden />}
+          title="Уведомления"
+          meta="Push на телефон, тихие часы, журнал доставки"
         />
         <Row
           to="/more/trash"
