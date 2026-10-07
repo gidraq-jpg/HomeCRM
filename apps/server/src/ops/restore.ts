@@ -2,7 +2,7 @@
 // Только в пустую базу: поверх живых данных восстановление не идёт. Проверка делается в отдельном
 // compose-проекте `homecrm-restore-check`, который скрипт поднимает и удаляет сам.
 import { cp, mkdir, readdir, readFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { countFiles, DUMP_FILE, MANIFEST_FILE, type Manifest } from './backup.ts';
 import { bootstrapDatabase, connectAdmin, countRows, type RowCounts } from './database.ts';
 import { type OpsEnv, pgEnv } from './env.ts';
@@ -117,7 +117,8 @@ export async function runRestore(options: RestoreOptions): Promise<RestoreReport
     const mismatches = compareCounts(manifest.tables, counts);
 
     // Файлы лежат в снимке по пути папки файлов; в проверке их достаточно пересчитать.
-    const filesRoot = join(work, env.FILES_DIR);
+    const filesRoot =
+      manifest.version === 2 ? join(dirname(manifestFile), 'files') : join(work, env.FILES_DIR);
     const restoredFiles = await countFiles(filesRoot);
     if (restoredFiles !== manifest.files) {
       mismatches.push(`files: expected ${manifest.files}, restored ${restoredFiles}`);

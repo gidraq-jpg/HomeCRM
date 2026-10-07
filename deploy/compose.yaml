@@ -75,6 +75,12 @@ services:
         condition: service_completed_successfully
     env_file:
       - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/server.env
+    environment:
+      FILE_MASTER_KEY_FILE: /run/secrets/file-master-key
+      FILE_MASTER_KEY_VERSION: 1
+      FILES_DIR: /data/files
+    secrets:
+      - file-master-key
     ports:
       # Наружу ничего не публикуется: только 127.0.0.1 этого компьютера. Туннель ходит по сети compose.
       - "127.0.0.1:${HOMECRM_APP_PORT:-8300}:8300"
@@ -203,6 +209,9 @@ services:
     command: tunnel --no-autoupdate --url http://${TUNNEL_TARGET:-app:8300}
 
 secrets:
+  # Главный ключ файлов: собственный для production/preview, только чтение приложением.
+  file-master-key:
+    file: ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/file-master-key-1
   # Пароль хранилищ restic. Без него копии бесполезны: храните его вне компьютера (runbook, раздел 8).
   restic-password:
     file: ${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/restic-password

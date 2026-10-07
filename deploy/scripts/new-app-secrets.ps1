@@ -79,6 +79,9 @@ BETTER_AUTH_SECRET=$authSecret
 BASE_URL=$BaseUrl
 HOME_TIME_ZONE=$TimeZone
 TRUST_PROXY=$trustProxy
+FILE_MASTER_KEY_FILE=/run/secrets/file-master-key
+FILE_MASTER_KEY_VERSION=1
+FILES_DIR=/data/files
 
 "@
 $backupEnv = @"
@@ -96,6 +99,8 @@ if ((Test-Path $dbFile) -ne (Test-Path $serverFile)) {
 }
 [void](Save-NewFile $dbFile $dbEnv)
 [void](Save-NewFile $serverFile $serverEnv)
+# Собственный ключ окружения: существующий никогда не заменяется.
+[void](Save-NewFile (Join-Path $dir 'file-master-key-1') (New-Secret -Bytes 32))
 
 if ($Environment -eq 'production') {
   [void](Save-NewFile (Join-Path $DataDir 'secrets\restic-password') (New-Secret -Bytes 32))
@@ -104,4 +109,4 @@ if ($Environment -eq 'production') {
 New-Item -ItemType Directory -Force (Join-Path $DataDir 'secrets\rclone'), (Join-Path $DataDir 'backups\restic'), (Join-Path $DataDir 'backups\status') | Out-Null
 
 Write-Host ''
-Write-Host 'Готово. Сохраните вне компьютера пароль restic и BETTER_AUTH_SECRET (docs/runbook.md, раздел 8).'
+Write-Host 'Готово. Сохраните вне компьютера пароль restic, BETTER_AUTH_SECRET и file-master-key-1 (docs/runbook.md, раздел 8).'

@@ -71,6 +71,12 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         ...(name === 'notes' ? { notes_placement: 'cascade_note_placement' } : {}),
         ...(name === 'note_items' ? { note_items_00_parent_lock: 'lock_note_parent' } : {}),
         [`${name}_links_purge`]: 'purge_record_links',
+        ...(['notes', 'objects'].includes(name)
+          ? { [`${name}_files_placement`]: 'cascade_file_placement' }
+          : {}),
+        ...(['note_files', 'object_files'].includes(name)
+          ? { [`${name}_00_lifecycle`]: 'file_lifecycle' }
+          : {}),
         ...(name === 'objects' ? { objects_placement: 'cascade_object_placement' } : {}),
         ...(['object_fields', 'object_events'].includes(name)
           ? { [`${name}_00_parent_lock`]: 'lock_object_parent' }
@@ -170,6 +176,7 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'file_blobs', // files.test.ts: реестр ключей, без пользовательских метаданных.
       'record_links', // objects-matrix.test.ts: оба конца и право записи хотя бы в один.
       ...SPACES,
       ...IDENTITY,

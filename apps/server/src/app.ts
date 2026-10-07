@@ -2,6 +2,8 @@ import type { Database } from '@homecrm/db';
 import { type FastifyInstance, fastify } from 'fastify';
 import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
+import { filesRoutes } from './files/routes.ts';
+import { type FileServices, fileTransactions } from './files/service.ts';
 import { householdRoutes } from './household/routes.ts';
 import { serializeRequest } from './logging.ts';
 import { notesRoutes } from './notes/routes.ts';
@@ -9,6 +11,7 @@ import { objectsRoutes } from './objects/routes.ts';
 import { createStaticHandler } from './static.ts';
 
 export interface AppDependencies {
+  files?: FileServices;
   /** Вход и учётные записи (ADR-0005). Пока подключается только в тестах: в main.ts — вместе с базой в R0.1. */
   auth?: AuthModule;
   /** Обработчик передачи ответственности после ухода участника. */
@@ -88,9 +91,16 @@ export function buildApp(
     }
   });
 
-  const { auth } = dependencies;
+  const auth =
+    dependencies.auth && dependencies.files
+      ? {
+          ...dependencies.auth,
+          appDb: fileTransactions(dependencies.auth.appDb, dependencies.files),
+        }
+      : dependencies.auth;
   if (auth !== undefined) {
     void app.register(authRoutes, auth);
+    if (dependencies.files) void app.register(filesRoutes, { ...auth, files: dependencies.files });
     void app.register(notesRoutes, auth);
     void app.register(objectsRoutes, auth);
     void app.register(householdRoutes, {

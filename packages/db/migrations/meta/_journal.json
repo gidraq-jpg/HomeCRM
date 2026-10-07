@@ -120,6 +120,20 @@
       "when": 1791302192004,
       "tag": "0016_objects_review_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791337051438,
+      "tag": "0017_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791337091039,
+      "tag": "0018_files_rules",
+      "breakpoints": true
     }
   ]
 }

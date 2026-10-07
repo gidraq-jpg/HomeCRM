@@ -47,6 +47,8 @@ export const TYPE_LABELS: Readonly<Record<RecordType, string>> = {
   object: 'объект',
   object_field: 'своё поле',
   object_event: 'событие объекта',
+  note_file: 'файл заметки',
+  object_file: 'файл объекта',
 };
 
 export interface Person {
@@ -190,13 +192,20 @@ export function buildFamily(): Family {
     }
   }
   const parentIdFor = (placement: Placement, type: RecordType = 'note_item'): string => {
-    const found = (type === 'note_item' ? parents : objectParents).get(placement);
+    const found = (['note_item', 'note_file'].includes(type) ? parents : objectParents).get(
+      placement,
+    );
     if (found === undefined) throw new Error('No parent note in this place');
     return found;
   };
   for (const record of records) {
-    if (record.type === 'note_item') record.parentId = parentIdFor(record.facts.placement);
-    if (record.type === 'object_field' || record.type === 'object_event')
+    if (record.type === 'note_item' || record.type === 'note_file')
+      record.parentId = parentIdFor(record.facts.placement);
+    if (
+      record.type === 'object_field' ||
+      record.type === 'object_event' ||
+      record.type === 'object_file'
+    )
       record.parentId = parentIdFor(record.facts.placement, record.type);
   }
 
@@ -287,6 +296,7 @@ export async function seedFamily(admin: pg.Pool, family: Family): Promise<void> 
       const rows = family.records
         .filter((record) => record.type === type)
         .map((record) => ({
+          ...fileFixture(type),
           id: record.id,
           ...placementColumns(record.facts.placement),
           authorId: record.facts.authorId,
@@ -298,4 +308,11 @@ export async function seedFamily(admin: pg.Pool, family: Family): Promise<void> 
       await tx.insert(RECORD_TABLES[type]).values(rows as never);
     }
   });
+}
+
+/** Вымышленные метаданные блоков для общей матрицы; файлов на диске нет. */
+export function fileFixture(type: RecordType) {
+  return type === 'note_file' || type === 'object_file'
+    ? { mimeType: 'application/pdf', sizeBytes: 8, storageKey: randomUUID(), envelope: {} }
+    : {};
 }

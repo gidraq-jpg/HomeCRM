@@ -1,5 +1,5 @@
 // Резервная копия (DATA-3, DATA-4, ADR-0021): дамп базы и файлы — в каждое настроенное хранилище.
-import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { connectAdmin, countRows, type RowCounts } from './database.ts';
 import { type OpsEnv, pgEnv } from './env.ts';
@@ -27,7 +27,7 @@ export const MANIFEST_FILE = 'manifest.json';
 
 /** Что лежит в снимке рядом с дампом: по этим числам проверка восстановления сверяет базу. */
 export interface Manifest {
-  version: 1;
+  version: 1 | 2;
   createdAt: string;
   kind: BackupKind;
   appVersion: string;
@@ -50,8 +50,9 @@ export async function countFiles(dir: string): Promise<number> {
     for (const entry of await readdir(dir, { withFileTypes: true, recursive: true })) {
       if (entry.isFile()) total++;
     }
-  } catch {
-    return 0;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 0;
+    throw new OpsError('File backup directory is unreadable');
   }
   return total;
 }
@@ -60,8 +61,27 @@ async function directoryExists(dir: string): Promise<boolean> {
   try {
     await readdir(dir);
     return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw new OpsError('File backup directory is unreadable');
+  }
+}
+
+/** Блоки снимка копируются до освобождения общей блокировки с GC. */
+export async function stageFileBlocks(
+  source: string,
+  target: string,
+  requiredKeys: readonly string[],
+) {
+  await mkdir(target, { recursive: true });
+  try {
+    if (await directoryExists(source)) await cp(source, target, { recursive: true });
+    for (const key of requiredKeys) {
+      if (!/^[0-9a-f-]{36}$/i.test(key) || !(await stat(join(target, key))).isFile())
+        throw new Error('missing');
+    }
   } catch {
-    return false;
+    throw new OpsError('File backup staging failed: a required block is missing or unreadable');
   }
 }
 
@@ -82,6 +102,9 @@ export async function dumpDatabase(
   let tables: RowCounts;
   try {
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    await client.query(
+      "SELECT pg_advisory_xact_lock_shared(hashtextextended('file-block-cleanup',0))",
+    );
     const snapshot = (await client.query<{ id: string }>('select pg_export_snapshot() as id'))
       .rows[0]?.id;
     if (snapshot === undefined) throw new OpsError('database did not export a snapshot');
@@ -99,6 +122,15 @@ export async function dumpDatabase(
       { env: pgEnv(env, env.DB_NAME) },
     );
     if (dump.code !== 0) throw commandFailure('pg_dump', 'dump', dump.code);
+    const hasRegistry = (
+      await client.query("SELECT to_regclass('public.file_blobs') IS NOT NULL AS present")
+    ).rows[0].present;
+    const keys = hasRegistry
+      ? (await client.query<{ key: string }>('SELECT key FROM file_blobs')).rows.map(
+          (row) => row.key,
+        )
+      : [];
+    await stageFileBlocks(env.FILES_DIR, join(stage, 'files'), keys);
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
@@ -112,13 +144,13 @@ export async function dumpDatabase(
     throw commandFailure('pg_restore', 'dump check', listing.code);
   }
   const manifest: Manifest = {
-    version: 1,
+    version: 2,
     createdAt: new Date().toISOString(),
     kind,
     appVersion: env.APP_VERSION,
     database: env.DB_NAME,
     tables,
-    files: await countFiles(env.FILES_DIR),
+    files: await countFiles(join(stage, 'files')),
   };
   await writeFile(join(stage, MANIFEST_FILE), `${JSON.stringify(manifest, null, 2)}\n`);
   return manifest;
@@ -129,12 +161,11 @@ async function backupToRepo(
   repo: Repo,
   kind: BackupKind,
   stage: string,
-  withFiles: boolean,
   log: Log,
 ): Promise<string> {
   const restic = await resticFor(env, repo);
   if (await ensureRepo(restic)) log.info('repository created', { repository: repo.name });
-  const paths = withFiles ? [stage, env.FILES_DIR] : [stage];
+  const paths = [stage];
   const { stdout } = await restic([
     'backup',
     '--json',
@@ -175,10 +206,9 @@ export async function runBackup(opts: {
   try {
     const manifest = await dumpDatabase(env, kind, stage, log);
     log.info('dump ready', { tables: Object.keys(manifest.tables).length, files: manifest.files });
-    const withFiles = await directoryExists(env.FILES_DIR);
     for (const repo of repos) {
       try {
-        const snapshot = await backupToRepo(env, repo, kind, stage, withFiles, log);
+        const snapshot = await backupToRepo(env, repo, kind, stage, log);
         results[repo.name] = { ok: true, at: new Date().toISOString(), snapshot };
         log.info('backup saved', { repository: repo.name, snapshot });
       } catch (error) {

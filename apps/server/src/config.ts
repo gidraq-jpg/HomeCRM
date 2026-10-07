@@ -119,3 +119,17 @@ export function loadAuthConfig(env: NodeJS.ProcessEnv = process.env): AuthConfig
   );
   throw new ConfigError(`Invalid sign-in configuration: ${problems.join('; ')}`);
 }
+
+const FilesEnvSchema = z.object({
+  FILES_DIR: z.string().min(1).default('/data/files'),
+  FILE_MASTER_KEY_FILE: z.string().min(1),
+  FILE_MASTER_KEY_VERSION: z.coerce.number().int().positive().default(1),
+});
+export function loadFilesConfig(env: NodeJS.ProcessEnv = process.env) {
+  const parsed = FilesEnvSchema.safeParse(env);
+  if (!parsed.success)
+    throw new ConfigError(
+      'Invalid file encryption configuration: FILE_MASTER_KEY_FILE, FILE_MASTER_KEY_VERSION or FILES_DIR',
+    );
+  return parsed.data;
+}

@@ -26,6 +26,7 @@ import * as z from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
 import { loadViewer, pgError } from '../auth/provision.ts';
 import type { AuthModule } from '../auth/routes.ts';
+import { ownProfileFile, visibleProfileFile } from '../files/export.ts';
 
 class Failure extends Error {
   status: number;
@@ -91,13 +92,16 @@ export async function householdRoutes(
       .leftJoin(memberProfiles, eq(memberProfiles.accountId, spaceMembers.accountId))
       .where(eq(spaceMembers.spaceId, householdId))
       .orderBy(spaceMembers.createdAt, spaceMembers.accountId);
-    return rows
-      .filter((row) => canViewMembership(account.viewer, row.accountId, householdId))
-      .map((row) => ({
-        ...row,
-        formerMember: row.leftAt !== null,
-        ...(row.leftAt !== null ? { photoFileId: null, birthDate: null, phone: null } : {}),
-      }));
+    return Promise.all(
+      rows
+        .filter((row) => canViewMembership(account.viewer, row.accountId, householdId))
+        .map(async (row) => ({
+          ...row,
+          photoFileId: await visibleProfileFile(tx, account, row.photoFileId),
+          formerMember: row.leftAt !== null,
+          ...(row.leftAt !== null ? { photoFileId: null, birthDate: null, phone: null } : {}),
+        })),
+    );
   }
   app.get('/api/me/profile', async (request, reply) => {
     const account = await currentAccount(request, reply);
@@ -107,7 +111,9 @@ export async function householdRoutes(
         .select()
         .from(memberProfiles)
         .where(eq(memberProfiles.accountId, account.id));
-      return profile;
+      return profile
+        ? { ...profile, photoFileId: await visibleProfileFile(tx, account, profile.photoFileId) }
+        : profile;
     });
   });
   app.patch('/api/me/profile', async (request, reply) => {
@@ -115,6 +121,8 @@ export async function householdRoutes(
     if (!account) return reply;
     const body = parse(Profile, request.body);
     return options.appDb.withAccount(account.id, async (tx) => {
+      if (body.photoFileId && !(await ownProfileFile(tx, account, body.photoFileId)))
+        throw new Failure(403, 'ACCESS_DENIED');
       const [profile] = await tx
         .update(memberProfiles)
         .set(body)

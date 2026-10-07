@@ -27,6 +27,7 @@ import type { FastifyInstance } from 'fastify';
 import type { z } from 'zod';
 import type { Account } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
+import { copyFiles, fileSummary, filesOf } from '../files/service.ts';
 import { exportLinks, registerLinks } from './links.ts';
 import {
   AudienceChange,
@@ -109,6 +110,9 @@ async function fieldsOf(tx: Transaction, account: Account, id: string) {
 async function card(tx: Transaction, account: Account, record: ObjectRow, includeDeleted = false) {
   return {
     ...summary(record),
+    files: (await filesOf(tx, 'object', record.id))
+      .filter((file) => includeDeleted || record.deletedAt !== null || file.deletedAt === null)
+      .map(fileSummary),
     fields: (await fieldsOf(tx, account, record.id))
       .filter((field) => includeDeleted || record.deletedAt !== null || field.deletedAt === null)
       .map(({ id, title, value, position, deletedAt }) => ({
@@ -355,6 +359,7 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
               .map(({ title, value }) => ({ name: title, value })),
           );
           await copyEvents(tx, account, record, copy);
+          await copyFiles(tx, account, 'object', record, copy);
           return card(tx, account, copy);
         }
         let fields: Partial<typeof objects.$inferInsert>;

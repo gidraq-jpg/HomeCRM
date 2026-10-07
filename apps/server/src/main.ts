@@ -7,17 +7,34 @@ import {
 import { buildApp } from './app.ts';
 import { scheduleCleanup } from './auth/cleanup.ts';
 import { createAuthModule } from './auth/routes.ts';
-import { ConfigError, loadAuthConfig, loadConfig } from './config.ts';
+import { ConfigError, loadAuthConfig, loadConfig, loadFilesConfig } from './config.ts';
+import { scheduleFileCleanup } from './files/cleanup.ts';
+import { readMasterKey } from './files/crypto.ts';
+import type { FileServices } from './files/service.ts';
+import { DirectoryStorage } from './files/storage.ts';
 
 // Строки подключения и секрет входа — из файла окружения (--env-file). В журнал они не попадают:
 // ошибка настройки называет только переменные.
 let config: ReturnType<typeof loadConfig>;
+let files: FileServices;
 let authConfig: ReturnType<typeof loadAuthConfig>;
 try {
   config = loadConfig();
   authConfig = loadAuthConfig();
+  const filesConfig = loadFilesConfig();
+  files = {
+    storage: new DirectoryStorage(filesConfig.FILES_DIR),
+    cipher: await readMasterKey(
+      filesConfig.FILE_MASTER_KEY_FILE,
+      filesConfig.FILE_MASTER_KEY_VERSION,
+    ),
+  };
 } catch (error) {
-  console.error(error instanceof ConfigError ? error.message : 'Invalid configuration');
+  console.error(
+    error instanceof ConfigError
+      ? error.message
+      : 'File encryption master key is missing, unreadable or invalid',
+  );
   process.exit(1);
 }
 
@@ -41,6 +58,7 @@ const worker = createWorkerDatabase(workerPool);
 const app = buildApp(config, {
   auth,
   worker,
+  files,
   checkDatabase: async () => {
     await workerPool.query('select 1');
   },
@@ -49,12 +67,14 @@ const app = buildApp(config, {
 // Сообщения о сбое соединения не содержат строки подключения: pg пишет только причину.
 poolErrors.push((error) => app.log.error({ message: error.message }, 'database pool error'));
 
+const stopFiles = scheduleFileCleanup(worker, files.storage, app.log);
 const stopCleanup = scheduleCleanup(worker, app.log);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
     app.log.info({ signal }, 'shutting down');
     stopCleanup();
+    stopFiles();
     app
       .close()
       .then(() => Promise.all([appPool.end(), authPool.end(), workerPool.end()]))

@@ -1,4 +1,5 @@
 // Заметки читаются и меняются только под homecrm_app, в транзакции участника и под RLS.
+
 import {
   and,
   desc,
@@ -32,6 +33,7 @@ import type { z } from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
 import { pgError } from '../auth/provision.ts';
 import type { AuthModule } from '../auth/routes.ts';
+import { copyFiles, fileSummary, filesOf } from '../files/service.ts';
 import {
   AudienceChange,
   Confirm,
@@ -119,6 +121,9 @@ async function itemsOf(tx: Transaction, id: string): Promise<Item[]> {
 async function card(tx: Transaction, record: Note, includeDeleted = false) {
   return {
     ...summary(record),
+    files: (await filesOf(tx, 'note', record.id))
+      .filter((file) => includeDeleted || record.deletedAt !== null || file.deletedAt === null)
+      .map(fileSummary),
     body: record.body,
     checklist: (await itemsOf(tx, record.id))
       .filter((item) => includeDeleted || record.deletedAt !== null || item.deletedAt === null)
@@ -451,6 +456,7 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
             copy,
             items.map(({ title, done }) => ({ title, done })),
           );
+          await copyFiles(tx, account, 'note', record, copy);
           return card(tx, copy);
         }
         let fields: Partial<typeof notes.$inferInsert>;
