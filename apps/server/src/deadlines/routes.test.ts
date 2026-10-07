@@ -114,7 +114,10 @@ it('правка правила инвалидирует старые даты �
   const hidden = await world.module.appDb.withAccount(world.boris.id, (tx) =>
     tx.execute(sql`SELECT id FROM deadline_occurrences WHERE deadline_id=${item.id}`),
   );
-  expect(hidden.rowCount).toBe(0);
+  expect(hidden.rowCount).toBe(1);
+  expect(
+    (await adult.get('/api/deadlines?from=2026-10-01&to=2026-12-31')).json().recalculating,
+  ).toBe(true);
   await refreshDeadlines(db, now);
   expect(
     (
@@ -280,7 +283,7 @@ it('выполненность наступления не считается ч
   for (const source of ['notes', 'objects'] as const) {
     const item = await create(source, true);
     await refreshDeadlines(createWorkerDatabase(world.database.worker), now);
-    await world.database.worker.query(
+    await world.database.admin.query(
       'UPDATE deadline_occurrences SET completed_at=now() WHERE deadline_id=$1',
       [item.id],
     );
@@ -322,12 +325,12 @@ it('возврат ответственности восстанавливает
   await assign(world.boris.id);
   expect(await states()).toContainEqual({ recipient_id: world.boris.id, status: 'pending' });
   await world.database.worker.query(
-    "UPDATE deadline_notifications n SET status='sent' FROM deadline_occurrences o WHERE n.occurrence_id=o.id AND o.deadline_id=$1 AND n.recipient_id=$2",
+    "UPDATE deadline_notifications n SET status='sent' FROM deadline_occurrences o WHERE n.occurrence_id=o.id AND o.deadline_id=$1 AND n.recipient_id=$2 AND n.status='pending'",
     [item.id, world.boris.id],
   );
   await run();
   expect(await states()).toContainEqual({ recipient_id: world.boris.id, status: 'sent' });
-  expect(await states()).toHaveLength(2);
+  expect(await states()).toHaveLength(3);
 });
 it('давние просроченные повторы сохраняют UUID и пересчитываются после смены пояса дома', async () => {
   const item = await create(),

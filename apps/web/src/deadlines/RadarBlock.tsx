@@ -40,7 +40,9 @@ export function RadarBlock() {
         Number(b.group === 'overdue') - Number(a.group === 'overdue') || a.startsAt - b.startsAt,
     );
     body =
-      urgent.length === 0 ? (
+      urgent.length === 0 && radar.recalculating ? (
+        <Notice>Идёт пересчёт</Notice>
+      ) : urgent.length === 0 ? (
         <p className="muted">
           Срочного нет: просроченных сроков и открытых окон за вами сейчас нет.
         </p>
@@ -63,6 +65,9 @@ export function RadarBlock() {
         </Link>
       }
     >
+      {radar.error && radar.rows.length > 0 ? (
+        <Notice error>Не удалось обновить срочное. Показаны последние загруженные сроки.</Notice>
+      ) : null}
       {body}
     </Section>
   );

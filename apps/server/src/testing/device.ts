@@ -71,7 +71,7 @@ export class Device {
   }
 
   async request(
-    method: 'GET' | 'POST' | 'PATCH',
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     url: string,
     options: RequestOptions = {},
   ): Promise<Reply> {

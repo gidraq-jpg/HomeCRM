@@ -64,5 +64,9 @@ export function useMakePersonalProbe(id: string, version: string, enabled: boole
 /** Что перечитать после изменения заметки: списки, карточки и корзину. */
 export function useRefreshNotes() {
   const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: [NOTES] });
+  return () =>
+    Promise.all([
+      client.invalidateQueries({ queryKey: [NOTES] }),
+      client.invalidateQueries({ queryKey: ['deadlines'] }),
+    ]);
 }

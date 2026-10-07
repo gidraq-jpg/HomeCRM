@@ -8,12 +8,15 @@ import {
   index,
   jsonb,
   pgPolicy,
+  pgRole,
   pgTable,
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { canViewSql } from './access-sql.ts';
 import {
   accounts,
   appRole,
@@ -25,9 +28,13 @@ import {
   workerRole,
 } from './core.ts';
 
-export const deadlineVisibleSql = `app.deadline_source_allowed(note_id, object_id, false)`;
+// Явная проверка пространства плюс чтение источника под его RLS. Подзапросы могут
+// строиться один раз для списка; построчная PL/pgSQL-проверка здесь не нужна.
+export const deadlineVisibleSql = `(${canViewSql()}) AND (EXISTS (SELECT 1 FROM notes n WHERE n.id=note_id) OR EXISTS (SELECT 1 FROM objects o WHERE o.id=object_id))`;
 export const deadlineWritableSql = `app.deadline_source_allowed(note_id, object_id, true)`;
 export const deadlineCascadeSql = `pg_trigger_depth() > 0 AND coalesce(note_id,object_id) = nullif(current_setting('app.deadline_source_id',true),'')::uuid`;
+const ownerRole = pgRole('homecrm_owner').existing();
+export const deadlineRestoreSql = `deleted_at IS NOT NULL AND app.deadline_source_allowed(note_id, object_id, true) AND (space_kind='personal' OR EXISTS (SELECT 1 FROM space_members m WHERE m.space_id=deadlines.space_id AND m.account_id=app.current_account_id() AND m.left_at IS NULL AND (m.role='admin' OR (m.role='adult' AND deadlines.author_id=app.current_account_id()))))`;
 const accessColumns = () => ({
   spaceId: uuid('space_id').notNull(),
   spaceKind: spaceKindEnum('space_kind').notNull(),
@@ -76,9 +83,19 @@ export const deadlines = pgTable(
     pgPolicy('deadlines_update', {
       for: 'update',
       to: appRole,
-      using: sql.raw(`(${deadlineWritableSql}) OR (${deadlineCascadeSql})`),
+      using: sql.raw(
+        `(deleted_at IS NULL AND (${deadlineWritableSql})) OR (${deadlineRestoreSql}) OR (${deadlineCascadeSql})`,
+      ),
       withCheck: sql.raw(`(${deadlineWritableSql}) OR (${deadlineCascadeSql})`),
     }),
+    ...(['select', 'update'] as const).map((op) =>
+      pgPolicy(`deadlines_owner_${op}`, {
+        for: op,
+        to: ownerRole,
+        using: sql.raw(deadlineCascadeSql),
+        ...(op === 'update' ? { withCheck: sql.raw(deadlineCascadeSql) } : {}),
+      }),
+    ),
     pgPolicy('deadlines_engine', { for: 'select', to: workerRole, using: sql`true` }),
     pgPolicy('deadlines_purge', {
       for: 'delete',
@@ -117,7 +134,7 @@ export const deadlineOccurrencesTable = pgTable(
     pgPolicy('deadline_occurrences_select', {
       for: 'select',
       to: appRole,
-      using: sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.id = deadline_id AND ((deadline_occurrences.deleted_at IS NULL AND d.deleted_at IS NULL AND NOT d.needs_refresh AND (deadline_occurrences.time_zone = (SELECT s.time_zone FROM spaces s WHERE s.id=d.household_id) OR (d.space_kind='personal' AND NOT EXISTS (SELECT 1 FROM spaces s WHERE s.id=d.household_id)))) OR (pg_trigger_depth() > 0 AND d.id = nullif(current_setting('app.deadline_cascade_id',true),'')::uuid)))`,
+      using: sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.id = deadline_id AND ((deadline_occurrences.deleted_at IS NULL AND d.deleted_at IS NULL ) OR (pg_trigger_depth() > 0 AND d.id = nullif(current_setting('app.deadline_cascade_id',true),'')::uuid)))`,
     }),
     // Метаданные меняются только из каскада родителя, прямых прав на действия радара пока нет.
     pgPolicy('deadline_occurrences_cascade', {
@@ -126,6 +143,18 @@ export const deadlineOccurrencesTable = pgTable(
       using: sql`pg_trigger_depth() > 0 AND deadline_id = nullif(current_setting('app.deadline_cascade_id',true),'')::uuid`,
       withCheck: sql`pg_trigger_depth() > 0 AND deadline_id = nullif(current_setting('app.deadline_cascade_id',true),'')::uuid`,
     }),
+    ...(['select', 'update'] as const).map((op) =>
+      pgPolicy(`deadline_occurrences_owner_${op}`, {
+        for: op,
+        to: ownerRole,
+        using: sql`pg_trigger_depth() > 0 AND deadline_id = nullif(current_setting('app.deadline_cascade_id',true),'')::uuid`,
+        ...(op === 'update'
+          ? {
+              withCheck: sql`pg_trigger_depth() > 0 AND deadline_id = nullif(current_setting('app.deadline_cascade_id',true),'')::uuid`,
+            }
+          : {}),
+      }),
+    ),
     ...(['select', 'insert', 'update', 'delete'] as const).map((op) =>
       pgPolicy(`deadline_occurrences_worker_${op}`, {
         for: op,
@@ -149,10 +178,17 @@ export const deadlineNotifications = pgTable(
       .references(() => accounts.id),
     warningAt: timestamp('warning_at', { withTimezone: true }).notNull(),
     status: text('status').notNull().default('pending'),
+    cancellationReason: text('cancellation_reason'),
     createdAt: createdAt(),
   },
   (t) => [
-    unique('deadline_notifications_once').on(t.occurrenceId, t.recipientId, t.warningAt),
+    uniqueIndex('deadline_notifications_once')
+      .on(t.occurrenceId, t.recipientId, t.warningAt)
+      .where(sql`status <> 'cancelled' OR cancellation_reason IS NOT NULL`),
+    check(
+      'deadline_notifications_cancellation_reason',
+      sql`cancellation_reason IS NULL OR (status='cancelled' AND cancellation_reason='settings')`,
+    ),
     check(
       'deadline_notifications_status',
       sql`status IN ('pending', 'sent', 'cancelled', 'summary')`,

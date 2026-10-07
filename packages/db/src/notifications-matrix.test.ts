@@ -19,9 +19,10 @@ beforeAll(async () => {
       "INSERT INTO sessions(id,user_id,token,expires_at) VALUES($1::uuid,$2,$1::text,now()+interval '1 day')",
       [session, person.id],
     );
-    await db.admin.query(
-      "INSERT INTO push_subscriptions(account_id,session_id,endpoint,p256dh,auth,device_name) VALUES($1,$2::uuid,$2::text,'fictional','fictional','Телефон')",
-      [person.id, session],
+    await createAppDatabase(db.app).withAccount(person.id, (tx) =>
+      tx.execute(sql`
+      INSERT INTO push_subscriptions(account_id,session_id,endpoint,p256dh,auth,device_name)
+      VALUES(${person.id},${session},${session},'fictional','fictional','Телефон')`),
     );
     await db.admin.query('INSERT INTO notification_settings(account_id) VALUES($1)', [person.id]);
     await db.admin.query(

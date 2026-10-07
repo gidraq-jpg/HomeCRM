@@ -85,5 +85,6 @@ export function useRefreshObjects() {
     Promise.all([
       client.invalidateQueries({ queryKey: [OBJECTS] }),
       client.invalidateQueries({ queryKey: [LINKS] }),
+      client.invalidateQueries({ queryKey: ['deadlines'] }),
     ]);
 }

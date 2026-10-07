@@ -110,8 +110,12 @@ export function RadarScreen() {
           onChange={setView}
         />
       </div>
+      {radar.error ? (
+        <Notice error>Не удалось обновить радар. Показаны последние загруженные сроки.</Notice>
+      ) : null}
+      {radar.recalculating ? <Notice>Идёт пересчёт</Notice> : null}
 
-      {radar.rows.length === 0 ? (
+      {radar.rows.length === 0 && radar.recalculating ? null : radar.rows.length === 0 ? (
         <EmptyState icon={<CalendarBlank size={24} aria-hidden />} title="Сроков пока нет">
           <p>
             Срок добавляется в карточке объекта или заметки: откройте запись и нажмите «Добавить

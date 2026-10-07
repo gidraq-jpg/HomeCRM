@@ -1,3 +1,4 @@
+import { mock } from 'node:test';
 import type { Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
 import { plain, setScope } from '../support/helpers.ts';
@@ -14,7 +15,13 @@ import {
   seedDeadline,
   setHomeZone,
 } from './deadlines-support.ts';
-import { apiAs, expectNothingStored, openAs, seedNote, seedObject } from './notes-support.ts';
+import {
+  apiAs,
+  expectNothingStored,
+  openAs as openSession,
+  seedNote,
+  seedObject,
+} from './notes-support.ts';
 import { checkApp, expect, signInAs } from './support.ts';
 
 // Сроки и радар (R0.8b): DEAD-1, DEAD-3, DEAD-6, заготовка под DEAD-4. Семья вымышленная:
@@ -23,6 +30,66 @@ import { checkApp, expect, signInAs } from './support.ts';
 
 const toast = (page: Page) => page.locator('.toast-region');
 const items = (page: Page) => deadlinesSection(page).getByRole('list', { name: 'Сроки записи' });
+
+// Одна дата на сценарий у API, сидирования и браузера: переход через полночь
+// во время кликов не меняет «через N дней». Таймеры остаются настоящими.
+test.beforeEach(async ({ page }) => {
+  const now = Date.now();
+  mock.timers.enable({ apis: ['Date'], now });
+  await page.clock.setFixedTime(now);
+});
+test.afterEach(() => {
+  mock.timers.reset();
+});
+async function openAs(...args: Parameters<typeof openSession>) {
+  const session = await openSession(...args);
+  await session.page.clock.setFixedTime(new Date());
+  return session;
+}
+
+test('радар: один запрос с названием; ошибка блока не ломает «Сегодня» и повтор восстанавливает радар', async ({
+  page,
+  family,
+}, info) => {
+  await setHomeZone(family);
+  const boris = await apiAs(family, 'adult');
+  const object = await seedObject(boris, family, {
+    title: 'Срок проверки котла',
+    audience: 'household',
+  });
+  await seedDeadline(boris, 'objects', object.id, { kind: 'date', date: homeDate(0) });
+  await recalc(family);
+  let failed = true;
+  const requested: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/api/'))
+      requested.push(new URL(request.url()).pathname);
+  });
+  await page.route('**/api/deadlines?*', (route) =>
+    failed
+      ? route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ code: 'INTERNAL_ERROR' }),
+        })
+      : route.continue(),
+  );
+  await signInAs(page, family, 'adult');
+  await expect(page.getByRole('heading', { level: 1, name: 'Сегодня', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Повторить загрузку срочного' })).toBeVisible();
+  await checkApp(page, info, 'today-radar-error');
+  await openRadar(page);
+  await expect(page.getByRole('button', { name: 'Повторить загрузку радара' })).toBeVisible();
+  await checkApp(page, info, 'radar-error');
+  requested.length = 0;
+  failed = false;
+  await page.getByRole('button', { name: 'Повторить загрузку радара' }).click();
+  await expect(page.getByRole('list', { name: 'Сейчас', exact: true })).toContainText(
+    'Срок проверки котла',
+  );
+  expect(requested).toEqual(['/api/deadlines']);
+  await checkApp(page, info, 'radar-single-request');
+});
 
 async function submitDeadline(page: Page, label = 'Добавить срок') {
   await deadlineForm(page).getByRole('button', { name: label, exact: true }).click();
@@ -165,7 +232,10 @@ test('срок в карточке объекта: каждый вид прав�
   ]);
 });
 
-test('правка срока и «В корзину» с отменой на 7 секунд', async ({ page, family }, info) => {
+test('правка срока, немедленная корзина, отмена и восстановление из корзины', async ({
+  page,
+  family,
+}, info) => {
   await setHomeZone(family);
   const boris = await apiAs(family, 'adult');
   const note = await seedNote(boris, family, { title: 'Страховка дачи', audience: 'household' });
@@ -186,28 +256,35 @@ test('правка срока и «В корзину» с отменой на 7 
   expect(plain(await item.innerText())).toContain(', 18:00');
   await expect(item).toContainText('через 6 дней');
 
-  // В корзину: срок сразу уходит с экрана, но на сервере остаётся, пока можно отменить.
+  // В корзину: сервер удаляет сразу; отмена вызывает restore.
   await item.getByRole('button', { name: /^В корзину:/ }).click();
   await expect(toast(page)).toContainText('Срок в корзине');
-  await expect(toast(page)).toContainText('Отменить можно в течение 7 секунд');
+  await expect(toast(page)).toContainText('Восстановить можно также из «Корзины».');
   await expect(deadlinesSection(page)).toContainText('Сроков пока нет.');
   await checkApp(page, info, 'deadlines-trash-toast');
   const deletedAt = () =>
     family.database.admin
       .query('SELECT deleted_at FROM deadlines')
       .then((result) => (result.rows[0] as { deleted_at: Date | null }).deleted_at);
-  expect(await deletedAt()).toBeNull();
+  expect(await deletedAt()).not.toBeNull();
   await toast(page).getByRole('button', { name: 'Отменить' }).click();
   await expect(item).toHaveCount(1);
-  await page.waitForTimeout(7500);
   expect(await deletedAt()).toBeNull();
 
-  // Без отмены срок уходит в корзину после семи секунд.
+  // Потеря тоста не мешает восстановлению из «Корзины».
   await item.getByRole('button', { name: /^В корзину:/ }).click();
   await expect(deadlinesSection(page)).toContainText('Сроков пока нет.');
   await expect.poll(deletedAt, { timeout: 15_000 }).not.toBeNull();
   await page.reload();
   await expect(deadlinesSection(page)).toContainText('Сроков пока нет.');
+  await page.goto('#/more/trash');
+  const trash = page.getByRole('list', { name: 'Удалённые сроки' });
+  await expect(trash).toContainText('Страховка дачи');
+  await checkApp(page, info, 'deadlines-trash');
+  await trash.getByRole('button', { name: 'Восстановить срок' }).click();
+  await expect(trash).toHaveCount(0);
+  await openNoteCard(page, note.id, 'Страховка дачи');
+  await expect(item).toHaveCount(1);
 });
 
 test('радар: группы по времени дома, «Моё · Весь дом» и «Всё · Общее · Личное» (DEAD-3)', async ({
@@ -427,6 +504,23 @@ test('срок скрыт вместе с записью: ребёнок не в
       secret.id,
     );
     expect(status).toBe(404);
+    // Сессия может смениться в другой вкладке, а QueryClient текущей вкладки остаётся.
+    // Даже свежий кэш взрослого не должен появиться у ребёнка после перечитывания /me.
+    const next = await openAs(browser, family, info, 'child');
+    try {
+      await setScope(anna.page, 'Всё');
+      await anna.page.context().clearCookies();
+      await anna.page.context().addCookies(await next.page.context().cookies());
+      await anna.page.bringToFront();
+      const changed = anna.page.waitForResponse((response) => response.url().endsWith('/api/me'));
+      await anna.page.evaluate(() => globalThis.dispatchEvent(new Event('visibilitychange')));
+      expect((await (await changed).json()).roles[0].role).toBe('child');
+      await expect(anna.page.getByText('Счета на квартиру')).toHaveCount(0);
+      await expect(anna.page.getByText('Правила дома')).toBeVisible();
+      expect(await radarSummary(anna.page)).toEqual({ '7 дней': 1 });
+    } finally {
+      await next.close();
+    }
   } finally {
     await anna.close();
   }
@@ -518,11 +612,12 @@ test('часовой пояс дома: администратор меняет,
   const hour = (text: string) => Number(/, (\d{2}):\d{2}$/.exec(text)?.[1]);
   expect((hour(afterStamp) - hour(beforeStamp) + 24) % 24).toBe(2);
 
-  // До пересчёта старые моменты радар не выдаёт; после пересчёта срок снова на месте,
-  // а 9:00 по местному времени — это уже другой момент.
+  // До пересчёта прежние моменты показаны с явным признаком пересчёта.
   await openRadar(page);
   await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
-  await expect(page.getByRole('region', { name: 'Сроков пока нет' })).toBeVisible();
+  await expect(page.getByText('Идёт пересчёт', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Сроков пока нет' })).toHaveCount(0);
+  await checkApp(page, info, 'radar-recalculating');
   await recalc(family);
   await openRadar(page);
   await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
