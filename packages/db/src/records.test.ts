@@ -64,6 +64,9 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         [`public.${name}`],
       );
       expect(Object.fromEntries(rows.map((row) => [row.name, row.fn]))).toEqual({
+        ...(['notes', 'note_items', 'objects', 'object_fields', 'object_events'].includes(name)
+          ? { [`${name}_search`]: 'sync_search_entry' }
+          : {}),
         [`${name}_defaults`]: 'record_defaults',
         [`${name}_guard`]: 'record_guard',
         [`${name}_trash_time`]: 'guard_trash_time',
@@ -177,6 +180,7 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'search_index', // search-matrix.test.ts: видимость, снимки событий и закрытые изменения индекса.
       'profile_files', // profile-files-matrix.test.ts: фото действующей семьи и корзина владельца.
       'file_blobs', // files.test.ts: реестр ключей, без пользовательских метаданных.
       'record_links', // objects-matrix.test.ts: оба конца и право записи хотя бы в один.

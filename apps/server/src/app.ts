@@ -8,6 +8,7 @@ import { householdRoutes } from './household/routes.ts';
 import { serializeRequest } from './logging.ts';
 import { notesRoutes } from './notes/routes.ts';
 import { objectsRoutes } from './objects/routes.ts';
+import { searchRoutes } from './search/routes.ts';
 import { createStaticHandler } from './static.ts';
 
 export interface AppDependencies {
@@ -103,6 +104,7 @@ export function buildApp(
     if (dependencies.files) void app.register(filesRoutes, { ...auth, files: dependencies.files });
     void app.register(notesRoutes, auth);
     void app.register(objectsRoutes, auth);
+    void app.register(searchRoutes, auth);
     void app.register(householdRoutes, {
       ...auth,
       ...(dependencies.worker ? { worker: dependencies.worker } : {}),

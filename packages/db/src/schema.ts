@@ -52,6 +52,7 @@ import { recordTable } from './records.ts';
 
 export * from './core.ts';
 export * from './records.ts';
+export * from './search-schema.ts';
 
 // Таблицы-образцы записей: примеры для R0.4 и R1c, не готовые модули. Каждая — один вызов
 // recordTable; всё остальное (политики, права, триггеры, история) делает помощник.

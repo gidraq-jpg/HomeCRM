@@ -1,0 +1,28 @@
+.search-result .row__body {
+  min-width: 0;
+}
+.search-result .row__title,
+.search-result__snippet {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.search-result mark {
+  color: var(--ink);
+  background: var(--soft);
+  font-weight: 700;
+}
+.search-result__numbers {
+  display: grid;
+  gap: 4px;
+  padding: 0 12px 12px 16px;
+}
+.search-result__numbers li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.search-result__numbers span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
