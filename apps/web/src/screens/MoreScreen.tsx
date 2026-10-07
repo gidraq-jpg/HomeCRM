@@ -17,7 +17,7 @@ export function MoreScreen() {
           to="/more/trash"
           icon={<Trash size={22} aria-hidden />}
           title="Корзина"
-          meta="Удалённые заметки хранятся 30 дней"
+          meta="Удалённые заметки и объекты хранятся 30 дней"
         />
         <Row
           to="/more/profile"

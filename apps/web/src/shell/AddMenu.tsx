@@ -1,4 +1,4 @@
-import { Note, UserPlus } from '@phosphor-icons/react';
+import { Buildings, Note, UserPlus } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
@@ -10,8 +10,8 @@ interface AddMenuProps {
 }
 
 /**
- * Панель «+»: только то, что уже можно создать. Сейчас это заметка — каждому — и приглашение
- * участника — администратору. Остальные разделы честно названы неготовыми.
+ * Панель «+»: только то, что уже можно создать. Сейчас это заметка и объект — каждому — и
+ * приглашение участника — администратору. Остальные разделы честно названы неготовыми.
  */
 export function AddMenu({ open, onOpenChange }: AddMenuProps) {
   const { isAdmin } = useHousehold();
@@ -36,6 +36,12 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
           meta="Текст, чек-лист; по умолчанию личная"
           onClick={() => go('/more/notes/new')}
         />
+        <Row
+          icon={<Buildings size={22} aria-hidden />}
+          title="Объект"
+          meta="Квартира, дача, машина, техника; недвижимость — для взрослых"
+          onClick={() => go('/home/new')}
+        />
         {isAdmin ? (
           <Row
             icon={<UserPlus size={22} aria-hidden />}
@@ -46,10 +52,10 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
         ) : null}
       </RowList>
       <p className="muted add-note">
-        Дела, документы и объекты в приложении пока создавать нельзя: эти разделы не готовы.
+        Дела и документы в приложении пока создавать нельзя: эти разделы не готовы.
         {isAdmin
           ? ''
-          : ' Сейчас можно записать заметку, заполнить «Обо мне» и посмотреть, кто в доме.'}
+          : ' Сейчас можно записать заметку, завести объект, заполнить «Обо мне» и посмотреть, кто в доме.'}
       </p>
     </Sheet>
   );

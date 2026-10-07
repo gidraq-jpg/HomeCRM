@@ -1,6 +1,6 @@
 import { test } from '../auth/support/fixtures.ts';
 import { setScope } from '../support/helpers.ts';
-import { apiAs, noteLinks, seedNote } from './notes-support.ts';
+import { apiAs, noteLinks, objectLinks, seedNote, seedObject } from './notes-support.ts';
 import { checkApp, expect, seedProfiles, signInAs } from './support.ts';
 
 // Компьютер (PRD, раздел 14): боковое меню со всеми разделами; переключатель пространств и
@@ -96,4 +96,56 @@ test('заметки на компьютере: список, карточка �
   await page.getByRole('button', { name: 'Кто видит…' }).click();
   await expect(page.getByRole('dialog', { name: 'Кто видит заметку' })).toBeVisible();
   await checkApp(page, info, 'desktop-note-audience');
+});
+
+test('«Дом» на компьютере: список, карточка с вкладками и лента рядом с боковым меню', async ({
+  page,
+  family,
+}, info) => {
+  const boris = await apiAs(family, 'adult');
+  const flat = await seedObject(boris, family, {
+    title: 'Квартира у парка',
+    objectType: 'property',
+    audience: 'adults',
+    fields: [{ name: 'Площадь', value: '54 м²' }],
+  });
+  await seedObject(boris, family, {
+    title: 'Семейная машина',
+    objectType: 'car',
+    audience: 'household',
+  });
+  await boris.post(`objects/${flat.id}/events`, {
+    occurredOn: '2026-10-02',
+    text: 'Заменили смеситель',
+    amountKopecks: 184_050,
+    rating: 5,
+  });
+  await signInAs(page, family, 'adult');
+
+  const side = page.getByRole('navigation', { name: 'Основные разделы' });
+  await side.getByRole('link', { name: 'Дом', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Дом', exact: true })).toBeVisible();
+  await expect(side.getByRole('link', { name: 'Дом', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(objectLinks(page)).toHaveCount(2);
+  await checkApp(page, info, 'desktop-home');
+
+  await objectLinks(page).filter({ hasText: 'Квартира у парка' }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Квартира у парка', exact: true }),
+  ).toBeVisible();
+  await expect(side.getByRole('link', { name: 'Дом', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(page.getByRole('term').filter({ hasText: 'Площадь' })).toBeVisible();
+  await checkApp(page, info, 'desktop-object');
+
+  await page.getByRole('link', { name: 'Лента', exact: true }).click();
+  await expect(page.getByRole('list', { name: 'Лента объекта' })).toContainText(
+    'Заменили смеситель',
+  );
+  await checkApp(page, info, 'desktop-object-timeline');
 });

@@ -12,11 +12,13 @@ import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
+import { LinksSection } from '../links/LinksSection.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {
   creatableVisibilities,
+  factsOf,
   newPlacement,
   noteAbilities,
   viewerOf,
@@ -305,6 +307,11 @@ function NoteView({ card }: { card: NoteCard }) {
               </div>
             </dl>
           ) : null}
+
+          <LinksSection
+            record={{ type: 'note', id: card.id }}
+            facts={factsOf(card, viewer, 'note')}
+          />
 
           {!trashed ? (
             <div className="btn-row">

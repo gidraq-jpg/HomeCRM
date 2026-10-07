@@ -1,0 +1,158 @@
+/* Объекты: форма, карточка, лента, связи. Цели нажатия — не меньше 44 px (--tap). */
+
+.object-form {
+  display: block;
+}
+
+.object-form .btn-row {
+  margin-top: 18px;
+}
+
+.field-edit {
+  min-width: 0;
+  margin: 18px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.field-edit legend {
+  padding: 0;
+}
+
+.field-edit__list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.field-edit__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.field-edit__item .input {
+  grid-column: 1;
+}
+
+.field-edit__item .icon-button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+/* Значения своих полей: длинный текст переносится, переводы строк сохраняются */
+.facts--fields dd {
+  justify-content: flex-end;
+  text-align: right;
+  white-space: pre-wrap;
+}
+
+.facts--fields .facts__item {
+  align-items: flex-start;
+}
+
+.facts--fields dt {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Лента */
+.timeline {
+  display: grid;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.timeline__item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.timeline__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.timeline__date {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.timeline__text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.timeline__auto {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.timeline__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.9375rem;
+}
+
+.timeline__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.timeline__item--editing {
+  padding-bottom: 16px;
+}
+
+.event-form .field:first-child {
+  margin-top: 0;
+}
+
+.event-form .btn-row {
+  margin-top: 18px;
+}
+
+/* Связи */
+.link-list {
+  border-top: 1px solid var(--line);
+}
+
+.link-item {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.link-item__role {
+  padding-left: 52px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.link-item .btn {
+  justify-self: start;
+  margin-left: 52px;
+}
+
+.picker-list {
+  display: grid;
+  max-height: 40vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+}
+.timeline__facts .text-button {
+  padding: 0 2px;
+}
