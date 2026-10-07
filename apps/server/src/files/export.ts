@@ -1,5 +1,5 @@
-import { eq, sql, type Transaction } from '@homecrm/db';
-import { canViewFile } from '@homecrm/shared';
+import { eq, memberProfiles, profileFiles, spaceMembers, sql, type Transaction } from '@homecrm/db';
+import { canViewFile, canViewProfileFile } from '@homecrm/shared';
 import type { Account } from '../auth/account.ts';
 import { factsOf, readReference } from '../objects/support.ts';
 import { safeFilename } from './media.ts';
@@ -37,6 +37,23 @@ export async function exportFiles(tx: Transaction, account: Account, services: F
         data,
       });
     }
+  // Фото профиля экспортирует только сам владелец, включая снятые фото.
+  for (const file of await tx
+    .select()
+    .from(profileFiles)
+    .where(eq(profileFiles.accountId, account.id))) {
+    result.push({
+      ...fileSummary(file),
+      parentType: 'profile',
+      parentId: account.id,
+      archivePath: `files/${file.id}-${safeFilename(file.title)}`,
+      data: services.cipher.open(
+        await services.storage.get(file.storageKey),
+        file.envelope,
+        file.storageKey,
+      ),
+    });
+  }
   return result;
 }
 /** Чужому профилю не выдаём даже UUID файла, скрытого от читателя. */
@@ -46,22 +63,30 @@ export async function visibleProfileFile(
   id: string | null,
 ): Promise<string | null> {
   if (!id) return null;
-  for (const type of ['note', 'object'] as const) {
-    const table = fileTable(type);
-    const [file] = await tx.select().from(table).where(eq(table.id, id));
-    if (!file || file.deletedAt !== null || !file.mimeType.startsWith('image/')) continue;
-    const parent = await readReference(tx, account, { type, id: file.parentId });
-    if (parent.row.deletedAt === null && canViewFile(account.viewer, factsOf(file), parent.facts))
-      return file.id;
-  }
-  return null;
+  const [file] = await tx.select().from(profileFiles).where(eq(profileFiles.id, id));
+  return file && file.deletedAt === null && (await visibleProfilePhoto(tx, account, file))
+    ? file.id
+    : null;
 }
-export async function ownProfileFile(tx: Transaction, account: Account, id: string) {
-  if (!(await visibleProfileFile(tx, account, id))) return false;
-  for (const type of ['note', 'object'] as const) {
-    const table = fileTable(type);
-    const [file] = await tx.select().from(table).where(eq(table.id, id));
-    if (file?.authorId === account.id) return true;
-  }
-  return false;
+/** Двойная проверка: RLS и эталон access.ts, с учётом действующего фото и членств владельца. */
+export async function visibleProfilePhoto(
+  tx: Transaction,
+  account: Account,
+  file: typeof profileFiles.$inferSelect,
+) {
+  const [profile] = await tx
+    .select()
+    .from(memberProfiles)
+    .where(eq(memberProfiles.accountId, file.accountId));
+  const memberships = await tx
+    .select()
+    .from(spaceMembers)
+    .where(eq(spaceMembers.accountId, file.accountId));
+  return canViewProfileFile(
+    account.viewer,
+    file.accountId,
+    memberships.filter((m) => m.leftAt === null).map((m) => m.spaceId),
+    file.deletedAt !== null,
+    profile?.photoFileId === file.id,
+  );
 }

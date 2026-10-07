@@ -1,6 +1,6 @@
 import multipart from '@fastify/multipart';
-import { eq, notes, objects, sql, type Transaction } from '@homecrm/db';
-import { canRestore, canTrash, canViewFile, canWrite } from '@homecrm/shared';
+import { eq, notes, objects, profileFiles, sql, type Transaction } from '@homecrm/db';
+import { canRestore, canTrash, canViewFile, canWrite, canWriteProfileFile } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
@@ -14,6 +14,7 @@ import {
   parse,
   readReference,
 } from '../objects/support.ts';
+import { visibleProfilePhoto } from './export.ts';
 import { MAX_FILE_BYTES, prepareFile, safeFilename } from './media.ts';
 import {
   type FileRow,
@@ -22,12 +23,17 @@ import {
   filesOf,
   fileTable,
   insertPreparedFile,
+  insertProfileFile,
+  lockProfile,
   type ParentType,
   prepareUpload,
+  setProfilePhoto,
 } from './service.ts';
 
 const Id = z.strictObject({ id: z.uuid() });
 const ChildId = z.strictObject({ id: z.uuid(), fileId: z.uuid() });
+const Deleted = z.strictObject({ deleted: z.literal('1').optional() });
+const Inline = z.strictObject({ inline: z.literal('1').optional() });
 async function parentOf(
   tx: Transaction,
   account: Account,
@@ -74,14 +80,104 @@ export async function filesRoutes(
   });
   const route = dataRoutes(app, options);
   const currentAccount = createAccountReader(options);
+  async function receive(request: import('fastify').FastifyRequest) {
+    if (!request.isMultipart()) throw new Failure(415, 'UNSUPPORTED_FILE');
+    let uploaded: { data: Buffer; name: string } | undefined;
+    for await (const part of request.parts()) {
+      if (part.type !== 'file') throw new Failure(400, 'INVALID_INPUT');
+      uploaded = { data: await part.toBuffer(), name: safeFilename(part.filename) };
+    }
+    if (!uploaded) throw new Failure(400, 'INVALID_INPUT');
+    return { ...(await prepareFile(uploaded.data)), name: uploaded.name };
+  }
+  app.post('/api/me/profile/photo', async (request, reply) => {
+    const account = await currentAccount(request, reply);
+    if (!account) return reply;
+    const prepared = await receive(request);
+    if (!prepared.mimeType.startsWith('image/')) throw new Failure(415, 'UNSUPPORTED_FILE');
+    const sealed = prepareUpload(options.files, prepared);
+    const row = await options.appDb.withAccount(account.id, async (tx) => {
+      await lockProfile(tx, account);
+      const file = await insertProfileFile(tx, account, sealed);
+      await setProfilePhoto(tx, account, file.id);
+      return file;
+    });
+    return reply.code(201).send(fileSummary(row));
+  });
+  route('DELETE', '/api/me/profile/photo', 200, (tx, account) =>
+    setProfilePhoto(tx, account, null),
+  );
+  route('POST', '/api/me/profile/photo/:id/restore', 200, async (tx, account, request) => {
+    const id = parse(Id, request.params).id;
+    await lockProfile(tx, account);
+    const [file] = await tx.select().from(profileFiles).where(eq(profileFiles.id, id));
+    if (!file) missing();
+    if (!canWriteProfileFile(account.viewer, file.accountId)) deny();
+    const [restored] = await tx
+      .update(profileFiles)
+      .set({ deletedAt: null })
+      .where(eq(profileFiles.id, id))
+      .returning();
+    if (!restored) deny();
+    await setProfilePhoto(tx, account, id);
+    return fileSummary(restored);
+  });
+  route('GET', '/api/files/trash', 200, async (tx, account) => {
+    const result = [];
+    for (const type of ['note', 'object'] as const) {
+      const table = fileTable(type);
+      const parentTable = type === 'note' ? notes : objects;
+      const rows = await tx
+        .select({ file: table, parent: parentTable })
+        .from(table)
+        .innerJoin(parentTable, eq(table.parentId, parentTable.id))
+        .where(sql`${table.deletedAt} IS NOT NULL AND ${parentTable.deletedAt} IS NULL`)
+        .orderBy(table.deletedAt, table.id);
+      for (const { file, parent } of rows) {
+        const canRestoreFile = canRestore(account.viewer, factsOf(file));
+        if (!canViewFile(account.viewer, factsOf(file), factsOf(parent))) continue;
+        result.push({
+          ...fileSummary(file),
+          parentType: type,
+          parentId: parent.id,
+          canRestore: canRestoreFile,
+        });
+      }
+    }
+    for (const file of await tx
+      .select()
+      .from(profileFiles)
+      .where(sql`${profileFiles.deletedAt} IS NOT NULL`)
+      .orderBy(profileFiles.deletedAt, profileFiles.id)) {
+      if (!canWriteProfileFile(account.viewer, file.accountId)) continue;
+      result.push({
+        ...fileSummary(file),
+        parentType: 'profile',
+        parentId: file.accountId,
+        canRestore: true,
+      });
+    }
+    return result;
+  });
   for (const type of ['note', 'object'] as const) {
     const path = `/api/${type === 'note' ? 'notes' : 'objects'}/:id/files`;
     route('GET', path, 200, async (tx, account, request) => {
       const id = parse(Id, request.params).id;
+      const deleted = parse(Deleted, request.query).deleted === '1';
       const parent = await parentOf(tx, account, type, id);
       return (await filesOf(tx, type, id))
-        .filter((row) => parent.row.deletedAt !== null || row.deletedAt === null)
-        .map(fileSummary);
+        .filter((row) =>
+          deleted
+            ? parent.row.deletedAt === null && row.deletedAt !== null
+            : parent.row.deletedAt !== null || row.deletedAt === null,
+        )
+        .map((row) => ({
+          ...fileSummary(row),
+          canRestore:
+            parent.row.deletedAt === null &&
+            row.deletedAt !== null &&
+            canRestore(account.viewer, factsOf(row)),
+        }));
     });
     app.post(path, async (request, reply) => {
       const account = await currentAccount(request, reply);
@@ -92,15 +188,7 @@ export async function filesRoutes(
         const parent = await parentOf(tx, account, type, id);
         if (!canWrite(account.viewer, parent.facts)) deny();
       });
-      if (!request.isMultipart()) throw new Failure(415, 'UNSUPPORTED_FILE');
-      let uploaded: { data: Buffer; name: string } | undefined;
-      for await (const part of request.parts()) {
-        if (part.type !== 'file') throw new Failure(400, 'INVALID_INPUT');
-        uploaded = { data: await part.toBuffer(), name: safeFilename(part.filename) };
-      }
-      if (!uploaded) throw new Failure(400, 'INVALID_INPUT');
-      const prepared = await prepareFile(uploaded.data);
-      const sealed = prepareUpload(options.files, { ...prepared, name: uploaded.name });
+      const sealed = prepareUpload(options.files, await receive(request));
       const row = await options.appDb.withAccount(account.id, async (tx) => {
         // Повторяем права после ожидания: родитель мог попасть в корзину или сменить доступ.
         const parent = await parentOf(tx, account, type, id, true);
@@ -138,6 +226,7 @@ export async function filesRoutes(
       const account = await currentAccount(request, reply);
       if (!account) return reply;
       const id = parse(Id, request.params).id;
+      const inline = parse(Inline, request.query).inline === '1';
       const result = await options.appDb.withAccount(account.id, async (tx) => {
         await tx.execute(
           sql`select pg_advisory_xact_lock_shared(hashtextextended('file-block-cleanup',0))`,
@@ -160,15 +249,31 @@ export async function filesRoutes(
             name: preview ? 'preview.webp' : safeFilename(row.title),
           };
         }
+        const [file] = await tx.select().from(profileFiles).where(eq(profileFiles.id, id));
+        if (file && (await visibleProfilePhoto(tx, account, file))) {
+          const key = preview ? file.previewStorageKey : file.storageKey;
+          if (!key) missing();
+          return {
+            data: options.files.cipher.open(
+              await options.files.storage.get(key),
+              preview ? file.previewEnvelope : file.envelope,
+              key,
+            ),
+            mimeType: preview ? 'image/webp' : file.mimeType,
+            name: preview ? 'preview.webp' : safeFilename(file.title),
+          };
+        }
         missing();
       });
       const name = encodeURIComponent(result.name).replace(
         /['()*]/g,
         (char) => `%${char.charCodeAt(0).toString(16)}`,
       );
+      const inlinePdf = !preview && inline && result.mimeType === 'application/pdf';
+      if (inlinePdf) reply.header('Content-Security-Policy', 'sandbox');
       reply.header(
         'Content-Disposition',
-        `${preview ? 'inline' : 'attachment'}; filename="file"; filename*=UTF-8''${name}`,
+        `${preview || inlinePdf ? 'inline' : 'attachment'}; filename="file"; filename*=UTF-8''${name}`,
       );
       return reply.type(result.mimeType).send(result.data);
     });

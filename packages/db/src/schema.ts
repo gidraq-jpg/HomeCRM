@@ -258,6 +258,57 @@ const objectFilesDefinition = recordTable('object_files', 'object_file', fileCol
 export const objectFiles = objectFilesDefinition.table;
 export const objectFilesHistory = objectFilesDefinition.history;
 
+/** Фото принадлежит профилю; семейная аудитория вычисляется по действующим членствам. */
+export const profileFiles = pgTable(
+  'profile_files',
+  {
+    id: id(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id),
+    title: text('title').notNull(),
+    mimeType: text('mime_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    storageKey: uuid('storage_key').notNull(),
+    envelope: jsonb('envelope').notNull(),
+    previewStorageKey: uuid('preview_storage_key'),
+    previewEnvelope: jsonb('preview_envelope'),
+    createdAt: createdAt(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('profile_files_account_idx').on(t.accountId),
+    pgPolicy('profile_files_select', {
+      for: 'select',
+      to: appRole,
+      using: sql.raw(
+        `account_id = app.current_account_id() OR (deleted_at IS NULL AND EXISTS (SELECT 1 FROM member_profiles p WHERE p.account_id = profile_files.account_id AND p.photo_file_id = profile_files.id))`,
+      ),
+    }),
+    pgPolicy('profile_files_insert', {
+      for: 'insert',
+      to: appRole,
+      withCheck: sql.raw(`account_id = app.current_account_id() AND deleted_at IS NULL`),
+    }),
+    pgPolicy('profile_files_update', {
+      for: 'update',
+      to: appRole,
+      using: sql.raw(`account_id = app.current_account_id()`),
+      withCheck: sql.raw(`account_id = app.current_account_id()`),
+    }),
+    pgPolicy('profile_files_purge_select', {
+      for: 'select',
+      to: workerRole,
+      using: sql.raw(`deleted_at < now() - interval '30 days'`),
+    }),
+    pgPolicy('profile_files_purge', {
+      for: 'delete',
+      to: workerRole,
+      using: sql.raw(`deleted_at < now() - interval '30 days'`),
+    }),
+  ],
+);
+
 /** Реестр действующих блоков: обработчик видит только случайные ключи, без имён и конвертов. */
 export const fileBlobs = pgTable(
   'file_blobs',

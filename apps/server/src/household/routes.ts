@@ -26,17 +26,10 @@ import * as z from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
 import { loadViewer, pgError } from '../auth/provision.ts';
 import type { AuthModule } from '../auth/routes.ts';
-import { ownProfileFile, visibleProfileFile } from '../files/export.ts';
+import { visibleProfileFile } from '../files/export.ts';
+import { setProfilePhoto } from '../files/service.ts';
+import { Failure } from '../objects/support.ts';
 
-class Failure extends Error {
-  status: number;
-  code: string;
-  constructor(status: number, code: string) {
-    super(code);
-    this.status = status;
-    this.code = code;
-  }
-}
 const House = z.strictObject({ householdId: z.uuid() });
 const Member = House.extend({ accountId: z.uuid() });
 const Profile = z
@@ -123,8 +116,7 @@ export async function householdRoutes(
     if (!account) return reply;
     const body = parse(Profile, request.body);
     return options.appDb.withAccount(account.id, async (tx) => {
-      if (body.photoFileId && !(await ownProfileFile(tx, account, body.photoFileId)))
-        throw new Failure(403, 'ACCESS_DENIED');
+      if (body.photoFileId !== undefined) await setProfilePhoto(tx, account, body.photoFileId);
       const [profile] = await tx
         .update(memberProfiles)
         .set(body)

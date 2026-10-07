@@ -30,7 +30,7 @@ const headers = (device: Device) => ({
   'user-agent': device.userAgent,
 });
 async function upload(
-  type: 'notes' | 'objects',
+  type: 'notes' | 'objects' | 'profile',
   id: string,
   device = adult,
   data: Buffer = pdf,
@@ -47,7 +47,7 @@ async function upload(
   ]);
   return world.app.inject({
     method: 'POST',
-    url: `/api/${type}/${id}/files`,
+    url: type === 'profile' ? '/api/me/profile/photo' : `/api/${type}/${id}/files`,
     headers: { ...headers(device), 'content-type': `multipart/form-data; boundary=${boundary}` },
     remoteAddress: device.ip,
     payload,
@@ -65,6 +65,13 @@ const download = (id: string, device = adult, preview = false) =>
   world.app.inject({
     method: 'GET',
     url: `/api/files/${id}${preview ? '/preview' : ''}`,
+    headers: headers(device),
+    remoteAddress: device.ip,
+  });
+const inlineDownload = (id: string, device = adult) =>
+  world.app.inject({
+    method: 'GET',
+    url: `/api/files/${id}?inline=1`,
     headers: headers(device),
     remoteAddress: device.ip,
   });
@@ -215,23 +222,23 @@ it.each(['notes', 'objects'] as const)(
     );
   },
 );
-it('photoFileId принимает только свой живой image; чужой, отсутствующий и PDF отклонены одинаково', async () => {
-  const id = await create('notes', adult, true);
-  const image = (await upload('notes', id, adult, photo)).json();
-  const document = (await upload('notes', id)).json();
-  expect(
-    (await adult.request('PATCH', '/api/me/profile', { json: { photoFileId: image.id } })).status,
-  ).toBe(200);
-  for (const photoFileId of [image.id, document.id, randomUUID()])
+it('photoFileId больше не принимает изображения заметок/объектов, PDF и чужие фото профиля', async () => {
+  for (const type of ['notes', 'objects'] as const) {
+    const id = await create(type, adult, true);
+    for (const data of [photo, pdf]) {
+      const file = (await upload(type, id, adult, data)).json();
+      expect(
+        (await adult.request('PATCH', '/api/me/profile', { json: { photoFileId: file.id } }))
+          .status,
+      ).toBe(403);
+    }
+  }
+  const image = (await upload('profile', '', adult, photo)).json();
+  for (const photoFileId of [image.id, randomUUID()])
     expect(
       (await admin.request('PATCH', '/api/me/profile', { json: { photoFileId } })).status,
     ).toBe(403);
-  expect(
-    (await adult.request('PATCH', '/api/me/profile', { json: { photoFileId: document.id } }))
-      .status,
-  ).toBe(403);
-  await adult.post(`/api/notes/${id}/audience`, { audience: 'adults', confirmed: true });
-  expect((await download(image.id, child)).statusCode).toBe(404);
+  expect((await upload('profile', '', adult, pdf)).statusCode).toBe(415);
 });
 it('сбой блока и COMMIT не оставляет строки и блоков', async () => {
   const id = await create('notes');
@@ -338,23 +345,41 @@ it('копия с ошибкой второго блока откатывает�
   }
   expect((await readdir(folder)).sort()).toEqual(before);
 });
-it('профиль и состав скрывают UUID недоступного фото; ссылка в DB сохраняется', async () => {
-  const id = await create('notes');
-  const image = (await upload('notes', id, adult, photo)).json();
-  expect(
-    (await adult.request('PATCH', '/api/me/profile', { json: { photoFileId: image.id } })).status,
-  ).toBe(200);
+it('семья видит фото профиля; снятие, замена и восстановление сохраняют блоки и права', async () => {
+  const response = await upload('profile', '', adult, photo);
+  expect(response.statusCode, response.body).toBe(201);
+  const image = response.json();
+  expect(JSON.stringify(image)).not.toMatch(/storage|envelope/);
   const roster = await admin.get(`/api/households/${world.houseId}/members`);
   expect(roster.status, roster.text).toBe(200);
   expect(
     roster
       .json<{ accountId: string; photoFileId: string | null }[]>()
       .find((row) => row.accountId === world.boris.id)?.photoFileId,
-  ).toBeNull();
+  ).toBe(image.id);
   expect((await adult.get('/api/me/profile')).json<{ photoFileId: string }>().photoFileId).toBe(
     image.id,
   );
-  await adult.post(`/api/notes/${id}/files/${image.id}/trash`);
+  expect((await download(image.id, child)).statusCode).toBe(200);
+  expect((await download(image.id, child, true)).statusCode).toBe(200);
+  const replacement = (await upload('profile', '', adult, photo)).json();
+  expect((await download(image.id, child)).statusCode).toBe(404);
+  const trash = (await adult.get('/api/files/trash')).json<{ id: string; canRestore: boolean }[]>();
+  expect(trash.find((f) => f.id === image.id)?.canRestore).toBe(true);
+  expect((await admin.post(`/api/me/profile/photo/${image.id}/restore`)).status).toBe(404);
+  expect((await adult.post(`/api/me/profile/photo/${image.id}/restore`)).status).toBe(200);
+  expect((await download(image.id, child)).statusCode).toBe(200);
+  expect((await download(replacement.id, child)).statusCode).toBe(404);
+  expect(
+    (
+      await world.app.inject({
+        method: 'DELETE',
+        url: '/api/me/profile/photo',
+        headers: headers(adult),
+        remoteAddress: adult.ip,
+      })
+    ).statusCode,
+  ).toBe(200);
   expect(
     (await adult.get('/api/me/profile')).json<{ photoFileId: string | null }>().photoFileId,
   ).toBeNull();
@@ -365,7 +390,84 @@ it('профиль и состав скрывают UUID недоступног�
         [world.boris.id],
       )
     ).rows[0].photo_file_id,
-  ).toBe(image.id);
+  ).toBeNull();
+  expect((await download(image.id, child)).statusCode).toBe(404);
+  expect((await download(image.id)).statusCode).toBe(200);
+});
+it.each(['notes', 'objects'] as const)(
+  '%s: отдельная и общая корзины файлов учитывают родителя и право восстановления',
+  async (type) => {
+    const id = await create(type, adult, true);
+    const own = (await upload(type, id)).json();
+    const other = (await upload(type, id, admin)).json();
+    for (const file of [own, other])
+      expect((await admin.post(`/api/${type}/${id}/files/${file.id}/trash`)).status).toBe(200);
+    expect((await adult.get(`/api/${type}/${id}/files`)).json()).toEqual([]);
+    for (const [device, rights] of [
+      [adult, [true, false]],
+      [admin, [true, true]],
+      [child, [false, false]],
+    ] as const) {
+      const rows = (await device.get(`/api/${type}/${id}/files?deleted=1`)).json<
+        { id: string; canRestore: boolean }[]
+      >();
+      expect(rows).toHaveLength(2);
+      const all = (await device.get('/api/files/trash')).json<
+        { id: string; parentType: string; parentId: string; canRestore: boolean }[]
+      >();
+      for (const [index, file] of [own, other].entries()) {
+        expect(rows.find((f) => f.id === file.id)?.canRestore).toBe(rights[index]);
+        expect(all.find((f) => f.id === file.id)).toMatchObject({
+          parentType: type.slice(0, -1),
+          parentId: id,
+          canRestore: rights[index],
+        });
+      }
+    }
+    expect((await adult.post(`/api/${type}/${id}/files/${other.id}/restore`)).status).toBe(403);
+    expect((await child.post(`/api/${type}/${id}/files/${own.id}/restore`)).status).toBe(403);
+    expect((await adult.get(`/api/${type}/${id}/files?deleted=2`)).status).toBe(400);
+    await adult.post(`/api/${type}/${id}/trash`);
+    expect((await adult.get(`/api/${type}/${id}/files?deleted=1`)).json()).toEqual([]);
+    expect(
+      (await adult.get('/api/files/trash'))
+        .json<{ id: string }[]>()
+        .some((f) => f.id === own.id || f.id === other.id),
+    ).toBe(false);
+    expect((await adult.post(`/api/${type}/${id}/files/${own.id}/restore`)).status).toBe(403);
+    await adult.post(`/api/${type}/${id}/restore`);
+    expect((await adult.post(`/api/${type}/${id}/files/${own.id}/restore`)).status).toBe(200);
+    const privateId = await create(type);
+    const privateFile = (await upload(type, privateId)).json();
+    await adult.post(`/api/${type}/${privateId}/files/${privateFile.id}/trash`);
+    expect(
+      (await admin.get('/api/files/trash'))
+        .json<{ id: string }[]>()
+        .some((f) => f.id === privateFile.id),
+    ).toBe(false);
+    expect((await admin.get(`/api/${type}/${privateId}/files?deleted=1`)).status).toBe(404);
+  },
+);
+it('PDF inline защищён sandbox; обычная выдача и фотографии сохраняют прежние заголовки и права', async () => {
+  const id = await create('notes');
+  const document = (await upload('notes', id)).json();
+  const response = await inlineDownload(document.id);
+  expect(response.statusCode).toBe(200);
+  expect(response.rawPayload).toEqual(pdf);
+  expect(response.headers['content-disposition']).toMatch(/^inline;/);
+  expect(response.headers['content-security-policy']).toBe('sandbox');
+  expect(response.headers['cache-control']).toBe('no-store');
+  expect(response.headers['x-content-type-options']).toBe('nosniff');
+  const normal = await download(document.id);
+  expect(normal.headers['content-disposition']).toMatch(/^attachment;/);
+  expect(normal.headers['content-security-policy']).toBeUndefined();
+  const image = (await upload('notes', id, adult, photo)).json();
+  const imageResponse = await inlineDownload(image.id);
+  expect(imageResponse.headers['content-disposition']).toMatch(/^attachment;/);
+  expect(imageResponse.headers['content-security-policy']).toBeUndefined();
+  const hidden = await inlineDownload(document.id, admin);
+  expect(hidden.statusCode).toBe(404);
+  expect(hidden.body).toBe((await inlineDownload(randomUUID(), admin)).body);
 });
 it('экспорт готовит только своё личное и общее администрируемого дома, без storage keys', async () => {
   const { exportFiles } = await import('./export.ts');
@@ -386,9 +488,13 @@ it('экспорт готовит только своё личное и обще
     exportFiles(tx, account, { storage, cipher }),
   );
   expect(files.length).toBeGreaterThan(0);
-  expect(files.every((file) => file.parentType === 'note' || file.parentType === 'object')).toBe(
-    true,
-  );
+  expect(files.every((file) => ['note', 'object', 'profile'].includes(file.parentType))).toBe(true);
+  expect(
+    files
+      .filter((file) => file.parentType === 'profile')
+      .every((file) => file.parentId === account.id),
+  ).toBe(true);
+  expect(files.some((file) => file.parentType === 'profile' && file.deletedAt !== null)).toBe(true);
   expect(files.every((file) => Buffer.isBuffer(file.data))).toBe(true);
   expect(JSON.stringify(files.map(({ data, ...meta }) => meta))).not.toMatch(
     /storage|envelope|wrappedKey/,
@@ -504,4 +610,83 @@ it('R0.5d: ошибка после успешного COMMIT сохраняет 
   const result = await download(fileId);
   expect(result.statusCode, result.body).toBe(200);
   expect(result.rawPayload).toEqual(pdf);
+});
+
+it('сбой записи фото откатывает замену и не оставляет зашифрованных блоков', async () => {
+  const current = (await upload('profile', '', adult, photo)).json();
+  const before = (await readdir(folder)).sort();
+  const put = storage.put.bind(storage);
+  storage.put = async (key, data) => {
+    await put(key, data);
+    throw new Error('Fictional profile storage failure');
+  };
+  try {
+    expect((await upload('profile', '', adult, photo)).statusCode).toBe(500);
+  } finally {
+    storage.put = put;
+  }
+  expect((await readdir(folder)).sort()).toEqual(before);
+  expect((await adult.get('/api/me/profile')).json<{ photoFileId: string }>().photoFileId).toBe(
+    current.id,
+  );
+  expect((await download(current.id, child)).statusCode).toBe(200);
+});
+it('очистка удаляет только просроченные фото и блоки, сохраняя текущее фото', async () => {
+  const old = (await upload('profile', '', adult, photo)).json();
+  const current = (await upload('profile', '', adult, photo)).json();
+  const keys = (
+    await world.database.admin.query(
+      'SELECT storage_key,preview_storage_key FROM profile_files WHERE id=$1',
+      [old.id],
+    )
+  ).rows[0];
+  await world.database.admin.query(
+    `UPDATE profile_files SET deleted_at=now()-interval '31 days' WHERE id=$1`,
+    [old.id],
+  );
+  await cleanupFiles(
+    createWorkerDatabase(world.database.worker),
+    storage,
+    new Date(Date.now() + 1000),
+  );
+  expect((await download(old.id)).statusCode).toBe(404);
+  const blocks = await readdir(folder);
+  expect(blocks).not.toContain(keys.storage_key);
+  expect(blocks).not.toContain(keys.preview_storage_key);
+  expect((await download(current.id, child)).statusCode).toBe(200);
+});
+it('ребёнок меняет своё фото: параллельные загрузки оставляют одно текущее фото и одну запись корзины', async () => {
+  const responses = await Promise.all([
+    upload('profile', '', child, photo),
+    upload('profile', '', child, photo),
+  ]);
+  for (const response of responses) expect(response.statusCode, response.body).toBe(201);
+  const ids = responses.map((r) => r.json<{ id: string }>().id);
+  const current = (await child.get('/api/me/profile')).json<{ photoFileId: string }>().photoFileId;
+  expect(ids).toContain(current);
+  const retired = ids.find((id) => id !== current);
+  expect(retired).toBeDefined();
+  expect((await download(current, adult)).statusCode).toBe(200);
+  expect((await download(retired ?? '', adult)).statusCode).toBe(404);
+  expect(
+    (await child.get('/api/files/trash'))
+      .json<{ id: string; canRestore: boolean }[]>()
+      .find((f) => f.id === retired)?.canRestore,
+  ).toBe(true);
+  expect((await child.post(`/api/me/profile/photo/${retired}/restore`)).status).toBe(200);
+});
+it('уход закрывает фото в обе стороны, собственное фото и учётная запись остаются у владельца', async () => {
+  const own = (await upload('profile', '', adult, photo)).json();
+  const family = (await upload('profile', '', admin, photo)).json();
+  expect((await download(family.id, adult)).statusCode).toBe(200);
+  expect((await adult.post(`/api/households/${world.houseId}/leave`)).status).toBe(200);
+  expect((await download(own.id, admin)).statusCode).toBe(404);
+  expect((await download(own.id, child, true)).statusCode).toBe(404);
+  expect((await download(family.id, adult)).statusCode).toBe(404);
+  expect((await download(own.id, adult)).statusCode).toBe(200);
+  expect(
+    (await admin.get(`/api/households/${world.houseId}/members`))
+      .json<{ accountId: string; photoFileId: string | null }[]>()
+      .find((row) => row.accountId === world.boris.id)?.photoFileId,
+  ).toBeNull();
 });

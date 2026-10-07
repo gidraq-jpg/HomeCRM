@@ -229,6 +229,25 @@ export function canViewProfile(
   );
 }
 
+/** OBJ-4: действующее фото видит семья профиля; снятое — только владелец. */
+export function canViewProfileFile(
+  viewer: Viewer,
+  ownerAccountId: string,
+  houseIds: readonly string[],
+  trashed = false,
+  current = true,
+): boolean {
+  return (
+    viewer.accountId === ownerAccountId ||
+    (!trashed && current && canViewProfile(viewer, ownerAccountId, houseIds))
+  );
+}
+
+/** Загрузить, снять и восстановить фото профиля может только сам владелец. */
+export function canWriteProfileFile(viewer: Viewer, ownerAccountId: string): boolean {
+  return viewer.accountId === ownerAccountId;
+}
+
 /** Роль меняет администратор; последнего администратора понизить нельзя. */
 export function canChangeRole(
   viewer: Viewer,

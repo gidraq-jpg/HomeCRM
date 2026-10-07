@@ -1,4 +1,12 @@
-import { type Database, eq, fileBlobs, noteFiles, objectFiles, sql } from '@homecrm/db';
+import {
+  type Database,
+  eq,
+  fileBlobs,
+  noteFiles,
+  objectFiles,
+  profileFiles,
+  sql,
+} from '@homecrm/db';
 import type { FileStorage } from './storage.ts';
 
 /** Запущена только ролью worker; пользовательские имена, конверты и содержимое не читаются. */
@@ -24,7 +32,7 @@ export async function cleanupFileBlocks(
 }
 /** Файлы в корзине физически удаляет только worker после 30 дней (DATA-1). */
 export async function cleanupFiles(worker: Database, storage: FileStorage, before?: Date) {
-  for (const table of [noteFiles, objectFiles])
+  for (const table of [noteFiles, objectFiles, profileFiles])
     await worker.delete(table).where(sql`${table.deletedAt} < now()-interval '30 days'`);
   return cleanupFileBlocks(worker, storage, before);
 }

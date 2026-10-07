@@ -28,6 +28,7 @@ const FROZEN = ['id', 'author_id', 'created_at', 'updated_at'];
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
+    profile_files: { SELECT: 'all', INSERT: 'all', UPDATE: ['deleted_at'] },
     // Реестр UUID доступен приложению только из триггеров; строки ограничены RLS.
     file_blobs: { SELECT: 'all', INSERT: 'all', DELETE: 'all' },
     record_links: { SELECT: 'all', INSERT: 'all', UPDATE: ['role', 'deleted_at'] },
@@ -44,6 +45,10 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     password_resets: { SELECT: 'all', UPDATE: ['acknowledged_at'] },
   };
   const worker: Record<string, TableGrants> = {
+    profile_files: {
+      SELECT: ['id', 'storage_key', 'preview_storage_key', 'deleted_at'],
+      DELETE: 'all',
+    },
     file_blobs: { SELECT: 'all', DELETE: 'all' },
     record_links: {
       SELECT: ['id', 'left_table', 'left_id', 'right_table', 'right_id', 'deleted_at'],
