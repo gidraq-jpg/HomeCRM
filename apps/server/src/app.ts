@@ -40,6 +40,19 @@ export function buildApp(
   });
   const startedAt = Date.now();
 
+  // Личные ответы API нельзя хранить в браузере или прокси, включая ошибки и неизвестные пути.
+  app.addHook('onSend', async (request, reply, payload) => {
+    let path = request.routeOptions.url ?? new URL(request.url, 'http://localhost').pathname;
+    try {
+      path = decodeURIComponent(path);
+    } catch (error) {
+      // При ошибке %-кодирования проверяем исходный путь.
+      if (!(error instanceof URIError)) throw error;
+    }
+    if (path === '/api' || path.startsWith('/api/')) void reply.header('cache-control', 'no-store');
+    return payload;
+  });
+
   // Стандартный ответ Fastify пишет в журнал Route GET:<адрес> not found с полным адресом, а в адресе
   // ссылок-приглашений и сброса пароля — токен. Свой обработчик журнал адресом не засоряет.
   const serveStatic =

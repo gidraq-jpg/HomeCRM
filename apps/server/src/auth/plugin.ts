@@ -41,6 +41,7 @@ import {
   USERNAME_MIN,
 } from './identity.ts';
 import { insertAccount, loadViewer, pgError } from './provision.ts';
+import { checkRequestSource } from './request-source.ts';
 import { claimTotpCode } from './totp-replay.ts';
 
 /** Заголовок с адресом клиента: его ставит только наш Fastify (fastify.ts), чужой заголовок затирается. */
@@ -334,22 +335,10 @@ export function homecrm(deps: PluginDeps) {
           handler: createAuthMiddleware(async (ctx) => {
             const headers = ctx.request?.headers;
             if (headers === undefined) return;
-            const origin = headers.get('origin');
-            if (origin !== null && !ctx.context.isTrustedOrigin(origin)) {
-              throw APIError.from('FORBIDDEN', {
-                code: 'INVALID_ORIGIN',
-                message: 'Request origin is not allowed',
-              });
-            }
-            if (
-              headers.get('sec-fetch-site') === 'cross-site' &&
-              headers.get('sec-fetch-mode') === 'navigate'
-            ) {
-              throw APIError.from('FORBIDDEN', {
-                code: 'CROSS_SITE_NAVIGATION_BLOCKED',
-                message: 'Cross-site navigation is not allowed',
-              });
-            }
+            const error = checkRequestSource(headers, (origin) =>
+              ctx.context.isTrustedOrigin(origin),
+            );
+            if (error !== null) throw APIError.from('FORBIDDEN', error);
           }),
         },
         {
