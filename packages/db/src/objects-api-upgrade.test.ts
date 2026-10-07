@@ -178,6 +178,12 @@ it('каскад изменяет только события текущего �
   expect(updates).toHaveLength(3);
   for (const update of updates) expect(update).toMatch(/WHERE parent_id=NEW.id/);
 });
+it('после обновления NULL ответственного общего объекта заменяется автором в базе', async () => {
+  const [updated] = await scene.as('anna', (tx) =>
+    tx.update(objects).set({ assigneeId: null }).where(eq(objects.id, unrelatedId)).returning(),
+  );
+  expect(updated?.assigneeId).toBe(scene.person('anna').id);
+});
 it('record_guard закрыт для незарегистрированной таблицы; перечень покрывает все виды записей', async () => {
   const source = (
     await db.admin.query("SELECT pg_get_functiondef('app.record_guard()'::regprocedure) source")

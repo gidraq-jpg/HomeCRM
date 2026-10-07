@@ -306,7 +306,9 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
     const record = await getObject(tx, account, id, true);
     requireWrite(account, record);
     version(body.expectedUpdatedAt, record.updatedAt);
-    const assigneeId = body.responsibleId !== undefined ? body.responsibleId : body.assigneeId;
+    const requestedAssigneeId =
+      body.responsibleId !== undefined ? body.responsibleId : body.assigneeId;
+    const assigneeId = requestedAssigneeId === null ? record.authorId : requestedAssigneeId;
     await responsible(tx, account, placementOf(record), assigneeId);
     const [updated] = await tx
       .update(objects)

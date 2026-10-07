@@ -665,19 +665,21 @@ it('R0.5d: история поля из корзины скрывается до
     (await adult.get(path)).json<Page>().items.some((item) => item.fieldId === field?.id),
   ).toBe(true);
 });
-it('R0.5d: null снимает ответственного; старое поле assigneeId совместимо с responsibleId', async () => {
+it('R0.5d: null возвращает ответственность автору; старое поле assigneeId совместимо с responsibleId', async () => {
   const parent = await create(adult, { placement: common(), assigneeId: world.anna.id });
   expect((await patch(adult, parent.id, { responsibleId: null })).json()).toMatchObject({
-    assigneeId: null,
+    assigneeId: world.boris.id,
   });
-  expect((await patch(adult, parent.id, { title: 'Ответственного нет' })).json()).toMatchObject({
-    assigneeId: null,
+  expect(
+    (await patch(adult, parent.id, { title: 'Ответственный по умолчанию' })).json(),
+  ).toMatchObject({
+    assigneeId: world.boris.id,
   });
   expect((await patch(adult, parent.id, { assigneeId: world.anna.id })).json()).toMatchObject({
     assigneeId: world.anna.id,
   });
   expect((await patch(adult, parent.id, { assigneeId: null })).json()).toMatchObject({
-    assigneeId: null,
+    assigneeId: world.boris.id,
   });
   expect(
     (await patch(adult, parent.id, { assigneeId: null, responsibleId: world.anna.id })).status,
@@ -686,6 +688,37 @@ it('R0.5d: null снимает ответственного; старое пол
   expect((await patch(adult, personal.id, { responsibleId: null })).json()).toMatchObject({
     assigneeId: world.boris.id,
   });
+});
+it('R0.5d: сброс ответственного к автору сохраняет передачу администратору при уходе автора', async () => {
+  const separate = await createWorld();
+  try {
+    const author = separate.device();
+    await author.signIn(separate.boris.username, separate.boris.password);
+    const administrator = (await signedInAdmin(separate)).device;
+    const created = await author.post('/api/objects', {
+      title: 'Вымышленный объект перед уходом',
+      placement: { spaceId: separate.houseId, audience: 'household' },
+      assigneeId: separate.anna.id,
+    });
+    expect(created.status, created.text).toBe(201);
+    const id = created.json<Card>().id;
+    const reset = await patch(administrator, id, { responsibleId: null });
+    expect(reset.status, reset.text).toBe(200);
+    expect(reset.json<Card>().assigneeId).toBe(separate.boris.id);
+    expect(
+      (await separate.database.admin.query('SELECT assignee_id FROM objects WHERE id=$1', [id]))
+        .rows[0].assignee_id,
+    ).toBe(separate.boris.id);
+    const left = await author.post(`/api/households/${separate.houseId}/leave`, {});
+    expect(left.status, left.text).toBe(200);
+    expect((await administrator.get(url(id))).json<Card>()).toMatchObject({
+      authorId: separate.boris.id,
+      assigneeId: separate.anna.id,
+    });
+    expect((await author.get(url(id))).status).toBe(404);
+  } finally {
+    await separate.close();
+  }
 });
 it('R0.5d: экспорт проходит границу 100 объектов и связей пакетно, без запросов на карточку', async () => {
   const parent = await create();

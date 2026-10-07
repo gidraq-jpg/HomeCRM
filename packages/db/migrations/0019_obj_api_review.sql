@@ -23,7 +23,7 @@ BEGIN
   END IF;
   IF NEW.space_kind = 'personal' THEN
     NEW.assignee_id := (SELECT s.owner_account_id FROM public.spaces s WHERE s.id = NEW.space_id);
-  ELSIF NEW.assignee_id IS NULL AND (TG_TABLE_NAME <> 'objects' OR TG_OP = 'INSERT' OR NEW.space_id IS DISTINCT FROM OLD.space_id OR NEW.space_kind IS DISTINCT FROM OLD.space_kind) THEN
+  ELSIF NEW.assignee_id IS NULL THEN
     NEW.assignee_id := NEW.author_id;
   END IF;
   RETURN NEW;
