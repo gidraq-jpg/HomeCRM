@@ -4,12 +4,12 @@
   Создаёт задачу планировщика Windows: проверка восстановления раз в месяц (R0.11, DATA-3).
 
 .DESCRIPTION
-  Задача «HomeCRM: проверка восстановления» запускается каждый день в 5:30 и сама выходит, если
+  Задача «HomeCRM - проверка восстановления» запускается каждый день в 5:30 и сама выходит, если
   последняя удачная проверка моложе 30 дней (restore-check.ps1 -OnlyIfDue). Если компьютер в это время
   был выключен, задача выполнится при ближайшей возможности. Работает от вашей учётной записи, когда
   вы вошли в систему (Docker Desktop тоже запускается при входе).
   Это системная настройка: скрипт запускаете вы сами. Ключ -WhatIf только показывает, что будет создано.
-  Удалить: Unregister-ScheduledTask -TaskName 'HomeCRM: проверка восстановления'
+  Удалить: Unregister-ScheduledTask -TaskName 'HomeCRM - проверка восстановления'
 
 .EXAMPLE
   pwsh deploy/scripts/register-ops-tasks.ps1 -WhatIf
@@ -20,7 +20,8 @@ param(
   [string]$Time = '05:30'
 )
 $ErrorActionPreference = 'Stop'
-$taskName = 'HomeCRM: проверка восстановления'
+# Двоеточие в имени задачи планировщик не принимает («Параметр задан неверно»).
+$taskName = 'HomeCRM - проверка восстановления'
 $script = (Resolve-Path (Join-Path $PSScriptRoot 'restore-check.ps1')).Path
 $pwsh = (Get-Command pwsh).Source
 
