@@ -110,7 +110,7 @@ services:
       migrate:
         condition: service_completed_successfully
     env_file:
-      - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/server.env
+      - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/worker.env
     read_only: true
     tmpfs:
       - /tmp

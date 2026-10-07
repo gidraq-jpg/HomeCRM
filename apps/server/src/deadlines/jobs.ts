@@ -4,7 +4,11 @@ import { z } from 'zod';
 import { enqueueDeadlineWarnings, initializeHouseTimeZones, refreshDeadlines } from './engine.ts';
 
 export const DEADLINE_QUEUE = 'deadline-engine';
-export async function startDeadlineJobs(pool: Pool, timeZone: string, report: () => void) {
+export async function startDeadlineJobs(
+  pool: Pool,
+  timeZone: string,
+  report: (error: unknown) => void,
+) {
   const db = createWorkerDatabase(pool);
   const boss = new PgBoss({
     schema: 'pgboss',
@@ -23,8 +27,8 @@ export async function startDeadlineJobs(pool: Pool, timeZone: string, report: ()
         await refreshDeadlines(db, new Date(), full);
         await enqueueDeadlineWarnings(db);
       }
-    } catch {
-      report();
+    } catch (error) {
+      report(error);
       throw new Error('Deadline job failed');
     }
   });

@@ -2,6 +2,7 @@ import { createPool } from '@homecrm/db';
 import { TimeZone } from '@homecrm/shared';
 import { z } from 'zod';
 import { startDeadlineJobs } from './deadlines/jobs.ts';
+import { reportWorkerError } from './deadlines/logging.ts';
 
 const Environment = z.object({
   DATABASE_URL_WORKER: z
@@ -12,10 +13,10 @@ const Environment = z.object({
 });
 const parsed = Environment.safeParse(process.env);
 if (!parsed.success) {
-  console.error('Invalid worker configuration');
+  reportWorkerError(parsed.error, 'Invalid worker configuration');
   process.exit(1);
 }
-const report = () => console.error('Deadline worker operation failed');
+const report = reportWorkerError;
 const pool = createPool(parsed.data.DATABASE_URL_WORKER, { max: 4, onError: report });
 try {
   const stop = await startDeadlineJobs(pool, parsed.data.HOME_TIME_ZONE, report);
@@ -25,14 +26,14 @@ try {
         .then(() => pool.end())
         .then(
           () => process.exit(0),
-          () => {
-            report();
+          (error: unknown) => {
+            report(error);
             process.exit(1);
           },
         );
     });
-} catch {
-  report();
-  await pool.end();
+} catch (error) {
+  report(error);
+  await pool.end().catch(report);
   process.exit(1);
 }
