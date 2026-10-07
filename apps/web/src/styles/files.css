@@ -133,3 +133,17 @@
 .member-head .avatar {
   flex: none;
 }
+
+.file-row__note {
+  font-size: 0.875rem;
+}
+
+.photo-progress {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.photo-progress .btn {
+  justify-self: start;
+}

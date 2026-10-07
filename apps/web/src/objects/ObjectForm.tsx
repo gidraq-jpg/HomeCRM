@@ -65,6 +65,8 @@ interface ObjectFormProps {
   /** Кого можно назначить ответственным; меньше двух вариантов — выбор не показывается. */
   assignees?: readonly AssigneeOption[];
   conflict?: ConflictChoice;
+  /** Тип выбрали или сменили: форма создания пересчитывает «Кто видит» по таблице 7.2. */
+  onObjectTypeChange?: (type: ObjectType) => void;
 }
 
 /**
@@ -84,6 +86,7 @@ export function ObjectForm({
   visibilityNote,
   assignees = [],
   conflict,
+  onObjectTypeChange,
 }: ObjectFormProps) {
   const [title, setTitle] = useState(draft.title);
   const [objectType, setObjectType] = useState<ObjectType>(draft.objectType);
@@ -151,7 +154,10 @@ export function ObjectForm({
           legend="Тип объекта"
           value={objectType}
           options={typeOptions}
-          onChange={setObjectType}
+          onChange={(value) => {
+            setObjectType(value);
+            onObjectTypeChange?.(value);
+          }}
         />
       </div>
 

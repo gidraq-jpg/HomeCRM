@@ -31,6 +31,20 @@ const collection = (parent: FileParent) =>
 export const fileUrl = (id: string) => `/api/files/${id}`;
 /** Адрес превью (WebP до 480 px); у PDF превью нет. */
 export const previewUrl = (id: string) => `/api/files/${id}/preview`;
+/** PDF на экране: сервер отдаёт его с `Content-Disposition: inline` и песочницей без разрешений. */
+export const inlineUrl = (id: string) => `/api/files/${id}?inline=1`;
+
+/** Удалённый файл живой записи: сервер сам говорит, можно ли его вернуть. */
+export const DeletedFile = FileMeta.extend({ canRestore: z.boolean() });
+export type DeletedFile = z.infer<typeof DeletedFile>;
+
+/** Строка общей корзины файлов: к чему относился файл и можно ли его вернуть. */
+export const TrashedFile = FileMeta.extend({
+  parentType: z.enum(['note', 'object', 'profile']),
+  parentId: z.string(),
+  canRestore: z.boolean(),
+});
+export type TrashedFile = z.infer<typeof TrashedFile>;
 
 export function trashFile(parent: FileParent, fileId: string) {
   return apiRequest('POST', `${collection(parent)}/${fileId}/trash`, FileMeta, {});
@@ -38,6 +52,34 @@ export function trashFile(parent: FileParent, fileId: string) {
 
 export function restoreFile(parent: FileParent, fileId: string) {
   return apiRequest('POST', `${collection(parent)}/${fileId}/restore`, FileMeta, {});
+}
+
+/** Отдельно удалённые файлы живой записи (`?deleted=1`), в том числе после перезагрузки страницы. */
+export function fetchDeletedFiles(parent: FileParent, signal?: AbortSignal) {
+  return apiRequest(
+    'GET',
+    `${collection(parent)}?deleted=1`,
+    z.array(DeletedFile),
+    undefined,
+    signal,
+  );
+}
+
+/** Общая корзина файлов: отдельно удалённые файлы записей и снятые фото своего профиля. */
+export function fetchTrashedFiles(signal?: AbortSignal) {
+  return apiRequest('GET', 'files/trash', z.array(TrashedFile), undefined, signal);
+}
+
+// ---- Фото профиля (ADR-0026)
+
+/** Снять своё фото: файл остаётся в корзине 30 дней. */
+export function removeProfilePhoto() {
+  return apiRequest('DELETE', 'me/profile/photo', z.unknown());
+}
+
+/** Вернуть снятое или заменённое фото: оно снова становится текущим. */
+export function restoreProfilePhoto(fileId: string) {
+  return apiRequest('POST', `me/profile/photo/${fileId}/restore`, FileMeta, {});
 }
 
 export interface UploadOptions {
@@ -56,6 +98,15 @@ export function uploadFile(
   file: File,
   options: UploadOptions = {},
 ): Promise<FileMeta> {
+  return send(collection(parent), file, options);
+}
+
+/** Загрузка нового фото профиля: сервер заменяет текущее, прежнее уходит в корзину. */
+export function uploadProfilePhoto(file: File, options: UploadOptions = {}): Promise<FileMeta> {
+  return send('me/profile/photo', file, options);
+}
+
+function send(path: string, file: File, options: UploadOptions): Promise<FileMeta> {
   return new Promise((resolve, reject) => {
     const { signal, onProgress } = options;
     if (signal?.aborted) {
@@ -63,7 +114,7 @@ export function uploadFile(
       return;
     }
     const request = new XMLHttpRequest();
-    request.open('POST', `/api/${collection(parent)}`);
+    request.open('POST', `/api/${path}`);
     request.responseType = 'text';
     request.withCredentials = true;
     const abort = () => request.abort();

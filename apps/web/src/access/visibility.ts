@@ -1,4 +1,4 @@
-import { AUDIENCE_LABELS, type Audience } from '@homecrm/shared';
+import { AUDIENCE_LABELS, type Audience, type ObjectType } from '@homecrm/shared';
 import type { Scope } from './scope.ts';
 
 // Кто видит запись — PRD, разделы 7.1 и 7.4. Любая запись лежит либо в личном пространстве
@@ -63,6 +63,17 @@ const DEFAULT_IN_ALL: Readonly<Record<NewRecordKind, Visibility>> = {
 const INHERITS_PARENT: readonly NewRecordKind[] = ['task', 'note', 'document'];
 
 /**
+ * Вид записи для таблицы 7.2 у каждого типа объекта: машина, техника и «другое» по умолчанию
+ * «Взрослые», как недвижимость (решение владельца, 7 октября 2026).
+ */
+const OBJECT_KINDS: Readonly<Record<ObjectType, NewRecordKind>> = {
+  property: 'property',
+  car: 'property',
+  appliance: 'property',
+  other: 'property',
+};
+
+/**
  * Значение строки «Кто видит» в форме создания. Раздел 7.4: в режиме «Личное» новые записи
  * личные, в режиме «Общее» — общие; в режиме «Всё» — по таблице 7.2.
  */
@@ -82,4 +93,9 @@ export function defaultVisibility(
   if (inherited) return context.parent as Visibility;
   if (kind === 'contact' && context.sharedByNature) return 'household';
   return DEFAULT_IN_ALL[kind];
+}
+
+/** «Кто видит» по умолчанию для нового объекта этого типа; пересчитывается при смене типа. */
+export function defaultObjectVisibility(type: ObjectType, scope: Scope): Visibility {
+  return defaultVisibility(OBJECT_KINDS[type], scope);
 }

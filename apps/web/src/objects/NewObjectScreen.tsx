@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
-import { defaultVisibility, type Visibility } from '../access/visibility.ts';
+import { defaultObjectVisibility, type Visibility } from '../access/visibility.ts';
 import { useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { newPlacement, viewerOf } from '../notes/abilities.ts';
@@ -15,6 +15,11 @@ import { useRefreshObjects } from './queries.ts';
 
 const BACK = { to: '/home', label: 'Дом' } as const;
 
+/** Нужное значение, если его можно создать; иначе личное. */
+function fitVisibility(wanted: Visibility, options: readonly Visibility[]): Visibility {
+  return options.includes(wanted) ? wanted : 'personal';
+}
+
 /**
  * Создание объекта («+» → «Объект» и из «Дома»). Строка «Кто видит» стоит над «Сохранить»;
  * значение по умолчанию — таблица 7.2 PRD (недвижимость — «Взрослые») и режим переключателя.
@@ -27,10 +32,11 @@ export function NewObjectScreen() {
   const refresh = useRefreshObjects();
   const state = useAction();
   const options = creatableObjectVisibilities(viewerOf(me), householdId);
-  const wanted = defaultVisibility('property', scope);
-  const [visibility, setVisibility] = useState<Visibility>(
-    options.includes(wanted) ? wanted : 'personal',
+  const [visibility, setVisibility] = useState<Visibility>(() =>
+    fitVisibility(defaultObjectVisibility('other', scope), options),
   );
+  // Пока человек сам не выбрал, «Кто видит» следует за типом объекта (таблица 7.2).
+  const [chosen, setChosen] = useState(false);
 
   function submit(values: ObjectValues) {
     void state.run(async () => {
@@ -55,7 +61,17 @@ export function NewObjectScreen() {
         state={state}
         onSubmit={submit}
         onCancel={() => navigate('/home')}
-        visibility={{ value: visibility, options, onChange: setVisibility }}
+        onObjectTypeChange={(type) => {
+          if (!chosen) setVisibility(fitVisibility(defaultObjectVisibility(type, scope), options));
+        }}
+        visibility={{
+          value: visibility,
+          options,
+          onChange: (next) => {
+            setChosen(true);
+            setVisibility(next);
+          },
+        }}
         visibilityNote={
           options.length === 1 ? (
             <p className="muted">
