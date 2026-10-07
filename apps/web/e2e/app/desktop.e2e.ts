@@ -1,6 +1,16 @@
 import { test } from '../auth/support/fixtures.ts';
 import { setScope } from '../support/helpers.ts';
 import {
+  deadlinesSection,
+  groupItems,
+  homeDate,
+  openObjectCard,
+  openRadar,
+  recalc,
+  seedDeadline,
+  setHomeZone,
+} from './deadlines-support.ts';
+import {
   expectImageLoaded,
   filePicker,
   fileRows,
@@ -224,4 +234,38 @@ test('вкладка «Файлы» на компьютере: загрузка 
   await expect(fileRows(page)).toHaveCount(2);
   await expectImageLoaded(page, '.file-row__image');
   await checkApp(page, info, 'desktop-files');
+});
+
+test('сроки и радар на компьютере: блок в карточке, радар, настройки дома', async ({
+  page,
+  family,
+}, info) => {
+  await setHomeZone(family);
+  const boris = await apiAs(family, 'adult');
+  const flat = await seedObject(boris, family, {
+    title: 'Квартира у парка',
+    audience: 'household',
+  });
+  await seedDeadline(boris, 'objects', flat.id, { kind: 'date', date: homeDate(-2) });
+  await seedDeadline(boris, 'objects', flat.id, {
+    kind: 'repeat',
+    anchor: homeDate(-60),
+    repeat: { unit: 'month', day: 20 },
+    durationDays: 5,
+    time: '09:00',
+  });
+  await recalc(family);
+  await signInAs(page, family, 'adult');
+  await openObjectCard(page, flat.id, 'Квартира у парка');
+  await expect(deadlinesSection(page).getByRole('listitem')).toHaveCount(2);
+  await checkApp(page, info, 'desktop-deadlines-card');
+  await deadlinesSection(page).getByRole('button', { name: 'Добавить срок', exact: true }).click();
+  await checkApp(page, info, 'desktop-deadlines-form');
+
+  await openRadar(page);
+  await expect(groupItems(page, 'Просрочено').first()).toBeVisible();
+  await checkApp(page, info, 'desktop-radar');
+  await page.goto('#/more/house');
+  await expect(page.getByRole('heading', { level: 1, name: 'Настройки дома' })).toBeVisible();
+  await checkApp(page, info, 'desktop-house');
 });

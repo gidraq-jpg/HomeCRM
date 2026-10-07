@@ -10,6 +10,7 @@ import { useNavigate, useParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
+import { DeadlinesSection } from '../deadlines/DeadlinesSection.tsx';
 import { FilesSection } from '../files/FilesSection.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
@@ -308,6 +309,8 @@ function NoteView({ card }: { card: NoteCard }) {
               </div>
             </dl>
           ) : null}
+
+          {!trashed ? <DeadlinesSection source="notes" card={card} /> : null}
 
           <FilesSection
             parent={{ kind: 'note', id: card.id }}

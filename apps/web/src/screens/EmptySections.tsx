@@ -1,4 +1,5 @@
 import { CalendarBlank, FileText } from '@phosphor-icons/react';
+import { RadarBlock } from '../deadlines/RadarBlock.tsx';
 import { SectionPlaceholder } from './SectionPlaceholder.tsx';
 
 // Два раздела, данных у которых ещё нет: в них пока нечего создавать.
@@ -8,9 +9,10 @@ export function TodayScreen() {
     <SectionPlaceholder
       title="Сегодня"
       icon={<CalendarBlank size={24} aria-hidden />}
-      lead="На сегодня пока ничего нет"
-      now="Дел, сроков и документов в приложении ещё нет, поэтому собирать нечего. Создавать их пока нельзя: эти разделы не готовы."
-      will="Когда в приложении появятся дела и сроки, здесь соберутся срочное, главное дело и дела на сегодня."
+      top={<RadarBlock />}
+      lead="Дел на сегодня пока нет"
+      now="Создавать дела в приложении пока нельзя: раздел не готов. Сроки из карточек объектов и заметок собираются в радаре."
+      will="Когда в приложении появятся дела, здесь соберутся главное дело и дела на сегодня."
     />
   );
 }
