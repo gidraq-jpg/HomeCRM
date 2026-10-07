@@ -42,19 +42,29 @@ const currentId = async (device: Device): Promise<string> => {
 
 describe('лимит 120 запросов в минуту по адресу и пути (AUTH-8)', () => {
   it.each(ROUTES)(
-    '$path: 121-й запрос получает 429; query и поддельный IP не обходят лимит',
+    '$path: 121-й запрос получает 429; кодирование пути, query и поддельный IP не обходят лимит',
     async ({ method, path, status }) => {
       const device = world.device();
       await device.signIn('boris', world.boris.password);
       const id = randomUUID();
+      const paths = [
+        path,
+        path.replace('session', '%73ession'),
+        path.replace('list-session', 'l%69st-%73ession'),
+        path.replace('/auth/', '/%61uth/'),
+      ];
       for (let attempt = 0; attempt < 120; attempt++) {
-        const response = await device.request(method, `${path}?attempt=${attempt}`, {
-          ...(method === 'POST' ? { json: { id } } : {}),
-          headers: {
-            'x-homecrm-client-ip': `203.0.113.${attempt}`,
-            'x-forwarded-for': `203.0.113.${attempt}`,
+        const response = await device.request(
+          method,
+          `${paths[attempt % paths.length]}?attempt=${attempt}`,
+          {
+            ...(method === 'POST' ? { json: { id } } : {}),
+            headers: {
+              'x-homecrm-client-ip': `203.0.113.${attempt}`,
+              'x-forwarded-for': `203.0.113.${attempt}`,
+            },
           },
-        });
+        );
         expect(response.status, String(attempt)).toBe(status);
       }
       const blocked = await device.request(method, path, { json: { id } });
@@ -62,6 +72,11 @@ describe('лимит 120 запросов в минуту по адресу и �
       expect(Number(blocked.headers['retry-after'])).toBeGreaterThan(0);
       expect(Number(blocked.headers['retry-after'])).toBeLessThanOrEqual(60);
       expect(blocked.headers['cache-control']).toBe('no-store');
+      const counters = await world.database.admin.query(
+        'SELECT key, count FROM rate_limits WHERE key LIKE $1',
+        [`session:${device.ip}:%`],
+      );
+      expect(counters.rows).toEqual([{ key: `session:${device.ip}:${path}`, count: 120 }]);
       // Другой адрес и другой путь имеют собственные счётчики.
       expect((await world.device().request(method, path, { json: { id } })).status).toBe(401);
       const other = path === ROUTES[0].path ? ROUTES[2] : ROUTES[0];
@@ -142,6 +157,12 @@ describe('Origin, Referer и Fetch Metadata — общее правило с п�
           },
         },
       ];
+      const counters = () =>
+        world.database.admin.query(
+          'SELECT key, count FROM rate_limits WHERE key LIKE $1 ORDER BY key',
+          [`session:${device.ip}:%`],
+        );
+      const before = (await counters()).rows;
       for (const options of sources) {
         const response = await device.request(method, path, {
           ...options,
@@ -149,6 +170,13 @@ describe('Origin, Referer и Fetch Metadata — общее правило с п�
         });
         expect(response.status).toBe(403);
       }
+      expect((await counters()).rows).toEqual(before);
+      await world.database.admin.query('UPDATE rate_limits SET count = 120 WHERE key LIKE $1', [
+        `session:${device.ip}:%`,
+      ]);
+      expect((await device.request(method, path, { origin: 'https://foreign.test' })).status).toBe(
+        403,
+      );
       expect((await device.get('/api/me')).status).toBe(200);
     },
   );

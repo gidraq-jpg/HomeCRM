@@ -41,7 +41,13 @@ export function buildApp(
 
   // Личные ответы API нельзя хранить в браузере или прокси, включая ошибки и неизвестные пути.
   app.addHook('onSend', async (request, reply, payload) => {
-    const path = new URL(request.url, 'http://localhost').pathname;
+    let path = request.routeOptions.url ?? new URL(request.url, 'http://localhost').pathname;
+    try {
+      path = decodeURIComponent(path);
+    } catch (error) {
+      // При ошибке %-кодирования проверяем исходный путь.
+      if (!(error instanceof URIError)) throw error;
+    }
     if (path === '/api' || path.startsWith('/api/')) void reply.header('cache-control', 'no-store');
     return payload;
   });

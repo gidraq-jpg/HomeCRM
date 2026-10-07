@@ -120,8 +120,16 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
   const currentAccount = createAccountReader(module);
   const sessionProtection = {
     onRequest: async (request: FastifyRequest, reply: FastifyReply) => {
-      const path = new URL(request.url, module.baseURL).pathname;
-      const retryAfter = await reserveSessionRequest(db, `session:${request.ip}:${path}`);
+      const error = checkRequestSource(
+        fromNodeHeaders(request.headers),
+        (origin) => module.origins.has(origin),
+        request.method === 'POST',
+      );
+      if (error !== null) return reply.code(403).send(error);
+      const retryAfter = await reserveSessionRequest(
+        db,
+        `session:${request.ip}:${request.routeOptions.url}`,
+      );
       if (retryAfter !== null) {
         void reply.header('retry-after', String(retryAfter));
         void reply.header('x-retry-after', String(retryAfter));
@@ -129,12 +137,6 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
           .code(429)
           .send({ code: 'TOO_MANY_REQUESTS', message: 'Too many requests, try later' });
       }
-      const error = checkRequestSource(
-        fromNodeHeaders(request.headers),
-        (origin) => module.origins.has(origin),
-        request.method === 'POST',
-      );
-      if (error !== null) return reply.code(403).send(error);
     },
   };
   app.get('/api/auth/list-sessions', sessionProtection, async (request, reply) => {

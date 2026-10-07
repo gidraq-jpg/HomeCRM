@@ -79,6 +79,10 @@ describe('Cache-Control для /api', () => {
     try {
       for (const [url, status] of [
         ['/api/value?x=1', 200],
+        ['/%61pi/value?x=1', 200],
+        ['/%61pi/failure', 500],
+        ['/%61pi/notes', 404],
+        ['/%61pi', 404],
         ['/api/failure', 500],
         ['/api/missing', 404],
         ['/api', 404],
