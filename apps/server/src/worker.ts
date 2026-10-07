@@ -3,6 +3,7 @@ import { TimeZone } from '@homecrm/shared';
 import { z } from 'zod';
 import { startDeadlineJobs } from './deadlines/jobs.ts';
 import { reportWorkerError } from './deadlines/logging.ts';
+import { createPushSender, VapidConfig } from './notifications/transport.ts';
 
 const Environment = z.object({
   DATABASE_URL_WORKER: z
@@ -11,7 +12,7 @@ const Environment = z.object({
     .refine((x) => /^postgres(ql)?:/.test(x)),
   HOME_TIME_ZONE: TimeZone.default('Asia/Yekaterinburg'),
 });
-const parsed = Environment.safeParse(process.env);
+const parsed = Environment.extend(VapidConfig.shape).safeParse(process.env);
 if (!parsed.success) {
   reportWorkerError(parsed.error, 'Invalid worker configuration');
   process.exit(1);
@@ -19,7 +20,12 @@ if (!parsed.success) {
 const report = reportWorkerError;
 const pool = createPool(parsed.data.DATABASE_URL_WORKER, { max: 4, onError: report });
 try {
-  const stop = await startDeadlineJobs(pool, parsed.data.HOME_TIME_ZONE, report);
+  const stop = await startDeadlineJobs(
+    pool,
+    parsed.data.HOME_TIME_ZONE,
+    report,
+    createPushSender(parsed.data),
+  );
   for (const signal of ['SIGINT', 'SIGTERM'] as const)
     process.once(signal, () => {
       void stop()

@@ -178,7 +178,7 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
       await tx.execute(
         sql`UPDATE deadline_notifications SET status='cancelled' WHERE occurrence_id=${row.id} AND recipient_id<>${recipient} AND status='pending'`,
       );
-      if (row.endsAt < now) continue;
+      // R0.7 досылает пропущенное после простоя; старше суток диспетчер направляет в сводку.
       for (const warning of row.warningsAt)
         if (new Date(warning) <= now)
           await tx

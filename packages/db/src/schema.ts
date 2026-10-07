@@ -52,6 +52,7 @@ import { recordTable } from './records.ts';
 
 export * from './core.ts';
 export * from './deadlines-schema.ts';
+export * from './notifications-schema.ts';
 export * from './records.ts';
 export * from './search-schema.ts';
 
@@ -458,6 +459,7 @@ export const sessions = pgTable(
   },
   (t) => [
     unique('sessions_token_key').on(t.token),
+    unique('sessions_id_user_key').on(t.id, t.userId),
     index('sessions_user_id_idx').on(t.userId),
     ...authPolicies('sessions', ['select', 'insert', 'update', 'delete']),
     ...cleanupPolicies('sessions', 'expires_at < now()'),

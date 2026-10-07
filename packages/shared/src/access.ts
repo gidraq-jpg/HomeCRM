@@ -326,3 +326,7 @@ export function mustUseSecondFactor(viewer: Viewer): boolean {
 export function canViewAccountJournal(viewer: Viewer, ownerAccountId: string): boolean {
   return viewer.accountId === ownerAccountId;
 }
+/** NOTIF: подписки, настройки и журнал доступны только самому участнику. */
+export function canManageNotifications(viewer: Viewer, ownerAccountId: string): boolean {
+  return viewer.accountId === ownerAccountId;
+}

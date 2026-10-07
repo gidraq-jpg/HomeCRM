@@ -193,6 +193,10 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'push_subscriptions',
+      'notification_settings',
+      'push_attempts',
+      'push_deliveries', // notifications-matrix.test.ts
       'deadlines',
       'deadline_occurrences',
       'deadline_notifications', // deadlines-matrix.test.ts

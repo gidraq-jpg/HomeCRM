@@ -25,6 +25,12 @@ function Invoke-RestMethod {
 }
 
 try {
+  # Имитируем существующую пару этапа 0: скрипт обязан сохранить её побайтно.
+  $stageZero = Join-Path $data 'secrets/vapid.env'
+  New-Item -ItemType Directory -Force (Split-Path $stageZero) | Out-Null
+  & node (Join-Path $script:RepoRoot 'tools/access-probe/scripts/generate-vapid.ts') $stageZero 'mailto:fictional@homecrm.invalid' | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw 'Не удалось подготовить вымышленную пару VAPID.' }
+  $stageZeroHash = (Get-FileHash $stageZero).Hash
   foreach ($environment in 'production', 'preview') {
     $folder = if ($environment -eq 'preview') { 'preview' } else { 'app' }
     $dir = Join-Path $data "secrets/$folder"
@@ -34,7 +40,10 @@ try {
     $serverFile = Join-Path $dir 'server.env'
     $workerText = Get-Content $workerFile -Raw
     $keys = @(Get-Content $workerFile | ForEach-Object { if ($_ -match '^([^#=]+)=') { $Matches[1] } })
-    Assert-That (($keys -join ',') -ceq 'DATABASE_URL_WORKER,HOME_TIME_ZONE') 'Лишние или отсутствующие переменные worker.'
+    Assert-That (($keys -join ',') -ceq 'DATABASE_URL_WORKER,HOME_TIME_ZONE,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY,VAPID_SUBJECT') 'Лишние или отсутствующие переменные worker.'
+    Assert-That ((Get-EnvSetting $serverFile 'VAPID_PUBLIC_KEY') -ceq (Get-EnvSetting $workerFile 'VAPID_PUBLIC_KEY')) 'Публичные ключи app и worker различаются.'
+    Assert-That (-not (Get-EnvSetting $serverFile 'VAPID_PRIVATE_KEY')) 'Закрытый ключ попал в app.'
+    Assert-That ((Get-FileHash $stageZero).Hash -ceq $stageZeroHash) 'Пара этапа 0 заменена.'
     Assert-That ($workerText -notmatch 'BETTER_AUTH_SECRET|DATABASE_URL_APP|DATABASE_URL_AUTH|homecrm_app:|homecrm_auth:') 'Worker получил секреты app/auth.'
     Assert-That ((Get-EnvSetting $workerFile 'DATABASE_URL_WORKER') -ceq (Get-EnvSetting $serverFile 'DATABASE_URL_WORKER')) 'Подключение worker не совпало.'
     Assert-That ((Get-EnvSetting $workerFile 'HOME_TIME_ZONE') -ceq 'Europe/Moscow') 'Пояс worker не совпал.'

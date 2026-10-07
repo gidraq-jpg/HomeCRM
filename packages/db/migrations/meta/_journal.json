@@ -169,6 +169,20 @@
       "when": 1791357862563,
       "tag": "0023_deadlines",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791367519950,
+      "tag": "0024_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791367593092,
+      "tag": "0025_notification-status",
+      "breakpoints": true
     }
   ]
 }
