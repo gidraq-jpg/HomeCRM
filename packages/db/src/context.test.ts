@@ -28,6 +28,7 @@ const AUTH_ONLY = [
 // Таблицы записей и их истории берутся из recordTable(): новая таблица попадает сюда сама.
 const RECORD_NAMES = RECORD_DEFINITIONS.map((definition) => definition.name);
 const APP_TABLES = [
+  'search_index',
   'profile_files',
   'file_blobs',
   'record_links',
@@ -44,6 +45,7 @@ const APP_TABLES = [
 ];
 // Эти таблицы наполняет seedFamily: проверка «без контекста пусто» не вырождена.
 const SEEDED = new Set([
+  'search_index',
   'profile_files',
   'file_blobs',
   'accounts',

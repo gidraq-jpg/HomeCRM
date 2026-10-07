@@ -131,7 +131,7 @@ test('поиск и неизвестный адрес говорят прямо'
   await signInAs(page, family, 'child');
   await page.getByRole('link', { name: 'Поиск', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Поиск' })).toBeVisible();
-  await expect(page.getByText('Искать пока нечего')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Поиск по вашим записям' })).toBeVisible();
   await checkApp(page, info, 'search');
   await page.getByRole('button', { name: 'Закрыть поиск' }).click();
   await page.goto('#/нет-такого-адреса');

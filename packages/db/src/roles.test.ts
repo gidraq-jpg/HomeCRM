@@ -78,13 +78,17 @@ describe('роли базы', () => {
           /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$/,
         );
       } else if (roles[0] === DB_ROLES.owner) {
-        expect(['household_access_sync', 'member_profiles_initialize']).toContain(policyname);
+        expect([
+          'household_access_sync',
+          'member_profiles_initialize',
+          'search_index_sync',
+        ]).toContain(policyname);
       } else if (roles[0] === DB_ROLES.auth) expect(policyname).toMatch(/_auth_/);
       else expect(roles[0], policyname).toBe(DB_ROLES.app);
     }
   });
 
-  it('SECURITY DEFINER только у двух закрытых триггеров ADR-0022; runtime-роли не вызывают их', async () => {
+  it('SECURITY DEFINER только у закрытых триггеров ADR-0022 и ADR-0027; runtime-роли не вызывают их', async () => {
     const { rows } = await database.admin.query(
       `SELECT p.proname, pg_get_userbyid(p.proowner) AS owner,
          has_function_privilege('homecrm_app', p.oid, 'EXECUTE') AS app,
@@ -94,13 +98,15 @@ describe('роли базы', () => {
        WHERE n.nspname IN ('public', 'app') AND p.prosecdef ORDER BY p.proname`,
     );
     expect(rows).toEqual(
-      ['initialize_member_profile', 'sync_household_access'].map((proname) => ({
-        proname,
-        owner: DB_ROLES.owner,
-        app: false,
-        auth: false,
-        worker: false,
-      })),
+      ['initialize_member_profile', 'sync_household_access', 'sync_search_entry'].map(
+        (proname) => ({
+          proname,
+          owner: DB_ROLES.owner,
+          app: false,
+          auth: false,
+          worker: false,
+        }),
+      ),
     );
   });
 });

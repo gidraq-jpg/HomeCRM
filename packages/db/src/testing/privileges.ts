@@ -28,6 +28,7 @@ const FROZEN = ['id', 'author_id', 'created_at', 'updated_at'];
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
+    search_index: { SELECT: 'all' },
     profile_files: { SELECT: 'all', INSERT: 'all', UPDATE: ['deleted_at'] },
     // Реестр UUID доступен приложению только из триггеров; строки ограничены RLS.
     file_blobs: { SELECT: 'all', INSERT: 'all', DELETE: 'all' },
