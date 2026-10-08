@@ -109,6 +109,8 @@ export const RadarItem = z.object({
   meter: z.object({ id: z.string(), title: z.string() }).nullish(),
   /** Окно показаний без активных счётчиков. */
   needsMeters: z.boolean().default(false),
+  /** Начисление, к которому относится срок оплаты (R1a.7–8); у прежних сроков пусто. */
+  chargeId: z.string().nullish(),
   primaryAction: PrimaryAction.nullish(),
 });
 export type RadarItem = z.infer<typeof RadarItem>;
@@ -133,7 +135,13 @@ export function saveTimeZone(householdId: string, timeZone: string) {
   );
 }
 
-const Marked = z.object({ id: z.string(), completedAt: z.string().nullable() });
+const Marked = z.object({
+  id: z.string(),
+  completedAt: z.string().nullable(),
+  /** Начисление, по которому создана оплата на остаток; у прежней отметки поля нет. */
+  chargeId: z.string().nullish(),
+});
+export type Marked = z.infer<typeof Marked>;
 
 /** Отметка оплаты; `completed: false` отменяет её. Повтор сохраняет первое время. */
 export function completePayment(occurrenceId: string, completed: boolean) {

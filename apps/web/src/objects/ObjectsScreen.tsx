@@ -1,4 +1,4 @@
-import { Buildings, Plus } from '@phosphor-icons/react';
+import { Buildings, ListChecks, Plus } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
@@ -23,6 +23,7 @@ import {
 } from './types.ts';
 
 export const NEW_OBJECT = '/home/new';
+export const FROM_TEMPLATE = '/home/from-template';
 
 export function ObjectRows({
   objects,
@@ -80,6 +81,10 @@ function EmptyObjects() {
           <Link className="btn btn--primary btn--block" to={NEW_OBJECT}>
             <Plus size={20} weight="bold" aria-hidden />
             Добавить объект
+          </Link>
+          <Link className="btn btn--secondary btn--block" to={FROM_TEMPLATE}>
+            <ListChecks size={20} aria-hidden />
+            Создать из шаблона
           </Link>
           {scope === 'all' ? null : (
             <button
@@ -165,6 +170,10 @@ export function ObjectsScreen() {
           <Link className="btn btn--primary btn--block list-action" to={NEW_OBJECT}>
             <Plus size={20} weight="bold" aria-hidden />
             Добавить объект
+          </Link>
+          <Link className="btn btn--secondary btn--block list-action" to={FROM_TEMPLATE}>
+            <ListChecks size={20} aria-hidden />
+            Создать из шаблона
           </Link>
         </>
       )}

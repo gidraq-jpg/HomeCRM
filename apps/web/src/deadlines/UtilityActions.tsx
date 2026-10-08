@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useId, useState } from 'react';
 import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
+import { cancelPayment, fetchPayments } from '../charges/api.ts';
+import { useRefreshCharges } from '../charges/queries.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { computedNextVerification } from '../meters/form.ts';
 import { useRefreshMeters } from '../meters/queries.ts';
@@ -10,6 +12,7 @@ import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { completePayment, completeReadings, fetchMeterCard, verifyMeter } from './api.ts';
 import { DeadlineError } from './components.tsx';
+import { liveIds, type MarkOutcome, markOutcome } from './markPayment.ts';
 import { useRefreshDeadlines } from './queries.ts';
 import type { UtilityRow } from './radar.ts';
 
@@ -70,10 +73,89 @@ export function MarkReadingsButton({
   );
 }
 
-function MarkPaymentButton({ occurrenceId, label }: { occurrenceId: string; label: string }) {
+/** Причина отмены оплаты, созданной отметкой в радаре, если её сняли сразу: деньги не удаляются. */
+export const UNDO_MARK_REASON = 'Отметка снята сразу после создания';
+
+function MarkPaymentButton({
+  occurrenceId,
+  chargeId,
+  label,
+}: {
+  occurrenceId: string;
+  /** Начисление срока, если радар его знает: тогда до отметки снимается слепок оплат. */
+  chargeId: string | null;
+  label: string;
+}) {
+  const { me } = useHousehold();
   const refresh = useRefreshDeadlines();
+  const refreshCharges = useRefreshCharges();
   const toast = useToast();
   const state = useAction();
+
+  async function mark() {
+    // Слепок живых оплат «до»: без него нельзя узнать, какая оплата создана отметкой.
+    let before: ReadonlySet<string> | null = null;
+    if (chargeId !== null) {
+      try {
+        before = liveIds(await fetchPayments(chargeId));
+      } catch {
+        before = null;
+      }
+    }
+    const marked = await completePayment(occurrenceId, true);
+    const markedCharge = marked.chargeId ?? null;
+    if (markedCharge === null) {
+      // Срок без начисления: прежняя отметка, её снимает тот же вызов.
+      await Promise.all([refresh(), refreshCharges()]);
+      toast.show({
+        message: 'Оплата отмечена',
+        action: {
+          label: 'Отменить',
+          onClick: () => {
+            completePayment(occurrenceId, false)
+              .then(() => Promise.all([refresh(), refreshCharges()]))
+              .then(() => toast.show({ message: 'Отметка об оплате снята' }))
+              .catch(() => toast.show({ message: 'Не удалось снять отметку' }));
+          },
+        },
+      });
+      return;
+    }
+    let outcome: MarkOutcome = { kind: 'unknown' };
+    if (before !== null && markedCharge === chargeId) {
+      try {
+        outcome = markOutcome(before, await fetchPayments(markedCharge), me.id);
+      } catch {
+        outcome = { kind: 'unknown' };
+      }
+    }
+    await Promise.all([refresh(), refreshCharges()]);
+    if (outcome.kind === 'already-paid') {
+      toast.show({ message: 'Начисление уже оплачено', detail: 'Новая оплата не создана.' });
+    } else if (outcome.kind === 'created') {
+      const { paymentId } = outcome;
+      toast.show({
+        message: 'Оплата отмечена',
+        detail: 'Оплата на остаток записана в начислении.',
+        action: {
+          label: 'Отменить',
+          onClick: () => {
+            // Начисление: оплата отменяется с причиной, а не снимается флажком (UTIL-10).
+            cancelPayment(paymentId, UNDO_MARK_REASON)
+              .then(() => Promise.all([refresh(), refreshCharges()]))
+              .then(() => toast.show({ message: 'Оплата отменена' }))
+              .catch(() => toast.show({ message: 'Не удалось снять отметку' }));
+          },
+        },
+      });
+    } else {
+      toast.show({
+        message: 'Оплата отмечена',
+        detail: 'Отменить её можно в начислении.',
+      });
+    }
+  }
+
   return (
     <>
       <DeadlineError error={state.error} action="mark" />
@@ -81,31 +163,13 @@ function MarkPaymentButton({ occurrenceId, label }: { occurrenceId: string; labe
         type="button"
         className="btn btn--primary btn--block"
         disabled={state.disabled}
-        onClick={() =>
-          void state.run(async () => {
-            await completePayment(occurrenceId, true);
-            await refresh();
-            toast.show({
-              message: 'Оплата отмечена',
-              action: {
-                label: 'Отменить',
-                onClick: () => {
-                  completePayment(occurrenceId, false)
-                    .then(() => refresh())
-                    .then(() => toast.show({ message: 'Отметка об оплате снята' }))
-                    .catch(() => toast.show({ message: 'Не удалось снять отметку' }));
-                },
-              },
-            });
-          })
-        }
+        onClick={() => void state.run(mark)}
       >
         {state.pending ? 'Отмечаем…' : label}
       </button>
     </>
   );
 }
-
 /** «Поверка проведена»: дата поверки и следующая дата, по умолчанию — от интервала счётчика. */
 function VerifySheet({ meterId, onClose }: { meterId: string; onClose: () => void }) {
   const { me } = useHousehold();
@@ -261,6 +325,7 @@ export function UtilityActions({
     primary = (
       <MarkPaymentButton
         occurrenceId={action.occurrenceId}
+        chargeId={utility.chargeId}
         label={action.label || FALLBACK.mark_payment}
       />
     );

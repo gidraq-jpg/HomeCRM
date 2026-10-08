@@ -5,6 +5,7 @@ import { ObjectAccounts } from './accounts/ObjectAccounts.tsx';
 import type { Me } from './auth/api.ts';
 import { ExportScreen } from './auth/ExportScreen.tsx';
 import { SecurityScreen } from './auth/SecurityScreen.tsx';
+import { ChargesScreen } from './charges/ChargesScreen.tsx';
 import { RadarScreen } from './deadlines/RadarScreen.tsx';
 import { HouseholdProvider } from './household/HouseholdContext.tsx';
 import { HouseScreen } from './household/HouseScreen.tsx';
@@ -42,6 +43,8 @@ import { SpacesScreen } from './screens/SpacesScreen.tsx';
 import { AddMenu } from './shell/AddMenu.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import { SECTIONS } from './shell/sections.ts';
+import { NewFromTemplateScreen } from './templates/NewFromTemplateScreen.tsx';
+import { StartScreen } from './templates/StartScreen.tsx';
 import { ToastProvider } from './ui/Toast.tsx';
 
 interface AppProps {
@@ -65,11 +68,17 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="today" element={<TodayScreen />} />
         <Route path="home" element={<ObjectsScreen />} />
         <Route path="home/new" element={<NewObjectScreen />} />
+        <Route path="home/from-template" element={<NewFromTemplateScreen />} />
+        <Route path="home/from-template/:templateId" element={<NewFromTemplateScreen />} />
+        <Route path="start" element={<StartScreen />} />
+        <Route path="start/object/:templateId" element={<StartScreen fixedStep="object" />} />
+        <Route path="start/:step" element={<StartScreen />} />
         <Route path="home/:objectId" element={<ObjectScreen />}>
           <Route index element={<ObjectOverview />} />
           <Route path="timeline" element={<ObjectTimeline />} />
           <Route path="files" element={<ObjectFiles />} />
           <Route path="accounts" element={<ObjectAccounts />} />
+          <Route path="accounts/:accountId/charges" element={<ChargesScreen />} />
           <Route path="meters" element={<ObjectMeters />} />
         </Route>
         <Route path="home/:objectId/readings" element={<ReadingsLayout />}>
