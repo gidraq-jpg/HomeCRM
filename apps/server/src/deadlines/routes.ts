@@ -255,7 +255,7 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
           ORDER BY o.starts_at,o.id
         ) SELECT coalesce(jsonb_agg(radar),'[]'::jsonb) AS items,
           (EXISTS (SELECT 1 FROM visible_deadlines d WHERE d.deleted_at IS NULL AND d.needs_refresh)
-           OR EXISTS (SELECT 1 FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id
+           OR EXISTS (SELECT 1 FROM visible_occurrences o JOIN visible_deadlines d ON d.id=o.deadline_id
             JOIN spaces s ON s.id=d.household_id WHERE d.deleted_at IS NULL AND o.time_zone<>s.time_zone)) AS recalculating
         FROM radar`);
       const rows = (result.rows[0]?.items ?? []).map((x) => ({
