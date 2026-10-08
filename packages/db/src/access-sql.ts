@@ -42,6 +42,14 @@ const housesWhere = (roles: readonly Role[]): string =>
 /** Личное пространство текущей учётной записи. */
 const MY_PERSONAL_SPACE = `(SELECT s.id FROM spaces s WHERE s.owner_account_id = ${ME})`;
 
+/** DATA-2: SQL-двойники прав запуска экспорта; имена колонок задаёт только код. */
+export function canExportHouseSql(spaceId = 'space_id'): string {
+  return `${spaceId} IN ${housesWhere(['admin'])}`;
+}
+export function canExportPersonalSql(ownerId = 'owner_account_id'): string {
+  return `${ownerId} = ${ME}`;
+}
+
 /** canView: личное видит только владелец; «Вся семья» — участники дома; «Взрослые» — взрослые. */
 export function canViewSql(): string {
   return `(

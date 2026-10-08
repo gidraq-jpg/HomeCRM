@@ -193,6 +193,7 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'export_events', // export-matrix.test.ts: область экспорта, чтение и неизменяемость журнала.
       'push_subscriptions',
       'notification_settings',
       'push_attempts',

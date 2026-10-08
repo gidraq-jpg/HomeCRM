@@ -54,6 +54,27 @@ export function roleIn(viewer: Viewer, spaceId: string): Role | undefined {
   return viewer.memberships.get(spaceId);
 }
 
+/** DATA-2: общее выгружает только действующий администратор выбранного дома. */
+export function canExportHouse(viewer: Viewer, spaceId: string): boolean {
+  return roleIn(viewer, spaceId) === 'admin';
+}
+
+/** DATA-2: личную выгрузку получает только владелец. */
+export function canExportPersonal(viewer: Viewer, ownerId: string): boolean {
+  return viewer.accountId === ownerId;
+}
+
+/** История личных выгрузок закрыта от семьи; историю общего видят действующие администраторы. */
+export function canViewExportEvent(
+  viewer: Viewer,
+  actorId: string,
+  householdId: string | null,
+): boolean {
+  return householdId === null
+    ? canExportPersonal(viewer, actorId)
+    : canExportHouse(viewer, householdId);
+}
+
 /** Видит ли участник запись. Личное — только владелец, администратор тоже не видит. */
 export function canView(viewer: Viewer, placement: Placement): boolean {
   if (placement.kind === 'personal') return placement.ownerId === viewer.accountId;

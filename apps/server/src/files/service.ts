@@ -25,20 +25,24 @@ const transactions = new WeakMap<Transaction, { services: FileServices; keys: st
 /** После успешного тела исход COMMIT может быть неизвестен: блоки проверяет фоновая сверка. */
 export function fileTransactions(db: AppDatabase, services: FileServices): AppDatabase {
   return {
-    async withAccount(accountId, fn) {
+    async withAccount(accountId, fn, options) {
       const keys: string[] = [];
       let bodyFinished = false;
       try {
-        return await db.withAccount(accountId, async (tx) => {
-          transactions.set(tx, { services, keys });
-          try {
-            const result = await fn(tx);
-            bodyFinished = true;
-            return result;
-          } finally {
-            transactions.delete(tx);
-          }
-        });
+        return await db.withAccount(
+          accountId,
+          async (tx) => {
+            transactions.set(tx, { services, keys });
+            try {
+              const result = await fn(tx);
+              bodyFinished = true;
+              return result;
+            } finally {
+              transactions.delete(tx);
+            }
+          },
+          options,
+        );
       } catch (error) {
         if (bodyFinished) throw error;
         const cleanup = await Promise.allSettled(keys.map((key) => services.storage.delete(key)));

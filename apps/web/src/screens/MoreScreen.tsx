@@ -62,8 +62,8 @@ export function MoreScreen() {
         <Row
           to="/more/export"
           icon={<Export size={22} aria-hidden />}
-          title="Экспорт"
-          meta="Выгрузить свои данные"
+          title="Мои данные"
+          meta="Скачать личное и общее в ZIP"
         />
         <Row
           to="/more/spaces"

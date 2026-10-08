@@ -52,6 +52,7 @@ import { recordTable } from './records.ts';
 
 export * from './core.ts';
 export * from './deadlines-schema.ts';
+export * from './export-schema.ts';
 export * from './notifications-schema.ts';
 export * from './records.ts';
 export * from './search-schema.ts';

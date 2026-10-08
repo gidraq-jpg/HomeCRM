@@ -111,11 +111,14 @@ test('экспорт требует пароль, скачивается лок�
   await signIn(page, family, 'child');
   await expectSignedIn(page);
   await page.goto('#/more/export');
+  await page.getByLabel('Скачать архив с открытыми данными и файлами').check();
   await page
     .getByLabel('Подтвердите пароль', { exact: true })
     .fill(family.person('child').password);
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Скачать JSON' }).click();
-  expect((await download).suggestedFilename()).toBe('homecrm-export.json');
-  await expect(page.getByText('Файл с вашими данными скачан.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Скачать моё личное' }).click();
+  expect((await download).suggestedFilename()).toBe('homecrm-personal.zip');
+  await expect(
+    page.getByText('Архив передан браузеру для скачивания.', { exact: true }),
+  ).toBeVisible();
 });
