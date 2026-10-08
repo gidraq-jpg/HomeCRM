@@ -187,7 +187,22 @@ export const ManualEvent = z.object({
 });
 export type ManualEvent = z.infer<typeof ManualEvent>;
 
-export const TimelineItem = z.union([ManualEvent, AutoItem]);
+/** Показание счётчика в ленте (OBJ-3, ADR-0032): значения и расход строками, без округления. */
+export const ReadingEvent = z.object({
+  id: z.string(),
+  at: z.string(),
+  source: z.literal('reading'),
+  actorId: z.string().nullable().optional(),
+  readingId: z.string(),
+  meterId: z.string(),
+  /** Календарная дата `YYYY-MM-DD`: без часового пояса. */
+  occurredOn: z.string(),
+  values: z.array(z.string()),
+  consumption: z.array(z.string()).nullable(),
+});
+export type ReadingEvent = z.infer<typeof ReadingEvent>;
+
+export const TimelineItem = z.union([ManualEvent, AutoItem, ReadingEvent]);
 export type TimelineItem = z.infer<typeof TimelineItem>;
 export type AutoEvent = z.infer<typeof AutoItem>;
 

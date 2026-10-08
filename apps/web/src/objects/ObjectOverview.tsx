@@ -1,6 +1,6 @@
-import { ArrowCounterClockwise, PencilSimple, Trash } from '@phosphor-icons/react';
+import { ArrowCounterClockwise, Gauge, PencilSimple, Trash } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
@@ -242,6 +242,16 @@ export function ObjectOverview() {
           </dl>
         )}
       </section>
+
+      {!trashed && card.objectType === 'property' ? (
+        <Link
+          className="btn btn--secondary btn--block list-action"
+          to={`/home/${card.id}/readings`}
+        >
+          <Gauge size={20} aria-hidden />
+          Показания
+        </Link>
+      ) : null}
 
       {!trashed ? <PeopleBlock card={card} /> : null}
 

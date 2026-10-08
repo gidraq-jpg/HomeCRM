@@ -1,0 +1,182 @@
+/* Счётчики и показания (UTIL-3…8). Цели нажатия — не меньше 44 px (--tap). */
+
+/* Вкладка «Счётчики» */
+.meter-card {
+  display: block;
+}
+
+.meter-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.meter-card > .facts {
+  margin-top: 8px;
+}
+
+.meter-card > .btn-row {
+  margin-top: 14px;
+}
+
+.meter-form {
+  display: block;
+}
+
+.meter-form .btn-row {
+  margin-top: 18px;
+}
+
+.meter-form__digits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.meter-form__initial {
+  margin-top: 22px;
+}
+
+.meter-form__heading {
+  margin-top: 22px;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+/* Заменённые и снятые — в свёрнутой группе */
+.meter-archive {
+  margin-top: 18px;
+}
+
+.meter-archive > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--green);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.meter-archive[open] > summary {
+  margin-bottom: 10px;
+}
+
+/* Экран «Показания» */
+.reading-list {
+  list-style: none;
+  padding: 0;
+}
+
+.reading-date {
+  margin-top: 14px;
+}
+
+.reading__zone {
+  margin-top: 10px;
+}
+
+.reading__choice {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--warning);
+  border-radius: 12px;
+  background: var(--warning-soft);
+}
+
+.reading__choice-text {
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.reading__choice .check-line {
+  margin-top: 0;
+}
+
+.reading__photos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.reading__photo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 12px;
+  border-radius: 999px;
+  background: var(--soft);
+  font-size: 0.9375rem;
+}
+
+.reading__photos > .field__error {
+  flex-basis: 100%;
+}
+
+/* Передача */
+.transfer-saved {
+  margin-bottom: 16px;
+}
+
+.transfer-card {
+  display: grid;
+  gap: 10px;
+}
+
+.transfer-card__number {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: var(--muted);
+}
+
+.transfer-card__number .mono {
+  color: var(--ink);
+}
+
+.transfer-card .btn-row {
+  margin-top: 0;
+}
+
+.transfer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.transfer-list__item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.transfer-list__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+
+.transfer-list__value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.transfer-phone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}

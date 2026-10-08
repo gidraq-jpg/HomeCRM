@@ -17,7 +17,11 @@ export type ObjectAction =
   | 'event'
   | 'link'
   | 'account'
-  | 'contact';
+  | 'contact'
+  | 'meter'
+  | 'replace'
+  | 'reading'
+  | 'transmit';
 
 /** Запись изменили после того, как её открыли: правку нужно сверить с новой версией. */
 export function isStaleVersion(error: unknown): boolean {
@@ -39,6 +43,9 @@ export function objectErrorMessage(error: unknown, action: ObjectAction): string
   const { status, code } = error;
   if (status === 0 || status === 429) return errorMessage(error);
   if (status === 401) return 'Вход истёк. Войдите заново.';
+  if (action === 'meter' || action === 'replace' || action === 'reading' || action === 'transmit') {
+    return meterErrorMessage(error, action);
+  }
   if (status === 404) {
     if (action === 'account') {
       return 'Не нашли лицевой счёт, объект или поставщика: их удалили или они стали вам недоступны. Обновите страницу.';
@@ -96,5 +103,47 @@ export function objectErrorMessage(error: unknown, action: ObjectAction): string
     );
   }
   if (action === 'load') return 'Не удалось загрузить данные. Проверьте подключение и повторите.';
+  return errorMessage(error);
+}
+
+/** Тексты счётчиков и показаний (ADR-0032): ни значений, ни номеров, ни названий в них нет. */
+function meterErrorMessage(
+  error: ApiError,
+  action: 'meter' | 'replace' | 'reading' | 'transmit',
+): string {
+  const { status, code } = error;
+  if (status === 404) {
+    return 'Не нашли объект, счётчик или показание: их удалили или они стали вам недоступны. Обновите страницу.';
+  }
+  if (status === 403) {
+    return 'Менять счётчики и вводить показания могут только взрослые. Обновите страницу: возможно, права изменились.';
+  }
+  if (isStaleVersion(error))
+    return 'Счётчик изменили, пока вы его правили. Обновите страницу и повторите.';
+  if (code === 'INVALID_READING') {
+    return 'Одно из значений не подошло счётчику: оно меньше прошлого или длиннее, чем позволяет разрядность. Ничего не сохранено: проверьте цифры.';
+  }
+  if (code === 'READING_DATE_ORDER') {
+    return 'У одного из счётчиков уже есть показание на эту дату или позже. Выберите более позднюю дату. Ничего не сохранено.';
+  }
+  if (code === 'METER_INACTIVE') {
+    return 'Один из счётчиков заменён или снят, показания по нему не вводятся. Обновите страницу.';
+  }
+  if (code === 'INVALID_REPLACEMENT') {
+    return 'Новый счётчик должен быть того же ресурса, а даты конечного и начального показаний совпадают. Ничего не сохранено.';
+  }
+  if (code === 'USE_METER_REPLACEMENT') {
+    return 'Статус «заменён» ставит замена счётчика: воспользуйтесь кнопкой «Заменить счётчик».';
+  }
+  if (status === 409) {
+    return action === 'transmit'
+      ? 'Показания изменились, пока вы их передавали. Обновите страницу и повторите.'
+      : 'Данные изменились, пока вы работали: например, зоны и разрядность после первого показания не меняются. Обновите страницу и повторите.';
+  }
+  if (status === 400) {
+    return action === 'transmit'
+      ? 'Не удалось отметить показания переданными. Обновите страницу и повторите.'
+      : 'Проверьте счётчик: заводской номер, модель и место — до 200 знаков, зон от 1 до 3, цифр до запятой 1–12, после запятой 0–6, даты полностью.';
+  }
   return errorMessage(error);
 }

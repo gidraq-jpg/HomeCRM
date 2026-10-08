@@ -5,9 +5,13 @@ import { Notice, useAction } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { routeOf, useEnd } from '../links/ends.ts';
+import type { MeterListItem } from '../meters/api.ts';
+import { showDecimal, showWithUnit } from '../meters/decimal.ts';
+import { RESOURCE_UNITS, zoneLabel } from '../meters/labels.ts';
+import { useMeters } from '../meters/queries.ts';
 import { viewerOf } from '../notes/abilities.ts';
 import { EmptyState } from '../ui/EmptyState.tsx';
-import { formatRub, formatShortDate } from '../ui/format.ts';
+import { type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { type EventAbilities, eventAbilities } from './abilities.ts';
 import {
@@ -17,6 +21,7 @@ import {
   type ManualEvent,
   type ObjectCard,
   patchEvent,
+  type ReadingEvent,
   restoreEvent,
   trashEvent,
 } from './api.ts';
@@ -229,6 +234,38 @@ function AutoItem({ card, item }: { card: ObjectCard; item: AutoEvent }) {
   );
 }
 
+/** Показание счётчика в ленте: какой счётчик, значения по зонам и расход (OBJ-3, UTIL-4). */
+function ReadingItem({ item, meters }: { item: ReadingEvent; meters: readonly MeterListItem[] }) {
+  const { me } = useHousehold();
+  const nameOf = usePersonName();
+  const meter = meters.find((candidate) => candidate.id === item.meterId);
+  const zones = meter?.data.zones ?? item.values.map(() => 'Основная');
+  const unit = meter === undefined ? '' : (meter.data.unit ?? RESOURCE_UNITS[meter.data.resource]);
+  const show = (value: string, index: number) => {
+    const zone = zoneLabel(zones, index);
+    const text = unit === '' ? showDecimal(value) : showWithUnit(value, unit);
+    return zone === null ? text : `${zone} ${text}`;
+  };
+  return (
+    <li className="timeline__item">
+      <div className="timeline__head">
+        <span className="timeline__date">
+          {formatShortDate(item.occurredOn as DateOnly, todayIn(me.timeZone))}
+        </span>
+        {item.actorId ? <span>Записал(а): {nameOf(item.actorId)}</span> : null}
+      </div>
+      <p className="timeline__text">Показание: {meter?.title ?? 'счётчик'}</p>
+      <div className="timeline__facts">
+        <span>{item.values.map(show).join(' · ')}</span>
+        {item.consumption === null ? (
+          <span>начальное показание</span>
+        ) : (
+          <span>Расход: {item.consumption.map(show).join(' · ')}</span>
+        )}
+      </div>
+    </li>
+  );
+}
 /** «Лента» (OBJ-3): автоматические события и ручные записи объекта по дате, новые сверху. */
 export function ObjectTimeline() {
   const { card, abilities } = useObjectContext();
@@ -236,6 +273,7 @@ export function ObjectTimeline() {
   const toast = useToast();
   const refresh = useRefreshObjects();
   const query = useTimeline(card.id);
+  const meters = useMeters(card.id, 'all', card.objectType === 'property');
   const adding = useAction();
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -321,6 +359,8 @@ export function ObjectTimeline() {
                 }}
                 onClose={() => setEditingId(null)}
               />
+            ) : item.source === 'reading' ? (
+              <ReadingItem key={`reading:${item.id}`} item={item} meters={meters.data ?? []} />
             ) : (
               <AutoItem key={`${item.source}:${item.id}`} card={card} item={item} />
             ),

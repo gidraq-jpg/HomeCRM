@@ -3,6 +3,7 @@ import {
   BellRinging,
   CalendarCheck,
   Export,
+  Gauge,
   GearSix,
   House,
   Lock,
@@ -23,6 +24,12 @@ export function MoreScreen() {
           icon={<Note size={22} aria-hidden />}
           title="Заметки"
           meta="Личные и общие, с чек-листом"
+        />
+        <Row
+          to="/more/readings"
+          icon={<Gauge size={22} aria-hidden />}
+          title="Показания"
+          meta="Счётчики по квартире: ввод и передача поставщику"
         />
         <Row
           to="/more/organizations"

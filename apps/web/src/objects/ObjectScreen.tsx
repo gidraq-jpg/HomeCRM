@@ -17,7 +17,7 @@ const BACK = { to: '/home', label: 'Дом' } as const;
 const TAB_TITLE = 'Объект';
 
 /**
- * Карточка объекта (PRD, раздел 14): вкладки «Обзор», «Лента», «Файлы» и, у недвижимости, «Счета»
+ * Карточка объекта (PRD, раздел 14): вкладки «Обзор», «Лента», «Файлы» и, у недвижимости, «Счета» и «Счётчики»
  * на второй строке под названием; статус недвижимости стоит рядом с названием.
  */
 export function ObjectScreen() {
@@ -69,6 +69,7 @@ function ObjectView({ card }: { card: ObjectCard }) {
             { to: `${base}/timeline`, label: 'Лента' },
             { to: `${base}/files`, label: 'Файлы' },
             ...(property ? [{ to: `${base}/accounts`, label: 'Счета' }] : []),
+            ...(property ? [{ to: `${base}/meters`, label: 'Счётчики' }] : []),
           ]}
         />
       }
