@@ -103,6 +103,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         'assignee_id',
         'deleted_at',
         'needs_refresh',
+        'created_at',
       ],
       UPDATE: ['needs_refresh'],
       DELETE: 'all',

@@ -206,6 +206,7 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
         object: { id: string; title: string; status: string | null } | null;
         utilityAccount: { id: string; title: string; number: string; transmission: unknown } | null;
         meter: { id: string; title: string } | null;
+        needsMeters: boolean;
       };
       // Те же условия DEAD-5, что у app.utility_window_open, над наборами под RLS:
       // материализация не запускает отдельный SQL-план с политиками на каждое окно.
@@ -224,14 +225,15 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
            d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(n.title,p.title) AS title,
            CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'title',p.title,'status',p.type_data->>'status') END AS object,
            CASE WHEN a.id IS NOT NULL THEN jsonb_build_object('id',a.id,'title',a.title,'number',a.data->>'number','transmission',a.data->'transmission') END AS "utilityAccount",
+           (d.source_kind='readings' AND NOT EXISTS (SELECT 1 FROM visible_meters vm WHERE vm.utility_account_id=d.utility_account_id AND vm.is_active AND vm.deleted_at IS NULL)) AS "needsMeters",
            CASE WHEN m.id IS NOT NULL THEN jsonb_build_object('id',m.id,'title',m.title) END AS meter
           FROM visible_occurrences o JOIN visible_deadlines d ON d.id=o.deadline_id
           LEFT JOIN visible_notes n ON n.id=d.note_id LEFT JOIN visible_objects p ON p.id=d.object_id
           LEFT JOIN visible_accounts a ON a.id=d.utility_account_id LEFT JOIN visible_meters m ON m.id=d.meter_id
           WHERE o.date<=${to} AND d.deleted_at IS NULL AND n.deleted_at IS NULL AND p.deleted_at IS NULL
            AND (d.source_kind<>'readings' OR (
-            EXISTS (SELECT 1 FROM visible_meters m WHERE m.utility_account_id=d.utility_account_id AND m.is_active AND m.deleted_at IS NULL)
-            AND EXISTS (SELECT 1 FROM visible_meters m WHERE m.utility_account_id=d.utility_account_id AND m.is_active AND m.deleted_at IS NULL
+            (o.ends_at>=CURRENT_TIMESTAMP AND o.completed_at IS NULL AND NOT EXISTS (SELECT 1 FROM visible_meters m WHERE m.utility_account_id=d.utility_account_id AND m.is_active AND m.deleted_at IS NULL))
+            OR EXISTS (SELECT 1 FROM visible_meters m WHERE m.utility_account_id=d.utility_account_id AND m.is_active AND m.deleted_at IS NULL
              AND NOT EXISTS (SELECT 1 FROM visible_readings r WHERE r.parent_id=m.id AND r.deleted_at IS NULL AND r.transmitted_at IS NOT NULL
               AND r.occurred_on BETWEEN (o.starts_at AT TIME ZONE o.time_zone)::date AND (o.ends_at AT TIME ZONE o.time_zone)::date))))
           ORDER BY o.starts_at,o.id
@@ -261,13 +263,31 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
         return radarGroups.get(key) ?? null;
       };
       const items = rows
-        .filter((x) => x.completedAt === null && endDate(x) >= from)
+        .filter(
+          (x) =>
+            (x.completedAt === null || (x.sourceKind === 'readings' && !x.needsMeters)) &&
+            endDate(x) >= from,
+        )
         .map((x) => ({
           ...x,
           group: groupFor(x),
           primaryAction:
             x.sourceKind === 'readings'
-              ? { kind: 'enter_readings', label: 'Внести показания', objectId: x.objectId }
+              ? {
+                  kind: 'enter_readings',
+                  label: 'Внести показания',
+                  objectId: x.objectId,
+                  ...(x.needsMeters
+                    ? {
+                        hint: 'Добавьте счётчики',
+                        completionAction: {
+                          kind: 'mark_readings',
+                          label: 'Передано',
+                          occurrenceId: x.id,
+                        },
+                      }
+                    : {}),
+                }
               : x.sourceKind === 'payment'
                 ? { kind: 'mark_payment', label: 'Отметить оплату', occurrenceId: x.id }
                 : x.sourceKind === 'verification'
@@ -284,46 +304,59 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
       };
     });
   });
-  app.post('/api/deadlines/occurrences/:id/complete-payment', async (request, reply) => {
-    const account = await currentAccount(request, reply);
-    if (!account) return reply;
-    const { id } = parse(Id, request.params);
-    const { completed } = parse(
-      z.strictObject({ completed: z.boolean().default(true) }),
-      request.body ?? {},
-    );
-    return options.appDb.withAccount(account.id, async (tx) => {
-      const [item] = await tx
-        .select({ occurrence: deadlineOccurrencesTable, deadline: deadlines })
-        .from(deadlineOccurrencesTable)
-        .innerJoin(deadlines, eq(deadlines.id, deadlineOccurrencesTable.deadlineId))
-        .where(eq(deadlineOccurrencesTable.id, id));
-      if (!item || item.deadline.deletedAt !== null) throw new Failure(404, 'NOT_FOUND');
-      if (item.deadline.sourceKind !== 'payment') throw new Failure(409, 'NOT_A_PAYMENT');
-      const [parent] = await tx
-        .select()
-        .from(objects)
-        .where(eq(objects.id, item.deadline.objectId ?? ''))
-        .for('update');
-      if (
-        !parent ||
-        !canWriteDeadline(account.viewer, {
-          type: 'object',
-          placement: placementOf(parent),
-          authorId: parent.authorId,
-          trashed: parent.deletedAt !== null,
-        })
-      )
-        throw new Failure(403, 'ACCESS_DENIED');
-      const [updated] = await tx
-        .update(deadlineOccurrencesTable)
-        .set({ completedAt: completed ? sql`coalesce(completed_at,now())` : null })
-        .where(eq(deadlineOccurrencesTable.id, id))
-        .returning();
-      if (!updated) throw new Failure(409, 'CONFLICT');
-      return updated;
+  for (const action of ['complete-payment', 'complete-readings'] as const)
+    app.post(`/api/deadlines/occurrences/:id/${action}`, async (request, reply) => {
+      const account = await currentAccount(request, reply);
+      if (!account) return reply;
+      const { id } = parse(Id, request.params);
+      const { completed } = parse(
+        z.strictObject({ completed: z.boolean().default(true) }),
+        request.body ?? {},
+      );
+      return options.appDb.withAccount(account.id, async (tx) => {
+        const [item] = await tx
+          .select({ occurrence: deadlineOccurrencesTable, deadline: deadlines })
+          .from(deadlineOccurrencesTable)
+          .innerJoin(deadlines, eq(deadlines.id, deadlineOccurrencesTable.deadlineId))
+          .where(eq(deadlineOccurrencesTable.id, id));
+        if (!item || item.deadline.deletedAt !== null) throw new Failure(404, 'NOT_FOUND');
+        if (item.deadline.sourceKind !== (action === 'complete-payment' ? 'payment' : 'readings'))
+          throw new Failure(
+            409,
+            action === 'complete-payment' ? 'NOT_A_PAYMENT' : 'NOT_A_READINGS_WINDOW',
+          );
+        const [parent] = await tx
+          .select()
+          .from(objects)
+          .where(eq(objects.id, item.deadline.objectId ?? ''))
+          .for('update');
+        if (
+          !parent ||
+          !canWriteDeadline(account.viewer, {
+            type: 'object',
+            placement: placementOf(parent),
+            authorId: parent.authorId,
+            trashed: parent.deletedAt !== null,
+          })
+        )
+          throw new Failure(403, 'ACCESS_DENIED');
+        if (
+          action === 'complete-readings' &&
+          (
+            await tx.execute(sql`SELECT 1 FROM meters
+        WHERE utility_account_id=${item.deadline.utilityAccountId} AND is_active AND deleted_at IS NULL LIMIT 1`)
+          ).rowCount
+        )
+          throw new Failure(409, 'ACTIVE_METERS_EXIST');
+        const [updated] = await tx
+          .update(deadlineOccurrencesTable)
+          .set({ completedAt: completed ? sql`coalesce(completed_at,now())` : null })
+          .where(eq(deadlineOccurrencesTable.id, id))
+          .returning();
+        if (!updated) throw new Failure(409, 'CONFLICT');
+        return updated;
+      });
     });
-  });
   app.get('/api/deadlines/trash', async (request, reply) => {
     const account = await currentAccount(request, reply);
     if (!account) return reply;

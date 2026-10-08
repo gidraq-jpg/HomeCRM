@@ -1,4 +1,4 @@
-import { canView, DeadlineRule, type Placement } from '@homecrm/shared';
+import { canView, canWriteDeadline, DeadlineRule, type Placement } from '@homecrm/shared';
 import { afterAll, beforeAll, expect, inject, it } from 'vitest';
 import { createAppDatabase } from './client.ts';
 import { createTestDatabase, type TestDatabase } from './testing/database.ts';
@@ -86,4 +86,36 @@ it('прямой вызов служебного создателя сроков
     (await db.admin.query("SELECT policyname FROM pg_policies WHERE policyname='utility_seed'"))
       .rows,
   ).toEqual([]);
+});
+
+it('матрица ручных отметок пустого окна и оплаты совпадает с правом правки объекта', async () => {
+  await db.admin.query('DELETE FROM meters');
+  await db.worker.query(`INSERT INTO deadline_occurrences(deadline_id,date,starts_at,ends_at,time_zone,warnings_at,space_id,space_kind,audience,author_id,assignee_id)
+    SELECT id,'2026-11-20','2026-11-20T00:00:00Z','2026-11-25T23:59:59Z','UTC','[]',space_id,space_kind,audience,author_id,assignee_id FROM deadlines WHERE source_kind IN ('readings','payment')`);
+  const rows = (
+    await db.admin.query(
+      `SELECT o.id,d.object_id,p.author_id FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id JOIN objects p ON p.id=d.object_id`,
+    )
+  ).rows;
+  const app = createAppDatabase(db.app);
+  let count = 0;
+  for (const person of family.people)
+    for (const row of rows) {
+      const example = examples.find((x) => x.objectId === row.object_id);
+      if (!example) throw new Error('Missing placement');
+      const expected = canWriteDeadline(person.viewer, {
+        type: 'object',
+        placement: example.place,
+        authorId: row.author_id,
+        trashed: false,
+      });
+      const updated = await app.withAccount(person.id, (tx) =>
+        tx.execute(
+          `UPDATE deadline_occurrences SET completed_at='2026-11-20T12:00:00Z' WHERE id='${row.id}' RETURNING id`,
+        ),
+      );
+      expect(updated.rowCount === 1, `${person.name}:${example.place.kind}`).toBe(expected);
+      count++;
+    }
+  console.info(`Матрица ручных отметок коммуналки: ${count} проверок`);
 });

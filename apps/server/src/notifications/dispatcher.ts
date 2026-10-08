@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from '@homecrm/db';
-import { localDate, NotificationSettings } from '@homecrm/shared';
+import { DeadlineRule, localDate, NotificationSettings } from '@homecrm/shared';
+import { warningKinds } from '../deadlines/warnings.ts';
 import { budgetDate, DEFAULT_SETTINGS, quietUntil, retryAt } from './policy.ts';
 import { type PushSender, pushErrorCode } from './transport.ts';
 
@@ -11,7 +12,7 @@ interface Due {
   attempts: number;
 }
 /** Читает только актуальные служебные поля источника; названия worker не получает. */
-async function currentSource(client: PoolClient, notificationId: string) {
+async function currentSource(client: PoolClient, notificationId: string, now: Date) {
   const { rows } = await client.query<{
     recipient_id: string;
     warning_at: Date;
@@ -21,14 +22,19 @@ async function currentSource(client: PoolClient, notificationId: string) {
     source_kind: 'record' | 'readings' | 'payment' | 'verification';
     starts_at: Date;
     ends_at: Date;
+    date: string;
+    rule: DeadlineRule;
+    notification_kind: NotificationSettings['enabledKinds'][number];
+    has_meters: boolean;
   }>(
-    `SELECT n.recipient_id,n.warning_at,s.time_zone,coalesce(d.note_id,d.object_id) AS record_id,d.source_kind,o.starts_at,o.ends_at,
+    `SELECT n.recipient_id,n.warning_at,n.notification_kind,d.rule,o.date::text,
+      EXISTS (SELECT 1 FROM meters m WHERE m.utility_account_id=d.utility_account_id AND m.deleted_at IS NULL AND m.is_active) AS has_meters,s.time_zone,coalesce(d.note_id,d.object_id) AS record_id,d.source_kind,o.starts_at,o.ends_at,
       CASE WHEN d.note_id IS NOT NULL THEN 'note' ELSE 'object' END AS source_type
     FROM deadline_notifications n JOIN deadline_occurrences o ON o.id=n.occurrence_id
     JOIN deadlines d ON d.id=o.deadline_id JOIN spaces s ON s.id=d.household_id
     JOIN space_members m ON m.space_id=d.household_id AND m.account_id=n.recipient_id AND m.left_at IS NULL
     WHERE n.id=$1 AND n.status='pending' AND d.deleted_at IS NULL AND NOT d.needs_refresh
-      AND o.deleted_at IS NULL AND o.completed_at IS NULL AND o.time_zone=s.time_zone
+      AND o.deleted_at IS NULL AND (o.completed_at IS NULL OR d.source_kind='readings') AND o.time_zone=s.time_zone
       AND o.warnings_at ? to_char(n.warning_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
       AND (d.source_kind<>'readings' OR app.utility_window_open(d.utility_account_id,o.starts_at,o.ends_at,o.time_zone))
     `,
@@ -59,20 +65,19 @@ async function currentSource(client: PoolClient, notificationId: string) {
     if (!visible.rowCount) return null;
   }
   const date = localDate(row.warning_at, row.time_zone);
-  const notificationKind: (typeof NotificationSettings._output.enabledKinds)[number] =
-    row.source_kind === 'readings'
-      ? date === localDate(row.starts_at, row.time_zone)
-        ? 'readings_open'
-        : date === localDate(row.ends_at, row.time_zone)
-          ? 'readings_last_day'
-          : 'readings_closing'
-      : row.source_kind === 'payment'
-        ? date === localDate(row.starts_at, row.time_zone)
-          ? 'payment_due'
-          : 'payment_upcoming'
-        : row.source_kind === 'verification'
-          ? 'verification'
-          : 'deadline';
+  if (row.source_kind === 'readings' && !row.has_meters && row.ends_at < now) return null;
+  const notificationKind = row.notification_kind;
+  const kinds = warningKinds(
+    DeadlineRule.parse(row.rule),
+    {
+      date: row.date,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
+      timeZone: row.time_zone,
+    },
+    row.source_kind,
+  );
+  if (!kinds.get(row.warning_at.toISOString())?.includes(notificationKind)) return null;
   const untilStart =
     (Date.parse(localDate(row.starts_at, row.time_zone)) - Date.parse(date)) / 86_400_000;
   const untilEnd =
@@ -123,7 +128,7 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
     );
     for (const delivery of due.rows) {
       const reserved = await transaction(client, async () => {
-        const source = await currentSource(client, delivery.notification_id);
+        const source = await currentSource(client, delivery.notification_id, now);
         if (!source) {
           await finish(client, delivery, 'cancelled');
           return false;
@@ -135,10 +140,7 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
           )
         ).rows[0];
         const settings = NotificationSettings.parse(raw ?? DEFAULT_SETTINGS);
-        if (
-          !settings.enabledKinds.includes('deadline') &&
-          !settings.enabledKinds.includes(source.notificationKind)
-        ) {
+        if (!settings.enabledKinds.includes(source.notificationKind)) {
           await client.query(
             "UPDATE deadline_notifications SET status='cancelled',cancellation_reason='settings' WHERE id=$1",
             [delivery.notification_id],
@@ -178,7 +180,7 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
       if (!reserved) continue;
       await transaction(client, async () => {
         // Перепроверка перед сетевым вызовом; отзыв подписки ждёт завершения вызова.
-        const source = await currentSource(client, delivery.notification_id);
+        const source = await currentSource(client, delivery.notification_id, now);
         const device = (
           await client.query(
             'SELECT endpoint,p256dh,auth FROM push_subscriptions WHERE id=$1 AND account_id=$2 FOR SHARE',
@@ -209,7 +211,10 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
                   ? 'В HomeCRM есть новое'
                   : {
                       deadline: 'Подходит срок записи в HomeCRM',
-                      readings_open: 'Открылось окно показаний',
+                      readings_open:
+                        source.untilStart > 0
+                          ? 'Скоро откроется окно показаний'
+                          : 'Открылось окно показаний',
                       readings_closing:
                         source.untilEnd === 1
                           ? 'Окно закрывается завтра'
@@ -219,7 +224,10 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
                         source.untilStart === 3 ? 'Оплата через 3 дня' : 'Подходит срок оплаты',
                       payment_due: 'Оплата сегодня',
                       verification: 'Подходит срок поверки',
-                    }[source.notificationKind],
+                    }[source.notificationKind] +
+                    (source.source_kind === 'readings' && !source.has_meters
+                      ? '. Добавьте счётчики'
+                      : ''),
             },
             delivery.id,
           );

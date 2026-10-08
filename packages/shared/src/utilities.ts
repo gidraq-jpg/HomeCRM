@@ -99,14 +99,22 @@ export const UtilityAccountData = z.strictObject({
     ])
     .nullable()
     .default(null),
-  readingRule: MonthlyRule.nullable().default(null),
-  paymentRule: MonthlyRule.refine(
-    (rule) =>
-      rule.durationDays === 0 &&
-      (rule.kind !== 'repeat' || rule.repeat.unit !== 'month' || rule.repeat.endDay === undefined),
-  )
-    .nullable()
-    .default(null),
+  readingRule: z.preprocess(
+    (value) => (value && typeof value === 'object' ? { warnings: [0], ...value } : value),
+    MonthlyRule.nullable().default(null),
+  ),
+  paymentRule: z.preprocess(
+    (value) => (value && typeof value === 'object' ? { warnings: [3, 0], ...value } : value),
+    MonthlyRule.refine(
+      (rule) =>
+        rule.durationDays === 0 &&
+        (rule.kind !== 'repeat' ||
+          rule.repeat.unit !== 'month' ||
+          rule.repeat.endDay === undefined),
+    )
+      .nullable()
+      .default(null),
+  ),
   payer: z.enum(['owner', 'tenant', 'other']).default('owner'),
   cabinetUrl: WebLink.nullable().default(null),
   note: z.string().max(10000).default(''),

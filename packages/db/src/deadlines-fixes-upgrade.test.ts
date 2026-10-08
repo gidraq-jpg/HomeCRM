@@ -60,7 +60,10 @@ afterAll(async () => {
 it('обновление с R0.7 сохраняет источники, правила, выполненность и прежние доставки', async () => {
   const after = await snapshot();
   // Новое поле технической причины отмены пусто у существующих предупреждений.
-  for (const row of after[3] ?? []) delete row.value.cancellation_reason;
+  for (const row of after[3] ?? []) {
+    delete row.value.cancellation_reason;
+    delete row.value.notification_kind;
+  }
   // Прежние сроки остаются обычными записями без коммунальных ссылок.
   for (const row of after[1] ?? []) {
     expect(row.value).toMatchObject({

@@ -262,6 +262,7 @@ export async function meterRoutes(route: DataRoute) {
       request.body,
     );
     const row = await getMeter(tx, account, parse(Id, request.params).id, true);
+    if (row.deletedAt) throw new Failure(409, 'METER_TRASHED');
     requireWrite(account, row, 'meter');
     if (row.data.status !== 'active') throw new Failure(409, 'METER_INACTIVE');
     const [updated] = await tx
@@ -494,6 +495,7 @@ export async function meterRoutes(route: DataRoute) {
     for (const id of [...body.readingIds].sort()) {
       const [row] = await tx.select().from(meterReadings).where(eq(meterReadings.id, id));
       if (!row) missing();
+      if (row.deletedAt) throw new Failure(409, 'READING_TRASHED');
       const meter = await getMeter(tx, account, row.parentId, true);
       if (meter.parentId !== parent.id || meter.deletedAt) missing();
       requireWrite(account, row, 'meter_reading');

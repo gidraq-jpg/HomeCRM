@@ -1,3 +1,4 @@
+import { NOTIFICATION_KINDS } from '@homecrm/shared';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -90,7 +91,10 @@ export const notificationSettings = pgTable(
     quietStart: text('quiet_start').notNull().default('22:00'),
     quietEnd: text('quiet_end').notNull().default('08:00'),
     dailyBudget: integer('daily_budget').notNull().default(5),
-    enabledKinds: jsonb('enabled_kinds').$type<string[]>().notNull().default(['deadline']),
+    enabledKinds: jsonb('enabled_kinds')
+      .$type<string[]>()
+      .notNull()
+      .default([...NOTIFICATION_KINDS]),
     hideText: boolean('hide_text').notNull().default(true),
   },
   () => [
