@@ -201,7 +201,8 @@ export async function copyFiles(
     sql`select pg_advisory_xact_lock_shared(hashtextextended('file-block-cleanup',0))`,
   );
   const rows = (await filesOf(tx, type, source.id)).filter((row) => row.deletedAt === null);
-  if (rows.length === 0) return;
+  const copies = new Map<string, string>();
+  if (rows.length === 0) return copies;
   const context = transactions.get(tx);
   if (!context) throw new Error('File transaction is unavailable');
   const { storage, cipher } = context.services;
@@ -214,11 +215,13 @@ export async function copyFiles(
           row.previewStorageKey,
         )
       : undefined;
-    await insertFile(tx, account, type, target, {
+    const copy = await insertFile(tx, account, type, target, {
       data,
       mimeType: row.mimeType,
       name: row.title,
       ...(preview ? { preview } : {}),
     });
+    copies.set(row.id, copy.id);
   }
+  return copies;
 }

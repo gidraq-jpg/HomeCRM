@@ -6,9 +6,15 @@
 // homecrm_auth (служба входа). У владельца таблиц homecrm_owner политик нет, а FORCE ROW LEVEL
 // SECURITY не даёт ему обойти RLS: он не видит ни одной строки.
 
-import { OBJECT_TYPES, type OrganizationData, type UtilityAccountData } from '@homecrm/shared';
+import {
+  MeterData,
+  OBJECT_TYPES,
+  type OrganizationData,
+  type UtilityAccountData,
+} from '@homecrm/shared';
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   check,
@@ -17,6 +23,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgPolicy,
   pgTable,
@@ -414,6 +421,45 @@ const utilityAccountsDefinition = recordTable(
 export const utilityAccounts = utilityAccountsDefinition.table;
 export const utilityAccountsHistory = utilityAccountsDefinition.history;
 
+const metersDefinition = recordTable(
+  'meters',
+  'meter',
+  {
+    parentId: uuid('parent_id').notNull(),
+    utilityAccountId: uuid('utility_account_id').references(() => utilityAccounts.id),
+    previousMeterId: uuid('previous_meter_id').references((): AnyPgColumn => meters.id, {
+      onDelete: 'set null',
+    }),
+    data: jsonb('data')
+      .$type<MeterData>()
+      .notNull()
+      .default(MeterData.parse({ resource: 'cold_water' })),
+    searchText: text('search_text').generatedAlwaysAs(
+      sql`title || ' ' || coalesce(data->>'serialNumber','')`,
+    ),
+  },
+  { parent: objects },
+);
+export const meters = metersDefinition.table;
+export const metersHistory = metersDefinition.history;
+const meterReadingsDefinition = recordTable(
+  'meter_readings',
+  'meter_reading',
+  {
+    parentId: uuid('parent_id').notNull(),
+    occurredOn: date('occurred_on').notNull().default(sql`CURRENT_DATE`),
+    values: numeric('values').array().notNull().default(sql`ARRAY[0.000]::numeric[]`),
+    consumption: numeric('consumption').array(),
+    rollover: boolean('rollover').notNull().default(false),
+    comment: text('comment').notNull().default(''),
+    transmittedAt: timestamp('transmitted_at', { withTimezone: true }),
+    transmissionMethod: text('transmission_method'),
+  },
+  { parent: meters },
+);
+export const meterReadings = meterReadingsDefinition.table;
+export const meterReadingsHistory = meterReadingsDefinition.history;
+
 /** Таблица-пример для каждого вида записи. */
 export const RECORD_TABLES = {
   note: notes,
@@ -427,6 +473,8 @@ export const RECORD_TABLES = {
   object_file: objectFiles,
   contact: contacts,
   utility_account: utilityAccounts,
+  meter: meters,
+  meter_reading: meterReadings,
 } as const satisfies Record<RecordType, unknown>;
 
 /** История изменений каждого вида записи (OBJ-6). */
@@ -442,6 +490,8 @@ export const RECORD_HISTORY_TABLES = {
   object_file: objectFilesHistory,
   contact: contactsHistory,
   utility_account: utilityAccountsHistory,
+  meter: metersHistory,
+  meter_reading: meterReadingsHistory,
 } as const satisfies Record<RecordType, unknown>;
 // ---------------------------------------------------------------------------------------------
 // Таблицы входа (ADR-0005). Первые шесть — модели Better Auth: имена моделей и полей заданы в

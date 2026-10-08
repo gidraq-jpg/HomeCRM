@@ -211,6 +211,20 @@
       "when": 1791433730369,
       "tag": "0029_pr34_review",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791433875424,
+      "tag": "0030_meters_readings",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791433946961,
+      "tag": "0031_meter_lifecycle",
+      "breakpoints": true
     }
   ]
 }

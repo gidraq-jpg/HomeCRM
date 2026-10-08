@@ -16,7 +16,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await db?.drop();
 });
-const sources = new Set(['note', 'note_item', 'object', 'object_field', 'object_event']);
+const sources = new Set(['note', 'note_item', 'object', 'object_field', 'object_event', 'meter']);
 it('матрица индекса: все участники × записи; чужое личное, взрослые и корзина скрыты до счётчика', async () => {
   const app = createAppDatabase(db.app);
   let checks = 0;

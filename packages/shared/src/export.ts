@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DeadlineRule, TimeZone } from './deadlines.ts';
+import { DecimalValue, MeterData } from './meters.ts';
 import { NotificationSettings } from './notifications.ts';
 import { OrganizationData, UtilityAccountData } from './utilities.ts';
 
@@ -73,6 +74,24 @@ export const ExportRecords = {
     position: z.number().int(),
   }),
   contacts: z.strictObject({ ...record, kind: z.literal('organization'), data: OrganizationData }),
+  meters: z.strictObject({
+    ...record,
+    parent_id: uuid,
+    utility_account_id: uuid.nullable(),
+    previous_meter_id: uuid.nullable(),
+    data: MeterData,
+  }),
+  meter_readings: z.strictObject({
+    ...record,
+    parent_id: uuid,
+    occurred_on: z.iso.date(),
+    values: z.array(DecimalValue),
+    consumption: z.array(DecimalValue).nullable(),
+    rollover: z.boolean(),
+    comment: z.string(),
+    transmitted_at: instant.nullable(),
+    transmission_method: z.string().nullable(),
+  }),
   utility_accounts: z.strictObject({
     ...record,
     parent_id: uuid,

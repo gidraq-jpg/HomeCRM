@@ -4,6 +4,7 @@ import {
   eq,
   isNull,
   memberProfiles,
+  meters,
   objectEvents,
   objectFields,
   objectFiles,
@@ -30,6 +31,7 @@ import type { z } from 'zod';
 import type { Account } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import { copyFiles, fileSummary, filesOf } from '../files/service.ts';
+import { copyMeters } from '../utilities/copy.ts';
 import { accountSummary, peopleOf, validateProperty } from '../utilities/service.ts';
 import { exportLinks, registerLinks } from './links.ts';
 import {
@@ -200,9 +202,10 @@ async function hasContributions(tx: Transaction, account: Account, record: Objec
     .select()
     .from(utilityAccounts)
     .where(eq(utilityAccounts.parentId, record.id));
+  const counters = await tx.select().from(meters).where(eq(meters.parentId, record.id));
   return (
     record.hasOtherContributions ||
-    [...fields, ...events, ...accounts].some(
+    [...fields, ...events, ...accounts, ...counters].some(
       (child) => child.authorId !== record.authorId || child.hasOtherContributions,
     )
   );
@@ -398,23 +401,30 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
               .filter((field) => field.deletedAt === null)
               .map(({ title, value }) => ({ name: title, value })),
           );
+          const accountCopies = new Map<string, string>();
           for (const child of await tx
             .select()
             .from(utilityAccounts)
             .where(and(eq(utilityAccounts.parentId, id), isNull(utilityAccounts.deletedAt)))) {
             if (!canView(account.viewer, placementOf(child))) continue;
             const provider = (await accountSummary(tx, account, child)).supplier;
-            await tx.insert(utilityAccounts).values({
-              ...columnsOf(place),
-              parentId: copy.id,
-              authorId: account.id,
-              title: child.title,
-              data: child.data,
-              supplierId: provider?.deletedAt === null ? provider.id : null,
-            });
+            const [duplicate] = await tx
+              .insert(utilityAccounts)
+              .values({
+                ...columnsOf(place),
+                parentId: copy.id,
+                authorId: account.id,
+                title: child.title,
+                data: child.data,
+                supplierId: provider?.deletedAt === null ? provider.id : null,
+              })
+              .returning({ id: utilityAccounts.id });
+            if (!duplicate) deny();
+            accountCopies.set(child.id, duplicate.id);
           }
           await copyEvents(tx, account, record, copy);
-          await copyFiles(tx, account, 'object', record, copy);
+          const fileCopies = await copyFiles(tx, account, 'object', record, copy);
+          await copyMeters(tx, account, record, copy, accountCopies, fileCopies);
           return card(tx, account, copy);
         }
         let fields: Partial<typeof objects.$inferInsert>;

@@ -25,6 +25,7 @@ import {
   requireWrite,
   version,
 } from '../objects/support.ts';
+import { meterRoutes } from './meters.ts';
 import { accountSummary, contactSummary, defaultHousePlacement, provider } from './service.ts';
 
 const Id = z.strictObject({ id: z.uuid() });
@@ -67,6 +68,7 @@ const List = z.strictObject({
 
 export async function utilityRoutes(app: FastifyInstance, module: AuthModule) {
   const route = dataRoutes(app, module);
+  await meterRoutes(route);
   route('POST', '/api/contacts', 201, async (tx, account, request) => {
     const body = parse(CreateContact, request.body);
     const place = body.placement
