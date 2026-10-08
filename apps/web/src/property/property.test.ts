@@ -20,6 +20,13 @@ describe('площадь недвижимости', () => {
     expect(parseArea('0,05')).toEqual({ ok: true, hundredths: 5 });
   });
 
+  it('«54,» и «,5» при наборе на телефоне принимаются', () => {
+    expect(parseArea('54,')).toEqual({ ok: true, hundredths: 5400 });
+    expect(parseArea(',5')).toEqual({ ok: true, hundredths: 50 });
+    expect(parseArea('.')).toEqual({ ok: false });
+    expect(parseArea(',')).toEqual({ ok: false });
+  });
+
   it('пустая строка — площади нет; мусор, минус и три знака отклоняются', () => {
     expect(parseArea('  ')).toEqual({ ok: true, hundredths: null });
     for (const bad of ['abc', '-5', '54,333', '1,2,3', '1e3'])

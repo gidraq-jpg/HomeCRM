@@ -1,5 +1,3 @@
-import { mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { Page, TestInfo } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
 import { setScope } from '../support/helpers.ts';
@@ -7,13 +5,8 @@ import { apiAs, expectNothingStored, seedNote, seedObject } from './notes-suppor
 import { checkApp, expect, signInAs } from './support.ts';
 
 async function check(page: Page, info: TestInfo, name: string) {
+  // Снимок остаётся в test-results/screens: docs/screenshots/R0.6 — эталон задачи R0.6, его сценарий не перезаписывает.
   await checkApp(page, info, `search-${name}`);
-  const path = resolve(import.meta.dirname, '../../../../docs/screenshots/R0.6');
-  mkdirSync(path, { recursive: true });
-  await page.screenshot({
-    path: resolve(path, `${info.project.name}-${name}.png`),
-    fullPage: true,
-  });
 }
 test('пустое состояние, короткий запрос и ничего не найдено; строка только в памяти', async ({
   page,

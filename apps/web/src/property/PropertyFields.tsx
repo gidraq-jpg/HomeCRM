@@ -111,7 +111,7 @@ export function PropertyFields({ draft, errors, onChange, idPrefix }: PropertyFi
         <input
           id={id('cadastral')}
           className="input"
-          inputMode="numeric"
+          inputMode="text"
           value={draft.cadastralNumber}
           autoComplete="off"
           aria-invalid={errors.cadastralNumber !== undefined}

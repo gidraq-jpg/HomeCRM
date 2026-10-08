@@ -24,7 +24,7 @@ export const MAX_ADDRESS = 4000;
 export const CADASTRAL_HINT = 'Формат: 66:41:0101001:123 — части через двоеточие.';
 
 const CADASTRAL = /^\d{2}:\d{2}:\d{6,7}:\d{1,10}$/;
-const AREA = /^\d{1,9}(?:\.\d{1,2})?$/;
+const AREA = /^(?=\d|\.\d)\d{0,9}(?:\.\d{0,2})?$/;
 
 export type AreaInput = { ok: true; hundredths: number | null } | { ok: false };
 
@@ -39,8 +39,8 @@ export function parseArea(input: string): AreaInput {
     .replace(',', '.');
   if (cleaned === '') return { ok: true, hundredths: null };
   if (!AREA.test(cleaned)) return { ok: false };
-  const [whole = '0', rest = ''] = cleaned.split('.');
-  return { ok: true, hundredths: Number(whole) * 100 + Number(rest.padEnd(2, '0')) };
+  const [whole = '', rest = ''] = cleaned.split('.');
+  return { ok: true, hundredths: Number(whole || '0') * 100 + Number(rest.padEnd(2, '0')) };
 }
 
 /** Сотые → строка для поля ввода: `54,3` или `57,31`. */
