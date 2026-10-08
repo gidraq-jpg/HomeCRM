@@ -138,9 +138,9 @@ function monthlyRule(
     time: keep?.time ?? '00:00',
     ...(keep?.endTime === undefined ? {} : { endTime: keep.endTime }),
     durationDays: 0,
-    warnings: keep?.warnings ?? [],
+    ...(keep ? { warnings: keep.warnings } : {}),
     repeat: { unit: 'month', every: 1, day, ...(endDay === null ? {} : { endDay }) },
-  };
+  } as MonthlyRule; // В HTTP-входе warnings необязателен; серверная схема подставит умолчание.
 }
 
 /**

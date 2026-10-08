@@ -7,8 +7,9 @@ import { MIGRATIONS_DIR, runMigrations } from './migrate.ts';
 import { createTestDatabase, type TestDatabase } from './testing/database.ts';
 import { buildFamily, seedPeople } from './testing/family.ts';
 
-let db: TestDatabase, folder: string, before: unknown;
+let db: TestDatabase, folder: string, before: unknown, legacyAccountId: string;
 const family = buildFamily();
+const upgradedAccounts: { id: string; readingWarnings: number[]; paymentWarnings: number[] }[] = [];
 const preserved = [
   'objects',
   'objects_history',
@@ -19,12 +20,18 @@ const preserved = [
   'deadline_occurrences',
   'push_deliveries',
 ];
-async function snapshot() {
+async function snapshot(normalizeLegacyWarnings = false) {
   return Promise.all(
-    preserved.map(async (table) => ({
-      table,
-      rows: (await db.admin.query(`SELECT to_jsonb(t) AS data FROM ${table} t ORDER BY id`)).rows,
-    })),
+    preserved.map(async (table) => {
+      const rows = (await db.admin.query(`SELECT to_jsonb(t) AS data FROM ${table} t ORDER BY id`))
+        .rows;
+      if (normalizeLegacyWarnings && table === 'utility_accounts') {
+        const account = rows.find((row) => row.data.id === legacyAccountId);
+        account.data.data.readingRule.warnings = [0];
+        account.data.data.paymentRule.warnings = [3, 0];
+      }
+      return { table, rows };
+    }),
   );
 }
 beforeAll(async () => {
@@ -46,12 +53,40 @@ beforeAll(async () => {
       [house, author],
     )
   ).rows[0].id;
-  await db.admin.query(
-    `INSERT INTO utility_accounts(space_id,space_kind,audience,author_id,title,parent_id,data)
-    VALUES($1,'household','adults',$2,'Вымышленный счёт обновления',$3,
-    '{"readingRule":{"kind":"repeat","anchor":"2026-01-01","repeat":{"unit":"month","day":20,"endDay":25},"warnings":[],"endWarnings":[]},"paymentRule":{"kind":"repeat","anchor":"2026-01-01","repeat":{"unit":"month","day":23},"warnings":[]}}')`,
-    [house, author, obj],
-  );
+  legacyAccountId = (
+    await db.admin.query(
+      `INSERT INTO utility_accounts(space_id,space_kind,audience,author_id,title,parent_id,data)
+      VALUES($1,'household','adults',$2,'Вымышленный счёт обновления',$3,
+      '{"readingRule":{"kind":"repeat","anchor":"2026-01-01","repeat":{"unit":"month","day":20,"endDay":25},"warnings":[],"endWarnings":[]},"paymentRule":{"kind":"repeat","anchor":"2026-01-01","repeat":{"unit":"month","day":23},"warnings":[]}}') RETURNING id`,
+      [house, author, obj],
+    )
+  ).rows[0].id;
+  for (const warnings of [undefined, [2]]) {
+    const rule = {
+      kind: 'repeat',
+      anchor: '2026-01-01',
+      ...(warnings === undefined ? {} : { warnings }),
+      warningTime: '10:00',
+    };
+    const account = await db.admin.query(
+      `INSERT INTO utility_accounts(space_id,space_kind,audience,author_id,title,parent_id,data)
+       VALUES($1,'household','adults',$2,'Вымышленный счёт с настройками',$3,$4) RETURNING id`,
+      [
+        house,
+        author,
+        obj,
+        JSON.stringify({
+          readingRule: { ...rule, repeat: { unit: 'month', day: 20, endDay: 25 } },
+          paymentRule: { ...rule, repeat: { unit: 'month', day: 23 } },
+        }),
+      ],
+    );
+    upgradedAccounts.push({
+      id: account.rows[0].id,
+      readingWarnings: warnings ?? [0],
+      paymentWarnings: warnings ?? [3, 0],
+    });
+  }
   await db.admin.query(`INSERT INTO deadline_occurrences(deadline_id,date,starts_at,ends_at,time_zone,warnings_at,completed_at,space_id,space_kind,audience,author_id,assignee_id)
     SELECT id,'2026-09-23','2026-09-23T00:00:00Z','2026-09-23T23:59:59Z','UTC','[]','2026-09-23T12:00:00Z',space_id,space_kind,audience,author_id,assignee_id FROM deadlines WHERE source_kind='payment'`);
   await db.admin.query(`INSERT INTO deadline_notifications(occurrence_id,recipient_id,warning_at,status)
@@ -64,7 +99,7 @@ beforeAll(async () => {
       'INSERT INTO notification_settings(account_id,enabled_kinds) VALUES($1,$2)',
       [person.id, JSON.stringify(choices[i])],
     );
-  before = await snapshot();
+  before = await snapshot(true);
   await runMigrations(db.owner);
 });
 afterAll(async () => {
@@ -81,14 +116,39 @@ it('0035: разворачивает прежний deadline, сохраняя �
     expect(kinds).toEqual(i === 1 ? [] : i === 2 ? ['readings_open'] : [...NOTIFICATION_KINDS]);
   }
 });
-it('0035: сохраняет записи, историю, ручную оплату, UUID и статусы доставок; правит лишь производные правила', async () => {
+it('0035: нормализует старые warnings, сохраняя остальные данные, историю, ручную оплату и доставки', async () => {
   expect(await snapshot()).toEqual(before);
-  const rules = (await db.admin.query('SELECT rule FROM deadlines')).rows;
+  const rules = (
+    await db.admin.query(
+      'SELECT source_kind,rule FROM deadlines WHERE utility_account_id=$1 ORDER BY source_kind',
+      [legacyAccountId],
+    )
+  ).rows;
   expect(rules).toHaveLength(2);
-  expect(rules.every((x) => x.rule.warnings.length === 0)).toBe(true);
+  expect(rules).toMatchObject([
+    { source_kind: 'payment', rule: { warnings: [3, 0], warningTime: '09:00' } },
+    { source_kind: 'readings', rule: { warnings: [0], endWarnings: [], warningTime: '09:00' } },
+  ]);
+  for (const account of upgradedAccounts) {
+    const upgraded = (
+      await db.admin.query(
+        'SELECT source_kind,rule FROM deadlines WHERE utility_account_id=$1 ORDER BY source_kind',
+        [account.id],
+      )
+    ).rows;
+    expect(upgraded).toMatchObject([
+      { source_kind: 'payment', rule: { warnings: account.paymentWarnings, warningTime: '10:00' } },
+      {
+        source_kind: 'readings',
+        rule: { warnings: account.readingWarnings, endWarnings: [1, 0], warningTime: '10:00' },
+      },
+    ]);
+  }
   expect(
     (await db.admin.query('SELECT status,notification_kind FROM deadline_notifications')).rows,
-  ).toEqual([{ status: 'sent', notification_kind: 'payment_due' }]);
+  ).toEqual(
+    Array.from({ length: 3 }, () => ({ status: 'sent', notification_kind: 'payment_due' })),
+  );
   expect(
     (
       await db.admin.query(
@@ -96,7 +156,52 @@ it('0035: сохраняет записи, историю, ручную опла
       )
     ).rows,
   ).toEqual([]);
+  expect(
+    (
+      await db.admin.query(
+        "SELECT tgname FROM pg_trigger WHERE tgrelid='utility_accounts'::regclass AND NOT tgisinternal AND tgenabled='D'",
+      )
+    ).rows,
+  ).toEqual([]);
+  expect((await db.owner.query('SELECT * FROM utility_accounts')).rows).toEqual([]);
   expect((await db.owner.query('SELECT * FROM deadlines')).rows).toEqual([]);
   await runMigrations(db.owner);
   expect(await snapshot()).toEqual(before);
+});
+
+it('после 0035 явные пустые warnings по-прежнему выключают предупреждения', async () => {
+  await db.admin.query('BEGIN');
+  try {
+    await db.admin.query(
+      `UPDATE utility_accounts
+       SET data=jsonb_set(jsonb_set(data,'{readingRule,warnings}','[]'),'{paymentRule,warnings}','[]')`,
+    );
+    const rules = (await db.admin.query('SELECT rule FROM deadlines')).rows;
+    expect(rules).toHaveLength(6);
+    expect(rules.every((entry) => entry.rule.warnings.length === 0)).toBe(true);
+  } finally {
+    await db.admin.query('ROLLBACK');
+  }
+});
+
+it('после 0035 сохранение старого счёта сохраняет восстановленные умолчания', async () => {
+  await db.admin.query('BEGIN');
+  try {
+    await db.admin.query(
+      'UPDATE utility_accounts SET data=data || \'{"note":"Вымышленная правка"}\' WHERE id=$1',
+      [legacyAccountId],
+    );
+    const rules = (
+      await db.admin.query(
+        'SELECT source_kind,rule FROM deadlines WHERE utility_account_id=$1 ORDER BY source_kind',
+        [legacyAccountId],
+      )
+    ).rows;
+    expect(rules).toMatchObject([
+      { source_kind: 'payment', rule: { warnings: [3, 0] } },
+      { source_kind: 'readings', rule: { warnings: [0], endWarnings: [] } },
+    ]);
+  } finally {
+    await db.admin.query('ROLLBACK');
+  }
 });

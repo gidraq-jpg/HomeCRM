@@ -63,10 +63,20 @@ BEGIN
 END; $$;
 --> statement-breakpoint
 CREATE POLICY utility_seed ON objects TO homecrm_owner USING (true) WITH CHECK (true);
-CREATE POLICY utility_seed ON utility_accounts FOR SELECT TO homecrm_owner USING (true);
+CREATE POLICY utility_seed ON utility_accounts TO homecrm_owner USING (true) WITH CHECK (true);
 CREATE POLICY utility_seed ON meters FOR SELECT TO homecrm_owner USING (true);
 CREATE POLICY utility_seed ON space_members FOR SELECT TO homecrm_owner USING (true);
 CREATE POLICY utility_seed ON deadlines TO homecrm_owner USING (true) WITH CHECK (true);
+-- До 0035 схема сама подставляла warnings: []; это отсутствие настройки, а не отказ пользователя.
+-- Нормализуем источник, чтобы следующее сохранение не вернуло пустые предупреждения.
+-- Служебное заполнение сохраняет историю, аудит, ответственного и записи в корзине.
+SET CONSTRAINTS ALL IMMEDIATE;
+ALTER TABLE utility_accounts DISABLE TRIGGER USER;
+UPDATE utility_accounts SET data=jsonb_set(data,'{readingRule,warnings}','[0]'::jsonb)
+ WHERE data#>'{readingRule,warnings}'='[]'::jsonb;
+UPDATE utility_accounts SET data=jsonb_set(data,'{paymentRule,warnings}','[3,0]'::jsonb)
+ WHERE data#>'{paymentRule,warnings}'='[]'::jsonb;
+ALTER TABLE utility_accounts ENABLE TRIGGER USER;
 DO $$ DECLARE a record; r jsonb; BEGIN
  FOR a IN SELECT * FROM public.utility_accounts LOOP
   r:=a.data->'readingRule';
