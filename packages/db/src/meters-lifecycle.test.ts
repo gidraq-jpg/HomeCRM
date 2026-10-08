@@ -44,6 +44,7 @@ async function tree() {
         authorId: scene.person('boris').id,
         title: 'Показание',
         parentId: m.id,
+        occurredOn: '2026-10-01',
         values: ['999999999999.123456'],
       })
       .returning();

@@ -426,7 +426,9 @@ const metersDefinition = recordTable(
   'meter',
   {
     parentId: uuid('parent_id').notNull(),
-    utilityAccountId: uuid('utility_account_id').references(() => utilityAccounts.id),
+    utilityAccountId: uuid('utility_account_id').references(() => utilityAccounts.id, {
+      onDelete: 'set null',
+    }),
     previousMeterId: uuid('previous_meter_id').references((): AnyPgColumn => meters.id, {
       onDelete: 'set null',
     }),
@@ -447,7 +449,7 @@ const meterReadingsDefinition = recordTable(
   'meter_reading',
   {
     parentId: uuid('parent_id').notNull(),
-    occurredOn: date('occurred_on').notNull().default(sql`CURRENT_DATE`),
+    occurredOn: date('occurred_on').notNull(),
     values: numeric('values').array().notNull().default(sql`ARRAY[0.000]::numeric[]`),
     consumption: numeric('consumption').array(),
     rollover: boolean('rollover').notNull().default(false),

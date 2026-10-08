@@ -104,7 +104,7 @@ async function seed(
     [spaceId, kind, audience, person.id, object],
   );
   await world.database.admin.query(
-    `INSERT INTO meter_readings(space_id,space_kind,audience,author_id,title,parent_id,values,consumption) VALUES($1,$2,$3,$4,'Показание',$5,ARRAY[999999999999.123456]::numeric[],ARRAY[0.000001]::numeric[])`,
+    `INSERT INTO meter_readings(space_id,space_kind,audience,author_id,title,parent_id,occurred_on,values,consumption) VALUES($1,$2,$3,$4,'Показание',$5,'2026-10-01',ARRAY[999999999999.123456]::numeric[],ARRAY[0.000001]::numeric[])`,
     [spaceId, kind, audience, person.id, meter.rows[0].id],
   );
   const key = randomUUID();

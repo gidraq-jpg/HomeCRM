@@ -307,7 +307,11 @@ export async function meterRoutes(route: DataRoute) {
     requireWrite(account, row, 'meter');
     version(body.expectedUpdatedAt, row.updatedAt);
     await accountOf(tx, account, row.parentId, body.utilityAccountId ?? null);
-    if (body.data && body.data.status !== row.data.status && body.data.status === 'replaced')
+    if (
+      body.data &&
+      body.data.status !== row.data.status &&
+      (body.data.status === 'replaced' || row.data.status === 'replaced')
+    )
       throw new Failure(409, 'USE_METER_REPLACEMENT');
     const [updated] = await tx
       .update(meters)
@@ -514,12 +518,23 @@ export async function meterRoutes(route: DataRoute) {
           )
             throw new Failure(409, 'READING_DATE_ORDER');
         }
+        const consumption =
+          type === 'meter_reading' && action === 'restore'
+            ? readingConsumption(
+                meter.data,
+                (row as Reading).values,
+                (await historyOf(tx, meter.id))[0]?.values ?? null,
+                (row as Reading).rollover,
+              )
+            : undefined;
         const [updated] = await tx
           .update(table)
           .set({ deletedAt: action === 'trash' ? new Date() : null })
           .where(eq(table.id, id))
           .returning();
         if (!updated) deny();
+        if (type === 'meter_reading' && action === 'restore')
+          await tx.update(meterReadings).set({ consumption }).where(eq(meterReadings.id, id));
         return { id: updated.id, deletedAt: updated.deletedAt };
       };
       const path = type === 'meter' ? 'meters' : 'readings';

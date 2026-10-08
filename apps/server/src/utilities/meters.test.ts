@@ -445,3 +445,88 @@ it('замена в день последнего отсчёта и предуп
   const next = replacement.json<{ newMeter: Meter }>().newMeter;
   expect((await reading(next.id, '2026-11-01', ['14'])).warnings).toHaveLength(1);
 });
+it('PR #35: восстановление R3 после корзины R2 пересчитывает расход от живого R1', async () => {
+  const row = await meter(await object());
+  await reading(row.id, '2026-08-01', ['10']);
+  const second = await reading(row.id, '2026-09-01', ['20']);
+  const third = await reading(row.id, '2026-10-01', ['30']);
+  expect((await adult.post(`/api/readings/${third.id}/trash`)).status).toBe(200);
+  expect((await adult.post(`/api/readings/${second.id}/trash`)).status).toBe(200);
+  expect((await history(row.id)).map((r) => [r.occurredOn, r.values])).toEqual([
+    ['2026-08-01', ['10.000']],
+  ]);
+  expect((await adult.post(`/api/readings/${third.id}/restore`)).status).toBe(200);
+  expect((await history(row.id)).find((r) => r.id === third.id)?.consumption).toEqual(['20.000']);
+  expect((await adult.post(`/api/readings/${second.id}/restore`)).status).toBe(409);
+});
+it('PR #35: заменённый счётчик нельзя вернуть в работу обычной правкой', async () => {
+  const row = await meter(await object());
+  const replaced = await adult.post(`/api/meters/${row.id}/replace`, {
+    finalReading: { occurredOn: '2026-10-01', values: ['10'] },
+    newMeter: {
+      data: { resource: 'cold_water' },
+      initialReading: { occurredOn: '2026-10-01', values: ['0'] },
+    },
+  });
+  expect(replaced.status, replaced.text).toBe(201);
+  const res = await adult.request('PATCH', `/api/meters/${row.id}`, {
+    json: { data: { resource: 'cold_water', status: 'active' } },
+  });
+  expect(res.status).toBe(409);
+  expect((await adult.get(`/api/meters/${row.id}`)).json<Meter>().data.status).toBe('replaced');
+});
+it('PR #35: очистка счёта обнуляет FK живого счётчика без изменения содержимого и истории', async () => {
+  const id = await object();
+  const acc = await adult.post(`/api/objects/${id}/accounts`, {});
+  const accountId = acc.json<{ id: string }>().id;
+  const row = await meter(id, {}, { utilityAccountId: accountId });
+  const before = (
+    await world.database.admin.query('SELECT updated_at,data FROM meters WHERE id=$1', [row.id])
+  ).rows;
+  const hist = (
+    await world.database.admin.query(
+      'SELECT * FROM meters_history WHERE record_id=$1 ORDER BY id',
+      [row.id],
+    )
+  ).rows;
+  await world.database.admin.query(
+    'ALTER TABLE utility_accounts DISABLE TRIGGER utility_accounts_trash_time',
+  );
+  await world.database.admin.query(
+    "UPDATE utility_accounts SET deleted_at=now()-interval '31 days' WHERE id=$1",
+    [accountId],
+  );
+  await world.database.admin.query(
+    'ALTER TABLE utility_accounts ENABLE TRIGGER utility_accounts_trash_time',
+  );
+  expect(
+    (await world.database.worker.query('DELETE FROM utility_accounts WHERE id=$1', [accountId]))
+      .rowCount,
+  ).toBe(1);
+  expect(
+    (
+      await world.database.admin.query('SELECT utility_account_id FROM meters WHERE id=$1', [
+        row.id,
+      ])
+    ).rows[0].utility_account_id,
+  ).toBeNull();
+  expect(
+    (await world.database.admin.query('SELECT updated_at,data FROM meters WHERE id=$1', [row.id]))
+      .rows,
+  ).toEqual(before);
+  expect(
+    (
+      await world.database.admin.query(
+        'SELECT * FROM meters_history WHERE record_id=$1 ORDER BY id',
+        [row.id],
+      )
+    ).rows,
+  ).toEqual(hist);
+  expect(
+    (
+      await world.database.admin.query(
+        "SELECT column_default FROM information_schema.columns WHERE table_name='meter_readings' AND column_name='occurred_on'",
+      )
+    ).rows[0].column_default,
+  ).toBeNull();
+});
