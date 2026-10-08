@@ -77,10 +77,16 @@ it('TPL-3/S1: ровно выбранные пункты, начальное п�
     typeData: { status: 'rented' },
   });
   const accounts = (await adult.get(`/api/objects/${objectId}/accounts`)).json<
-    Array<{ id: string; data: { number: string } }>
+    Array<{ id: string; data: { number: string; services: string[] } }>
   >();
   expect(accounts).toHaveLength(1);
   expect(accounts[0]?.data.number).toBe('ВЫМ-001');
+  expect(accounts[0]?.data.services).toEqual(['water_sewerage']);
+  expect(accounts[0]?.data).toMatchObject({
+    payer: 'tenant',
+    readingRule: { repeat: { unit: 'month', day: 20, endDay: 25 } },
+    paymentRule: { repeat: { unit: 'month', day: 15 } },
+  });
   const meterRows = (await adult.get(`/api/objects/${objectId}/meters`)).json<
     Array<{ id: string; utilityAccountId: string }>
   >();
@@ -272,6 +278,19 @@ it('UTIL-9/10: float, несовпадение строк, посторонни�
       })
     ).status,
   ).toBe(400);
+  for (const kind of [undefined, 'service'])
+    expect(
+      (
+        await adult.post(`/api/accounts/${accountId}/charges`, {
+          period: '2026-10',
+          totalCents: 10000,
+          lines: [
+            { title: 'Услуга', amountCents: 12000 },
+            { title: 'Отрицательная услуга', amountCents: -2000, kind },
+          ],
+        })
+      ).status,
+    ).toBe(400);
   const row = await charge(accountId, { dueOn: '2026-10-01' });
   expect((await radar(objectId)).some((i) => i.chargeId === row.id)).toBe(true);
   expect(

@@ -1,6 +1,13 @@
 import { expect, it } from 'vitest';
-import { ChargeInput, chargeDueOn, PaymentInput } from './charges.ts';
+import { ChargeInput, ChargeLine, chargeDueOn, PaymentInput } from './charges.ts';
 import { DeadlineRule } from './deadlines.ts';
+
+it.each([undefined, 'service', 'adjustment'])('UTIL-9: знак строки вида %s', (kind) => {
+  for (const amountCents of [-1, 0, 1])
+    expect(ChargeLine.safeParse({ title: 'Строка', amountCents, kind }).success).toBe(
+      amountCents >= 0 || kind === 'adjustment',
+    );
+});
 
 it('UTIL-9: следующий месяц, короткий февраль и смена года без дрейфа', () => {
   const rule = DeadlineRule.parse({

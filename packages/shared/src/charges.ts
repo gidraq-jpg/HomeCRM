@@ -4,11 +4,15 @@ import { CalendarDate, type DeadlineRule } from './deadlines.ts';
 // Ограничение оставляет запас для суммирования в безопасном целочисленном диапазоне JS.
 export const Cents = z.number().int().min(-1_000_000_000_000).max(1_000_000_000_000);
 export const BillingPeriod = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
-export const ChargeLine = z.strictObject({
-  title: z.string().trim().min(1).max(200),
-  amountCents: Cents,
-  kind: z.enum(['service', 'adjustment']).default('service'),
-});
+export const ChargeLine = z
+  .strictObject({
+    title: z.string().trim().min(1).max(200),
+    amountCents: Cents,
+    kind: z.enum(['service', 'adjustment']).default('service'),
+  })
+  .refine((line) => line.kind === 'adjustment' || line.amountCents >= 0, {
+    path: ['amountCents'],
+  });
 export const ChargeInput = z
   .strictObject({
     period: BillingPeriod,

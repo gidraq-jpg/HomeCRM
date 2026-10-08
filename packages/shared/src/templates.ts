@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { DeadlineRule } from './deadlines.ts';
 import { MeterData, ReadingInput, VERIFICATION_YEARS } from './meters.ts';
-import { PropertyData, UTILITY_SERVICES, UtilityAccountData } from './utilities.ts';
+import {
+  PropertyData,
+  UTILITY_SERVICES,
+  UtilityAccountData,
+  UtilityAccountOverride,
+} from './utilities.ts';
 
 const services = [
   ['maintenance', 'Содержание и ремонт или ЕПД'],
@@ -131,7 +136,7 @@ export const ApplyTemplate = z
           id: z.enum(UTILITY_SERVICES),
           title: z.string().trim().min(1).max(200).optional(),
           supplierId: z.uuid().optional(),
-          data: UtilityAccountData.partial().optional(),
+          data: UtilityAccountOverride.optional(),
         }),
       )
       .max(20)
