@@ -25,13 +25,15 @@ afterAll(async () => {
 
 describe('матрица доступа: база отвечает так же, как access.ts', () => {
   for (const operation of OPERATIONS) {
-    // Перенос проверяет все места и каскады: делим по корневому виду без сокращения матрицы.
+    // Изменение и перенос запускают каскады: делим по виду без сокращения матрицы.
     const groups =
-      operation === 'move'
-        ? RECORD_TYPES.filter((type) =>
-            family.records.some((row) => row.type === type && row.parentId === undefined),
-          ).map((type) => [type])
-        : [undefined];
+      operation === 'edit'
+        ? RECORD_TYPES.map((type) => [type])
+        : operation === 'move'
+          ? RECORD_TYPES.filter((type) =>
+              family.records.some((row) => row.type === type && row.parentId === undefined),
+            ).map((type) => [type])
+          : [undefined];
     for (const types of groups) {
       const label = types?.[0]
         ? `${OPERATION_LABELS[operation]}: ${TYPE_LABELS[types[0]]}`

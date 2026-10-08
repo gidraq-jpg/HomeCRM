@@ -7,9 +7,11 @@
 // SECURITY не даёт ему обойти RLS: он не видит ни одной строки.
 
 import {
+  type ChargeLine,
   MeterData,
   OBJECT_TYPES,
   type OrganizationData,
+  type PaymentInput,
   type UtilityAccountData,
 } from '@homecrm/shared';
 import { sql } from 'drizzle-orm';
@@ -416,7 +418,16 @@ const utilityAccountsDefinition = recordTable(
       note: '',
     }),
   },
-  { parent: objects },
+  {
+    parent: objects,
+    extraPolicies: [
+      pgPolicy('utility_accounts_charges_worker', {
+        for: 'select',
+        to: workerRole,
+        using: sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.object_id=utility_accounts.parent_id)`,
+      }),
+    ],
+  },
 );
 export const utilityAccounts = utilityAccountsDefinition.table;
 export const utilityAccountsHistory = utilityAccountsDefinition.history;
@@ -481,6 +492,83 @@ const meterReadingsDefinition = recordTable(
 export const meterReadings = meterReadingsDefinition.table;
 export const meterReadingsHistory = meterReadingsDefinition.history;
 
+/** UTIL-9/10: денежные записи отменяются; корзина только каскадом родителя. */
+const chargesDefinition = recordTable(
+  'utility_charges',
+  'utility_charge',
+  {
+    parentId: uuid('parent_id').notNull(),
+    period: text('period').notNull(),
+    totalCents: bigint('total_cents', { mode: 'number' }).notNull(),
+    lines: jsonb('lines').$type<ChargeLine[]>().notNull().default([]),
+    dueOn: date('due_on').notNull(),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    cancellationReason: text('cancellation_reason'),
+    isPaid: boolean('is_paid').notNull().default(false),
+  },
+  {
+    parent: utilityAccounts,
+    extraChecks: [
+      check('charges_cents', sql`total_cents BETWEEN 0 AND 1000000000000`),
+      check('charges_period', sql`period ~ '^\\d{4}-(0[1-9]|1[0-2])$'`),
+    ],
+    extraPolicies: [
+      pgPolicy('utility_charges_deadline_worker_select', {
+        for: 'select',
+        to: workerRole,
+        using: sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.object_id IN (SELECT a.parent_id FROM utility_accounts a WHERE a.id=utility_charges.parent_id))`,
+      }),
+    ],
+  },
+);
+export const utilityCharges = chargesDefinition.table;
+export const utilityChargesHistory = chargesDefinition.history;
+const paymentsDefinition = recordTable(
+  'utility_payments',
+  'utility_payment',
+  {
+    parentId: uuid('parent_id').notNull(),
+    paidOn: date('paid_on').notNull(),
+    amountCents: bigint('amount_cents', { mode: 'number' }).notNull(),
+    payer: jsonb('payer').$type<PaymentInput['payer']>().notNull(),
+    method: text('method').$type<PaymentInput['method']>().notNull(),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    cancellationReason: text('cancellation_reason'),
+  },
+  {
+    parent: utilityCharges,
+    extraChecks: [check('payments_cents', sql`amount_cents BETWEEN 1 AND 1000000000000`)],
+  },
+);
+export const utilityPayments = paymentsDefinition.table;
+export const utilityPaymentsHistory = paymentsDefinition.history;
+
+/** Техническая квитанция идемпотентности без текстов запроса. */
+export const templateApplications = pgTable(
+  'template_applications',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id),
+    key: uuid('key').notNull(),
+    requestHash: text('request_hash').notNull(),
+    objectId: uuid('object_id').references(() => objects.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    unique('template_applications_key').on(t.accountId, t.key),
+    pgPolicy('template_applications_select', {
+      for: 'select',
+      to: appRole,
+      using: sql`account_id=app.current_account_id()`,
+    }),
+    pgPolicy('template_applications_insert', {
+      for: 'insert',
+      to: appRole,
+      withCheck: sql`account_id=app.current_account_id()`,
+    }),
+  ],
+);
+
 /** Таблица-пример для каждого вида записи. */
 export const RECORD_TABLES = {
   note: notes,
@@ -496,6 +584,8 @@ export const RECORD_TABLES = {
   utility_account: utilityAccounts,
   meter: meters,
   meter_reading: meterReadings,
+  utility_charge: utilityCharges,
+  utility_payment: utilityPayments,
 } as const satisfies Record<RecordType, unknown>;
 
 /** История изменений каждого вида записи (OBJ-6). */
@@ -513,6 +603,8 @@ export const RECORD_HISTORY_TABLES = {
   utility_account: utilityAccountsHistory,
   meter: metersHistory,
   meter_reading: meterReadingsHistory,
+  utility_charge: utilityChargesHistory,
+  utility_payment: utilityPaymentsHistory,
 } as const satisfies Record<RecordType, unknown>;
 // ---------------------------------------------------------------------------------------------
 // Таблицы входа (ADR-0005). Первые шесть — модели Better Auth: имена моделей и полей заданы в

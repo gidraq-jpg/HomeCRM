@@ -168,11 +168,12 @@ function attemptsFor(
         },
       }));
     case 'history':
-      // Историю ведут у общих записей; видна тем же, кому видна запись (OBJ-6). Личные не пишутся.
+      // История общих и финансовых записей видна тем же, кому видна запись (OBJ-6, UTIL-10).
       return each(inScope, (viewer, record) => ({
         label: record.label,
         expected:
-          record.facts.placement.kind === 'household' &&
+          (record.facts.placement.kind === 'household' ||
+            ['utility_charge', 'utility_payment'].includes(record.type)) &&
           canView(viewer.viewer, record.facts.placement),
         run: async (tx) => {
           const table = RECORD_HISTORY_TABLES[record.type];
@@ -316,6 +317,8 @@ function attemptsFor(
               'utility_account',
               'meter',
               'meter_reading',
+              'utility_charge',
+              'utility_payment',
             ].includes(type)
               ? family.parentIdFor(placement, type)
               : undefined;
@@ -426,8 +429,11 @@ async function listMismatches(
         if (expected !== visible.has(record.id)) {
           mismatches.push(describeMismatch(viewer, 'list', record.label, expected));
         }
-        // История — тем же, кому видна запись; у личных записей её нет.
-        const expectedHistory = expected && record.facts.placement.kind === 'household';
+        // Личная история сохраняется только у финансовых записей (UTIL-10).
+        const expectedHistory =
+          expected &&
+          (record.facts.placement.kind === 'household' ||
+            ['utility_charge', 'utility_payment'].includes(record.type));
         checks++;
         if (expectedHistory) allowedByReference++;
         if (expectedHistory !== visibleHistory.has(record.id)) {

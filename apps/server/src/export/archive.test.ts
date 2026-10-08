@@ -95,9 +95,21 @@ async function seed(
     `INSERT INTO objects(id,space_id,space_kind,audience,author_id,title) VALUES($1,$2,$3,$4,$5,'Объект')`,
     [object, spaceId, kind, audience, person.id],
   );
-  await world.database.admin.query(
-    `INSERT INTO utility_accounts(space_id,space_kind,audience,author_id,title,parent_id,supplier_id) VALUES($1,$2,$3,$4,'Лицевой счёт',$5,$6)`,
+  const financialAccount = await world.database.admin.query(
+    `INSERT INTO utility_accounts(space_id,space_kind,audience,author_id,title,parent_id,supplier_id) VALUES($1,$2,$3,$4,'Лицевой счёт',$5,$6) RETURNING id`,
     [spaceId, kind, audience, person.id, object, provider],
+  );
+  const financialCharge = await world.database.admin.query(
+    `INSERT INTO utility_charges(space_id,space_kind,audience,author_id,title,parent_id,period,total_cents,due_on) VALUES($1,$2,$3,$4,'Начисление',$5,'2026-10',12345,'2026-11-15') RETURNING id`,
+    [spaceId, kind, audience, person.id, financialAccount.rows[0].id],
+  );
+  const financialPayment = await world.database.admin.query(
+    `INSERT INTO utility_payments(space_id,space_kind,audience,author_id,title,parent_id,paid_on,amount_cents,payer,method) VALUES($1,$2,$3,$4,'Оплата',$5,'2026-10-08',12345,'{"kind":"tenant"}','tenant') RETURNING id`,
+    [spaceId, kind, audience, person.id, financialCharge.rows[0].id],
+  );
+  await world.database.admin.query(
+    "UPDATE utility_payments SET cancelled_at=now(),cancellation_reason='Вымышленная отмена' WHERE id=$1",
+    [financialPayment.rows[0].id],
   );
   const meter = await world.database.admin.query(
     `INSERT INTO meters(space_id,space_kind,audience,author_id,title,parent_id,data) VALUES($1,$2,$3,$4,'Вымышленный счётчик',$5,'{"resource":"cold_water","integerDigits":12,"fractionDigits":6,"zones":["Основная"]}') RETURNING id`,
@@ -201,15 +213,18 @@ it.each(['anna', 'boris', 'vera'] as const)(
       'note_items',
       'contacts',
       'utility_accounts',
+      'utility_charges',
+      'utility_payments',
       'meters',
       'meter_readings',
       'object_fields',
       'object_events',
-      'deadlines',
       'note_files',
       'profile_files',
     ])
       expect(json(entries, name)).toHaveLength(1);
+    expect(json(entries, 'deadlines')).toHaveLength(2);
+    expect(JSON.stringify(json(entries, 'history'))).toContain('Вымышленная отмена');
     expect(json(entries, 'object_events')[0].amount_kopecks).toBe(12345);
     expect(json(entries, 'meter_readings')[0].values).toEqual(['999999999999.123456']);
     expect(json(entries, 'meter_readings')[0].consumption).toEqual(['0.000001']);
@@ -247,6 +262,8 @@ it('DATA-2: общее дома — обе аудитории, состав бе
   expect(json(entries, 'members')).toHaveLength(3);
   expect(json(entries, 'contacts')).toHaveLength(2);
   expect(json(entries, 'utility_accounts')).toHaveLength(2);
+  expect(json(entries, 'utility_charges')).toHaveLength(2);
+  expect(json(entries, 'utility_payments')).toHaveLength(2);
   expect(json(entries, 'meters')).toHaveLength(2);
   expect(json(entries, 'meter_readings')).toHaveLength(2);
   const meterHistory = json(entries, 'history').filter(

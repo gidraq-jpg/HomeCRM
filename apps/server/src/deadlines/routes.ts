@@ -29,6 +29,7 @@ import { pgError } from '../auth/provision.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import { placementOf } from '../notes/routes.ts';
 import { Failure } from '../objects/support.ts';
+import { chargeSummary, createPayment, getCharge } from '../utilities/charges.ts';
 
 const Source = z.strictObject({ source: z.enum(['notes', 'objects']), sourceId: z.uuid() });
 const Id = z.strictObject({ id: z.uuid() });
@@ -135,7 +136,15 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
         if (!account) return reply;
         const { id } = parse(Id, request.params);
         const body =
-          method === 'PATCH' ? parse(z.strictObject({ rule: DeadlineRule }), request.body) : null;
+          method === 'PATCH'
+            ? parse(
+                z.strictObject({
+                  rule: DeadlineRule,
+                  label: z.string().trim().min(1).max(200).nullable().optional(),
+                }),
+                request.body,
+              )
+            : null;
         return options.appDb.withAccount(account.id, async (tx) => {
           const [item] = await tx
             .select()
@@ -174,7 +183,11 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
             throw new Failure(403, 'ACCESS_DENIED');
           const [changed] = await tx
             .update(deadlines)
-            .set(body ? { rule: body.rule } : { deletedAt: method === 'POST' ? null : sql`now()` })
+            .set(
+              body
+                ? { rule: body.rule, ...(body.label !== undefined ? { label: body.label } : {}) }
+                : { deletedAt: method === 'POST' ? null : sql`now()` },
+            )
             .where(
               and(
                 eq(deadlines.id, id),
@@ -207,30 +220,32 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
         utilityAccount: { id: string; title: string; number: string; transmission: unknown } | null;
         meter: { id: string; title: string } | null;
         needsMeters: boolean;
+        chargeId: string | null;
       };
       // Те же условия DEAD-5, что у app.utility_window_open, над наборами под RLS:
       // материализация не запускает отдельный SQL-план с политиками на каждое окно.
+      // Источники по ID и проверка пояса соединяются с исходными таблицами под RLS:
+      // их индексы исключают повторные полные проходы по материализованным наборам.
       const result = await tx.execute<{ items: RadarRow[]; recalculating: boolean }>(sql`
         WITH visible_deadlines AS MATERIALIZED (SELECT * FROM deadlines),
         visible_occurrences AS MATERIALIZED (SELECT * FROM deadline_occurrences),
-        visible_notes AS MATERIALIZED (SELECT id,title,deleted_at FROM notes),
-        visible_objects AS MATERIALIZED (SELECT id,title,type_data,deleted_at FROM objects),
-        visible_accounts AS MATERIALIZED (SELECT id,title,data FROM utility_accounts),
         visible_meters AS MATERIALIZED (SELECT id,title,utility_account_id,is_active,deleted_at FROM meters),
+        visible_charges AS MATERIALIZED (SELECT id,parent_id,period,is_paid,deleted_at,cancelled_at FROM utility_charges),
         visible_readings AS MATERIALIZED (SELECT parent_id,occurred_on,transmitted_at,deleted_at FROM meter_readings),
         radar AS (
           SELECT o.id,o.deadline_id AS "deadlineId",o.date,o.starts_at AS "startsAt",o.ends_at AS "endsAt",o.time_zone AS "timeZone",
            o.warnings_at AS "warningsAt",o.completed_at AS "completedAt",o.space_id AS "spaceId",o.space_kind AS "spaceKind",o.audience,
            o.author_id AS "authorId",o.assignee_id AS "assigneeId",o.deleted_at AS "deletedAt",
-           d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(n.title,p.title) AS title,
+           d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(d.label,n.title,p.title) AS title,d.charge_id AS "chargeId",
            CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'title',p.title,'status',p.type_data->>'status') END AS object,
            CASE WHEN a.id IS NOT NULL THEN jsonb_build_object('id',a.id,'title',a.title,'number',a.data->>'number','transmission',a.data->'transmission') END AS "utilityAccount",
            (d.source_kind='readings' AND NOT EXISTS (SELECT 1 FROM visible_meters vm WHERE vm.utility_account_id=d.utility_account_id AND vm.is_active AND vm.deleted_at IS NULL)) AS "needsMeters",
            CASE WHEN m.id IS NOT NULL THEN jsonb_build_object('id',m.id,'title',m.title) END AS meter
           FROM visible_occurrences o JOIN visible_deadlines d ON d.id=o.deadline_id
-          LEFT JOIN visible_notes n ON n.id=d.note_id LEFT JOIN visible_objects p ON p.id=d.object_id
-          LEFT JOIN visible_accounts a ON a.id=d.utility_account_id LEFT JOIN visible_meters m ON m.id=d.meter_id
+          LEFT JOIN notes n ON n.id=d.note_id LEFT JOIN objects p ON p.id=d.object_id
+          LEFT JOIN utility_accounts a ON a.id=d.utility_account_id LEFT JOIN meters m ON m.id=d.meter_id
           WHERE o.date<=${to} AND d.deleted_at IS NULL AND n.deleted_at IS NULL AND p.deleted_at IS NULL
+           AND (d.source_kind<>'payment' OR CASE WHEN d.charge_id IS NOT NULL THEN EXISTS (SELECT 1 FROM visible_charges c WHERE c.id=d.charge_id AND c.deleted_at IS NULL AND c.cancelled_at IS NULL AND NOT c.is_paid) ELSE NOT EXISTS (SELECT 1 FROM visible_charges c WHERE c.parent_id=d.utility_account_id AND c.deleted_at IS NULL AND c.cancelled_at IS NULL AND c.period=to_char(o.date-interval '1 month','YYYY-MM')) END)
            AND (d.source_kind<>'readings' OR (
             (o.ends_at>=CURRENT_TIMESTAMP AND o.completed_at IS NULL AND NOT EXISTS (SELECT 1 FROM visible_meters m WHERE m.utility_account_id=d.utility_account_id AND m.is_active AND m.deleted_at IS NULL))
             OR EXISTS (SELECT 1 FROM visible_meters m WHERE m.utility_account_id=d.utility_account_id AND m.is_active AND m.deleted_at IS NULL
@@ -239,7 +254,7 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
           ORDER BY o.starts_at,o.id
         ) SELECT coalesce(jsonb_agg(radar),'[]'::jsonb) AS items,
           (EXISTS (SELECT 1 FROM visible_deadlines d WHERE d.deleted_at IS NULL AND d.needs_refresh)
-           OR EXISTS (SELECT 1 FROM visible_occurrences o JOIN visible_deadlines d ON d.id=o.deadline_id
+           OR EXISTS (SELECT 1 FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id
             JOIN spaces s ON s.id=d.household_id WHERE d.deleted_at IS NULL AND o.time_zone<>s.time_zone)) AS recalculating
         FROM radar`);
       const rows = (result.rows[0]?.items ?? []).map((x) => ({
@@ -340,6 +355,34 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
           })
         )
           throw new Failure(403, 'ACCESS_DENIED');
+        if (action === 'complete-payment') {
+          const matched = item.deadline.chargeId
+            ? [{ id: item.deadline.chargeId }]
+            : (
+                await tx.execute<{ id: string }>(
+                  sql`SELECT id FROM utility_charges WHERE parent_id=${item.deadline.utilityAccountId}::uuid AND period=to_char(${item.occurrence.date}::date-interval '1 month','YYYY-MM') AND deleted_at IS NULL AND cancelled_at IS NULL ORDER BY id`,
+                )
+              ).rows;
+          if (matched.length) {
+            if (!completed) throw new Failure(409, 'CANCEL_PAYMENT_WITH_REASON');
+            if (matched.length > 1) throw new Failure(409, 'SELECT_CHARGE');
+            const charge = await getCharge(tx, account, matched[0]?.id ?? '', true);
+            const summary = await chargeSummary(tx, charge);
+            if (summary.remainingCents > 0)
+              await createPayment(tx, account, charge, {
+                paidOn: localDate(new Date(), item.occurrence.timeZone),
+                amountCents: summary.remainingCents,
+                payer: { kind: 'member', accountId: account.id },
+                method: 'card',
+                receiptId: null,
+              });
+            return {
+              ...item.occurrence,
+              completedAt: new Date().toISOString(),
+              chargeId: charge.id,
+            };
+          }
+        }
         if (
           action === 'complete-readings' &&
           (

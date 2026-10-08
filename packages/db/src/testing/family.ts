@@ -53,6 +53,8 @@ export const TYPE_LABELS: Readonly<Record<RecordType, string>> = {
   utility_account: 'лицевой счёт',
   meter: 'счётчик',
   meter_reading: 'показание',
+  utility_charge: 'начисление',
+  utility_payment: 'оплата',
 };
 
 export interface Person {
@@ -180,6 +182,8 @@ export function buildFamily(): Family {
   const parents = new Map<Placement, string>();
   const objectParents = new Map<Placement, string>();
   const meterParents = new Map<Placement, string>();
+  const accountParents = new Map<Placement, string>();
+  const chargeParents = new Map<Placement, string>();
   for (const type of RECORD_TYPES) {
     for (const placement of placements) {
       for (const authorId of authorCandidates(placement)) {
@@ -192,6 +196,10 @@ export function buildFamily(): Family {
               objectParents.set(placement, id);
             if (type === 'meter' && !trashed && !meterParents.has(placement))
               meterParents.set(placement, id);
+            if (type === 'utility_account' && !trashed && !accountParents.has(placement))
+              accountParents.set(placement, id);
+            if (type === 'utility_charge' && !trashed && !chargeParents.has(placement))
+              chargeParents.set(placement, id);
             records.push({ id, type, facts, trashed, label: describe(type, facts) });
           }
         }
@@ -200,11 +208,15 @@ export function buildFamily(): Family {
   }
   const parentIdFor = (placement: Placement, type: RecordType = 'note_item'): string => {
     const found = (
-      type === 'meter_reading'
-        ? meterParents
-        : ['note_item', 'note_file'].includes(type)
-          ? parents
-          : objectParents
+      type === 'utility_charge'
+        ? accountParents
+        : type === 'utility_payment'
+          ? chargeParents
+          : type === 'meter_reading'
+            ? meterParents
+            : ['note_item', 'note_file'].includes(type)
+              ? parents
+              : objectParents
     ).get(placement);
     if (found === undefined) throw new Error('No parent note in this place');
     return found;
@@ -218,6 +230,8 @@ export function buildFamily(): Family {
       record.type === 'object_file' ||
       record.type === 'utility_account' ||
       record.type === 'meter' ||
+      record.type === 'utility_charge' ||
+      record.type === 'utility_payment' ||
       record.type === 'meter_reading'
     )
       record.parentId = parentIdFor(record.facts.placement, record.type);
@@ -322,6 +336,9 @@ export async function seedFamily(admin: pg.Pool, family: Family): Promise<void> 
 
 /** Вымышленные метаданные блоков для общей матрицы; файлов на диске нет. */
 export function fileFixture(type: RecordType) {
+  if (type === 'utility_charge') return { period: '2026-10', totalCents: 0, dueOn: '2026-11-15' };
+  if (type === 'utility_payment')
+    return { paidOn: '2026-10-08', amountCents: 1, payer: { kind: 'tenant' }, method: 'tenant' };
   if (type === 'meter_reading') return { occurredOn: '2026-10-01' };
   return type === 'note_file' || type === 'object_file'
     ? { mimeType: 'application/pdf', sizeBytes: 8, storageKey: randomUUID(), envelope: {} }

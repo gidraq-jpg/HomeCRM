@@ -119,3 +119,32 @@ it('UTIL-13: радар 500 коммунальных объектов и 1000 с
   expect(p95).toBeLessThan(300);
   expect((await admin.get(url)).json<{ items: unknown[] }>().items).toEqual([]);
 }, 120_000);
+
+it('UTIL-9/10: 500 частично оплаченных начислений заменяют сроки счетов, p95 до 300 мс', async () => {
+  await world.database.admin.query('DELETE FROM deadline_occurrences');
+  await world.database.admin.query(`INSERT INTO utility_charges(space_id,space_kind,author_id,title,parent_id,period,total_cents,due_on)
+    SELECT space_id,space_kind,author_id,'Вымышленное начисление',id,'2026-09',10000,'2026-10-10' FROM utility_accounts`);
+  await world.database.admin.query(`INSERT INTO utility_payments(space_id,space_kind,author_id,title,parent_id,paid_on,amount_cents,payer,method)
+    SELECT space_id,space_kind,author_id,'Вымышленная оплата',id,'2026-10-08',4000,'{"kind":"tenant"}','tenant' FROM utility_charges`);
+  await world.database.worker.query(`INSERT INTO deadline_occurrences(deadline_id,date,starts_at,ends_at,time_zone,warnings_at,space_id,space_kind,author_id,assignee_id)
+    SELECT id,'2026-10-10','2026-10-09T19:00:00Z','2026-10-12T18:59:59Z','Asia/Yekaterinburg','[]',space_id,space_kind,author_id,assignee_id FROM deadlines WHERE source_kind<>'record'`);
+  await world.database.worker.query('UPDATE deadlines SET needs_refresh=false');
+  const url = '/api/deadlines?from=2000-01-01&to=2099-12-31';
+  for (let i = 0; i < 3; i++) await adult.get(url);
+  const timings: number[] = [];
+  for (let i = 0; i < 20; i++) {
+    const start = performance.now();
+    const response = await adult.get(url);
+    timings.push(performance.now() - start);
+    expect(response.status, response.text).toBe(200);
+    const items = response.json<{ items: { chargeId: string | null; sourceKind: string }[] }>()
+      .items;
+    expect(items).toHaveLength(1000);
+    expect(items.filter((r) => r.chargeId)).toHaveLength(500);
+    expect(items.filter((r) => r.sourceKind === 'readings')).toHaveLength(500);
+  }
+  const p95 = percentile(timings, 0.95);
+  console.info(`Charges radar 1000 deadlines: p95=${p95.toFixed(1)} ms`);
+  expect(p95).toBeLessThan(300);
+  expect((await admin.get(url)).json<{ items: unknown[] }>().items).toEqual([]);
+}, 120_000);

@@ -126,7 +126,7 @@ async function photosOf(tx: Transaction, reading: Reading) {
   );
   return result.rows.map((r) => r.id);
 }
-async function createReading(
+export async function createReading(
   tx: Transaction,
   account: Account,
   meter: Meter,

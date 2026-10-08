@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BillingPeriod, Cents, ChargeLine, PAYMENT_METHODS, PaymentInput } from './charges.ts';
 import { DeadlineRule, TimeZone } from './deadlines.ts';
 import { DecimalValue, MeterData } from './meters.ts';
 import { NotificationSettings } from './notifications.ts';
@@ -92,6 +93,26 @@ export const ExportRecords = {
     transmitted_at: instant.nullable(),
     transmission_method: z.string().nullable(),
   }),
+  utility_charges: z.strictObject({
+    ...record,
+    parent_id: uuid,
+    period: BillingPeriod,
+    total_cents: Cents.nonnegative(),
+    lines: z.array(ChargeLine),
+    due_on: z.iso.date(),
+    cancelled_at: instant.nullable(),
+    cancellation_reason: z.string().nullable(),
+  }),
+  utility_payments: z.strictObject({
+    ...record,
+    parent_id: uuid,
+    paid_on: z.iso.date(),
+    amount_cents: Cents.positive(),
+    payer: PaymentInput.shape.payer,
+    method: z.enum(PAYMENT_METHODS),
+    cancelled_at: instant.nullable(),
+    cancellation_reason: z.string().nullable(),
+  }),
   utility_accounts: z.strictObject({
     ...record,
     parent_id: uuid,
@@ -152,6 +173,8 @@ export const ExportRecords = {
     source_kind: z.enum(['record', 'readings', 'payment', 'verification']).default('record'),
     utility_account_id: uuid.nullable().default(null),
     meter_id: uuid.nullable().default(null),
+    charge_id: uuid.nullable().default(null),
+    label: z.string().nullable().default(null),
     household_id: uuid,
     rule: DeadlineRule,
     created_at: instant,

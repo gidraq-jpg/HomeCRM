@@ -82,13 +82,12 @@ export const MonthlyRule = DeadlineRule.refine(
     rule.repeat.every === 1 &&
     (rule.repeat.endDay === undefined || rule.durationDays === 0),
 );
-export const UtilityAccountData = z.strictObject({
+const UtilityAccountFields = z.strictObject({
   services: z
     .array(z.enum(UTILITY_SERVICES))
     .max(UTILITY_SERVICES.length)
-    .refine((items) => new Set(items).size === items.length)
-    .default([]),
-  number: z.string().trim().max(200).default(''),
+    .refine((items) => new Set(items).size === items.length),
+  number: z.string().trim().max(200),
   transmission: z
     .discriminatedUnion('method', [
       z.strictObject({ method: z.literal('gosuslugi_dom') }),
@@ -97,11 +96,10 @@ export const UtilityAccountData = z.strictObject({
       z.strictObject({ method: z.literal('automatic') }),
       z.strictObject({ method: z.literal('not_required') }),
     ])
-    .nullable()
-    .default(null),
+    .nullable(),
   readingRule: z.preprocess(
     (value) => (value && typeof value === 'object' ? { warnings: [0], ...value } : value),
-    MonthlyRule.nullable().default(null),
+    MonthlyRule.nullable(),
   ),
   paymentRule: z.preprocess(
     (value) => (value && typeof value === 'object' ? { warnings: [3, 0], ...value } : value),
@@ -111,12 +109,22 @@ export const UtilityAccountData = z.strictObject({
         (rule.kind !== 'repeat' ||
           rule.repeat.unit !== 'month' ||
           rule.repeat.endDay === undefined),
-    )
-      .nullable()
-      .default(null),
+    ).nullable(),
   ),
-  payer: z.enum(['owner', 'tenant', 'other']).default('owner'),
-  cabinetUrl: WebLink.nullable().default(null),
-  note: z.string().max(10000).default(''),
+  payer: z.enum(['owner', 'tenant', 'other']),
+  cabinetUrl: WebLink.nullable(),
+  note: z.string().max(10000),
+});
+/** Переопределения шаблона содержат только явно переданные поля счёта. */
+export const UtilityAccountOverride = UtilityAccountFields.partial();
+export const UtilityAccountData = UtilityAccountFields.extend({
+  services: UtilityAccountFields.shape.services.default([]),
+  number: UtilityAccountFields.shape.number.default(''),
+  transmission: UtilityAccountFields.shape.transmission.default(null),
+  readingRule: UtilityAccountFields.shape.readingRule.default(null),
+  paymentRule: UtilityAccountFields.shape.paymentRule.default(null),
+  payer: UtilityAccountFields.shape.payer.default('owner'),
+  cabinetUrl: UtilityAccountFields.shape.cabinetUrl.default(null),
+  note: UtilityAccountFields.shape.note.default(''),
 });
 export type UtilityAccountData = z.infer<typeof UtilityAccountData>;
