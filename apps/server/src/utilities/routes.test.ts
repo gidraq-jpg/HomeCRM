@@ -298,6 +298,17 @@ it('OBJ-2: собственник-контакт виден только вме�
   });
   expect(bad.status).toBe(404);
   expect(bad.text).not.toContain(owner.id);
+  const edited = await admin.request('PATCH', `/api/accounts/${own.id}`, {
+    json: { supplierId: null, title: 'Исправленный счёт' },
+  });
+  expect(edited.status, edited.text).toBe(200);
+  expect(edited.json<Account>().supplierId).toBeNull();
+  expect((await adult.get(`/api/accounts/${own.id}`)).json<Account>().supplierId).toBe(owner.id);
+  const cleared = await adult.request('PATCH', `/api/accounts/${own.id}`, {
+    json: { supplierId: null },
+  });
+  expect(cleared.status, cleared.text).toBe(200);
+  expect(cleared.json<Account>().supplierId).toBeNull();
   const copy = await child.post(`/api/objects/${object.id}/copy`);
   expect(copy.status, copy.text).toBe(201);
   expect(
@@ -332,4 +343,7 @@ it('UTIL-1: уход собственника из дома не запреща�
     json: { typeData: { ownerMemberIds: [owner.id], areaHundredths: 10000 } },
   });
   expect(fields.status, fields.text).toBe(200);
+  const copy = await adult.post(`/api/objects/${object.id}/copy`);
+  expect(copy.status, copy.text).toBe(400);
+  expect(copy.text).toContain('INVALID_OWNER');
 });

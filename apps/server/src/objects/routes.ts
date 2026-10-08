@@ -375,13 +375,17 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
           parse(Confirm, request.body ?? {});
           if (!canCopyToPersonal(account.viewer, facts)) deny();
           const place = await placementFrom(tx, account);
+          const typeData =
+            record.objectType === 'property'
+              ? await validateProperty(tx, account, place, record.typeData)
+              : record.typeData;
           const [copy] = await tx
             .insert(objects)
             .values({
               ...columnsOf(place),
               title: record.title,
               objectType: record.objectType,
-              typeData: record.typeData,
+              typeData,
               authorId: account.id,
             })
             .returning();

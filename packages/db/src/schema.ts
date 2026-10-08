@@ -373,17 +373,22 @@ export const fileBlobs = pgTable(
 );
 
 /** CONT-2: общий контракт оставляет место для человека в R1b.3. */
-const contactsDefinition = recordTable('contacts', 'contact', {
-  kind: text('kind').notNull().default('organization'),
-  data: jsonb('data').$type<OrganizationData>().notNull().default({
-    organizationType: 'other',
-    phones: [],
-    website: null,
-    address: '',
-    openingHours: '',
-    note: '',
-  }),
-});
+const contactsDefinition = recordTable(
+  'contacts',
+  'contact',
+  {
+    kind: text('kind').notNull().default('organization'),
+    data: jsonb('data').$type<OrganizationData>().notNull().default({
+      organizationType: 'other',
+      phones: [],
+      website: null,
+      address: '',
+      openingHours: '',
+      note: '',
+    }),
+  },
+  { extraChecks: [check('contacts_kind_check', sql`kind = 'organization'`)] },
+);
 export const contacts = contactsDefinition.table;
 export const contactsHistory = contactsDefinition.history;
 /** UTIL-2, OBJ-5: доступ и жизненный цикл определяет объект. */

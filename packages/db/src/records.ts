@@ -206,6 +206,8 @@ export interface RecordTableOptions {
   updateVisibilitySql?: string;
   /** Дополнительные узкие политики служебной операции. */
   extraPolicies?: ReturnType<typeof pgPolicy>[];
+  /** Ограничения собственных полей записи. */
+  extraChecks?: ReturnType<typeof check>[];
 }
 
 export interface RecordDefinition {
@@ -238,6 +240,7 @@ export function recordTable<
       options.updateVisibilitySql,
     ),
     ...(options.extraPolicies ?? []),
+    ...(options.extraChecks ?? []),
   ]);
   const history = historyTable(name, table);
   return { table, history };

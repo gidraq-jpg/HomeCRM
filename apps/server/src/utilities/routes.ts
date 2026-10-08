@@ -182,6 +182,16 @@ export async function utilityRoutes(app: FastifyInstance, module: AuthModule) {
       if ('supplierId' in body && body.supplierId !== undefined)
         await provider(tx, account, body.supplierId);
       const { expectedUpdatedAt: _expected, ...changes } = body;
+      // Скрытый поставщик приходит клиенту как null: такая правка сохраняет чужую ссылку.
+      if (
+        'supplierId' in changes &&
+        changes.supplierId === null &&
+        'supplierId' in row &&
+        row.supplierId
+      ) {
+        const current = await accountSummary(tx, account, row);
+        if (current.supplier === null) delete changes.supplierId;
+      }
       const [updated] = await tx.update(table).set(changes).where(eq(table.id, id)).returning();
       if (!updated) deny();
       return summary(tx, account, updated);

@@ -1,0 +1,1 @@
+ALTER TABLE "contacts" ADD CONSTRAINT "contacts_kind_check" CHECK (kind = 'organization');
