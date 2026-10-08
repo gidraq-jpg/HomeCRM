@@ -34,21 +34,29 @@ export async function validateProperty(
   account: Account,
   place: Placement,
   data: unknown,
-  previous: unknown = {},
+  options: { previous?: unknown; omitUnavailableOwners?: boolean } = {},
 ) {
   const property = parse(PropertyData, data);
-  const retained = PropertyData.safeParse(previous);
+  const retained = PropertyData.safeParse(options.previous ?? {});
+  const ownerMemberIds: string[] = [];
   for (const id of property.ownerMemberIds ?? []) {
-    if (retained.success && retained.data.ownerMemberIds?.includes(id)) continue;
+    if (retained.success && retained.data.ownerMemberIds?.includes(id)) {
+      ownerMemberIds.push(id);
+      continue;
+    }
     const visible =
       (
         await tx.execute(sql`SELECT 1 FROM space_members WHERE account_id=${id}::uuid AND left_at IS NULL AND space_id IN
       (SELECT space_id FROM space_members WHERE account_id=${account.id}::uuid AND left_at IS NULL)
       ${place.kind === 'household' ? sql`AND space_id=${place.spaceId}::uuid` : sql``} LIMIT 1`)
       ).rows.length > 0;
-    if (id !== account.id && !visible) throw new Failure(400, 'INVALID_OWNER');
+    if (id !== account.id && !visible) {
+      if (options.omitUnavailableOwners) continue;
+      throw new Failure(400, 'INVALID_OWNER');
+    }
+    ownerMemberIds.push(id);
   }
-  return property;
+  return property.ownerMemberIds ? { ...property, ownerMemberIds } : property;
 }
 export function publicRecord<T extends Row & { title: string; createdAt: Date; updatedAt: Date }>(
   row: T,

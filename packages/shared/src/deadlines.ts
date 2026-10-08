@@ -38,18 +38,29 @@ const repeat = z.discriminatedUnion('unit', [
   z.strictObject({ unit: z.literal('day'), every: Count }),
 ]);
 /** DEAD-1: окно задаётся началом, числом календарных дней и временем конца. */
-export const DeadlineRule = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('date'), date: CalendarDate, ...common }),
-  z.strictObject({ kind: z.literal('window'), date: CalendarDate, ...common, endTime: Clock }),
-  z.strictObject({ kind: z.literal('repeat'), anchor: CalendarDate, repeat, ...common }),
-  z.strictObject({
-    kind: z.literal('after'),
-    eventDate: CalendarDate.nullable(),
-    every: Count,
-    unit: z.enum(['day', 'month']),
-    ...common,
-  }),
-]);
+export const DeadlineRule = z
+  .discriminatedUnion('kind', [
+    z.strictObject({ kind: z.literal('date'), date: CalendarDate, ...common }),
+    z.strictObject({ kind: z.literal('window'), date: CalendarDate, ...common, endTime: Clock }),
+    z.strictObject({ kind: z.literal('repeat'), anchor: CalendarDate, repeat, ...common }),
+    z.strictObject({
+      kind: z.literal('after'),
+      eventDate: CalendarDate.nullable(),
+      every: Count,
+      unit: z.enum(['day', 'month']),
+      ...common,
+    }),
+  ])
+  .refine(
+    (rule) =>
+      !(
+        rule.kind === 'repeat' &&
+        rule.repeat.unit === 'month' &&
+        rule.repeat.endDay !== undefined &&
+        rule.durationDays > 0
+      ),
+    'endDay requires durationDays = 0',
+  );
 export type DeadlineRule = z.infer<typeof DeadlineRule>;
 export interface DeadlineOccurrence {
   date: CalendarDate;

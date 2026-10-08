@@ -314,6 +314,8 @@ function attemptsFor(
               'note_file',
               'object_file',
               'utility_account',
+              'meter',
+              'meter_reading',
             ].includes(type)
               ? family.parentIdFor(placement, type)
               : undefined;

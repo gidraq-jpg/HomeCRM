@@ -13,7 +13,7 @@ const Query = z.object({
 });
 const labels = { note: 'Заметки', object: 'Объекты', object_event: 'События' } as const;
 interface Hit extends Record<string, unknown> {
-  source_type: 'note' | 'note_item' | 'object' | 'object_field' | 'object_event';
+  source_type: 'note' | 'note_item' | 'object' | 'object_field' | 'object_event' | 'meter';
   source_id: string;
   target_id: string;
   title: string;
@@ -27,7 +27,7 @@ interface Hit extends Record<string, unknown> {
 const typeOf = (hit: Hit): keyof typeof labels =>
   hit.source_type === 'note_item'
     ? 'note'
-    : hit.source_type === 'object_field'
+    : hit.source_type === 'object_field' || hit.source_type === 'meter'
       ? 'object'
       : hit.source_type;
 

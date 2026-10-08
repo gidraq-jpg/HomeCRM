@@ -30,6 +30,8 @@ const TABLES = [
   'objects',
   'contacts',
   'utility_accounts',
+  'meters',
+  'meter_readings',
   'object_fields',
   'object_events',
   'tasks',
@@ -43,6 +45,8 @@ const HISTORY_TABLES = [
   'objects',
   'contacts',
   'utility_accounts',
+  'meters',
+  'meter_readings',
   'object_fields',
   'object_events',
   'tasks',
@@ -122,7 +126,11 @@ async function* records(
     table === 'object_events' && scope.kind === 'household'
       ? sql`${scopeWhere(scope)} AND t.origin_space_kind='household' AND t.origin_space_id=${scope.householdId}::uuid`
       : scopeWhere(scope);
-  for await (const row of rows(tx, table, where)) {
+  const projection =
+    table === 'meter_readings'
+      ? sql`(to_jsonb(t) - ${OMIT} - 'values' - 'consumption') || jsonb_build_object('values',ARRAY(SELECT v::text FROM unnest(t.values) v),'consumption',CASE WHEN t.consumption IS NULL THEN NULL ELSE ARRAY(SELECT v::text FROM unnest(t.consumption) v) END)`
+      : undefined;
+  for await (const row of rows(tx, table, where, projection)) {
     if (table === 'utility_accounts' && row.supplier_id) {
       const result = await tx.execute(
         sql`SELECT 1 FROM contacts t WHERE id=${String(row.supplier_id)}::uuid AND ${scope.kind === 'personal' ? sql`true` : scopeWhere(scope)} `,

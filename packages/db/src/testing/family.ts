@@ -51,6 +51,8 @@ export const TYPE_LABELS: Readonly<Record<RecordType, string>> = {
   object_file: 'файл объекта',
   contact: 'контакт',
   utility_account: 'лицевой счёт',
+  meter: 'счётчик',
+  meter_reading: 'показание',
 };
 
 export interface Person {
@@ -177,6 +179,7 @@ export function buildFamily(): Family {
   const records: SeededRecord[] = [];
   const parents = new Map<Placement, string>();
   const objectParents = new Map<Placement, string>();
+  const meterParents = new Map<Placement, string>();
   for (const type of RECORD_TYPES) {
     for (const placement of placements) {
       for (const authorId of authorCandidates(placement)) {
@@ -187,6 +190,8 @@ export function buildFamily(): Family {
             if (type === 'note' && !trashed && !parents.has(placement)) parents.set(placement, id);
             if (type === 'object' && !trashed && !objectParents.has(placement))
               objectParents.set(placement, id);
+            if (type === 'meter' && !trashed && !meterParents.has(placement))
+              meterParents.set(placement, id);
             records.push({ id, type, facts, trashed, label: describe(type, facts) });
           }
         }
@@ -194,9 +199,13 @@ export function buildFamily(): Family {
     }
   }
   const parentIdFor = (placement: Placement, type: RecordType = 'note_item'): string => {
-    const found = (['note_item', 'note_file'].includes(type) ? parents : objectParents).get(
-      placement,
-    );
+    const found = (
+      type === 'meter_reading'
+        ? meterParents
+        : ['note_item', 'note_file'].includes(type)
+          ? parents
+          : objectParents
+    ).get(placement);
     if (found === undefined) throw new Error('No parent note in this place');
     return found;
   };
@@ -207,7 +216,9 @@ export function buildFamily(): Family {
       record.type === 'object_field' ||
       record.type === 'object_event' ||
       record.type === 'object_file' ||
-      record.type === 'utility_account'
+      record.type === 'utility_account' ||
+      record.type === 'meter' ||
+      record.type === 'meter_reading'
     )
       record.parentId = parentIdFor(record.facts.placement, record.type);
   }

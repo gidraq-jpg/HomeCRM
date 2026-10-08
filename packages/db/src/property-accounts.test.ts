@@ -81,6 +81,18 @@ it('UTIL-1: поля типа закрыты матрицей доступа в�
   }
   expect(checks).toBe(120);
 });
+it('CONT-2: база отклоняет неизвестный вид контакта', async () => {
+  await expect(
+    scene.as('boris', (tx) =>
+      tx.insert(contacts).values({
+        ...placementColumns(scene.home('adults')),
+        authorId: scene.person('boris').id,
+        title: 'Вымышленный контакт',
+        kind: 'invalid',
+      }),
+    ),
+  ).rejects.toSatisfy((error: unknown) => hasCode(error, ['23514']));
+});
 it('OBJ-5: перенос и отдельная корзина счетов; восстановление чужого ребёнка вместе с родителем', async () => {
   const row = await parent();
   const create = (who: 'anna' | 'boris') =>

@@ -99,6 +99,14 @@ async function seed(
     `INSERT INTO utility_accounts(space_id,space_kind,audience,author_id,title,parent_id,supplier_id) VALUES($1,$2,$3,$4,'Лицевой счёт',$5,$6)`,
     [spaceId, kind, audience, person.id, object, provider],
   );
+  const meter = await world.database.admin.query(
+    `INSERT INTO meters(space_id,space_kind,audience,author_id,title,parent_id,data) VALUES($1,$2,$3,$4,'Вымышленный счётчик',$5,'{"resource":"cold_water","integerDigits":12,"fractionDigits":6,"zones":["Основная"]}') RETURNING id`,
+    [spaceId, kind, audience, person.id, object],
+  );
+  await world.database.admin.query(
+    `INSERT INTO meter_readings(space_id,space_kind,audience,author_id,title,parent_id,values,consumption) VALUES($1,$2,$3,$4,'Показание',$5,ARRAY[999999999999.123456]::numeric[],ARRAY[0.000001]::numeric[])`,
+    [spaceId, kind, audience, person.id, meter.rows[0].id],
+  );
   const key = randomUUID();
   const sealed = cipher.seal(payload, key);
   await storage.put(key, sealed.block);
@@ -193,6 +201,8 @@ it.each(['anna', 'boris', 'vera'] as const)(
       'note_items',
       'contacts',
       'utility_accounts',
+      'meters',
+      'meter_readings',
       'object_fields',
       'object_events',
       'deadlines',
@@ -201,6 +211,8 @@ it.each(['anna', 'boris', 'vera'] as const)(
     ])
       expect(json(entries, name)).toHaveLength(1);
     expect(json(entries, 'object_events')[0].amount_kopecks).toBe(12345);
+    expect(json(entries, 'meter_readings')[0].values).toEqual(['999999999999.123456']);
+    expect(json(entries, 'meter_readings')[0].consumption).toEqual(['0.000001']);
     expect(json(entries, 'object_events')[0].occurred_on).toBe('2026-10-07');
     expect(json(entries, 'profile')[0].account_id).toBe(person.id);
     for (const name of ['note_files', 'profile_files']) {
@@ -235,6 +247,13 @@ it('DATA-2: общее дома — обе аудитории, состав бе
   expect(json(entries, 'members')).toHaveLength(3);
   expect(json(entries, 'contacts')).toHaveLength(2);
   expect(json(entries, 'utility_accounts')).toHaveLength(2);
+  expect(json(entries, 'meters')).toHaveLength(2);
+  expect(json(entries, 'meter_readings')).toHaveLength(2);
+  const meterHistory = json(entries, 'history').filter(
+    (h: { table: string }) => h.table === 'meter_readings',
+  );
+  expect(meterHistory.length).toBeGreaterThan(0);
+  expect(JSON.stringify(meterHistory)).toContain('"999999999999.123456"');
   for (const row of json(entries, 'utility_accounts'))
     expect(json(entries, 'contacts').some((c: { id: string }) => c.id === row.supplier_id)).toBe(
       true,

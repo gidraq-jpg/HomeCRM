@@ -150,3 +150,12 @@ describe('DEAD-1, DEAD-6: календарь дома', () => {
     ).toBe(false);
   });
 });
+it('endDay не допускает одновременно длительность окна', () => {
+  const rule = {
+    kind: 'repeat',
+    anchor: '2026-01-20',
+    repeat: { unit: 'month', day: 20, endDay: 25 },
+  };
+  expect(DeadlineRule.safeParse({ ...rule, durationDays: 1 }).success).toBe(false);
+  expect(DeadlineRule.safeParse(rule).success).toBe(true);
+});
