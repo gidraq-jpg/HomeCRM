@@ -21,6 +21,8 @@ import { Failure, factsOf, readReference, typeForTable } from '../objects/suppor
 
 type Data = Record<string, unknown>;
 export const EXPORT_PAGE_SIZE = 100;
+/** Разделяет временные выгрузки параллельных процессов, включая независимые тестовые прогоны. */
+export const EXPORT_TEMP_PREFIX = `homecrm-export-${process.pid}-`;
 const OMIT = sql`ARRAY['search_text','has_other_contributions','assignee_house_id','assignee_adult_id','assignee_adult_flag','storage_key','envelope','preview_storage_key','preview_envelope','needs_refresh']::text[]`;
 const TABLES = [
   'notes',
@@ -204,7 +206,7 @@ export async function buildArchive(
   homeTimeZone: string,
   parentSignal: AbortSignal,
 ) {
-  const directory = await mkdtemp(join(tmpdir(), 'homecrm-export-'));
+  const directory = await mkdtemp(join(tmpdir(), EXPORT_TEMP_PREFIX));
   const path = join(directory, 'export.zip');
   const cleanup = () => rm(directory, { recursive: true, force: true });
   const controller = new AbortController();

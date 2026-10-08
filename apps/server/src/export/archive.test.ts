@@ -12,7 +12,7 @@ import * as references from '../objects/support.ts';
 import { BASE_URL, type Device } from '../testing/device.ts';
 import { enrollTotp, signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type Person, type World } from '../testing/world.ts';
-import { buildArchive } from './archive.ts';
+import { buildArchive, EXPORT_TEMP_PREFIX } from './archive.ts';
 
 let world: World;
 let folder: string;
@@ -415,6 +415,7 @@ it('DATA-2: ошибка дешифрования не отдаёт архив, 
   const original = await storage.get(key);
   await storage.delete(key);
   await storage.put(key, Buffer.alloc(30));
+  const concurrent = await mkdtemp(join(tmpdir(), 'homecrm-export-other-process-'));
   try {
     const failed = await archive(adult, world.boris.password);
     expect(failed.statusCode).toBe(500);
@@ -422,10 +423,12 @@ it('DATA-2: ошибка дешифрования не отдаёт архив, 
     expect((await adult.get('/api/export/history')).json()).toEqual(beforeHistory);
     expect(
       (await readdir(tmpdir())).filter(
-        (dir) => dir.startsWith('homecrm-export-') && !before.has(dir),
+        (dir) => dir.startsWith(EXPORT_TEMP_PREFIX) && !before.has(dir),
       ),
     ).toEqual([]);
+    expect((await stat(concurrent)).isDirectory()).toBe(true);
   } finally {
+    await rm(concurrent, { recursive: true, force: true });
     await storage.delete(key);
     await storage.put(key, original);
   }
@@ -475,7 +478,7 @@ it('DATA-2: 1000 записей и 50 файлов — страницы и по�
       try {
         if (reads > 2)
           for (const dir of await readdir(tmpdir()))
-            if (dir.startsWith('homecrm-export-') && !dir.startsWith('homecrm-export-fixtures-')) {
+            if (dir.startsWith(EXPORT_TEMP_PREFIX)) {
               try {
                 if ((await stat(join(tmpdir(), dir, 'export.zip'))).size > 0) progressed = true;
               } catch (error) {
