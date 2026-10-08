@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useId, useState } from 'react';
 import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
+import { cancelPayment, fetchPayments } from '../charges/api.ts';
+import { useRefreshCharges } from '../charges/queries.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { computedNextVerification } from '../meters/form.ts';
 import { useRefreshMeters } from '../meters/queries.ts';
@@ -70,8 +72,26 @@ export function MarkReadingsButton({
   );
 }
 
+/** Причина отмены оплаты, созданной отметкой в радаре, если её сняли сразу: деньги не удаляются. */
+export const UNDO_MARK_REASON = 'Отметка снята сразу после создания';
+
+/**
+ * Снимает оплату, которую только что создала отметка по начислению: находит самую свежую живую
+ * оплату этого начисления и отменяет её с причиной (денежные записи не удаляются).
+ */
+async function cancelFreshPayment(chargeId: string, since: string | null): Promise<void> {
+  const from = since === null ? 0 : Date.parse(since) - 60_000;
+  const payments = await fetchPayments(chargeId);
+  const fresh = payments
+    .filter((payment) => payment.cancelledAt === null && Date.parse(payment.createdAt) >= from)
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+  if (fresh === undefined) throw new Error('Свежей оплаты нет');
+  await cancelPayment(fresh.id, UNDO_MARK_REASON);
+}
+
 function MarkPaymentButton({ occurrenceId, label }: { occurrenceId: string; label: string }) {
   const refresh = useRefreshDeadlines();
+  const refreshCharges = useRefreshCharges();
   const toast = useToast();
   const state = useAction();
   return (
@@ -83,16 +103,27 @@ function MarkPaymentButton({ occurrenceId, label }: { occurrenceId: string; labe
         disabled={state.disabled}
         onClick={() =>
           void state.run(async () => {
-            await completePayment(occurrenceId, true);
-            await refresh();
+            const marked = await completePayment(occurrenceId, true);
+            const chargeId = marked.chargeId ?? null;
+            await Promise.all([refresh(), refreshCharges()]);
             toast.show({
               message: 'Оплата отмечена',
+              ...(chargeId === null ? {} : { detail: 'Оплата на остаток записана в начислении.' }),
               action: {
                 label: 'Отменить',
                 onClick: () => {
-                  completePayment(occurrenceId, false)
-                    .then(() => refresh())
-                    .then(() => toast.show({ message: 'Отметка об оплате снята' }))
+                  // Начисление: оплата отменяется с причиной, а не снимается флажком (UTIL-10).
+                  const undo =
+                    chargeId === null
+                      ? completePayment(occurrenceId, false)
+                      : cancelFreshPayment(chargeId, marked.completedAt);
+                  undo
+                    .then(() => Promise.all([refresh(), refreshCharges()]))
+                    .then(() =>
+                      toast.show({
+                        message: chargeId === null ? 'Отметка об оплате снята' : 'Оплата отменена',
+                      }),
+                    )
                     .catch(() => toast.show({ message: 'Не удалось снять отметку' }));
                 },
               },
@@ -105,7 +136,6 @@ function MarkPaymentButton({ occurrenceId, label }: { occurrenceId: string; labe
     </>
   );
 }
-
 /** «Поверка проведена»: дата поверки и следующая дата, по умолчанию — от интервала счётчика. */
 function VerifySheet({ meterId, onClose }: { meterId: string; onClose: () => void }) {
   const { me } = useHousehold();

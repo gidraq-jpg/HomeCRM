@@ -65,6 +65,8 @@ export interface UtilityRow {
   /** Лицевой счёт с номером или счётчик. */
   source: string;
   accountId: string | null;
+  /** Начисление срока оплаты: по нему оплата отмечается и отменяется как денежная запись. */
+  chargeId: string | null;
   meterId: string | null;
   action: PrimaryAction | null;
   /** Окно без активных счётчиков: вместо показаний — подсказка и «Передано». */
@@ -127,13 +129,17 @@ export function utilityOf(item: RadarItem, endsAt: Date): UtilityRow | null {
     status: propertyStatusOf(item.object.status),
     source: isMeterSource ? meter.title : account ? `${account.title}${number}` : 'Лицевой счёт',
     accountId: account?.id ?? null,
+    chargeId: item.chargeId ?? null,
     meterId: meter?.id ?? null,
     action: item.primaryAction ?? null,
     needsMeters: item.needsMeters,
     startDate: item.date as DateOnly,
     endDate: todayIn(item.timeZone, endsAt),
     openLabel: isMeterSource ? 'Открыть счётчик' : 'Открыть счёт',
-    openTo: `/home/${objectId}/${isMeterSource ? 'meters' : 'accounts'}`,
+    openTo:
+      item.sourceKind === 'payment' && item.chargeId && account
+        ? `/home/${objectId}/accounts/${account.id}/charges`
+        : `/home/${objectId}/${isMeterSource ? 'meters' : 'accounts'}`,
   };
 }
 

@@ -1,0 +1,136 @@
+/* Начисления и оплаты (UTIL-9, UTIL-10). Цели нажатия — не меньше 44 px (--tap). */
+
+.charge-card {
+  display: block;
+}
+
+.charge-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+.charge-card__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.charge-card > .facts {
+  margin-top: 8px;
+}
+
+.charge-card > .btn-row {
+  margin-top: 14px;
+}
+
+.charge-lines {
+  display: grid;
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.charge-lines li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.charge-lines li > span:last-child {
+  flex: none;
+  font-weight: 600;
+}
+
+.charge-lines__kind {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-style: normal;
+}
+
+.charge-receipt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  overflow-wrap: anywhere;
+}
+
+.charge-receipt svg {
+  flex: none;
+}
+
+.charge-total {
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+.charge-line {
+  min-width: 0;
+  margin: 16px 0 0;
+  padding: 0 0 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.charge-line legend {
+  padding: 0;
+}
+
+.charge-line .btn {
+  margin-top: 12px;
+}
+
+.charge-form .btn-row {
+  margin-top: 14px;
+}
+
+.charge-form > .btn-row:last-child {
+  margin-top: 18px;
+}
+
+.receipt-upload {
+  margin-top: 8px;
+}
+
+.charge-payments {
+  margin-top: 12px;
+}
+
+.payment-list {
+  border-top: 1px solid var(--line);
+}
+
+.payment {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.payment__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.payment__meta,
+.payment__reason {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.payment .text-button {
+  justify-self: start;
+}
+
+.account-card__charges {
+  margin-top: 14px;
+}

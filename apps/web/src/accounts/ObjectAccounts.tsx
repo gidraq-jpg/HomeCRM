@@ -1,4 +1,11 @@
-import { ArrowSquareOut, CreditCard, PencilSimple, Plus, Trash } from '@phosphor-icons/react';
+import {
+  ArrowSquareOut,
+  CreditCard,
+  PencilSimple,
+  Plus,
+  Receipt,
+  Trash,
+} from '@phosphor-icons/react';
 import { type ReactNode, useState } from 'react';
 import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
@@ -177,6 +184,13 @@ function AccountItem({ account, readOnly }: { account: AccountCard; readOnly: bo
         {data.note === '' ? null : <Fact label="Заметка">{data.note}</Fact>}
       </dl>
       <ObjectError error={quick.error} action="account" />
+      <Link
+        className="btn btn--secondary btn--block account-card__charges"
+        to={`/home/${account.parentId}/accounts/${account.id}/charges`}
+      >
+        <Receipt size={20} aria-hidden />
+        Начисления и оплаты
+      </Link>
       {readOnly ? null : (
         <div className="btn-row">
           {abilities.edit ? (

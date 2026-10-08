@@ -9,6 +9,7 @@ import {
   groupRows,
   type LocatedDeadline,
   type RadarRow,
+  utilityOf,
 } from './radar.ts';
 
 const ZONE = 'Europe/Moscow';
@@ -235,5 +236,27 @@ describe('радар: коммунальные сроки (UTIL-13)', () => {
     });
     expect(row.utility?.status).toBeNull();
     expect(rows([item('5', { deadlineId: 'deadline-a' })])[0]?.utility).toBeNull();
+  });
+});
+
+describe('срок оплаты начисления', () => {
+  it('с начислением «Открыть счёт» ведёт к начислениям, без него — к списку счетов', () => {
+    const payment = (patch: Partial<RadarItem>) =>
+      utilityOf(
+        item('p1', {
+          sourceKind: 'payment',
+          object: { id: 'object-1', title: 'Вымышленная квартира', status: 'living' },
+          utilityAccount: { id: 'account-1', title: 'Электроэнергия' },
+          primaryAction: { kind: 'mark_payment', label: 'Отметить оплату', occurrenceId: 'p1' },
+          ...patch,
+        }),
+        new Date('2026-10-10T20:59:59.999Z'),
+      );
+    const withCharge = payment({ chargeId: 'charge-1' });
+    expect(withCharge?.chargeId).toBe('charge-1');
+    expect(withCharge?.openTo).toBe('/home/object-1/accounts/account-1/charges');
+    const without = payment({});
+    expect(without?.chargeId).toBeNull();
+    expect(without?.openTo).toBe('/home/object-1/accounts');
   });
 });
