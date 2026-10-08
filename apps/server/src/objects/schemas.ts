@@ -1,5 +1,5 @@
 import { RECORD_TYPES } from '@homecrm/db';
-import { OBJECT_TYPES } from '@homecrm/shared';
+import { OBJECT_TYPES, PropertyData } from '@homecrm/shared';
 import { z } from 'zod';
 
 const title = z.string().trim().min(1).max(200);
@@ -23,6 +23,7 @@ export const CreateObject = z.strictObject({
   title,
   objectType: z.enum(OBJECT_TYPES).default('other'),
   fields: Fields.default([]),
+  typeData: PropertyData.optional(),
   assigneeId: z.uuid().optional(),
   placement: z.strictObject({ spaceId: z.uuid(), audience: audience.optional() }).optional(),
 });
@@ -33,10 +34,13 @@ export const PatchObject = z
     assigneeId: z.uuid().nullable().optional(),
     responsibleId: z.uuid().nullable().optional(),
     fields: Fields.optional(),
+    typeData: PropertyData.optional(),
     expectedUpdatedAt: z.iso.datetime().optional(),
   })
   .refine((body) =>
-    ['title', 'objectType', 'assigneeId', 'responsibleId', 'fields'].some((key) => key in body),
+    ['title', 'objectType', 'assigneeId', 'responsibleId', 'fields', 'typeData'].some(
+      (key) => key in body,
+    ),
   )
   .refine(
     (body) =>

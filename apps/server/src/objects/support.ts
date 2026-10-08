@@ -81,6 +81,7 @@ export async function placementFrom(
   account: Account,
   spaceId?: string,
   audience?: 'household' | 'adults',
+  defaultAudience: 'household' | 'adults' = 'household',
 ): Promise<Placement> {
   const [space] = await tx
     .select()
@@ -91,7 +92,7 @@ export async function placementFrom(
     if (audience) throw new Failure(400, 'INVALID_INPUT');
     return { kind: 'personal', spaceId: space.id, ownerId: space.ownerAccountId ?? '' };
   }
-  return { kind: 'household', spaceId: space.id, audience: audience ?? 'household' };
+  return { kind: 'household', spaceId: space.id, audience: audience ?? defaultAudience };
 }
 export async function snapshotPlacement(
   tx: Transaction,

@@ -27,6 +27,7 @@ const repeat = z.discriminatedUnion('unit', [
     unit: z.literal('month'),
     every: Count.default(1),
     day: z.number().int().min(1).max(31),
+    endDay: z.number().int().min(1).max(31).optional(),
   }),
   z.strictObject({
     unit: z.literal('year'),
@@ -127,6 +128,23 @@ export function deadlineOccurrences(
   }
   return dates.flatMap((date) => {
     let end = addDays(date, rule.durationDays);
+    if (
+      rule.kind === 'repeat' &&
+      rule.repeat.unit === 'month' &&
+      rule.repeat.endDay !== undefined
+    ) {
+      const r = rule.repeat;
+      const endDay = rule.repeat.endDay;
+      end = new TZDate(
+        date.getFullYear(),
+        date.getMonth() + (endDay < r.day ? 1 : 0),
+        1,
+        date.getHours(),
+        date.getMinutes(),
+        zone,
+      );
+      end.setDate(Math.min(endDay, getDaysInMonth(end)));
+    }
     if (rule.endTime !== undefined) {
       end = at(format(end, 'yyyy-MM-dd'), rule.endTime, zone);
       if (end < date) end = addDays(end, 1);
