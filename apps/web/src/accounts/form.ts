@@ -60,7 +60,8 @@ export function accountDraft(card: AccountCard): AccountDraft {
   const { data } = card;
   const span = windowOf(data.readingRule);
   return {
-    title: card.title === DEFAULT_ACCOUNT_TITLE ? '' : card.title,
+    // Введённое название при правке не подменяется: пустым поле бывает только у нового счёта.
+    title: card.title,
     supplierId: card.supplier?.id ?? '',
     services: data.services,
     number: data.number,

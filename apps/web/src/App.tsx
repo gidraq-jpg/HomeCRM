@@ -8,6 +8,11 @@ import { SecurityScreen } from './auth/SecurityScreen.tsx';
 import { RadarScreen } from './deadlines/RadarScreen.tsx';
 import { HouseholdProvider } from './household/HouseholdContext.tsx';
 import { HouseScreen } from './household/HouseScreen.tsx';
+import { ObjectMeters } from './meters/ObjectMeters.tsx';
+import { ReadingsEntry } from './meters/ReadingsEntry.tsx';
+import { ReadingsLayout } from './meters/ReadingsLayout.tsx';
+import { ReadingsPicker } from './meters/ReadingsPicker.tsx';
+import { ReadingsTransfer } from './meters/ReadingsTransfer.tsx';
 import { NewNoteScreen } from './notes/NewNoteScreen.tsx';
 import { NoteScreen } from './notes/NoteScreen.tsx';
 import { NotesScreen } from './notes/NotesScreen.tsx';
@@ -65,6 +70,11 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
           <Route path="timeline" element={<ObjectTimeline />} />
           <Route path="files" element={<ObjectFiles />} />
           <Route path="accounts" element={<ObjectAccounts />} />
+          <Route path="meters" element={<ObjectMeters />} />
+        </Route>
+        <Route path="home/:objectId/readings" element={<ReadingsLayout />}>
+          <Route index element={<ReadingsEntry />} />
+          <Route path="transfer" element={<ReadingsTransfer />} />
         </Route>
         <Route path="documents" element={<DocumentsScreen />} />
         <Route path="people" element={<PeopleScreen />} />
@@ -78,6 +88,7 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         />
         <Route path="more/export" element={<ExportScreen />} />
         <Route path="more/spaces" element={<SpacesScreen />} />
+        <Route path="more/readings" element={<ReadingsPicker />} />
         <Route path="more/notes" element={<NotesScreen />} />
         <Route path="more/notes/new" element={<NewNoteScreen />} />
         <Route path="more/notes/:noteId" element={<NoteScreen />} />

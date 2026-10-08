@@ -40,8 +40,7 @@ export interface ObjectValues {
   objectType: ObjectType;
   assigneeId: string | null;
   fields: FieldInput[];
-  /** Поля недвижимости; 
-ull, если выбран другой тип. */
+  /** Поля недвижимости; `null`, если выбран другой тип. */
   typeData: PropertyData | null;
 }
 

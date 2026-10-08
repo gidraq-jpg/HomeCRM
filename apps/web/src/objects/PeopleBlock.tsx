@@ -1,4 +1,4 @@
-import { canWriteLink, type RecordFacts } from '@homecrm/shared';
+import { canWrite, canWriteLink, type RecordFacts } from '@homecrm/shared';
 import { AddressBook, Check, Plus } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
 import { Link } from 'react-router';
@@ -240,6 +240,16 @@ export function PeopleBlock({ card }: { card: ObjectCard }) {
   const items = card.peopleAndOrganizations;
   const linked = new Set(items.map((item) => item.contact.id));
   const trashed = card.deletedAt !== null;
+  const options = useOrganizationOptions(!trashed);
+  // Кнопка только тем, кто может связать: пишет в объект или в одну из видимых организаций.
+  const canLink =
+    !trashed &&
+    (canWrite(viewer, objectFacts) ||
+      (options.data ?? []).some(
+        (item) =>
+          !linked.has(item.id) &&
+          canWriteLink(viewer, objectFacts, factsOf(item, viewer, CONTACT_TYPE)),
+      ));
 
   return (
     <section className="section" aria-labelledby={`people-${card.id}`}>
@@ -261,7 +271,7 @@ export function PeopleBlock({ card }: { card: ObjectCard }) {
           ))}
         </RowList>
       )}
-      {trashed ? null : (
+      {canLink ? (
         <button
           type="button"
           className="btn btn--secondary btn--block list-action"
@@ -270,7 +280,7 @@ export function PeopleBlock({ card }: { card: ObjectCard }) {
           <Plus size={20} weight="bold" aria-hidden />
           Связать с организацией…
         </button>
-      )}
+      ) : null}
       {open ? (
         <LinkOrganizationSheet
           card={card}

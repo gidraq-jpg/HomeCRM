@@ -1,4 +1,9 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import {
   type ContactCard,
   fetchOrganization,
@@ -15,6 +20,8 @@ export function useOrganizationsList(trash: boolean, organizationType: Organizat
   return useInfiniteQuery({
     queryKey: [ORGANIZATIONS, 'list', trash, organizationType],
     initialPageParam: 0,
+    // Смена фильтра не заменяет экран на «Загружаем…»: прежний список виден, фокус на месте.
+    placeholderData: keepPreviousData,
     queryFn: ({ pageParam, signal }) =>
       fetchOrganizations(
         { trash, offset: pageParam, ...(organizationType ? { organizationType } : {}) },

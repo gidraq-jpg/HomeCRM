@@ -133,6 +133,16 @@ describe('форма лицевого счёта', () => {
     expect(describeTransmission(null)).toBe('не указан');
   });
 
+  it('при правке введённое название не заменяется названием из услуг', () => {
+    const original = { ...card({ services: ['electricity'] }), title: 'Лицевой счёт' };
+    const draft = accountDraft(original);
+    expect(draft.title).toBe('Лицевой счёт');
+    const result = toAccountInput(draft, original.data, TODAY);
+    expect(result.ok && result.title).toBe('Лицевой счёт');
+    const renamed = toAccountInput({ ...draft, title: '  Свет  ' }, original.data, TODAY);
+    expect(renamed.ok && renamed.title).toBe('Свет');
+  });
+
   it('правило, которое человек не менял, сохраняется как есть вместе с якорем и временем', () => {
     const original = card({
       readingRule: {
