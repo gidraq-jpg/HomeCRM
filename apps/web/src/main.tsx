@@ -16,6 +16,8 @@ import './styles/organizations.css';
 import './styles/meters.css';
 import './styles/files.css';
 import './styles/deadlines.css';
+import './styles/charges.css';
+import './styles/templates.css';
 import './styles/notifications.css';
 import { registerShell } from './pwa/register.ts';
 

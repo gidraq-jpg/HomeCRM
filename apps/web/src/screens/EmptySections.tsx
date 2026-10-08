@@ -2,6 +2,7 @@ import { CalendarBlank, FileText } from '@phosphor-icons/react';
 import { RadarBlock } from '../deadlines/RadarBlock.tsx';
 import { ReadingsWindowCards } from '../deadlines/ReadingsWindowCards.tsx';
 import { PushCard } from '../notifications/PushCard.tsx';
+import { FirstRunCard } from '../templates/FirstRunCard.tsx';
 import { SectionPlaceholder } from './SectionPlaceholder.tsx';
 
 // Два раздела, данных у которых ещё нет: в них пока нечего создавать.
@@ -13,6 +14,7 @@ export function TodayScreen() {
       icon={<CalendarBlank size={24} aria-hidden />}
       top={
         <>
+          <FirstRunCard />
           <ReadingsWindowCards />
           <RadarBlock />
           <PushCard />

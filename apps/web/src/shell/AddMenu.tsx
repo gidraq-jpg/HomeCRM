@@ -1,4 +1,4 @@
-import { Buildings, Note, UserPlus } from '@phosphor-icons/react';
+import { Buildings, ListChecks, Note, UserPlus } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
@@ -41,6 +41,12 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
           title="Объект"
           meta="Квартира, дача, машина, техника; недвижимость — для взрослых"
           onClick={() => go('/home/new')}
+        />
+        <Row
+          icon={<ListChecks size={22} aria-hidden />}
+          title="Из шаблона"
+          meta="Новая квартира или дом: счета, счётчики и сроки сразу"
+          onClick={() => go('/home/from-template')}
         />
         {isAdmin ? (
           <Row

@@ -1,0 +1,93 @@
+/* Шаблоны и первый запуск (TPL-1…4). Цели нажатия — не меньше 44 px (--tap). */
+
+.template-form {
+  display: block;
+}
+
+.template-group {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin: 18px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.template-group__legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.template-group__hint {
+  margin: 0 0 4px;
+}
+
+.template-meter__reading {
+  margin: 0 0 8px 40px;
+}
+
+.template-meter__reading .field__label {
+  margin-bottom: 6px;
+}
+
+.template-form > .btn-row {
+  margin-top: 18px;
+}
+
+.template-group .choice {
+  margin-top: 4px;
+}
+
+/* Мастер первого запуска */
+.start-steps ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.start-steps__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: normal;
+}
+
+.start-steps__item--current {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.start-steps__number {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.start-steps__item--current .start-steps__number {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+}
+
+.start-step > .btn-row,
+.start-step > form > .btn-row {
+  margin-top: 16px;
+}
+
+.start-invite {
+  margin-bottom: 14px;
+}
