@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { UtilityAccountData } from '@homecrm/shared';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { provisionAccount } from '../auth/provision.ts';
+import { createHousehold, provisionAccount } from '../auth/provision.ts';
 import type { Device } from '../testing/device.ts';
 import { signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type World } from '../testing/world.ts';
@@ -330,7 +330,9 @@ it('UTIL-1: уход собственника из дома не запреща�
     householdId: world.houseId,
     role: 'adult',
   });
-  const object = await property(adult, { typeData: { ownerMemberIds: [owner.id] } });
+  const object = await property(adult, {
+    typeData: { ownerMemberIds: [owner.id, world.boris.id], areaHundredths: 5731 },
+  });
   await world.database.admin.query(
     'UPDATE space_members SET left_at=now(),left_by=account_id WHERE account_id=$1',
     [owner.id],
@@ -340,10 +342,49 @@ it('UTIL-1: уход собственника из дома не запреща�
   });
   expect(title.status, title.text).toBe(200);
   const fields = await adult.request('PATCH', `/api/objects/${object.id}`, {
-    json: { typeData: { ownerMemberIds: [owner.id], areaHundredths: 10000 } },
+    json: { typeData: { ownerMemberIds: [owner.id, world.boris.id], areaHundredths: 10000 } },
   });
   expect(fields.status, fields.text).toBe(200);
   const copy = await adult.post(`/api/objects/${object.id}/copy`);
-  expect(copy.status, copy.text).toBe(400);
-  expect(copy.text).toContain('INVALID_OWNER');
+  expect(copy.status, copy.text).toBe(201);
+  expect(copy.json<Property>().typeData).toEqual({
+    ownerMemberIds: [world.boris.id],
+    areaHundredths: 10000,
+  });
+  expect(
+    (await adult.get(`/api/objects/${object.id}`)).json<Property>().typeData.ownerMemberIds,
+  ).toEqual([owner.id, world.boris.id]);
+});
+
+it('UTIL-1: копия из другого дома отбрасывает недоступного собственника', async () => {
+  const houseId = await createHousehold(world.fixtures, 'Другой вымышленный дом');
+  await world.database.admin.query(
+    "INSERT INTO space_members(space_id,account_id,role) VALUES($1,$2,'adult')",
+    [houseId, world.boris.id],
+  );
+  const member = await provisionAccount(world.fixtures, {
+    username: 'fictional-copy-member',
+    displayName: 'Вымышленный участник другого дома',
+    password: 'fictional-copy-member-pass',
+    householdId: houseId,
+    role: 'adult',
+  });
+  const device = world.device();
+  await device.signIn('fictional-copy-member', 'fictional-copy-member-pass');
+  const object = await property(adult, {
+    placement: { spaceId: world.boris.personalSpaceId },
+    typeData: { ownerMemberIds: [world.anna.id, world.boris.id], areaHundredths: 5731 },
+  });
+  const shared = await adult.post(`/api/objects/${object.id}/share`, {
+    spaceId: houseId,
+    audience: 'adults',
+  });
+  expect(shared.status, shared.text).toBe(200);
+  const copy = await device.post(`/api/objects/${object.id}/copy`);
+  expect(copy.status, copy.text).toBe(201);
+  expect(copy.json<Property>().spaceId).toBe(member.personalSpaceId);
+  expect(copy.json<Property>().typeData).toEqual({
+    ownerMemberIds: [world.boris.id],
+    areaHundredths: 5731,
+  });
 });

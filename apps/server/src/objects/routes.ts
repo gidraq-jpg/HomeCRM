@@ -340,7 +340,7 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
             account,
             placementOf(record),
             body.typeData ?? (record.objectType === 'property' ? record.typeData : {}),
-            record.typeData,
+            { previous: record.typeData },
           )
         : {};
     const [updated] = await tx
@@ -380,7 +380,9 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
           const place = await placementFrom(tx, account);
           const typeData =
             record.objectType === 'property'
-              ? await validateProperty(tx, account, place, record.typeData)
+              ? await validateProperty(tx, account, place, record.typeData, {
+                  omitUnavailableOwners: true,
+                })
               : record.typeData;
           const [copy] = await tx
             .insert(objects)

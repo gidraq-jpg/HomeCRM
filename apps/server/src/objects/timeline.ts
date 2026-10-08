@@ -147,15 +147,10 @@ async function feed(
       FROM object_fields_history h JOIN object_fields f ON f.id=h.record_id LEFT JOIN spaces s ON s.id=h.space_id
       WHERE f.parent_id IN (${ids}) AND (${includeDeleted} OR f.deleted_at IS NULL) AND (h.operation='create' OR (h.operation='update' AND h.changes ?| ARRAY['title','value','position']))
       UNION ALL
-      SELECT h.id,m.parent_id,h.created_at,'reading',jsonb_build_object('operation',h.operation,'actorId',h.actor_id,'readingId',r.id,'meterId',m.id,'occurredOn',r.occurred_on,'values',ARRAY(SELECT v::text FROM unnest(r.values) v),'consumption',CASE WHEN r.consumption IS NULL THEN NULL ELSE ARRAY(SELECT v::text FROM unnest(r.consumption) v) END),
-        h.space_id,h.space_kind,h.audience,s.owner_account_id,NULL::uuid,NULL::jsonb
-      FROM meter_readings_history h JOIN meter_readings r ON r.id=h.record_id JOIN meters m ON m.id=r.parent_id LEFT JOIN spaces s ON s.id=h.space_id
-      WHERE m.parent_id IN (${ids}) AND h.operation='create' AND (${includeDeleted} OR (r.deleted_at IS NULL AND m.deleted_at IS NULL))
-      UNION ALL
       SELECT r.id,m.parent_id,r.created_at,'reading',jsonb_build_object('operation','create','actorId',r.author_id,'readingId',r.id,'meterId',m.id,'occurredOn',r.occurred_on,'values',ARRAY(SELECT v::text FROM unnest(r.values) v),'consumption',CASE WHEN r.consumption IS NULL THEN NULL ELSE ARRAY(SELECT v::text FROM unnest(r.consumption) v) END),
         r.space_id,r.space_kind,r.audience,s.owner_account_id,NULL::uuid,NULL::jsonb
       FROM meter_readings r JOIN meters m ON m.id=r.parent_id LEFT JOIN spaces s ON s.id=r.space_id
-      WHERE m.parent_id IN (${ids}) AND r.space_kind='personal' AND NOT EXISTS (SELECT 1 FROM meter_readings_history h WHERE h.record_id=r.id AND h.operation='create') AND (${includeDeleted} OR (r.deleted_at IS NULL AND m.deleted_at IS NULL))
+      WHERE m.parent_id IN (${ids}) AND (${includeDeleted} OR (r.deleted_at IS NULL AND m.deleted_at IS NULL))
       UNION ALL
       SELECT e.id,e.parent_id,e.occurred_on::timestamp AT TIME ZONE 'UTC','manual',
         jsonb_build_object('parentId',e.parent_id,'occurredOn',e.occurred_on,'text',e.title,'amountKopecks',e.amount_kopecks,'rating',e.rating,

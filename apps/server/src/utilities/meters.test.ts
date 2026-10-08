@@ -282,6 +282,43 @@ it('ребёнок не видит «Взрослые» через API, поис
   const own = await meter(personal);
   expect((await admin.get(`/api/meters/${own.id}`)).status).toBe(404);
 });
+it('личное показание после «Поделиться» видно взрослым в ленте и списках, ребёнку — нет', async () => {
+  const id = await object(adult, true);
+  const row = await meter(id);
+  const saved = await reading(row.id, '2026-10-01', ['123.456']);
+  const paths = [
+    `/api/objects/${id}/timeline`,
+    `/api/objects/${id}/meters`,
+    `/api/meters/${row.id}/readings`,
+    `/api/objects/${id}/transmission`,
+  ];
+  const before = await adult.get(`/api/objects/${id}/timeline`);
+  expect(before.status, before.text).toBe(200);
+  expect(before.text).toContain(saved.id);
+  for (const path of paths) expect((await admin.get(path)).status, path).toBe(404);
+  const shared = await adult.post(`/api/objects/${id}/share`, {
+    spaceId: world.houseId,
+    audience: 'adults',
+  });
+  expect(shared.status, shared.text).toBe(200);
+  for (const device of [adult, admin]) {
+    for (const path of paths) {
+      const result = await device.get(path);
+      expect(result.status, result.text).toBe(200);
+      expect(result.text).toContain(saved.id);
+    }
+    const readings = (await device.get(`/api/meters/${row.id}/readings`)).json<
+      (Reading & { spaceId: string; audience: string })[]
+    >();
+    expect(readings[0]).toMatchObject({
+      id: saved.id,
+      spaceId: world.houseId,
+      audience: 'adults',
+      values: ['123.456'],
+    });
+  }
+  for (const path of paths) expect((await child.get(path)).status, path).toBe(404);
+});
 it('счёт того же объекта, чужие id скрыты; самостоятельная корзина и восстановление с объектом', async () => {
   const id = await object();
   const other = await object();
@@ -357,7 +394,7 @@ it('журнал не содержит номера прибора и значе
   );
   expect(world.requestLog.join('\n')).not.toContain('FICTION-SECRET-918273');
 });
-it('коррекция последнего отсчёта через корзину; открытие объекта не раскрывает прежнюю ленту ребёнку', async () => {
+it('коррекция последнего отсчёта через корзину; показания наследуют новую аудиторию объекта', async () => {
   const id = await object();
   const row = await meter(id);
   const first = await reading(row.id, '2026-09-01', ['1']);
@@ -380,8 +417,9 @@ it('коррекция последнего отсчёта через корзи
   expect((await child.get(`/api/meters/${row.id}`)).status).toBe(200);
   const feed = await child.get(`/api/objects/${id}/timeline`);
   expect(feed.status, feed.text).toBe(200);
-  expect(feed.text).not.toContain(corrected.id);
-  expect(feed.text).not.toContain(first.id);
+  expect(feed.text).toContain(corrected.id);
+  expect(feed.text).toContain(first.id);
+  expect(feed.text).not.toContain(last.id);
   expect(
     (
       await child.post(`/api/meters/${row.id}/readings`, {
