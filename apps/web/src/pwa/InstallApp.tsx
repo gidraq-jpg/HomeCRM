@@ -84,7 +84,8 @@ export function InstallApp({ inline = false }: { inline?: boolean }) {
         type="button"
         className="text-button"
         onClick={async () => {
-          if ((await install()) === 'help') setHelp(!help);
+          // Подсказку показываем, а не переключаем: повторное нажатие её не прячет.
+          if ((await install()) === 'help') setHelp(true);
         }}
       >
         Установить на телефон

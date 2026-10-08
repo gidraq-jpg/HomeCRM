@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
-import { apiAs } from './notes-support.ts';
+import { apiAs, seedNote, seedObject } from './notes-support.ts';
 import {
   ANDROID_CHROME,
   block,
@@ -81,6 +81,52 @@ test('«Не сейчас» запоминается и не мешает; от�
   );
   await checkApp(page, info, 'notif-denied-after-ask');
   expect(await subscriptions(family)).toEqual([]);
+});
+
+test('«Не сейчас» помнится по участнику: у второго человека в том же браузере карточка своя', async ({
+  page,
+  family,
+}) => {
+  await installFakePush(page, { answer: 'granted' });
+  await signInAs(page, family, 'adult');
+  await card(page).getByRole('button', { name: 'Не сейчас' }).click();
+  await expect(card(page)).toHaveCount(0);
+
+  // Тот же браузер и то же хранилище, другой участник: карточка снова на месте.
+  await page.context().clearCookies();
+  await page.reload();
+  await signInAs(page, family, 'child');
+  await expect(card(page)).toBeVisible();
+
+  // Первый участник вернулся: его отказ сохранился.
+  await page.context().clearCookies();
+  await page.reload();
+  await signInAs(page, family, 'adult');
+  await expect(card(page)).toHaveCount(0);
+});
+
+test('открытие по #/open/<id> записи, которую участник не видит: без названия и без подсказок', async ({
+  page,
+  family,
+}, info) => {
+  const boris = await apiAs(family, 'adult');
+  const object = await seedObject(boris, family, { title: 'Квартира у парка', audience: 'adults' });
+  const note = await seedNote(boris, family, { title: 'Пароли от счетов', audience: 'adults' });
+  await installFakePush(page);
+  await signInAs(page, family, 'child');
+
+  for (const id of [object.id, note.id]) {
+    await page.goto('#/more');
+    await page.goto(`#/open/${id}`);
+    await expect(page.getByText('Записи больше нет, или она стала вам недоступна.')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Открыть радар сроков' })).toBeVisible();
+    // Запись есть, но «Взрослых» ребёнок не видит: ни названия, ни намёка, что она существует.
+    const shown = await page.locator('body').innerText();
+    expect(shown).not.toContain('Квартира у парка');
+    expect(shown).not.toContain('Пароли от счетов');
+    expect(page.url()).not.toContain('Квартира');
+  }
+  await checkApp(page, info, 'notif-open-unavailable');
 });
 
 test('карточка при отказе: сообщение и больше не появляется', async ({ page, family }) => {

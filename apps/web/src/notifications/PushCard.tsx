@@ -89,7 +89,7 @@ export function PushCard() {
           </button>
         )}
       </div>
-      <button type="button" className="text-button" onClick={dismissPushCard}>
+      <button type="button" className="text-button" onClick={() => dismissPushCard(me.id)}>
         Не сейчас
       </button>
     </section>

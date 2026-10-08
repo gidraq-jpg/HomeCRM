@@ -25,7 +25,8 @@ export class PushError extends Error {
   }
 }
 
-const DISMISSED_KEY = 'homecrm.push.card-dismissed';
+/** Отказ от карточки помнится по участнику: на общем компьютере у второго человека карточка своя. */
+export const dismissedKey = (account: string) => `homecrm.push.card-dismissed.${account}`;
 const DEVICE_KEY = 'homecrm.push.device';
 const WORKER_WAIT_MS = 8000;
 
@@ -67,8 +68,8 @@ export interface PushState {
 }
 
 // Память — запасной вариант, когда localStorage закрыт: отказ и устройство живут до перезагрузки.
-const memory: { dismissed: boolean; devices: Map<string, string> } = {
-  dismissed: false,
+const memory: { dismissed: Set<string>; devices: Map<string, string> } = {
+  dismissed: new Set(),
   devices: new Map(),
 };
 let version = 0;
@@ -93,6 +94,10 @@ function rememberDevice(account: string, id: string | null): void {
   writeStorage(DEVICE_KEY, id ? JSON.stringify({ a: account, id }) : null);
 }
 
+export function cardDismissed(account: string): boolean {
+  return memory.dismissed.has(account) || readStorage(dismissedKey(account)) === '1';
+}
+
 function readState(account: string): PushState {
   const supported = pushSupported();
   return {
@@ -100,7 +105,7 @@ function readState(account: string): PushState {
     // Без поддержки разрешения нет вообще: supported важнее, чем permission.
     permission: supported ? Notification.permission : 'default',
     deviceId: storedDevice(account),
-    dismissed: memory.dismissed || readStorage(DISMISSED_KEY) === '1',
+    dismissed: cardDismissed(account),
   };
 }
 
@@ -132,9 +137,9 @@ export function usePushState(accountId: string): PushState {
   // biome-ignore lint/correctness/useExhaustiveDependencies: `stamp` — сигнал «перечитать браузер».
   return useMemo(() => readState(accountId), [accountId, stamp]);
 }
-export function dismissPushCard(): void {
-  memory.dismissed = true;
-  writeStorage(DISMISSED_KEY, '1');
+export function dismissPushCard(account: string): void {
+  memory.dismissed.add(account);
+  writeStorage(dismissedKey(account), '1');
   refreshPushState();
 }
 

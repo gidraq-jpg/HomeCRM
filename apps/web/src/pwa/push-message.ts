@@ -73,3 +73,10 @@ export function safeRoute(value: unknown): string | null {
   const match = /^\/open\/(.+)$/.exec(value);
   return match?.[1] && UUID.test(match[1]) ? value : null;
 }
+
+/** Маршрут из сообщения воркера `{ type: OPEN_MESSAGE, route }`; любое другое сообщение даёт `null`. */
+export function routeFromMessage(data: unknown): string | null {
+  if (!data || typeof data !== 'object' || !('type' in data) || data.type !== OPEN_MESSAGE)
+    return null;
+  return safeRoute('route' in data ? data.route : null);
+}

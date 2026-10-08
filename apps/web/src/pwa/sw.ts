@@ -75,7 +75,24 @@ self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(resubscribe(event as SubscriptionChange));
 });
 
+/** Вход ещё действует? Ответ без сессии — штатные 200/null; любая неудача считается «нет сессии». */
+async function hasSession(): Promise<boolean> {
+  try {
+    const response = await fetch('/api/auth/get-session', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+    if (!response.ok) return false;
+    const body = (await response.json()) as { user?: { id?: unknown } } | null;
+    return typeof body?.user?.id === 'string';
+  } catch {
+    return false;
+  }
+}
+
 async function resubscribe(event: SubscriptionChange): Promise<void> {
+  // Без входа подписку не создаём: сервер её не примет, а участник переподпишется при следующем входе.
+  if (!(await hasSession())) return;
   const subscription =
     event.newSubscription ??
     (await (async () => {

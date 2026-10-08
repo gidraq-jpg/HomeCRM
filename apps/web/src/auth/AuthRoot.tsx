@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import * as z from 'zod';
 import { App } from '../App.tsx';
+import { usePendingRoute } from '../notifications/pending-route.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { ApiError, action, api, appURL, consumeLink, Me } from './api.ts';
 import { AuthPage, ErrorNotice, Notice, OfflineBanner, useAction } from './components.tsx';
@@ -15,6 +16,7 @@ import {
   LoginScreen,
   ResetScreen,
 } from './screens.tsx';
+import { dropCacheOnAccountChange, ME_KEY } from './session-cache.ts';
 import { TwoFactorSetup } from './TwoFactorSetup.tsx';
 
 async function currentMe(signal?: AbortSignal) {
@@ -85,10 +87,17 @@ export function AuthRoot() {
   const linkConsumed = useRef(false);
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const query = useQuery({
-    queryKey: ['me'],
-    queryFn: ({ signal }) => currentMe(signal),
+    queryKey: [ME_KEY],
+    queryFn: async ({ signal }) => {
+      const next = await currentMe(signal);
+      // Смена участника (например, вход другого человека в соседней вкладке): прежний кэш не показываем.
+      dropCacheOnAccountChange(client, client.getQueryData<Me | null>([ME_KEY]), next);
+      return next;
+    },
     refetchOnWindowFocus: true,
   });
+  // Сессии точно нет (проверка завершена): уведомление в это время запоминает свой маршрут до входа.
+  const takePendingRoute = usePendingRoute(query.isSuccess && query.data === null);
   useEffect(() => {
     if (!link || linkConsumed.current) return;
     linkConsumed.current = true;
@@ -107,11 +116,14 @@ export function AuthRoot() {
     setChallenge(null);
     setLink(null);
     await reload();
-    navigate(setup ? '/setup-two-factor' : '/today', { replace: true });
+    // Настройка второго фактора идёт первой: запомненный переход откроется после неё.
+    const pending = setup ? null : takePendingRoute();
+    navigate(setup ? '/setup-two-factor' : (pending ?? '/today'), { replace: true });
   }
   function signedOut() {
     client.clear();
-    client.setQueryData(['me'], null);
+    client.setQueryData([ME_KEY], null);
+    takePendingRoute();
     setChallenge(null);
     setLink(null);
     navigate('/sign-in', { replace: true });

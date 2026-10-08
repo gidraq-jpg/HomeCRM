@@ -4,7 +4,9 @@ import { keyToBytes, sameKey } from './push-key.ts';
 import {
   describePush,
   FALLBACK_TEXT,
+  OPEN_MESSAGE,
   parsePushData,
+  routeFromMessage,
   safeRoute,
   targetRoute,
 } from './push-message.ts';
@@ -117,6 +119,17 @@ describe('куда ведёт нажатие', () => {
       null,
     ])
       expect(safeRoute(bad)).toBeNull();
+  });
+
+  it('сообщение воркера: маршрут берётся только из своего сообщения с известным маршрутом', () => {
+    expect(routeFromMessage({ type: OPEN_MESSAGE, route: `/open/${RECORD}` })).toBe(
+      `/open/${RECORD}`,
+    );
+    expect(routeFromMessage({ type: OPEN_MESSAGE, route: '/sign-in' })).toBeNull();
+    expect(routeFromMessage({ type: 'other', route: '/more/radar' })).toBeNull();
+    expect(routeFromMessage({ route: '/more/radar' })).toBeNull();
+    expect(routeFromMessage(null)).toBeNull();
+    expect(routeFromMessage('/more/radar')).toBeNull();
   });
 });
 

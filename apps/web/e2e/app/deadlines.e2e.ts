@@ -287,6 +287,101 @@ test('правка срока, немедленная корзина, отмен
   await expect(item).toHaveCount(1);
 });
 
+test('«В корзину» на чужом сроке: взрослый не видит «Отменить», на своём сроке видит (DEAD-1, PRD 6)', async ({
+  page,
+  family,
+}, info) => {
+  await setHomeZone(family);
+  const boris = await apiAs(family, 'adult');
+  const note = await seedNote(boris, family, { title: 'Страховка дачи', audience: 'household' });
+  const own = await seedDeadline(boris, 'notes', note.id, { kind: 'date', date: homeDate(5) });
+  const foreign = await seedDeadline(boris, 'notes', note.id, { kind: 'date', date: homeDate(9) });
+  // Второй срок завела Анна: Борис — взрослый, но не автор этого срока, вернуть его не сможет.
+  // Автор срока неизменяем, поэтому тест подменяет его мимо триггера (вымышленная база сценария).
+  await family.database.admin.query('ALTER TABLE deadlines DISABLE TRIGGER USER');
+  await family.database.admin.query('UPDATE deadlines SET author_id = $1 WHERE id = $2', [
+    family.person('admin').id,
+    foreign,
+  ]);
+  await family.database.admin.query('ALTER TABLE deadlines ENABLE TRIGGER USER');
+  await signInAs(page, family, 'adult');
+  await openNoteCard(page, note.id, 'Страховка дачи');
+  const trashed = (id: string) =>
+    family.database.admin
+      .query('SELECT deleted_at FROM deadlines WHERE id = $1', [id])
+      .then((result) => (result.rows[0] as { deleted_at: Date | null }).deleted_at !== null);
+
+  const rows = items(page).getByRole('listitem');
+  await expect(rows).toHaveCount(2);
+  await rows
+    .filter({ hasText: 'через 9 дней' })
+    .getByRole('button', { name: /^В корзину:/ })
+    .click();
+  await expect(toast(page)).toContainText('Срок в корзине');
+  await expect(toast(page)).toContainText('Вернуть его сможет автор-взрослый или администратор.');
+  await expect(toast(page).getByRole('button', { name: 'Отменить' })).toHaveCount(0);
+  await checkApp(page, info, 'deadlines-trash-no-undo');
+  expect(await trashed(foreign)).toBe(true);
+
+  // Свой срок: кнопка «Отменить» на месте, отмена возвращает срок.
+  await rows.getByRole('button', { name: /^В корзину:/ }).click();
+  await expect(toast(page)).toContainText('Восстановить можно также из «Корзины».');
+  await toast(page).getByRole('button', { name: 'Отменить' }).click();
+  await expect(rows).toHaveCount(1);
+  expect(await trashed(own)).toBe(false);
+});
+
+test('радар: пересчёт опрашивается с пределом, потом «Пересчёт затянулся» и «Обновить» (DEAD-4)', async ({
+  page,
+  family,
+}, info) => {
+  await setHomeZone(family);
+  let requests = 0;
+  await page.route('**/api/deadlines?*', (route) => {
+    requests += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], groups: {}, recalculating: true }),
+    });
+  });
+  // Часы страницы идут сами, а ожидание опроса перематывается: проверка не ждёт минуту.
+  await page.clock.install();
+  await signInAs(page, family, 'adult');
+  await page.goto('#/more');
+  await page.goto('#/more/radar');
+  await expect(page.getByRole('heading', { level: 1, name: 'Радар', exact: true })).toBeVisible();
+  await expect(page.getByText('Идёт пересчёт', { exact: true })).toBeVisible();
+  const stalled = page.getByText('Пересчёт затянулся. Обновите страницу позже.');
+  const waitStalled = () =>
+    expect
+      .poll(
+        async () => {
+          await page.clock.runFor(20_000);
+          return stalled.isVisible();
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(true);
+
+  requests = 0;
+  await waitStalled();
+  // Опрос остановился на пределе: шесть повторных запросов, дальше тишина.
+  expect(requests).toBe(6);
+  await page.clock.runFor(120_000);
+  expect(requests).toBe(6);
+  await expect(page.getByText('Идёт пересчёт', { exact: true })).toHaveCount(0);
+  await checkApp(page, info, 'radar-stalled');
+
+  // «Обновить» перечитывает радар и начинает опрос заново.
+  await page.getByRole('button', { name: 'Обновить', exact: true }).click();
+  await expect(page.getByText('Идёт пересчёт', { exact: true })).toBeVisible();
+  await expect.poll(() => requests).toBeGreaterThan(6);
+  requests = 0;
+  await waitStalled();
+  expect(requests).toBe(6);
+});
+
 test('радар: группы по времени дома, «Моё · Весь дом» и «Всё · Общее · Личное» (DEAD-3)', async ({
   page,
   family,
