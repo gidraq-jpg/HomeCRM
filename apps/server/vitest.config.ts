@@ -1,4 +1,4 @@
-import { defineProject } from 'vitest/config';
+import { configDefaults, defineProject } from 'vitest/config';
 
 export default defineProject({
   test: {
@@ -6,6 +6,8 @@ export default defineProject({
     // Тестам входа нужна настоящая PostgreSQL 18 с политиками RLS (ADR-0004, ADR-0005): свой сервер
     // на прогон пакета, своя база на каждый файл тестов. Подготовку делает пакет db.
     globalSetup: ['../../packages/db/src/testing/global-setup.ts'],
+    // Замеры скорости (*.perf.test.ts) идут отдельным проектом perf (vitest.perf.config.ts).
+    exclude: [...configDefaults.exclude, '**/*.perf.test.ts'],
     testTimeout: 60_000,
     hookTimeout: 120_000,
   },
