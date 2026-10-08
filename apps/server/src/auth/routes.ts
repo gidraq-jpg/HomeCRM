@@ -14,6 +14,7 @@ import {
   memberProfiles,
   passwordResets,
   sessions,
+  spaces,
   sql,
 } from '@homecrm/db';
 import { canInvite, ROLES } from '@homecrm/shared';
@@ -235,7 +236,13 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
   app.get('/api/me', async (request, reply) => {
     const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
     if (account === null) return reply;
-    const { notices, profile } = await appDb.withAccount(account.id, async (tx) => ({
+    const { notices, profile, personalSpace } = await appDb.withAccount(account.id, async (tx) => ({
+      personalSpace: (
+        await tx
+          .select({ id: spaces.id })
+          .from(spaces)
+          .where(and(eq(spaces.kind, 'personal'), eq(spaces.ownerAccountId, account.id)))
+      )[0],
       notices: await tx
         .select({ id: passwordResets.id, completedAt: passwordResets.completedAt })
         .from(passwordResets)
@@ -253,6 +260,7 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
     const completedAt = notices[0]?.completedAt ?? null;
     return {
       id: account.id,
+      personalSpaceId: personalSpace?.id ?? null,
       displayName: profile?.displayName ?? account.displayName,
       username: account.username,
       email: account.email,
