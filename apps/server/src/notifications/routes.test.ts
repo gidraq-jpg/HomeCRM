@@ -79,7 +79,15 @@ it('API возвращает defaults, валидирует настройки �
     quietStart: '22:00',
     quietEnd: '08:00',
     dailyBudget: 5,
-    enabledKinds: ['deadline'],
+    enabledKinds: [
+      'deadline',
+      'readings_open',
+      'readings_closing',
+      'readings_last_day',
+      'payment_upcoming',
+      'payment_due',
+      'verification',
+    ],
     hideText: true,
   });
   expect((await admin.get('/api/push/subscriptions')).json()).toEqual([]);
@@ -255,7 +263,10 @@ it('отключение вида отменяет отправку; разре�
   await dispatchNotifications(world.database.worker, send, now);
   expect(send).not.toHaveBeenCalled();
   await adult.request('PATCH', '/api/notifications/settings', {
-    json: { enabledKinds: ['deadline'], hideText: false },
+    json: {
+      enabledKinds: ['deadline'],
+      hideText: false,
+    },
   });
   await warning();
   await dispatchNotifications(world.database.worker, send, now);

@@ -241,7 +241,15 @@ test('экран «Уведомления»: устройство, тихие ч
       quiet_start: '23:00',
       quiet_end: '07:30',
       daily_budget: 3,
-      enabled_kinds: ['deadline'],
+      enabled_kinds: [
+        'deadline',
+        'readings_open',
+        'readings_closing',
+        'readings_last_day',
+        'payment_upcoming',
+        'payment_due',
+        'verification',
+      ],
       hide_text: false,
     },
   ]);
@@ -263,7 +271,19 @@ test('экран «Уведомления»: устройство, тихие ч
   const kinds = await family.database.admin.query(
     'SELECT quiet_end, enabled_kinds FROM notification_settings',
   );
-  expect(kinds.rows).toEqual([{ quiet_end: '23:00', enabled_kinds: [] }]);
+  expect(kinds.rows).toEqual([
+    {
+      quiet_end: '23:00',
+      enabled_kinds: [
+        'readings_open',
+        'readings_closing',
+        'readings_last_day',
+        'payment_upcoming',
+        'payment_due',
+        'verification',
+      ],
+    },
+  ]);
   await checkApp(page, info, 'notif-screen-saved');
 
   // Отключение на этом устройстве убирает запись на сервере и подписку браузера.

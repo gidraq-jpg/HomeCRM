@@ -74,6 +74,50 @@ describe('форма лицевого счёта', () => {
     expect(describePayDay(parsed.paymentRule)).toBe('15-го числа каждого месяца');
   });
 
+  it.each([null, card().data])(
+    'новые правила не отправляют warnings и получают коммунальные умолчания: %s',
+    (base) => {
+      const result = toAccountInput(
+        { ...emptyAccountDraft(), readFrom: '20', readTo: '25', payDay: '15' },
+        base,
+        TODAY,
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.data.readingRule).not.toHaveProperty('warnings');
+      expect(result.data.paymentRule).not.toHaveProperty('warnings');
+      const parsed = UtilityAccountData.parse(result.data);
+      expect(parsed.readingRule?.warnings).toEqual([0]);
+      expect(parsed.paymentRule?.warnings).toEqual([3, 0]);
+    },
+  );
+
+  it.each([[[]], [[2]]])('при изменении дней сохраняет прежние warnings: %j', (warnings) => {
+    const original = card({
+      readingRule: {
+        kind: 'repeat',
+        anchor: TODAY,
+        warnings,
+        repeat: { unit: 'month', every: 1, day: 20, endDay: 25 },
+      } as never,
+      paymentRule: {
+        kind: 'repeat',
+        anchor: TODAY,
+        warnings,
+        repeat: { unit: 'month', every: 1, day: 15 },
+      } as never,
+    });
+    const result = toAccountInput(
+      { ...accountDraft(original), readFrom: '21', payDay: '16' },
+      original.data,
+      TODAY,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.readingRule?.warnings).toEqual(warnings);
+    expect(result.data.paymentRule?.warnings).toEqual(warnings);
+  });
+
   it('окно через границу месяца: с 28 по 5 — на следующий месяц', () => {
     const result = toAccountInput(
       { ...emptyAccountDraft(), readFrom: '28', readTo: '5' },

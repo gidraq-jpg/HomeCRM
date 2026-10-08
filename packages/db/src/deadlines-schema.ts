@@ -126,7 +126,7 @@ export const deadlines = pgTable(
     pgPolicy('deadlines_purge', {
       for: 'delete',
       to: workerRole,
-      using: sql`deleted_at < now() - interval '30 days'`,
+      using: sql`source_kind='record' AND deleted_at < now() - interval '30 days'`,
     }),
     // В миграции UPDATE выдан только на needs_refresh; прав на rule и ссылки нет.
     pgPolicy('deadlines_refresh', {
@@ -172,8 +172,8 @@ export const deadlineOccurrencesTable = pgTable(
     pgPolicy('deadline_occurrences_complete_payment', {
       for: 'update',
       to: appRole,
-      using: sql`deleted_at IS NULL AND EXISTS (SELECT 1 FROM deadlines d WHERE d.id=deadline_id AND d.source_kind='payment' AND d.deleted_at IS NULL AND app.deadline_source_allowed(d.note_id,d.object_id,true))`,
-      withCheck: sql`deleted_at IS NULL AND EXISTS (SELECT 1 FROM deadlines d WHERE d.id=deadline_id AND d.source_kind='payment' AND d.deleted_at IS NULL AND app.deadline_source_allowed(d.note_id,d.object_id,true))`,
+      using: sql`deleted_at IS NULL AND EXISTS (SELECT 1 FROM deadlines d WHERE d.id=deadline_id AND (d.source_kind='payment' OR (d.source_kind='readings' AND NOT EXISTS (SELECT 1 FROM meters m WHERE m.utility_account_id=d.utility_account_id AND m.deleted_at IS NULL AND m.is_active))) AND d.deleted_at IS NULL AND app.deadline_source_allowed(d.note_id,d.object_id,true))`,
+      withCheck: sql`deleted_at IS NULL AND EXISTS (SELECT 1 FROM deadlines d WHERE d.id=deadline_id AND (d.source_kind='payment' OR (d.source_kind='readings' AND NOT EXISTS (SELECT 1 FROM meters m WHERE m.utility_account_id=d.utility_account_id AND m.deleted_at IS NULL AND m.is_active))) AND d.deleted_at IS NULL AND app.deadline_source_allowed(d.note_id,d.object_id,true))`,
     }),
     ...(['select', 'update'] as const).map((op) =>
       pgPolicy(`deadline_occurrences_owner_${op}`, {
@@ -209,13 +209,25 @@ export const deadlineNotifications = pgTable(
       .notNull()
       .references(() => accounts.id),
     warningAt: timestamp('warning_at', { withTimezone: true }).notNull(),
+    notificationKind: text('notification_kind')
+      .$type<
+        | 'deadline'
+        | 'readings_open'
+        | 'readings_closing'
+        | 'readings_last_day'
+        | 'payment_upcoming'
+        | 'payment_due'
+        | 'verification'
+      >()
+      .notNull()
+      .default('deadline'),
     status: text('status').notNull().default('pending'),
     cancellationReason: text('cancellation_reason'),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex('deadline_notifications_once')
-      .on(t.occurrenceId, t.recipientId, t.warningAt)
+      .on(t.occurrenceId, t.recipientId, t.warningAt, t.notificationKind)
       .where(sql`status <> 'cancelled' OR cancellation_reason IS NOT NULL`),
     check(
       'deadline_notifications_cancellation_reason',

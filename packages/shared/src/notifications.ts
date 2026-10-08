@@ -18,7 +18,7 @@ export const NotificationSettings = z.strictObject({
   enabledKinds: z
     .array(z.enum(NOTIFICATION_KINDS))
     .max(NOTIFICATION_KINDS.length)
-    .default(['deadline']),
+    .default([...NOTIFICATION_KINDS]),
   hideText: z.boolean().default(true),
 });
 export type NotificationSettings = z.infer<typeof NotificationSettings>;

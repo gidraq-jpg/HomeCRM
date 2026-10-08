@@ -61,6 +61,18 @@ describe.each([
     expect(occurrence?.endsAt.toISOString()).toBe(`${end}T23:59:59.999Z`);
   });
 });
+it('UTIL-13: умолчания предупреждений применяются только к отсутствующему полю', () => {
+  const rule = { kind: 'repeat', anchor: '2026-01-01', repeat: { unit: 'month', day: 20 } };
+  const defaults = UtilityAccountData.parse({ readingRule: rule, paymentRule: rule });
+  expect(defaults.readingRule?.warnings).toEqual([0]);
+  expect(defaults.paymentRule?.warnings).toEqual([3, 0]);
+  const empty = UtilityAccountData.parse({
+    readingRule: { ...rule, warnings: [] },
+    paymentRule: { ...rule, warnings: [] },
+  });
+  expect(empty.readingRule?.warnings).toEqual([]);
+  expect(empty.paymentRule?.warnings).toEqual([]);
+});
 it('UTIL-2: срок оплаты — ежемесячная дата, без окна', () => {
   expect(
     UtilityAccountData.safeParse({ paymentRule: { kind: 'date', date: '2026-10-15' } }).success,

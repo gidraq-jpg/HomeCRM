@@ -18,6 +18,7 @@ import {
   shiftLocalDays,
   TimeZone,
 } from '@homecrm/shared';
+import { warningKinds } from './warnings.ts';
 
 /** Заполняет только ещё не выбранный пояс; дальнейшая настройка сервера дом не меняет. */
 export async function initializeHouseTimeZones(db: Database, fallback: string) {
@@ -30,7 +31,9 @@ export async function initializeHouseTimeZones(db: Database, fallback: string) {
 /** Повторный запуск сохраняет UUID наступлений, выполненные пункты и ключи отправленных уведомлений. */
 export async function refreshDeadlines(db: Database, now = new Date(), full = false) {
   // RLS разрешает DELETE только после 30 дней корзины; потомки уходят по FK.
-  await db.delete(deadlines).where(sql`deleted_at < now() - interval '30 days'`);
+  await db
+    .delete(deadlines)
+    .where(sql`source_kind='record' AND deleted_at < now() - interval '30 days'`);
   const rules = await db
     .select({ id: deadlines.id })
     .from(deadlines)
@@ -40,6 +43,7 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
       const [deadline] = await tx
         .select({
           id: deadlines.id,
+          createdAt: deadlines.createdAt,
           noteId: deadlines.noteId,
           objectId: deadlines.objectId,
           sourceKind: deadlines.sourceKind,
@@ -75,8 +79,20 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
           await tx.update(deadlines).set({ needsRefresh: false }).where(eq(deadlines.id, id));
         return;
       }
-      const baseline = shiftLocalDays(now, -90, zone);
-      const calculated = deadlineOccurrences(rule, baseline, zone, 180, true);
+      const utility = deadline.sourceKind !== 'record';
+      const baseline = utility ? deadline.createdAt : shiftLocalDays(now, -90, zone);
+      const horizon = shiftLocalDays(now, 90, zone);
+      const byDate = new Map<string, ReturnType<typeof deadlineOccurrences>[number]>();
+      // Коммунальные повторы начинаются у источника, а не за 90 дней до запуска.
+      // Части ограничены календарным лимитом общего движка; старые реальные долги сохраняются.
+      for (let cursor = baseline; cursor <= horizon; cursor = shiftLocalDays(cursor, 181, zone)) {
+        for (const item of deadlineOccurrences(rule, cursor, zone, 180, true)) {
+          if (!utility || (item.endsAt >= baseline && item.startsAt <= horizon))
+            byDate.set(item.date, item);
+        }
+        if (!utility) break;
+      }
+      const calculated = [...byDate.values()];
       const previous = await tx.select().from(occurrences).where(eq(occurrences.deadlineId, id));
       const currentDates = new Set<string>(calculated.map((x) => x.date));
       for (const old of previous) {
@@ -84,6 +100,7 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
         if (
           !currentDates.has(old.date) &&
           !deadline.needsRefresh &&
+          (deadline.sourceKind === 'record' || old.endsAt >= deadline.createdAt) &&
           old.startsAt < baseline &&
           old.timeZone !== zone
         ) {
@@ -98,7 +115,7 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
         if (
           !currentDates.has(old.date) &&
           old.completedAt === null &&
-          (deadline.needsRefresh || old.startsAt >= baseline)
+          (deadline.needsRefresh || old.startsAt >= baseline || (utility && old.endsAt < baseline))
         )
           await tx.delete(occurrences).where(eq(occurrences.id, old.id));
       }
@@ -112,6 +129,7 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
           timeZone: zone,
           // Новое предупреждение не досылает прошлое; уже рассчитанное переживает простой.
           warningsAt: item.warningsAt
+            .filter((x) => !utility || x >= deadline.createdAt)
             .filter((x) => !old || x >= now || old.warningsAt.includes(x.toISOString()))
             .map((x) => x.toISOString()),
           spaceId: deadline.spaceId,
@@ -136,7 +154,7 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
     await tx.execute(sql`UPDATE deadline_notifications n SET status='cancelled'
       FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id
       WHERE n.occurrence_id=o.id AND n.status='pending' AND
-      (d.deleted_at IS NOT NULL OR d.needs_refresh OR o.deleted_at IS NOT NULL OR o.completed_at IS NOT NULL OR
+      (d.deleted_at IS NOT NULL OR d.needs_refresh OR o.deleted_at IS NOT NULL OR (o.completed_at IS NOT NULL AND d.source_kind<>'readings') OR
        n.recipient_id<>o.assignee_id OR NOT (o.warnings_at ? to_char(n.warning_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')))`);
     await tx.execute(sql`UPDATE deadline_notifications n SET status='cancelled' FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id
       WHERE n.occurrence_id=o.id AND n.status='pending' AND d.source_kind='readings' AND NOT app.utility_window_open(d.utility_account_id,o.starts_at,o.ends_at,o.time_zone)`);
@@ -146,7 +164,7 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
       .where(
         and(
           isNull(occurrences.deletedAt),
-          isNull(occurrences.completedAt),
+          sql`(${occurrences.completedAt} IS NULL OR EXISTS (SELECT 1 FROM deadlines d WHERE d.id=${occurrences.deadlineId} AND d.source_kind='readings'))`,
           sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.id=${occurrences.deadlineId} AND (d.source_kind<>'readings' OR app.utility_window_open(d.utility_account_id,${occurrences.startsAt},${occurrences.endsAt},${occurrences.timeZone})))`,
         ),
       );
@@ -157,6 +175,10 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
           objectId: deadlines.objectId,
           deletedAt: deadlines.deletedAt,
           dirty: deadlines.needsRefresh,
+          householdId: deadlines.householdId,
+          sourceKind: deadlines.sourceKind,
+          rule: deadlines.rule,
+          utilityAccountId: deadlines.utilityAccountId,
         })
         .from(deadlines)
         .where(eq(deadlines.id, row.deadlineId));
@@ -170,13 +192,26 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
       const recipient = source.assigneeId;
       const visible =
         row.spaceKind === 'personal'
-          ? recipient === row.assigneeId
+          ? recipient === row.assigneeId &&
+            (
+              await tx.execute(
+                sql`SELECT 1 FROM space_members WHERE space_id=${rule.householdId} AND account_id=${recipient} AND left_at IS NULL`,
+              )
+            ).rowCount === 1
           : (
               await tx.execute(
                 sql`SELECT 1 FROM space_members WHERE space_id=${row.spaceId} AND account_id=${recipient} AND left_at IS NULL AND (${row.audience}='household' OR role IN ('admin','adult'))`,
               )
             ).rowCount === 1;
-      if (!visible) {
+      const expiredEmptyWindow =
+        rule.sourceKind === 'readings' &&
+        row.endsAt < now &&
+        (
+          await tx.execute(
+            sql`SELECT 1 FROM meters WHERE utility_account_id=${rule.utilityAccountId} AND is_active AND deleted_at IS NULL LIMIT 1`,
+          )
+        ).rowCount === 0;
+      if (!visible || expiredEmptyWindow) {
         await tx.execute(
           sql`UPDATE deadline_notifications SET status='cancelled' WHERE occurrence_id=${row.id} AND status='pending'`,
         );
@@ -191,11 +226,13 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
         sql`UPDATE deadline_notifications SET status='cancelled' WHERE occurrence_id=${row.id} AND recipient_id<>${recipient} AND status='pending'`,
       );
       // R0.7 досылает пропущенное после простоя; старше суток диспетчер направляет в сводку.
+      const kinds = warningKinds(DeadlineRule.parse(rule.rule), row, rule.sourceKind);
       for (const warning of row.warningsAt)
         if (new Date(warning) <= now)
-          await tx.execute(sql`INSERT INTO deadline_notifications(occurrence_id,recipient_id,warning_at)
-            VALUES(${row.id},${recipient},${new Date(warning)})
-            ON CONFLICT (occurrence_id,recipient_id,warning_at) WHERE status<>'cancelled' OR cancellation_reason IS NOT NULL DO NOTHING`);
+          for (const kind of kinds.get(warning) ?? [])
+            await tx.execute(sql`INSERT INTO deadline_notifications(occurrence_id,recipient_id,warning_at,notification_kind)
+              VALUES(${row.id},${recipient},${new Date(warning)},${kind})
+              ON CONFLICT (occurrence_id,recipient_id,warning_at,notification_kind) WHERE status<>'cancelled' OR cancellation_reason IS NOT NULL DO NOTHING`);
     }
   });
 }
