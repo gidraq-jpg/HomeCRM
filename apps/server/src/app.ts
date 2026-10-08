@@ -16,6 +16,7 @@ import { notificationRoutes } from './notifications/routes.ts';
 import { objectsRoutes } from './objects/routes.ts';
 import { searchRoutes } from './search/routes.ts';
 import { createStaticHandler } from './static.ts';
+import { utilityRoutes } from './utilities/routes.ts';
 
 export interface AppDependencies {
   files?: FileServices;
@@ -164,6 +165,7 @@ export function buildApp(
     if (dependencies.files) void app.register(filesRoutes, { ...auth, files: dependencies.files });
     void app.register(notesRoutes, auth);
     void app.register(objectsRoutes, auth);
+    void app.register(utilityRoutes, auth);
     void app.register(searchRoutes, auth);
     void app.register(householdRoutes, {
       ...auth,

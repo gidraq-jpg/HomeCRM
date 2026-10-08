@@ -17,6 +17,8 @@ export const RECORD_TYPES = [
   'object_event',
   'note_file',
   'object_file',
+  'contact',
+  'utility_account',
 ] as const;
 /** Вид записи из RecordFacts.type: у каждой таблицы-примера он свой. */
 export type RecordType = (typeof RECORD_TYPES)[number];
@@ -112,7 +114,7 @@ export function recordPolicySql(type: RecordType): {
   return {
     select: canViewSql(),
     insert: `${live} AND author_id = ${ME} AND ${canWriteSql(type)}`,
-    updateUsing: `(${live} AND ${canWriteSql(type)}) OR (${trashed} AND ${canRestoreSql()})${['note_item', 'object_field', 'object_event', 'note_file', 'object_file'].includes(type) ? ` OR (${trashed} AND pg_trigger_depth() > 0 AND ${canWriteSql(type)})` : ''}`,
+    updateUsing: `(${live} AND ${canWriteSql(type)}) OR (${trashed} AND ${canRestoreSql()})${['note_item', 'object_field', 'object_event', 'note_file', 'object_file', 'utility_account'].includes(type) ? ` OR (${trashed} AND pg_trigger_depth() > 0 AND ${canWriteSql(type)})` : ''}`,
     updateCheck: `(${live} AND ${canWriteSql(type)}) OR (${trashed} AND ${canTrashSql()})`,
   };
 }

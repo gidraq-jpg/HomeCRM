@@ -86,6 +86,19 @@ async function seed(
     string,
     string,
   ];
+  const provider = randomUUID();
+  await world.database.admin.query(
+    `INSERT INTO contacts(id,space_id,space_kind,audience,author_id,title) VALUES($1,$2,$3,$4,$5,'Вымышленный поставщик')`,
+    [provider, spaceId, kind, audience, person.id],
+  );
+  await world.database.admin.query(
+    `INSERT INTO objects(id,space_id,space_kind,audience,author_id,title) VALUES($1,$2,$3,$4,$5,'Объект')`,
+    [object, spaceId, kind, audience, person.id],
+  );
+  await world.database.admin.query(
+    `INSERT INTO utility_accounts(space_id,space_kind,audience,author_id,title,parent_id,supplier_id) VALUES($1,$2,$3,$4,'Лицевой счёт',$5,$6)`,
+    [spaceId, kind, audience, person.id, object, provider],
+  );
   const key = randomUUID();
   const sealed = cipher.seal(payload, key);
   await storage.put(key, sealed.block);
@@ -97,10 +110,7 @@ async function seed(
     `INSERT INTO note_items(space_id,space_kind,audience,author_id,title,parent_id,done) VALUES($1,$2,$3,$4,'Пункт',$5,true)`,
     [spaceId, kind, audience, person.id, note],
   );
-  await world.database.admin.query(
-    `INSERT INTO objects(id,space_id,space_kind,audience,author_id,title) VALUES($1,$2,$3,$4,$5,'Объект')`,
-    [object, spaceId, kind, audience, person.id],
-  );
+
   await world.database.admin.query(
     `INSERT INTO object_fields(space_id,space_kind,audience,author_id,title,parent_id,value) VALUES($1,$2,$3,$4,'Поле',$5,'Значение')`,
     [spaceId, kind, audience, person.id, object],
@@ -181,6 +191,8 @@ it.each(['anna', 'boris', 'vera'] as const)(
     ]);
     for (const name of [
       'note_items',
+      'contacts',
+      'utility_accounts',
       'object_fields',
       'object_events',
       'deadlines',
@@ -221,6 +233,12 @@ it('DATA-2: общее дома — обе аудитории, состав бе
       .sort(),
   ).toEqual([ids.get('family')?.note, ids.get('adults')?.note].sort());
   expect(json(entries, 'members')).toHaveLength(3);
+  expect(json(entries, 'contacts')).toHaveLength(2);
+  expect(json(entries, 'utility_accounts')).toHaveLength(2);
+  for (const row of json(entries, 'utility_accounts'))
+    expect(json(entries, 'contacts').some((c: { id: string }) => c.id === row.supplier_id)).toBe(
+      true,
+    );
   expect(entries.has('profile.json')).toBe(false);
   expect(json(entries, 'profile_files')).toEqual([]);
   const metadata = [...entries]
@@ -229,6 +247,57 @@ it('DATA-2: общее дома — обе аудитории, состав бе
     .join('');
   for (const key of ['anna', 'boris', 'vera']) expect(metadata).not.toContain(ids.get(key)?.note);
   expect(metadata).not.toMatch(/password|email|username|envelope/);
+});
+it('UTIL-2: ZIP сохраняет счета в корзине и скрывает личного поставщика, включая историю', async () => {
+  const contact = await adult.post('/api/contacts', {
+    title: 'Личный поставщик Вымышленный',
+    placement: { spaceId: world.boris.personalSpaceId },
+  });
+  expect(contact.status, contact.text).toBe(201);
+  const supplierId = contact.json<{ id: string }>().id;
+  const property = await adult.post('/api/objects', {
+    title: 'Вымышленная квартира для архива',
+    objectType: 'property',
+    typeData: { areaHundredths: 5731 },
+  });
+  expect(property.status, property.text).toBe(201);
+  const parentId = property.json<{ id: string }>().id;
+  const account = await adult.post(`/api/objects/${parentId}/accounts`, {
+    supplierId,
+    data: { number: 'ARCHIVE-123' },
+  });
+  expect(account.status, account.text).toBe(201);
+  const accountId = account.json<{ id: string }>().id;
+  expect((await adult.post(`/api/objects/${parentId}/trash`)).status).toBe(200);
+  const response = await archive(admin, world.anna.password, {
+    kind: 'household',
+    householdId: world.houseId,
+  });
+  expect(response.statusCode, response.body).toBe(200);
+  const entries = await unpack(response.rawPayload);
+  const saved = json(entries, 'utility_accounts').find(
+    (row: { id: string }) => row.id === accountId,
+  );
+  expect(saved).toMatchObject({ supplier_id: null, data: { number: 'ARCHIVE-123' } });
+  expect(saved.deleted_at).not.toBeNull();
+  expect(
+    json(entries, 'objects').find((row: { id: string }) => row.id === parentId).type_data,
+  ).toEqual({ areaHundredths: 5731 });
+  const metadata = [...entries]
+    .filter(([name]) => name.endsWith('.json'))
+    .map(([, data]) => data.toString())
+    .join('');
+  expect(metadata).not.toContain(supplierId);
+  expect(metadata).not.toContain('Личный поставщик Вымышленный');
+  const personalResponse = await archive(adult, world.boris.password);
+  expect(personalResponse.statusCode, personalResponse.body).toBe(200);
+  const personal = await unpack(personalResponse.rawPayload);
+  expect(json(personal, 'contacts').some((row: { id: string }) => row.id === supplierId)).toBe(
+    true,
+  );
+  expect(
+    json(personal, 'utility_accounts').some((row: { id: string }) => row.id === accountId),
+  ).toBe(false);
 });
 it('DATA-2: запреты роли, неверный пароль, Origin, подтверждение и отозванная сессия', async () => {
   for (const device of [adult, child])

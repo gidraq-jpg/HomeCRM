@@ -137,7 +137,8 @@ it('OBJ-1: достаточно названия, тип и свои поля с
       { name: 'Ключ', value: 'Синий' },
     ],
   });
-  expect(object.spaceKind).toBe('personal');
+  expect(object.spaceKind).toBe('household');
+  expect(object.audience).toBe('adults');
   expect(object.authorId).toBe(world.boris.id);
   expect(object.fields.map((f) => f.position)).toEqual([0, 1]);
   const response = await patch(adult, object.id, {

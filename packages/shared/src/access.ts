@@ -40,7 +40,7 @@ export type Placement =
  */
 export interface RecordFacts {
   placement: Placement;
-  /** Вид записи: от него зависят права ребёнка. */
+  /** Вид записи: от него зависят права ребёнка. Контакты и лицевые счета используют общие правила взрослых. */
   type: string;
   authorId: string;
   assigneeId?: string | null;

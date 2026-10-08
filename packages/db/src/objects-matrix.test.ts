@@ -30,6 +30,8 @@ beforeAll(async () => {
       'note_item',
       'object_field',
       'object_event',
+      'contact',
+      'utility_account',
     ] as const) {
       const table = RECORD_TABLES[type];
       const name = getTableName(table);
@@ -43,7 +45,7 @@ beforeAll(async () => {
                   r.facts.placement.audience ===
                     (placement.kind === 'household' ? placement.audience : null)),
             )
-          : ['object_field', 'object_event'].includes(type)
+          : ['object_field', 'object_event', 'utility_account'].includes(type)
             ? records.find(
                 (r) =>
                   r.table === 'objects' &&

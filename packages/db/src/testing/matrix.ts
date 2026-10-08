@@ -313,6 +313,7 @@ function attemptsFor(
               'object_event',
               'note_file',
               'object_file',
+              'utility_account',
             ].includes(type)
               ? family.parentIdFor(placement, type)
               : undefined;

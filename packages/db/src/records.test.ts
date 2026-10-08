@@ -91,10 +91,13 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ? { [`${name}_00_lifecycle`]: 'file_lifecycle' }
           : {}),
         ...(name === 'objects' ? { objects_placement: 'cascade_object_placement' } : {}),
-        ...(['object_fields', 'object_events'].includes(name)
+        ...(['object_fields', 'object_events', 'utility_accounts'].includes(name)
           ? { [`${name}_00_parent_lock`]: 'lock_object_parent' }
           : {}),
         ...(name === 'object_events' ? { object_events_01_snapshot: 'event_snapshot' } : {}),
+        ...(name === 'utility_accounts'
+          ? { utility_accounts_01_supplier: 'utility_supplier_guard' }
+          : {}),
         ...(name === 'object_fields' ? { object_fields_01_limits: 'object_field_limits' } : {}),
         // Живая дочерняя запись при родителе в корзине невозможна.
         ...(definition.parent === null ? {} : { [`${name}_parent_live`]: 'guard_parent_live' }),

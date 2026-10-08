@@ -11,6 +11,7 @@ import {
   spaceMembers,
   sql,
   type Transaction,
+  utilityAccounts,
 } from '@homecrm/db';
 import {
   canBeAssignee,
@@ -29,6 +30,12 @@ import type { z } from 'zod';
 import type { Account } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import { copyFiles, fileSummary, filesOf } from '../files/service.ts';
+import {
+  accountSummary,
+  defaultHousePlacement,
+  peopleOf,
+  validateProperty,
+} from '../utilities/service.ts';
 import { exportLinks, registerLinks } from './links.ts';
 import {
   AudienceChange,
@@ -62,6 +69,7 @@ export function summary(record: ObjectRow) {
     id,
     title,
     objectType,
+    typeData,
     spaceId,
     spaceKind,
     audience,
@@ -75,6 +83,7 @@ export function summary(record: ObjectRow) {
     id,
     title,
     objectType,
+    typeData,
     spaceId,
     spaceKind,
     audience,
@@ -111,6 +120,7 @@ async function fieldsOf(tx: Transaction, account: Account, id: string) {
 async function card(tx: Transaction, account: Account, record: ObjectRow, includeDeleted = false) {
   return {
     ...summary(record),
+    peopleAndOrganizations: record.deletedAt === null ? await peopleOf(tx, account, record.id) : [],
     files: (await filesOf(tx, 'object', record.id))
       .filter((file) => includeDeleted || record.deletedAt !== null || file.deletedAt === null)
       .map(fileSummary),
@@ -191,9 +201,13 @@ async function responsible(
 async function hasContributions(tx: Transaction, account: Account, record: ObjectRow) {
   const fields = await fieldsOf(tx, account, record.id);
   const events = await tx.select().from(objectEvents).where(eq(objectEvents.parentId, record.id));
+  const accounts = await tx
+    .select()
+    .from(utilityAccounts)
+    .where(eq(utilityAccounts.parentId, record.id));
   return (
     record.hasOtherContributions ||
-    [...fields, ...events].some(
+    [...fields, ...events, ...accounts].some(
       (child) => child.authorId !== record.authorId || child.hasOtherContributions,
     )
   );
@@ -217,6 +231,7 @@ async function target(
     const children = [
       ...(await fieldsOf(tx, account, record.id)),
       ...(await tx.select().from(objectEvents).where(eq(objectEvents.parentId, record.id))),
+      ...(await tx.select().from(utilityAccounts).where(eq(utilityAccounts.parentId, record.id))),
     ];
     for (const id of new Set([record.assigneeId, ...children.map((child) => child.assigneeId)]))
       await responsible(tx, account, place, id ?? undefined);
@@ -275,12 +290,21 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
   route('POST', '/api/objects', 201, async (tx, account, request) => {
     const body = parse(CreateObject, request.body);
     if (body.fields.some((field) => field.id)) throw new Failure(400, 'INVALID_FIELD');
-    const place = await placementFrom(
-      tx,
-      account,
-      body.placement?.spaceId,
-      body.placement?.audience,
-    );
+    const place =
+      body.objectType === 'property' && !body.placement
+        ? await defaultHousePlacement(tx, account, 'adults')
+        : await placementFrom(
+            tx,
+            account,
+            body.placement?.spaceId,
+            body.placement?.audience,
+            body.objectType === 'property' ? 'adults' : 'household',
+          );
+    if (body.typeData && body.objectType !== 'property') throw new Failure(400, 'INVALID_INPUT');
+    const typeData =
+      body.objectType === 'property'
+        ? await validateProperty(tx, account, place, body.typeData ?? {})
+        : {};
     if (!canCreate(account.viewer, { type: 'object', placement: place, authorId: account.id }))
       deny();
     await responsible(tx, account, place, body.assigneeId);
@@ -290,6 +314,7 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
         ...columnsOf(place),
         title: body.title,
         objectType: body.objectType,
+        typeData,
         authorId: account.id,
         assigneeId: body.assigneeId,
       })
@@ -310,11 +335,24 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
       body.responsibleId !== undefined ? body.responsibleId : body.assigneeId;
     const assigneeId = requestedAssigneeId === null ? record.authorId : requestedAssigneeId;
     await responsible(tx, account, placementOf(record), assigneeId);
+    const objectType = body.objectType ?? record.objectType;
+    if (body.typeData && objectType !== 'property') throw new Failure(400, 'INVALID_INPUT');
+    const typeData =
+      objectType === 'property'
+        ? await validateProperty(
+            tx,
+            account,
+            placementOf(record),
+            body.typeData ?? (record.objectType === 'property' ? record.typeData : {}),
+            record.typeData,
+          )
+        : {};
     const [updated] = await tx
       .update(objects)
       .set({
         title: body.title ?? record.title,
-        objectType: body.objectType ?? record.objectType,
+        objectType,
+        typeData,
         assigneeId: assigneeId === undefined ? record.assigneeId : assigneeId,
       })
       .where(eq(objects.id, id))
@@ -350,6 +388,7 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
               ...columnsOf(place),
               title: record.title,
               objectType: record.objectType,
+              typeData: record.typeData,
               authorId: account.id,
             })
             .returning();
@@ -362,6 +401,21 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
               .filter((field) => field.deletedAt === null)
               .map(({ title, value }) => ({ name: title, value })),
           );
+          for (const child of await tx
+            .select()
+            .from(utilityAccounts)
+            .where(and(eq(utilityAccounts.parentId, id), isNull(utilityAccounts.deletedAt)))) {
+            if (!canView(account.viewer, placementOf(child))) continue;
+            const provider = (await accountSummary(tx, account, child)).supplier;
+            await tx.insert(utilityAccounts).values({
+              ...columnsOf(place),
+              parentId: copy.id,
+              authorId: account.id,
+              title: child.title,
+              data: child.data,
+              supplierId: provider?.deletedAt === null ? provider.id : null,
+            });
+          }
           await copyEvents(tx, account, record, copy);
           await copyFiles(tx, account, 'object', record, copy);
           return card(tx, account, copy);

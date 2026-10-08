@@ -6,7 +6,7 @@
 // homecrm_auth (служба входа). У владельца таблиц homecrm_owner политик нет, а FORCE ROW LEVEL
 // SECURITY не даёт ему обойти RLS: он не видит ни одной строки.
 
-import { OBJECT_TYPES } from '@homecrm/shared';
+import { OBJECT_TYPES, type OrganizationData, type UtilityAccountData } from '@homecrm/shared';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
@@ -125,7 +125,9 @@ const objectsDefinition = recordTable(
   {
     objectType: objectTypeEnum('object_type').notNull().default('other'),
     typeData: jsonb('type_data').notNull().default({}),
-    searchText: text('search_text').generatedAlwaysAs(sql`title`),
+    searchText: text('search_text').generatedAlwaysAs(
+      sql`title || coalesce(' ' || (type_data->>'address'),'') || coalesce(' ' || (type_data->>'cadastralNumber'),'')`,
+    ),
   },
   {
     extraPolicies: [
@@ -370,6 +372,43 @@ export const fileBlobs = pgTable(
   ],
 );
 
+/** CONT-2: общий контракт оставляет место для человека в R1b.3. */
+const contactsDefinition = recordTable('contacts', 'contact', {
+  kind: text('kind').notNull().default('organization'),
+  data: jsonb('data').$type<OrganizationData>().notNull().default({
+    organizationType: 'other',
+    phones: [],
+    website: null,
+    address: '',
+    openingHours: '',
+    note: '',
+  }),
+});
+export const contacts = contactsDefinition.table;
+export const contactsHistory = contactsDefinition.history;
+/** UTIL-2, OBJ-5: доступ и жизненный цикл определяет объект. */
+const utilityAccountsDefinition = recordTable(
+  'utility_accounts',
+  'utility_account',
+  {
+    parentId: uuid('parent_id').notNull(),
+    supplierId: uuid('supplier_id').references(() => contacts.id, { onDelete: 'set null' }),
+    data: jsonb('data').$type<UtilityAccountData>().notNull().default({
+      services: [],
+      number: '',
+      transmission: null,
+      readingRule: null,
+      paymentRule: null,
+      payer: 'owner',
+      cabinetUrl: null,
+      note: '',
+    }),
+  },
+  { parent: objects },
+);
+export const utilityAccounts = utilityAccountsDefinition.table;
+export const utilityAccountsHistory = utilityAccountsDefinition.history;
+
 /** Таблица-пример для каждого вида записи. */
 export const RECORD_TABLES = {
   note: notes,
@@ -381,6 +420,8 @@ export const RECORD_TABLES = {
   object_event: objectEvents,
   note_file: noteFiles,
   object_file: objectFiles,
+  contact: contacts,
+  utility_account: utilityAccounts,
 } as const satisfies Record<RecordType, unknown>;
 
 /** История изменений каждого вида записи (OBJ-6). */
@@ -394,6 +435,8 @@ export const RECORD_HISTORY_TABLES = {
   object_event: objectEventsHistory,
   note_file: noteFilesHistory,
   object_file: objectFilesHistory,
+  contact: contactsHistory,
+  utility_account: utilityAccountsHistory,
 } as const satisfies Record<RecordType, unknown>;
 // ---------------------------------------------------------------------------------------------
 // Таблицы входа (ADR-0005). Первые шесть — модели Better Auth: имена моделей и полей заданы в

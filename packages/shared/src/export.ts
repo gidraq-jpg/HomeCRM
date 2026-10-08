@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DeadlineRule, TimeZone } from './deadlines.ts';
 import { NotificationSettings } from './notifications.ts';
+import { OrganizationData, UtilityAccountData } from './utilities.ts';
 
 export const EXPORT_VERSION = 1;
 export const ExportScope = z.discriminatedUnion('kind', [
@@ -70,6 +71,13 @@ export const ExportRecords = {
     parent_id: uuid,
     done: z.boolean(),
     position: z.number().int(),
+  }),
+  contacts: z.strictObject({ ...record, kind: z.literal('organization'), data: OrganizationData }),
+  utility_accounts: z.strictObject({
+    ...record,
+    parent_id: uuid,
+    supplier_id: uuid.nullable(),
+    data: UtilityAccountData,
   }),
   objects: z.strictObject({
     ...record,

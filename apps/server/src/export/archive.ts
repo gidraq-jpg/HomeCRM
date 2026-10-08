@@ -26,6 +26,8 @@ const TABLES = [
   'notes',
   'note_items',
   'objects',
+  'contacts',
+  'utility_accounts',
   'object_fields',
   'object_events',
   'tasks',
@@ -37,6 +39,8 @@ const HISTORY_TABLES = [
   'notes',
   'note_items',
   'objects',
+  'contacts',
+  'utility_accounts',
   'object_fields',
   'object_events',
   'tasks',
@@ -117,6 +121,12 @@ async function* records(
       ? sql`${scopeWhere(scope)} AND t.origin_space_kind='household' AND t.origin_space_id=${scope.householdId}::uuid`
       : scopeWhere(scope);
   for await (const row of rows(tx, table, where)) {
+    if (table === 'utility_accounts' && row.supplier_id) {
+      const result = await tx.execute(
+        sql`SELECT 1 FROM contacts t WHERE id=${String(row.supplier_id)}::uuid AND ${scope.kind === 'personal' ? sql`true` : scopeWhere(scope)} `,
+      );
+      if (!result.rows.length) row.supplier_id = null;
+    }
     if (table === 'object_events') {
       let contact: { table: string; id: string } | null = null;
       if (row.contact_table && row.contact_id) {
@@ -148,7 +158,7 @@ async function* histories(tx: Transaction, scope: ExportScope) {
       `${table}_history`,
       sql`${scopeWhere(scope)} AND EXISTS (SELECT 1 FROM ${sql.identifier(table)} p WHERE p.id=t.record_id AND ${scopeWhere(scope, 'p')}
           ${table === 'object_events' && scope.kind === 'household' ? sql`AND p.origin_space_kind='household' AND p.origin_space_id=${scope.householdId}::uuid` : sql``})`,
-      sql`(to_jsonb(t) - 'changes') || jsonb_build_object('table', ${table}::text, 'changes', t.changes - ${OMIT} - ARRAY['contact_id','contact_table']::text[])`,
+      sql`(to_jsonb(t) - 'changes') || jsonb_build_object('table', ${table}::text, 'changes', t.changes - ${OMIT} - ARRAY['contact_id','contact_table','supplier_id']::text[])`,
     ))
       yield row;
 }

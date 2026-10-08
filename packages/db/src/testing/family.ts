@@ -49,6 +49,8 @@ export const TYPE_LABELS: Readonly<Record<RecordType, string>> = {
   object_event: 'событие объекта',
   note_file: 'файл заметки',
   object_file: 'файл объекта',
+  contact: 'контакт',
+  utility_account: 'лицевой счёт',
 };
 
 export interface Person {
@@ -204,7 +206,8 @@ export function buildFamily(): Family {
     if (
       record.type === 'object_field' ||
       record.type === 'object_event' ||
-      record.type === 'object_file'
+      record.type === 'object_file' ||
+      record.type === 'utility_account'
     )
       record.parentId = parentIdFor(record.facts.placement, record.type);
   }
