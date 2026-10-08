@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
 import { apiAs, expectNothingStored, seedObject } from './notes-support.ts';
 import { expect, signInAs } from './support.ts';
@@ -7,6 +8,54 @@ import { expect, signInAs } from './support.ts';
 // облегчённый безголовый запрет на уведомления не снимает, поэтому файл идёт на `channel: 'chromium'`.
 
 test.use({ channel: 'chromium', permissions: ['notifications'] });
+
+/** Сервис-воркер страницы и протокол отладки: доставка push, показанные уведомления, нажатие на них. */
+async function connectWorker(page: Page, origin: string) {
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  const cdp = await page.context().newCDPSession(page);
+  const registrations: { registrationId: string; isDeleted: boolean }[] = [];
+  cdp.on('ServiceWorker.workerRegistrationUpdated', (event) => {
+    registrations.push(...event.registrations);
+  });
+  await cdp.send('ServiceWorker.enable');
+  await expect.poll(() => registrations.some((item) => !item.isDeleted)).toBe(true);
+  const registrationId = registrations.find((item) => !item.isDeleted)?.registrationId ?? '';
+  await expect
+    .poll(() =>
+      page
+        .context()
+        .serviceWorkers()
+        .some((item) => item.url().endsWith('sw.js')),
+    )
+    .toBe(true);
+  const worker = page
+    .context()
+    .serviceWorkers()
+    .find((item) => item.url().endsWith('sw.js'));
+  if (!worker) throw new Error('Service worker is not visible to the test');
+  return {
+    worker,
+    push: (data: string) =>
+      cdp.send('ServiceWorker.deliverPushMessage', { origin, registrationId, data }),
+    shown: () =>
+      page.evaluate(async () => {
+        const registration = await navigator.serviceWorker.ready;
+        return (await registration.getNotifications()).map((item) => ({
+          title: item.title,
+          body: item.body,
+          tag: item.tag,
+          data: item.data as unknown,
+        }));
+      }),
+    click: (tag: string) =>
+      worker.evaluate(`(async () => {
+        const [item] = await self.registration.getNotifications({ tag: ${JSON.stringify(tag)} });
+        self.dispatchEvent(new NotificationEvent('notificationclick', { notification: item }));
+      })()`),
+  };
+}
 
 test('сервис-воркер: push показывает уведомление, нажатие открывает запись', async ({
   page,
@@ -109,4 +158,97 @@ test('сервис-воркер: push показывает уведомлени�
   })()`);
   await expect(page.getByText('Записи больше нет, или она стала вам недоступна.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Открыть радар сроков' })).toBeVisible();
+});
+
+test('режим «скрывать текст» и тишина консоли: ни текста, ни названий записи в уведомлении и журнале', async ({
+  page,
+  family,
+}) => {
+  const boris = await apiAs(family, 'adult');
+  const flat = await seedObject(boris, family, { title: 'Квартира у парка', audience: 'adults' });
+  await signInAs(page, family, 'adult');
+  const logged: string[] = [];
+  page.on('console', (message) => logged.push(message.text()));
+  const { worker, push, shown } = await connectWorker(page, family.origin);
+  worker.on('console', (message) => logged.push(message.text()));
+
+  // Сервер при скрытии текста шлёт только вид и запись (NOTIF-6): уведомление общее, без названия.
+  await push(JSON.stringify({ kind: 'deadline', recordId: flat.id }));
+  await expect.poll(async () => (await shown()).length).toBe(1);
+  const [hidden] = await shown();
+  expect(hidden).toEqual({
+    title: 'HomeCRM',
+    body: 'В HomeCRM есть новое',
+    tag: `deadline-${flat.id}`,
+    data: { recordId: flat.id },
+  });
+  expect(JSON.stringify(hidden)).not.toContain('Квартира у парка');
+
+  // Текст приходит, только если участник отключил скрытие; воркер показывает его как есть.
+  await push(JSON.stringify({ kind: 'deadline', text: 'Подходит срок: Квартира у парка' }));
+  await expect.poll(async () => (await shown()).length).toBe(2);
+  expect((await shown()).map((item) => item.body)).toContain('Подходит срок: Квартира у парка');
+
+  // Пустой и неразборчивый push, нажатие и новая подписка: воркер ничего не пишет в консоль.
+  await push('');
+  await push('{"сломано');
+  await worker.evaluate(`self.dispatchEvent(new ExtendableEvent('pushsubscriptionchange'))`);
+  await page.waitForTimeout(500);
+  expect(worker.url()).toContain('sw.js');
+  expect(logged, 'консоль страницы и воркера').toEqual([]);
+});
+
+test('сессии нет: смена подписки в службе push не создаёт подписку', async ({ page, family }) => {
+  await page.goto('#/sign-in');
+  await expect(page.getByRole('button', { name: 'Войти', exact: true })).toBeVisible();
+  const { worker } = await connectWorker(page, family.origin);
+  const paths: string[] = [];
+  page.context().on('request', (request) => paths.push(new URL(request.url()).pathname));
+
+  await worker.evaluate(`self.dispatchEvent(new ExtendableEvent('pushsubscriptionchange'))`);
+  await expect.poll(() => paths.includes('/api/auth/get-session')).toBe(true);
+  await page.waitForTimeout(500);
+  // Ни ключа сервера, ни записи подписки: без входа сервер её не примет.
+  expect(paths.filter((path) => path.startsWith('/api/push'))).toEqual([]);
+});
+
+test('нажатие на уведомление на экране входа: запись открывается после входа', async ({
+  page,
+  family,
+}) => {
+  const boris = await apiAs(family, 'adult');
+  const flat = await seedObject(boris, family, { title: 'Квартира у парка', audience: 'adults' });
+  await page.goto('#/sign-in');
+  await expect(page.getByRole('button', { name: 'Войти', exact: true })).toBeVisible();
+  const { push, shown, click } = await connectWorker(page, family.origin);
+  await push(JSON.stringify({ kind: 'deadline', recordId: flat.id }));
+  await expect.poll(async () => (await shown()).length).toBe(1);
+  await click(`deadline-${flat.id}`);
+  await expect.poll(async () => (await shown()).length).toBe(0);
+
+  // Экран входа остался на месте, а переход ждёт: после входа открывается запись, а не «Сегодня».
+  await expect(page.getByRole('button', { name: 'Войти', exact: true })).toBeVisible();
+  await page.getByLabel('Имя пользователя или почта').fill('adult');
+  await page.getByLabel('Пароль', { exact: true }).fill(family.person('adult').password);
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Квартира у парка', exact: true }),
+  ).toBeVisible();
+  expect(page.url()).toContain('#/home/');
+});
+
+test('окно открыто по уведомлению до входа: адрес записи сохраняется и открывается после входа', async ({
+  page,
+  family,
+}) => {
+  const boris = await apiAs(family, 'adult');
+  const flat = await seedObject(boris, family, { title: 'Квартира у парка', audience: 'adults' });
+  await page.goto(`#/open/${flat.id}`);
+  await page.getByLabel('Имя пользователя или почта').fill('adult');
+  await page.getByLabel('Пароль', { exact: true }).fill(family.person('adult').password);
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Квартира у парка', exact: true }),
+  ).toBeVisible();
+  expect(page.url()).toContain('#/home/');
 });
