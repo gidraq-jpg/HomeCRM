@@ -53,6 +53,7 @@ describe('содержимое push', () => {
       body: 'В HomeCRM есть новое',
       tag: `deadline-${RECORD}`,
       recordId: RECORD,
+      notificationKind: null,
     });
   });
 
@@ -140,5 +141,45 @@ describe('ключ VAPID', () => {
     expect(sameKey(bytes.buffer, bytes)).toBe(true);
     expect(sameKey(new Uint8Array([1, 2]).buffer, bytes)).toBe(false);
     expect(sameKey(null, bytes)).toBe(true);
+  });
+});
+
+describe('push коммунальных сроков (ADR-0033)', () => {
+  it('вид уведомления ведёт на нужный экран объекта', () => {
+    const route = (notificationKind: string) =>
+      targetRoute(
+        RECORD,
+        describePush({ kind: 'deadline', recordId: RECORD, notificationKind }).notificationKind,
+      );
+    expect(route('readings_open')).toBe(`/open/${RECORD}/readings`);
+    expect(route('readings_closing')).toBe(`/open/${RECORD}/readings`);
+    expect(route('readings_last_day')).toBe(`/open/${RECORD}/readings`);
+    expect(route('payment_upcoming')).toBe(`/open/${RECORD}/accounts`);
+    expect(route('payment_due')).toBe(`/open/${RECORD}/accounts`);
+    expect(route('verification')).toBe(`/open/${RECORD}/meters`);
+  });
+
+  it('обычный срок и неизвестный вид открывают карточку записи', () => {
+    expect(targetRoute(RECORD)).toBe(`/open/${RECORD}`);
+    const unknown = describePush({ kind: 'deadline', recordId: RECORD, notificationKind: '../x' });
+    expect(unknown.notificationKind).toBeNull();
+    expect(targetRoute(RECORD, unknown.notificationKind)).toBe(`/open/${RECORD}`);
+  });
+
+  it('разные виды одного объекта не заменяют друг друга; маршрут проходит проверку', () => {
+    const open = describePush({
+      kind: 'deadline',
+      recordId: RECORD,
+      notificationKind: 'readings_open',
+    });
+    const closing = describePush({
+      kind: 'deadline',
+      recordId: RECORD,
+      notificationKind: 'readings_closing',
+    });
+    expect(open.tag).not.toBe(closing.tag);
+    expect(safeRoute(`/open/${RECORD}/readings`)).toBe(`/open/${RECORD}/readings`);
+    expect(safeRoute(`/open/${RECORD}/secret`)).toBeNull();
+    expect(safeRoute(`/open/${RECORD}/readings/extra`)).toBeNull();
   });
 });

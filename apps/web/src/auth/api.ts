@@ -2,6 +2,8 @@ import * as z from 'zod';
 
 export const Me = z.object({
   id: z.string(),
+  /** Личное пространство участника: туда кладётся личная запись, когда нужен явный placement. */
+  personalSpaceId: z.string().nullable(),
   displayName: z.string(),
   username: z.string().nullable(),
   email: z.string().nullable(),

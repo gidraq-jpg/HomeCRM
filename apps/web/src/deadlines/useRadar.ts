@@ -18,8 +18,11 @@ export interface RadarState {
   retry: () => void;
 }
 
-/** Один запрос несёт наступления и сведения источника под его RLS. */
-export function useRadar(): RadarState {
+/**
+ * Один запрос несёт наступления и сведения источника под его RLS. poll: false — для второго
+ * читателя того же запроса на экране: опрос во время пересчёта ведёт только один.
+ */
+export function useRadar({ poll = true }: { poll?: boolean } = {}): RadarState {
   const { me } = useHousehold();
   const radar = useRadarItems(me.id, me.timeZone);
   const rows = useMemo(() => {
@@ -42,7 +45,7 @@ export function useRadar(): RadarState {
   // biome-ignore lint/correctness/useExhaustiveDependencies: `round` только перезапускает опрос
   useEffect(() => {
     setStalled(false);
-    if (!recalculating) return;
+    if (!recalculating || !poll) return;
     return startRadarPolling({
       refetch: () => refetch(),
       onGiveUp: () => setStalled(true),
@@ -52,7 +55,7 @@ export function useRadar(): RadarState {
         return () => document.removeEventListener('visibilitychange', listener);
       },
     });
-  }, [recalculating, refetch, round]);
+  }, [recalculating, refetch, round, poll]);
 
   const retry = useCallback(() => {
     setRound((value) => value + 1);

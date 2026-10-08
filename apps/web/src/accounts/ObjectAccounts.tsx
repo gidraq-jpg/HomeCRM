@@ -141,7 +141,11 @@ function AccountItem({ account, readOnly }: { account: AccountCard; readOnly: bo
         )}
         <Fact label="Поставщик">
           {account.supplier === null ? (
-            'не указан или скрыт'
+            account.supplierHidden ? (
+              'Поставщик скрыт'
+            ) : (
+              'не указан'
+            )
           ) : (
             <Link to={`/more/organizations/${account.supplier.id}`}>
               {account.supplier.title}

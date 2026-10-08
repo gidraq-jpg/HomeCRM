@@ -15,6 +15,29 @@ export interface PushDescription {
   tag: string;
   /** Идентификатор записи или `null`: только после проверки формата. */
   recordId: string | null;
+  /** Коммунальный вид предупреждения (ADR-0033) или `null`; неизвестные значения отбрасываются. */
+  notificationKind: UtilityNotificationKind | null;
+}
+
+/** Виды коммунальных предупреждений: по ним push ведёт на нужный экран объекта. */
+export const UTILITY_NOTIFICATION_KINDS = [
+  'readings_open',
+  'readings_closing',
+  'readings_last_day',
+  'payment_upcoming',
+  'payment_due',
+  'verification',
+] as const;
+export type UtilityNotificationKind = (typeof UTILITY_NOTIFICATION_KINDS)[number];
+
+/** Экран объекта, куда ведёт коммунальный push: показания, лицевые счета или счётчики. */
+const SCREENS = ['readings', 'accounts', 'meters'] as const;
+type ObjectScreen = (typeof SCREENS)[number];
+
+export function screenOf(kind: UtilityNotificationKind | null): ObjectScreen | null {
+  if (kind === null) return null;
+  if (kind.startsWith('readings_')) return 'readings';
+  return kind === 'verification' ? 'meters' : 'accounts';
 }
 
 function text(value: unknown, limit: number): string | null {
@@ -31,6 +54,8 @@ export function describePush(raw: unknown): PushDescription {
       ? data.recordId.toLowerCase()
       : null;
   const kind = text(data.kind, 40)?.replace(/[^a-z0-9_-]/gi, '') || 'news';
+  const notificationKind =
+    UTILITY_NOTIFICATION_KINDS.find((known) => known === data.notificationKind) ?? null;
   return {
     title: text(data.title, TITLE_LIMIT) ?? DEFAULT_TITLE,
     body:
@@ -38,8 +63,10 @@ export function describePush(raw: unknown): PushDescription {
       text(data.text, BODY_LIMIT) ??
       text(raw, BODY_LIMIT) ??
       FALLBACK_TEXT,
-    tag: recordId ? `${kind}-${recordId}` : kind,
+    // Разные виды по одному объекту (окно открылось, окно закрывается) не заменяют друг друга.
+    tag: recordId ? [kind, notificationKind, recordId].filter(Boolean).join('-') : kind,
     recordId,
+    notificationKind,
   };
 }
 
@@ -59,8 +86,13 @@ export function parsePushData(read: { json(): unknown; text(): string } | null):
 }
 
 /** Маршрут приложения (часть адреса после «#»), куда ведёт нажатие на уведомление. */
-export function targetRoute(recordId: string | null): string {
-  return recordId ? `/open/${recordId}` : '/more/radar';
+export function targetRoute(
+  recordId: string | null,
+  notificationKind: UtilityNotificationKind | null = null,
+): string {
+  if (!recordId) return '/more/radar';
+  const screen = screenOf(notificationKind);
+  return screen ? `/open/${recordId}/${screen}` : `/open/${recordId}`;
 }
 
 /** Сообщение страницы «открой этот маршрут»: сервис-воркер шлёт его уже открытому окну. */
@@ -70,7 +102,7 @@ export const OPEN_MESSAGE = 'homecrm:open';
 export function safeRoute(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   if (value === '/more/radar') return value;
-  const match = /^\/open\/(.+)$/.exec(value);
+  const match = /^\/open\/([^/]+)(?:\/(readings|accounts|meters))?$/.exec(value);
   return match?.[1] && UUID.test(match[1]) ? value : null;
 }
 

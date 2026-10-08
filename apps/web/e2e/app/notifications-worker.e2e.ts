@@ -146,6 +146,19 @@ test('сервис-воркер: push показывает уведомлени�
     .poll(async () => (await shown()).some((item) => item.tag === `deadline-${flat.id}`))
     .toBe(false);
 
+  // Коммунальный вид (ADR-0033): нажатие ведёт на экран показаний этого объекта.
+  await push(
+    JSON.stringify({ kind: 'deadline', recordId: flat.id, notificationKind: 'readings_open' }),
+  );
+  const utilityTag = `deadline-readings_open-${flat.id}`;
+  await expect.poll(async () => (await shown()).some((item) => item.tag === utilityTag)).toBe(true);
+  await page.goto('#/today');
+  await worker.evaluate(`(async () => {
+    const [item] = await self.registration.getNotifications({ tag: ${JSON.stringify(utilityTag)} });
+    self.dispatchEvent(new NotificationEvent('notificationclick', { notification: item }));
+  })()`);
+  await expect(page).toHaveURL(new RegExp(`#/home/${flat.id}/readings$`));
+
   // Запись, которой уже нет, не ломает переход: понятное сообщение и дорога в радар.
   const gone = '0b8f6d3e-5c1a-4f7e-9d21-3a6b8c4e7f10';
   await push(JSON.stringify({ kind: 'deadline', recordId: gone, text: 'В HomeCRM есть новое' }));

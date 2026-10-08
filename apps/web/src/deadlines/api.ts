@@ -1,6 +1,7 @@
 import { AUDIENCES, DeadlineRule, RADAR_GROUPS } from '@homecrm/shared';
 import * as z from 'zod';
 import { apiRequest } from '../auth/api.ts';
+import { MeterCard } from '../meters/api.ts';
 
 // Сроки и радар — ADR-0028, apps/server/src/deadlines. Ответы проверяются схемами: сервер мог
 // измениться, а экран не должен ломаться на неожиданной форме. Названия записей и сроков живут
@@ -59,9 +60,29 @@ export function fetchTrashedDeadlines(signal?: AbortSignal) {
   return apiRequest('GET', 'deadlines/trash', z.array(TrashedDeadline), undefined, signal);
 }
 
+/** Вид источника срока (ADR-0033): прежний срок записи или управляемый срок счёта или счётчика. */
+export const SOURCE_KINDS = ['record', 'readings', 'payment', 'verification'] as const;
+export type UtilitySourceKind = Exclude<(typeof SOURCE_KINDS)[number], 'record'>;
+
+/** Основное действие пункта радара (docs/utility-deadlines-api.md). Подписи приходят с сервера. */
+export const PrimaryAction = z.object({
+  kind: z.enum(['enter_readings', 'mark_payment', 'verify_meter']),
+  label: z.string(),
+  objectId: z.string().nullish(),
+  occurrenceId: z.string().nullish(),
+  meterId: z.string().nullish(),
+  /** Окно без счётчиков: «Добавьте счётчики». */
+  hint: z.string().optional(),
+  completionAction: z
+    .object({ kind: z.literal('mark_readings'), label: z.string(), occurrenceId: z.string() })
+    .optional(),
+});
+export type PrimaryAction = z.infer<typeof PrimaryAction>;
+
 /**
  * Наступление несёт источник, название и правило под RLS источника. Для показа
- * и перехода в карточку дополнительный запрос к записи не нужен.
+ * и перехода в карточку дополнительный запрос к записи не нужен. Коммунальные сроки
+ * (`sourceKind` не `record`) несут ещё объект, счёт или счётчик и основное действие.
  */
 export const RadarItem = z.object({
   id: z.string(),
@@ -80,9 +101,17 @@ export const RadarItem = z.object({
   audience: z.enum(AUDIENCES).nullable(),
   assigneeId: z.string(),
   group: z.enum(RADAR_GROUPS),
+  sourceKind: z.enum(SOURCE_KINDS).default('record'),
+  object: z.object({ id: z.string(), title: z.string(), status: z.string().nullable() }).nullish(),
+  utilityAccount: z
+    .object({ id: z.string(), title: z.string(), number: z.string().nullish() })
+    .nullish(),
+  meter: z.object({ id: z.string(), title: z.string() }).nullish(),
+  /** Окно показаний без активных счётчиков. */
+  needsMeters: z.boolean().default(false),
+  primaryAction: PrimaryAction.nullish(),
 });
 export type RadarItem = z.infer<typeof RadarItem>;
-
 const Radar = z.object({
   items: z.array(RadarItem),
   groups: z.record(z.string(), z.number()),
@@ -102,4 +131,35 @@ export function saveTimeZone(householdId: string, timeZone: string) {
     z.object({ householdId: z.string(), timeZone: z.string() }),
     { timeZone },
   );
+}
+
+const Marked = z.object({ id: z.string(), completedAt: z.string().nullable() });
+
+/** Отметка оплаты; `completed: false` отменяет её. Повтор сохраняет первое время. */
+export function completePayment(occurrenceId: string, completed: boolean) {
+  return apiRequest('POST', `deadlines/occurrences/${occurrenceId}/complete-payment`, Marked, {
+    completed,
+  });
+}
+
+/** «Передано» для окна без счётчиков; `completed: false` отменяет отметку. */
+export function completeReadings(occurrenceId: string, completed: boolean) {
+  return apiRequest('POST', `deadlines/occurrences/${occurrenceId}/complete-readings`, Marked, {
+    completed,
+  });
+}
+
+export interface VerifyInput {
+  verifiedOn: string;
+  /** Без поля сервер пересчитает дату от интервала; `null` снимает её. */
+  nextVerificationOn?: string | null;
+}
+
+/** «Поверка проведена»: возвращает карточку прибора с пересчитанной следующей датой. */
+export function verifyMeter(meterId: string, input: VerifyInput) {
+  return apiRequest('POST', `meters/${meterId}/verify`, MeterCard, input);
+}
+
+export function fetchMeterCard(meterId: string, signal?: AbortSignal) {
+  return apiRequest('GET', `meters/${meterId}`, MeterCard, undefined, signal);
 }

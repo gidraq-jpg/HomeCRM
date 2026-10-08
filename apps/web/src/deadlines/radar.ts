@@ -1,9 +1,12 @@
 import type { DeadlineRule, RADAR_GROUPS } from '@homecrm/shared';
+import { PROPERTY_STATUSES } from '@homecrm/shared';
 import { matchesScope, type Scope } from '../access/scope.ts';
 import type { Visibility } from '../access/visibility.ts';
 import { visibilityOf } from '../notes/abilities.ts';
+import { todayIn } from '../objects/dates.ts';
+import type { PropertyStatus } from '../property/property.ts';
 import type { DateOnly } from '../ui/format.ts';
-import type { RadarItem, SourceKind } from './api.ts';
+import type { PrimaryAction, RadarItem, SourceKind, UtilitySourceKind } from './api.ts';
 import { describeRule, KIND_LABELS, occurrenceRelative, occurrenceWhen } from './labels.ts';
 
 // Радар (DEAD-3): пункты из наступлений срока, названия записей и подписи правил.
@@ -45,6 +48,38 @@ export interface LocatedDeadline {
   rule: DeadlineRule;
 }
 
+/** Подписи видов коммунальных сроков (UTIL-13). */
+export const UTILITY_WHAT: Readonly<Record<UtilitySourceKind, string>> = {
+  readings: 'Окно показаний',
+  payment: 'Оплата',
+  verification: 'Поверка счётчика',
+};
+
+/** Что известно о коммунальном сроке: объект первым, затем счёт или счётчик и основное действие. */
+export interface UtilityRow {
+  kind: UtilitySourceKind;
+  occurrenceId: string;
+  objectId: string;
+  /** Статус недвижимости: «живём», «сдаётся»; рядом с названием, чтобы не перепутать квартиры. */
+  status: PropertyStatus | null;
+  /** Лицевой счёт с номером или счётчик. */
+  source: string;
+  accountId: string | null;
+  meterId: string | null;
+  action: PrimaryAction | null;
+  /** Окно без активных счётчиков: вместо показаний — подсказка и «Передано». */
+  needsMeters: boolean;
+  startDate: DateOnly;
+  endDate: DateOnly;
+  /** Управляемый срок не правится в радаре: вместо этого ссылка на счёт или счётчик. */
+  openLabel: 'Открыть счёт' | 'Открыть счётчик';
+  openTo: string;
+}
+
+export function propertyStatusOf(value: string | null | undefined): PropertyStatus | null {
+  return PROPERTY_STATUSES.find((status) => status === value) ?? null;
+}
+
 export interface RadarRow {
   id: string;
   group: RadarGroup;
@@ -59,6 +94,9 @@ export interface RadarRow {
   startsAt: number;
   /** Переход в карточку записи; без источника перехода нет. */
   to: string | null;
+  /** Коммунальный срок: объект, счёт или счётчик, основное действие; у прежних сроков 
+ull. */
+  utility: UtilityRow | null;
 }
 
 export interface RowContext {
@@ -74,6 +112,31 @@ export function cardPath(kind: SourceKind, id: string): string {
   return kind === 'notes' ? `/more/notes/${id}` : `/home/${id}`;
 }
 
+/** Коммунальный срок из пункта радара; прежние сроки и пункты без объекта дают `null`. */
+export function utilityOf(item: RadarItem, endsAt: Date): UtilityRow | null {
+  if (item.sourceKind === 'record' || !item.object) return null;
+  const objectId = item.object.id;
+  const account = item.utilityAccount ?? null;
+  const meter = item.meter ?? null;
+  const isMeterSource = item.sourceKind === 'verification' && meter !== null;
+  const number = account?.number ? ` · № ${account.number}` : '';
+  return {
+    kind: item.sourceKind,
+    occurrenceId: item.id,
+    objectId,
+    status: propertyStatusOf(item.object.status),
+    source: isMeterSource ? meter.title : account ? `${account.title}${number}` : 'Лицевой счёт',
+    accountId: account?.id ?? null,
+    meterId: meter?.id ?? null,
+    action: item.primaryAction ?? null,
+    needsMeters: item.needsMeters,
+    startDate: item.date as DateOnly,
+    endDate: todayIn(item.timeZone, endsAt),
+    openLabel: isMeterSource ? 'Открыть счётчик' : 'Открыть счёт',
+    openTo: `/home/${objectId}/${isMeterSource ? 'meters' : 'accounts'}`,
+  };
+}
+
 export function buildRows(items: readonly RadarItem[], context: RowContext): RadarRow[] {
   return items.map((item) => {
     const timing = {
@@ -81,6 +144,22 @@ export function buildRows(items: readonly RadarItem[], context: RowContext): Rad
       startsAt: new Date(item.startsAt),
       endsAt: new Date(item.endsAt),
     };
+    const utility = utilityOf(item, timing.endsAt);
+    if (utility !== null) {
+      return {
+        id: item.id,
+        group: item.group,
+        title: item.object?.title ?? null,
+        what: UTILITY_WHAT[utility.kind],
+        when: occurrenceWhen(timing, item.timeZone, context.now),
+        relative: occurrenceRelative(timing, item.timeZone, context.now),
+        visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
+        assigneeId: item.assigneeId,
+        startsAt: timing.startsAt.getTime(),
+        to: utility.openTo,
+        utility,
+      };
+    }
     const located = item.rule
       ? {
           rule: item.rule,
@@ -107,6 +186,7 @@ export function buildRows(items: readonly RadarItem[], context: RowContext): Rad
       assigneeId: item.assigneeId,
       startsAt: timing.startsAt.getTime(),
       to: kind && sourceId ? cardPath(kind, sourceId) : null,
+      utility: null,
     };
   });
 }

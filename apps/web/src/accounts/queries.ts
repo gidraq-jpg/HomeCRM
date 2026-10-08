@@ -4,7 +4,7 @@ import { matchesScope } from '../access/scope.ts';
 import { visibilityOf } from '../notes/abilities.ts';
 import { listScopeOf } from '../notes/queries.ts';
 import { fetchObjects } from '../objects/api.ts';
-import { type AccountCard, fetchAccounts } from './api.ts';
+import { type AccountCard, fetchAccounts, fetchTrashedAccounts } from './api.ts';
 
 // Ключи запросов не содержат названий, номеров и ссылок: только идентификаторы и режим списка.
 const ACCOUNTS = 'accounts';
@@ -25,9 +25,9 @@ export interface TrashedAccount {
 }
 
 /**
- * Лицевые счета в корзине. Общего списка у API нет, поэтому счета запрашиваются по живым объектам
- * недвижимости (в выбранном режиме «Всё · Общее · Личное»). Счета удалённого объекта сюда не
- * входят: они вернутся вместе с объектом.
+ * Лицевые счета в корзине: один `GET /api/accounts?trash=true`. Название объекта берётся из списка
+ * живой недвижимости в выбранном режиме «Всё · Общее · Личное»; счета объектов в корзине сюда не
+ * входят — они вернутся вместе с объектом.
  */
 export function useTrashedAccounts() {
   const { scope } = useScope();
@@ -35,23 +35,24 @@ export function useTrashedAccounts() {
   return useQuery({
     queryKey: [ACCOUNTS, 'trash', listScope],
     queryFn: async ({ signal }): Promise<TrashedAccount[]> => {
-      const objects = (await fetchObjects(listScope, { trash: false, offset: 0 }, signal)).filter(
-        (object) => object.objectType === 'property' && matchesScope(visibilityOf(object), scope),
+      const [accounts, objects] = await Promise.all([
+        fetchTrashedAccounts(signal),
+        fetchObjects(listScope, { trash: false, offset: 0 }, signal),
+      ]);
+      const titles = new Map(
+        objects
+          .filter((object) => object.objectType === 'property')
+          .map((object) => [object.id, object.title] as const),
       );
-      const groups = await Promise.all(
-        objects.map(async (object) =>
-          (await fetchAccounts(object.id, true, signal)).map((account) => ({
-            account,
-            objectId: object.id,
-            objectTitle: object.title,
-          })),
-        ),
-      );
-      return groups.flat();
+      return accounts.flatMap((account) => {
+        const objectTitle = titles.get(account.parentId);
+        return objectTitle !== undefined && matchesScope(visibilityOf(account), scope)
+          ? [{ account, objectId: account.parentId, objectTitle }]
+          : [];
+      });
     },
   });
 }
-
 /** Что перечитать после изменения счёта: списки счетов, корзину и карточки объектов. */
 export function useRefreshAccounts() {
   const client = useQueryClient();

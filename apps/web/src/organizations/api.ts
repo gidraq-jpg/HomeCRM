@@ -1,7 +1,7 @@
 import { AUDIENCES, type ORGANIZATION_TYPES, OrganizationData } from '@homecrm/shared';
 import * as z from 'zod';
 import { apiRequest } from '../auth/api.ts';
-import type { Placement } from '../notes/api.ts';
+import type { ListScope, Placement } from '../notes/api.ts';
 
 // Организации (CONT-2, ADR-0031, docs/property-accounts-api.md). Ответы проверяются схемами.
 // Названия, телефоны и адреса живут только в ответах и памяти страницы: в адреса, журнал,
@@ -50,7 +50,13 @@ export type OrganizationChange = Partial<OrganizationInput> & { expectedUpdatedA
 export const PAGE_SIZE = 100;
 
 export function fetchOrganizations(
-  options: { trash: boolean; offset: number; organizationType?: OrganizationType },
+  options: {
+    trash: boolean;
+    offset: number;
+    organizationType?: OrganizationType;
+    /** Режим «Всё · Общее · Личное»: фильтр на сервере, чтобы страницы не пустели после отбора. */
+    scope?: ListScope;
+  },
   signal?: AbortSignal,
 ) {
   const query = new URLSearchParams({
@@ -59,6 +65,7 @@ export function fetchOrganizations(
     offset: String(options.offset),
   });
   if (options.organizationType) query.set('organizationType', options.organizationType);
+  if (options.scope) query.set('scope', options.scope);
   return apiRequest('GET', `contacts?${query}`, z.array(ContactCard), undefined, signal);
 }
 

@@ -12,7 +12,14 @@ import { Page, Section } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { type PushDevice, removeDevice, type SettingsPatch, saveSettings } from './api.ts';
-import { budgetText, KIND_HINTS, kindLabel, notificationError, quietHoursText } from './labels.ts';
+import {
+  budgetText,
+  KIND_HINTS,
+  kindLabel,
+  notificationError,
+  quietHoursText,
+  UTILITY_KINDS,
+} from './labels.ts';
 import { disablePush, enablePush, forgetIfThisDevice, usePushState } from './push.ts';
 import { useDevices, useRefreshNotifications, useSettings } from './queries.ts';
 
@@ -203,6 +210,34 @@ function Devices() {
   );
 }
 
+const OTHER_KINDS = NOTIFICATION_KINDS.filter(
+  (kind) => !(UTILITY_KINDS as readonly string[]).includes(kind),
+);
+
+function KindToggle({
+  kind,
+  draft,
+  set,
+}: {
+  kind: string;
+  draft: Draft;
+  set: (patch: Partial<Draft>) => void;
+}) {
+  return (
+    <CheckLine
+      checked={draft.kinds.includes(kind)}
+      onChange={(checked) =>
+        set({
+          kinds: checked ? [...draft.kinds, kind] : draft.kinds.filter((item) => item !== kind),
+        })
+      }
+    >
+      <strong>{kindLabel(kind)}</strong>
+      <span className="check-hint">{KIND_HINTS[kind]}</span>
+    </CheckLine>
+  );
+}
+
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 interface Draft {
@@ -324,25 +359,20 @@ function SettingsForm({ settings, timeZone }: { settings: Draft; timeZone: strin
       </Section>
 
       <Section title="Какие уведомления присылать">
-        {NOTIFICATION_KINDS.map((kind) => (
-          <CheckLine
-            key={kind}
-            checked={draft.kinds.includes(kind)}
-            onChange={(checked) =>
-              set({
-                kinds: checked
-                  ? [...draft.kinds, kind]
-                  : draft.kinds.filter((item) => item !== kind),
-              })
-            }
-          >
-            <strong>{kindLabel(kind)}</strong>
-            <span className="check-hint">{KIND_HINTS[kind]}</span>
-          </CheckLine>
+        {OTHER_KINDS.map((kind) => (
+          <KindToggle key={kind} kind={kind} draft={draft} set={set} />
+        ))}
+      </Section>
+
+      <Section title="Коммунальные сроки">
+        <p className="muted">
+          Окна показаний, оплата и поверка приходят отдельными видами: включайте только нужные.
+        </p>
+        {UTILITY_KINDS.map((kind) => (
+          <KindToggle key={kind} kind={kind} draft={draft} set={set} />
         ))}
         <p className="field__hint">Другие виды появятся вместе с разделами, которым они нужны.</p>
       </Section>
-
       <Section title="Экран блокировки">
         <CheckLine checked={draft.hideText} onChange={(checked) => set({ hideText: checked })}>
           <strong>Скрывать текст на экране блокировки</strong>

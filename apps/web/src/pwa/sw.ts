@@ -38,14 +38,18 @@ self.addEventListener('push', (event) => {
     tag: push.tag,
     renotify: true,
     lang: 'ru',
-    data: { recordId: push.recordId },
+    data: {
+      recordId: push.recordId,
+      ...(push.notificationKind === null ? {} : { notificationKind: push.notificationKind }),
+    },
   };
   event.waitUntil(self.registration.showNotification(push.title, options));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const route = targetRoute(describePush(event.notification.data).recordId);
+  const push = describePush(event.notification.data);
+  const route = targetRoute(push.recordId, push.notificationKind);
   event.waitUntil(openApp(route));
 });
 
