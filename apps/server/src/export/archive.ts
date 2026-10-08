@@ -153,26 +153,35 @@ async function* histories(tx: Transaction, scope: ExportScope) {
       yield row;
 }
 async function* links(tx: Transaction, account: Account, scope: ExportScope) {
-  for await (const row of rows(tx, 'record_links', sql`true`)) {
-    const left = await readReference(tx, account, {
-      type: typeForTable(String(row.left_table)),
-      id: String(row.left_id),
-    });
-    const right = await readReference(tx, account, {
-      type: typeForTable(String(row.right_table)),
-      id: String(row.right_id),
-    });
-    const included = (ref: typeof left) =>
-      scope.kind === 'personal'
-        ? ref.row.spaceKind === 'personal'
-        : ref.row.spaceKind === 'household' && ref.row.spaceId === scope.householdId;
-    // Личная связь может ссылаться на видимое общее; в архиве дома личных концов нет.
-    if (
-      scope.kind === 'personal'
-        ? included(left) || included(right)
-        : included(left) && included(right)
-    )
-      yield row;
+  const where =
+    scope.kind === 'personal'
+      ? sql`app.record_ref_facts(t.left_table,t.left_id)->>'spaceKind'='personal'
+        OR app.record_ref_facts(t.right_table,t.right_id)->>'spaceKind'='personal'`
+      : sql`true`;
+  for await (const row of rows(tx, 'record_links', where)) {
+    try {
+      const left = await readReference(tx, account, {
+        type: typeForTable(String(row.left_table)),
+        id: String(row.left_id),
+      });
+      const right = await readReference(tx, account, {
+        type: typeForTable(String(row.right_table)),
+        id: String(row.right_id),
+      });
+      const included = (ref: typeof left) =>
+        scope.kind === 'personal'
+          ? ref.row.spaceKind === 'personal'
+          : ref.row.spaceKind === 'household' && ref.row.spaceId === scope.householdId;
+      // Личная связь может ссылаться на видимое общее; в архиве дома личных концов нет.
+      if (
+        scope.kind === 'personal'
+          ? included(left) || included(right)
+          : included(left) && included(right)
+      )
+        yield row;
+    } catch (error) {
+      if (!(error instanceof Failure && error.code === 'NOT_FOUND')) throw error;
+    }
   }
 }
 

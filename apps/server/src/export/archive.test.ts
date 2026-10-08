@@ -4,12 +4,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createAppDatabase, sql } from '@homecrm/db';
 import { ExportManifest, ExportRecords, type ExportScope } from '@homecrm/shared';
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { fromBuffer, open, type ZipFile } from 'yauzl';
 import { FileCipher } from '../files/crypto.ts';
 import { DirectoryStorage } from '../files/storage.ts';
+import * as references from '../objects/support.ts';
 import { BASE_URL, type Device } from '../testing/device.ts';
-import { signedInAdmin } from '../testing/flows.ts';
+import { enrollTotp, signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type Person, type World } from '../testing/world.ts';
 import { buildArchive } from './archive.ts';
 
@@ -60,8 +61,9 @@ async function archive(
   device: Device,
   password: string,
   scope: ExportScope = { kind: 'personal' },
+  instance: World = world,
 ) {
-  return world.app.inject({
+  return instance.app.inject({
     method: 'POST',
     url: '/api/export/archive',
     remoteAddress: device.ip,
@@ -462,3 +464,125 @@ it('DATA-2: 1000 записей и 50 файлов — страницы и по�
     await result.cleanup();
   }
 });
+
+it.each(['personal', 'adults'] as const)(
+  'DATA-2: связь с событием из %s после открытия объекта не срывает экспорт',
+  async (origin) => {
+    const instance = await createWorld();
+    const originalRead = references.readReference;
+    const read = vi.spyOn(references, 'readReference');
+    try {
+      const owner = (await signedInAdmin(instance)).device;
+      const boris = instance.device();
+      const vera = instance.device();
+      expect((await boris.signIn(instance.boris.username, instance.boris.password)).status).toBe(
+        200,
+      );
+      expect((await vera.signIn(instance.vera.username, instance.vera.password)).status).toBe(200);
+      const common = await owner.post('/api/notes', {
+        title: 'Общая заметка',
+        placement: { spaceId: instance.houseId, audience: 'household' },
+      });
+      expect(common.status, common.text).toBe(201);
+      const commonId = common.json<{ id: string }>().id;
+      const object = await owner.post('/api/objects', {
+        title: 'Объект с прежним событием',
+        ...(origin === 'adults'
+          ? { placement: { spaceId: instance.houseId, audience: 'adults' } }
+          : {}),
+      });
+      expect(object.status, object.text).toBe(201);
+      const objectId = object.json<{ id: string }>().id;
+      const event = await owner.post(`/api/objects/${objectId}/events`, {
+        text: 'Прежнее событие',
+        occurredOn: '2026-10-07',
+      });
+      expect(event.status, event.text).toBe(201);
+      const eventId = event.json<{ id: string }>().id;
+      const opened = await owner.post(
+        `/api/objects/${objectId}/${origin === 'personal' ? 'share' : 'audience'}`,
+        { ...(origin === 'personal' ? { spaceId: instance.houseId } : {}), audience: 'household' },
+      );
+      expect(opened.status, opened.text).toBe(200);
+      const eventRef = { type: 'object_event', id: eventId };
+      const noteRef = { type: 'note', id: commonId };
+      const hiddenLink = await owner.post('/api/links', {
+        left: origin === 'personal' ? eventRef : noteRef,
+        right: origin === 'personal' ? noteRef : eventRef,
+      });
+      expect(hiddenLink.status, hiddenLink.text).toBe(201);
+      const hiddenLinkId = hiddenLink.json<{ id: string }>().id;
+      const visibleLink = await owner.post('/api/links', {
+        left: { type: 'note', id: commonId },
+        right: { type: 'object', id: objectId },
+      });
+      expect(visibleLink.status, visibleLink.text).toBe(201);
+      const visibleLinkId = visibleLink.json<{ id: string }>().id;
+      for (const [device, person] of [
+        [boris, instance.boris],
+        [vera, instance.vera],
+      ] as const) {
+        const note = await device.post('/api/notes', { title: 'Моя личная заметка' });
+        expect(note.status, note.text).toBe(201);
+        const noteId = note.json<{ id: string }>().id;
+        const personalLink = await device.post('/api/links', {
+          left: { type: 'note', id: origin === 'personal' ? noteId : commonId },
+          right: { type: 'note', id: origin === 'personal' ? commonId : noteId },
+        });
+        expect(personalLink.status, personalLink.text).toBe(201);
+        read.mockClear();
+        const response = await archive(device, person.password, { kind: 'personal' }, instance);
+        expect(read.mock.calls.some(([, , ref]) => ref.id === eventId)).toBe(false);
+        expect(response.statusCode, response.body.slice(0, 200)).toBe(200);
+        const entries = await unpack(response.rawPayload);
+        expect(json(entries, 'notes').map((row: { id: string }) => row.id)).toEqual([noteId]);
+        expect(json(entries, 'object_events')).toEqual([]);
+        expect(json(entries, 'record_links').map((row: { id: string }) => row.id)).toEqual([
+          personalLink.json<{ id: string }>().id,
+        ]);
+      }
+      // Другой администратор не получает личное происхождение события Анны.
+      await instance.database.admin.query(
+        "UPDATE space_members SET role='admin' WHERE space_id=$1 AND account_id=$2",
+        [instance.houseId, instance.boris.id],
+      );
+      await enrollTotp(boris, instance.boris);
+      const response = await archive(
+        boris,
+        instance.boris.password,
+        { kind: 'household', householdId: instance.houseId },
+        instance,
+      );
+      expect(response.statusCode, response.body.slice(0, 200)).toBe(200);
+      const entries = await unpack(response.rawPayload);
+      expect(
+        json(entries, 'record_links')
+          .map((row: { id: string }) => row.id)
+          .sort(),
+      ).toEqual((origin === 'personal' ? [visibleLinkId] : [visibleLinkId, hiddenLinkId]).sort());
+      expect(json(entries, 'object_events').map((row: { id: string }) => row.id)).toEqual(
+        origin === 'personal' ? [] : [eventId],
+      );
+      // RLS уже скрывает такие связи; отдельно проверяем отказ проверки конца в коде приложения.
+      read.mockImplementation(async (tx, account, ref) => {
+        if (ref.id === eventId) throw new references.Failure(404, 'NOT_FOUND');
+        return originalRead(tx, account, ref);
+      });
+      const unavailable = await archive(
+        owner,
+        instance.anna.password,
+        { kind: 'household', householdId: instance.houseId },
+        instance,
+      );
+      expect(unavailable.statusCode, unavailable.body.slice(0, 200)).toBe(200);
+      expect(
+        json(await unpack(unavailable.rawPayload), 'record_links').map(
+          (row: { id: string }) => row.id,
+        ),
+      ).toEqual([visibleLinkId]);
+    } finally {
+      read.mockRestore();
+      await instance.close();
+    }
+  },
+);
