@@ -7,6 +7,7 @@ import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
+import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
@@ -41,8 +42,24 @@ export function ObjectRows({
             key={object.id}
             to={`/home/${object.id}`}
             icon={<TypeIcon size={22} aria-hidden />}
-            title={object.title}
-            meta={`${VISIBILITY_LABELS[visibility]} · ${formatDay(object.updatedAt, me.timeZone)}`}
+            title={
+              <>
+                {object.title}
+                {object.objectType === 'property' && object.typeData.status ? (
+                  <span className="row__status">
+                    <PropertyStatusBadge status={object.typeData.status} />
+                  </span>
+                ) : null}
+              </>
+            }
+            meta={[
+              object.objectType === 'property' ? object.typeData.address : undefined,
+              VISIBILITY_LABELS[visibility],
+              formatDay(object.updatedAt, me.timeZone),
+            ]
+              .filter((part) => part !== undefined && part !== '')
+              .join(' · ')}
+            clampMeta
             badge={visibility}
           />
         );

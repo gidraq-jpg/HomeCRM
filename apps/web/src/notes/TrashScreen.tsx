@@ -1,7 +1,9 @@
 import {
+  AddressBook,
   ArrowCounterClockwise,
   CalendarBlank,
   Camera,
+  CreditCard,
   DownloadSimple,
   FilePdf,
   ImageSquare,
@@ -13,6 +15,13 @@ import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { matchesScope, SCOPE_LABELS } from '../access/scope.ts';
 import { VISIBILITY_LABELS } from '../access/visibility.ts';
+import { restoreAccount } from '../accounts/api.ts';
+import { ACCOUNT_TYPE, accountCount } from '../accounts/ObjectAccounts.tsx';
+import {
+  type TrashedAccount,
+  useRefreshAccounts,
+  useTrashedAccounts,
+} from '../accounts/queries.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { restoreDeadline, type TrashedDeadline } from '../deadlines/api.ts';
@@ -32,6 +41,11 @@ import { ObjectError } from '../objects/components.tsx';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectsList, useRefreshObjects } from '../objects/queries.ts';
 import { OBJECT_TYPE_ICONS, objectCount } from '../objects/types.ts';
+import { organizationAbilities } from '../organizations/abilities.ts';
+import { type ContactCard, restoreOrganization } from '../organizations/api.ts';
+import { ORGANIZATION_TYPE_LABELS } from '../organizations/form.ts';
+import { organizationCount } from '../organizations/OrganizationsScreen.tsx';
+import { useOrganizationsList, useRefreshOrganizations } from '../organizations/queries.ts';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
@@ -147,7 +161,111 @@ function ObjectTrashRow({ object }: { object: ObjectSummary }) {
           Вернуть этот объект может его автор-взрослый или администратор.
         </p>
       )}
+      {object.objectType === 'property' ? (
+        <p className="muted trash-item__note">Лицевые счета вернутся вместе с объектом.</p>
+      ) : null}
       <ObjectError error={state.error} action="restore" />
+    </li>
+  );
+}
+
+function OrganizationTrashRow({ organization }: { organization: ContactCard }) {
+  const { me, householdId } = useHousehold();
+  const refresh = useRefreshOrganizations();
+  const toast = useToast();
+  const state = useAction();
+  const [done, setDone] = useState(false);
+  const abilities = organizationAbilities(viewerOf(me), organization, householdId);
+  const visibility = visibilityOf(organization);
+  const deletedAt = organization.deletedAt ?? organization.updatedAt;
+
+  return (
+    <li className="trash-item">
+      <div className="row">
+        <RowContent
+          icon={<AddressBook size={22} aria-hidden />}
+          title={organization.title}
+          meta={`${ORGANIZATION_TYPE_LABELS[organization.data.organizationType]} · ${VISIBILITY_LABELS[visibility]} · удалена ${formatDay(deletedAt, me.timeZone)}, хранится до ${formatDay(keepUntil(deletedAt), me.timeZone)}`}
+          badge={visibility}
+        />
+      </div>
+      {abilities.restore ? (
+        <button
+          type="button"
+          className="btn btn--secondary btn--block"
+          disabled={state.disabled || done}
+          onClick={() =>
+            void state.run(async () => {
+              await restoreOrganization(organization.id);
+              setDone(true);
+              await refresh();
+              toast.show({
+                message: 'Организация возвращена',
+                detail: 'Она снова в списке «Организации».',
+              });
+            })
+          }
+        >
+          <ArrowCounterClockwise size={20} aria-hidden />
+          {state.pending ? 'Возвращаем…' : 'Восстановить'}
+        </button>
+      ) : (
+        <p className="muted trash-item__note">
+          Вернуть эту организацию может её автор-взрослый или администратор.
+        </p>
+      )}
+      <ObjectError error={state.error} action="contact" />
+    </li>
+  );
+}
+
+function AccountTrashRow({ item }: { item: TrashedAccount }) {
+  const { me, householdId } = useHousehold();
+  const refresh = useRefreshAccounts();
+  const toast = useToast();
+  const state = useAction();
+  const [done, setDone] = useState(false);
+  const { account } = item;
+  const abilities = noteAbilities(viewerOf(me), account, householdId, ACCOUNT_TYPE);
+  const visibility = visibilityOf(account);
+  const deletedAt = account.deletedAt ?? account.updatedAt;
+
+  return (
+    <li className="trash-item">
+      <div className="row">
+        <RowContent
+          icon={<CreditCard size={22} aria-hidden />}
+          title={account.title}
+          meta={`из объекта «${item.objectTitle}» · удалён ${formatDay(deletedAt, me.timeZone)}, хранится до ${formatDay(keepUntil(deletedAt), me.timeZone)}`}
+          badge={visibility}
+        />
+      </div>
+      {abilities.restore ? (
+        <button
+          type="button"
+          className="btn btn--secondary btn--block"
+          disabled={state.disabled || done}
+          onClick={() =>
+            void state.run(async () => {
+              await restoreAccount(account.id);
+              setDone(true);
+              await refresh();
+              toast.show({
+                message: 'Лицевой счёт возвращён',
+                detail: 'Он снова на вкладке «Счета» объекта.',
+              });
+            })
+          }
+        >
+          <ArrowCounterClockwise size={20} aria-hidden />
+          {state.pending ? 'Возвращаем…' : 'Восстановить'}
+        </button>
+      ) : (
+        <p className="muted trash-item__note">
+          Вернуть этот лицевой счёт может его автор-взрослый или администратор.
+        </p>
+      )}
+      <ObjectError error={state.error} action="account" />
     </li>
   );
 }
@@ -297,6 +415,8 @@ export function TrashScreen() {
   const objectsQuery = useObjectsList(true);
   const filesQuery = useTrashedFiles();
   const deadlinesQuery = useTrashedDeadlines();
+  const organizationsQuery = useOrganizationsList(true, null);
+  const accountsQuery = useTrashedAccounts();
   const { scope, setScope } = useScope();
 
   if (notesQuery.isPending || objectsQuery.isPending || filesQuery.isPending) {
@@ -329,13 +449,27 @@ export function TrashScreen() {
   const deadlines = (deadlinesQuery.data ?? []).filter((item) =>
     matchesScope(visibilityOf(item), scope),
   );
-  const total = notes.length + objects.length + files.length + deadlines.length;
+  const organizations = (organizationsQuery.data?.pages.flat() ?? []).filter((item) =>
+    matchesScope(visibilityOf(item), scope),
+  );
+  const accounts = accountsQuery.data ?? [];
+  const total =
+    notes.length +
+    objects.length +
+    files.length +
+    deadlines.length +
+    organizations.length +
+    accounts.length;
   const failed =
     notesQuery.data === undefined ||
     objectsQuery.data === undefined ||
     filesQuery.isError ||
     deadlinesQuery.isError ||
-    deadlinesQuery.isPending;
+    deadlinesQuery.isPending ||
+    organizationsQuery.isError ||
+    organizationsQuery.isPending ||
+    accountsQuery.isError ||
+    accountsQuery.isPending;
 
   return (
     <Page title="Корзина" back={BACK} {...(total > 0 ? { eyebrow: recordCount(total) } : {})}>
@@ -457,6 +591,66 @@ export function TrashScreen() {
               {objectsQuery.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё объекты'}
             </button>
           ) : null}
+        </Section>
+      ) : null}
+
+      {organizationsQuery.isError ? (
+        <>
+          <ObjectError error={organizationsQuery.error} action="load" />
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => void organizationsQuery.refetch()}
+          >
+            Повторить загрузку организаций из корзины
+          </button>
+        </>
+      ) : null}
+      {organizations.length > 0 ? (
+        <Section
+          title="Организации"
+          aside={<span className="muted">{organizationCount(organizations.length)}</span>}
+        >
+          <ul className="trash-list" aria-label="Удалённые организации">
+            {organizations.map((organization) => (
+              <OrganizationTrashRow key={organization.id} organization={organization} />
+            ))}
+          </ul>
+          {organizationsQuery.hasNextPage ? (
+            <button
+              type="button"
+              className="btn btn--secondary btn--block list-action"
+              disabled={organizationsQuery.isFetchingNextPage}
+              onClick={() => void organizationsQuery.fetchNextPage()}
+            >
+              {organizationsQuery.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё организации'}
+            </button>
+          ) : null}
+        </Section>
+      ) : null}
+
+      {accountsQuery.isError ? (
+        <>
+          <ObjectError error={accountsQuery.error} action="account" />
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => void accountsQuery.refetch()}
+          >
+            Повторить загрузку лицевых счетов из корзины
+          </button>
+        </>
+      ) : null}
+      {accounts.length > 0 ? (
+        <Section
+          title="Лицевые счета"
+          aside={<span className="muted">{accountCount(accounts.length)}</span>}
+        >
+          <ul className="trash-list" aria-label="Удалённые лицевые счета">
+            {accounts.map((item) => (
+              <AccountTrashRow key={item.account.id} item={item} />
+            ))}
+          </ul>
         </Section>
       ) : null}
 

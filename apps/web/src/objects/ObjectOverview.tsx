@@ -9,6 +9,8 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
 import { LinksSection } from '../links/LinksSection.tsx';
 import { factsOf, newPlacement, viewerOf, visibilityOf } from '../notes/abilities.ts';
+import { PropertyFacts } from '../property/PropertyFacts.tsx';
+import { propertyDraft } from '../property/property.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { assigneeChoices, creatableObjectVisibilities } from './abilities.ts';
 import { createObject, MAX_TITLE, patchObject, restoreObject, trashObject } from './api.ts';
@@ -18,6 +20,7 @@ import { isStaleVersion } from './errors.ts';
 import { fromCard, withoutIds } from './fields.ts';
 import { ObjectAccess } from './ObjectAccess.tsx';
 import { ObjectForm, type ObjectValues } from './ObjectForm.tsx';
+import { PeopleBlock } from './PeopleBlock.tsx';
 import { useRefreshObjects } from './queries.ts';
 import { OBJECT_TYPE_LABELS } from './types.ts';
 
@@ -99,6 +102,7 @@ export function ObjectOverview() {
           title: values.title,
           objectType: values.objectType,
           fields: values.fields,
+          ...(values.typeData ? { typeData: values.typeData } : {}),
           ...(values.assigneeId !== null && values.assigneeId !== card.assigneeId
             ? { assigneeId: values.assigneeId }
             : {}),
@@ -128,6 +132,7 @@ export function ObjectOverview() {
           title: copyTitle(values.title),
           objectType: values.objectType,
           fields: withoutIds(values.fields),
+          ...(values.typeData ? { typeData: values.typeData } : {}),
         },
         newPlacement(place, householdId),
       );
@@ -154,6 +159,7 @@ export function ObjectOverview() {
           objectType: card.objectType,
           assigneeId: card.assigneeId,
           fields,
+          property: propertyDraft(card.typeData),
         }}
         mode="edit"
         submitLabel="Сохранить"
@@ -192,6 +198,7 @@ export function ObjectOverview() {
           <dt>Тип</dt>
           <dd>{OBJECT_TYPE_LABELS[card.objectType]}</dd>
         </div>
+        {card.objectType === 'property' ? <PropertyFacts data={card.typeData} /> : null}
         <div className="facts__item">
           <dt>Ответственный</dt>
           <dd>{nameOf(card.assigneeId ?? card.authorId)}</dd>
@@ -235,6 +242,8 @@ export function ObjectOverview() {
           </dl>
         )}
       </section>
+
+      {!trashed ? <PeopleBlock card={card} /> : null}
 
       {!trashed ? <DeadlinesSection source="objects" card={card} /> : null}
 

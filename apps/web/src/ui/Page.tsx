@@ -21,10 +21,12 @@ interface PageProps {
    * свой заголовок: он не попадает в историю браузера.
    */
   documentTitle?: string;
+  /** Статус рядом с названием (недвижимость: «Живём», «Сдаётся»). Заголовок h1 остаётся чистым. */
+  status?: ReactNode;
   children: ReactNode;
 }
 
-export function Page({ title, eyebrow, back, tabs, documentTitle, children }: PageProps) {
+export function Page({ title, eyebrow, back, tabs, documentTitle, status, children }: PageProps) {
   usePageTitle(documentTitle ?? title);
   return (
     <div className="page">
@@ -36,7 +38,14 @@ export function Page({ title, eyebrow, back, tabs, documentTitle, children }: Pa
       ) : null}
       <div className="page-heading">
         {eyebrow ? <p className="page-heading__eyebrow">{eyebrow}</p> : null}
-        <h1>{title}</h1>
+        {status ? (
+          <div className="page-heading__line">
+            <h1>{title}</h1>
+            {status}
+          </div>
+        ) : (
+          <h1>{title}</h1>
+        )}
       </div>
       {tabs}
       {children}

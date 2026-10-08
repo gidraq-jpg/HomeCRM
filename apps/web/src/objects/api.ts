@@ -1,8 +1,9 @@
-import { AUDIENCES, OBJECT_TYPES } from '@homecrm/shared';
+import { AUDIENCES, OBJECT_TYPES, PropertyData } from '@homecrm/shared';
 import * as z from 'zod';
 import { apiRequest } from '../auth/api.ts';
 import { FileMeta } from '../files/api.ts';
 import { AccessPreview, type ListScope, type Placement } from '../notes/api.ts';
+import { PersonLink } from '../organizations/api.ts';
 
 // Объекты, связи и лента — ADR-0023, docs/objects-api.md. Ответы проверяются схемами: сервер мог
 // измениться, а экран не должен ломаться на неожиданной форме. Названия, значения полей и тексты
@@ -21,6 +22,8 @@ export const ObjectSummary = z.object({
   id: z.string(),
   title: z.string(),
   objectType: ObjectTypeSchema,
+  /** Поля недвижимости (UTIL-1); у остальных типов — пустой объект. */
+  typeData: PropertyData.catch({}),
   spaceId: z.string(),
   spaceKind: z.enum(['personal', 'household']),
   audience: z.enum(AUDIENCES).nullable(),
@@ -45,6 +48,8 @@ export const ObjectCard = ObjectSummary.extend({
   fields: z.array(ObjectField),
   /** Файлы объекта (OBJ-4): метаданные без ключей хранения. */
   files: z.array(FileMeta),
+  /** «Люди и организации» (CONT-3): живые организации, связанные с объектом, и подписи ролей. */
+  peopleAndOrganizations: z.array(PersonLink).default([]),
 });
 export type ObjectCard = z.infer<typeof ObjectCard>;
 
@@ -59,6 +64,8 @@ export interface ObjectInput {
   title: string;
   objectType: z.infer<typeof ObjectTypeSchema>;
   fields: FieldInput[];
+  /** Поля недвижимости; PATCH заменяет их целиком. */
+  typeData?: PropertyData;
 }
 
 export type ObjectChange = Partial<ObjectInput> & {
@@ -88,7 +95,8 @@ export function fetchObject(id: string, signal?: AbortSignal) {
 
 /** Без `placement` объект создаётся личным — в пространстве автора. */
 export function createObject(
-  input: Pick<ObjectInput, 'title' | 'objectType'> & Partial<Pick<ObjectInput, 'fields'>>,
+  input: Pick<ObjectInput, 'title' | 'objectType'> &
+    Partial<Pick<ObjectInput, 'fields' | 'typeData'>>,
   placement?: Placement,
 ) {
   return apiRequest('POST', 'objects', ObjectCard, {

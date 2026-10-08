@@ -1,0 +1,165 @@
+/* Недвижимость, лицевые счета, организации. Цели нажатия — не меньше 44 px (--tap). */
+
+/* Статус недвижимости рядом с названием */
+.page-heading__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.row__status {
+  display: inline-flex;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* Форма недвижимости */
+.property-fields {
+  margin-top: 18px;
+}
+
+.property-fields > .field:first-of-type {
+  margin-top: 0;
+}
+
+.property-fields__owners {
+  margin-top: 16px;
+}
+
+/* Телефоны организации */
+.phone-list {
+  border-top: 1px solid var(--line);
+}
+
+.phone-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.phone-item__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.phone-item__number {
+  font-size: 1.125rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.phone-item__label {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.phone-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.phone-item__actions .btn {
+  flex: 1 1 auto;
+}
+
+/* Телефоны в форме */
+.phone-edit__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--tap);
+  gap: 4px 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.phone-edit__fields {
+  display: grid;
+  gap: 8px;
+}
+
+.phone-edit__item > .icon-button {
+  align-self: start;
+}
+
+.phone-edit__emergency,
+.phone-edit__item > .field__error {
+  grid-column: 1 / -1;
+}
+
+.phone-edit__emergency .check-line {
+  margin-top: 0;
+}
+
+/* Лицевые счета */
+.account-card {
+  display: block;
+}
+
+.account-card > .facts {
+  margin-top: 8px;
+}
+
+.account-card > .btn-row {
+  margin-top: 14px;
+}
+
+.account-card .facts dd svg {
+  flex: none;
+}
+
+.account-form {
+  display: block;
+}
+
+.account-form .btn-row {
+  margin-top: 18px;
+}
+
+.account-form__services {
+  margin-top: 16px;
+}
+
+.account-form__new {
+  margin-top: 10px;
+}
+
+.account-form__days {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.account-form__days .field {
+  margin-top: 0;
+}
+
+/* Подписи связи */
+.role-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  margin: 10px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.chip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}

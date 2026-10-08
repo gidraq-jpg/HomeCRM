@@ -1,4 +1,5 @@
 import {
+  AddressBook,
   BellRinging,
   CalendarCheck,
   Export,
@@ -22,6 +23,12 @@ export function MoreScreen() {
           icon={<Note size={22} aria-hidden />}
           title="Заметки"
           meta="Личные и общие, с чек-листом"
+        />
+        <Row
+          to="/more/organizations"
+          icon={<AddressBook size={22} aria-hidden />}
+          title="Организации"
+          meta="УК, поставщики, аварийные службы: телефоны под рукой"
         />
         <Row
           to="/more/radar"

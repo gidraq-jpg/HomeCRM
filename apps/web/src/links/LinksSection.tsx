@@ -282,7 +282,10 @@ export function LinksSection({ record, facts }: { record: RecordRef; facts: Reco
   const viewer = viewerOf(me);
   const query = useLinks(record);
   const [open, setOpen] = useState(false);
-  const links = query.data ?? [];
+  // Организации показывает блок «Люди и организации» (CONT-3): здесь они не дублируются.
+  const links = (query.data ?? []).filter(
+    (link) => link.left.type !== 'contact' && link.right.type !== 'contact',
+  );
   const linked = new Set(
     links.map((link) =>
       link.left.type === record.type && link.left.id === record.id ? link.right.id : link.left.id,

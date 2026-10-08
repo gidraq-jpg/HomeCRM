@@ -41,7 +41,11 @@ export function NewObjectScreen() {
   function submit(values: ObjectValues) {
     void state.run(async () => {
       const created = await createObject(
-        { title: values.title, objectType: values.objectType },
+        {
+          title: values.title,
+          objectType: values.objectType,
+          ...(values.typeData ? { typeData: values.typeData } : {}),
+        },
         newPlacement(visibility, householdId),
       );
       await refresh();
