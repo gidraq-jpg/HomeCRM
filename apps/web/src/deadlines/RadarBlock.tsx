@@ -4,7 +4,7 @@ import { useScope } from '../access/ScopeContext.tsx';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { Section } from '../ui/Page.tsx';
-import { DeadlineError } from './components.tsx';
+import { DeadlineError, RecalculatingNotice } from './components.tsx';
 import { pointCount, RadarRows } from './RadarScreen.tsx';
 import { filterRows } from './radar.ts';
 import { useRadar } from './useRadar.ts';
@@ -41,7 +41,7 @@ export function RadarBlock() {
     );
     body =
       urgent.length === 0 && radar.recalculating ? (
-        <Notice>Идёт пересчёт</Notice>
+        <RecalculatingNotice stalled={radar.stalled} onRetry={radar.retry} />
       ) : urgent.length === 0 ? (
         <p className="muted">
           Срочного нет: просроченных сроков и открытых окон за вами сейчас нет.

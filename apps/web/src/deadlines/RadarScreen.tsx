@@ -10,7 +10,7 @@ import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
-import { DeadlineError } from './components.tsx';
+import { DeadlineError, RecalculatingNotice } from './components.tsx';
 import {
   filterRows,
   GROUP_LABELS,
@@ -113,7 +113,9 @@ export function RadarScreen() {
       {radar.error ? (
         <Notice error>Не удалось обновить радар. Показаны последние загруженные сроки.</Notice>
       ) : null}
-      {radar.recalculating ? <Notice>Идёт пересчёт</Notice> : null}
+      {radar.recalculating ? (
+        <RecalculatingNotice stalled={radar.stalled} onRetry={radar.retry} />
+      ) : null}
 
       {radar.rows.length === 0 && radar.recalculating ? null : radar.rows.length === 0 ? (
         <EmptyState icon={<CalendarBlank size={24} aria-hidden />} title="Сроков пока нет">

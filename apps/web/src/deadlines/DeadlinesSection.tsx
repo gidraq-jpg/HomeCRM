@@ -8,6 +8,7 @@ import { todayIn } from '../objects/dates.ts';
 import { Section } from '../ui/Page.tsx';
 import { Status } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
+import { mayRestoreDeadline } from './abilities.ts';
 import {
   createDeadline,
   type DeadlineItem,
@@ -113,20 +114,28 @@ export function DeadlinesSection({ source, card }: DeadlinesSectionProps) {
 
   function trash(id: string) {
     void save.run(async () => {
-      await trashDeadline(id);
+      const removed = await trashDeadline(id);
       await refresh();
+      // «Отменить» нужна только тому, кто сможет вернуть срок: иначе сервер ответит отказом.
+      const mayUndo = mayRestoreDeadline(viewer, source, removed);
       toast.show({
         message: 'Срок в корзине',
-        detail: 'Восстановить можно также из «Корзины».',
-        action: {
-          label: 'Отменить',
-          onClick: () => {
-            void save.run(async () => {
-              await restoreDeadline(id);
-              await refresh();
-            });
-          },
-        },
+        detail: mayUndo
+          ? 'Восстановить можно также из «Корзины».'
+          : 'Вернуть его сможет автор-взрослый или администратор.',
+        ...(mayUndo
+          ? {
+              action: {
+                label: 'Отменить',
+                onClick: () => {
+                  void save.run(async () => {
+                    await restoreDeadline(id);
+                    await refresh();
+                  });
+                },
+              },
+            }
+          : {}),
       });
     });
   }

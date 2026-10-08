@@ -30,7 +30,7 @@ export function useRadarItems(accountId: string, timeZone: string) {
     queryFn: ({ signal }) => fetchRadar(RADAR_FROM, to, signal),
     staleTime: 30_000,
     gcTime: 300_000,
-    refetchInterval: (query) => (query.state.data?.recalculating ? 2_000 : false),
+    // Опрос во время пересчёта ведёт `useRadar` (polling.ts): с растущим интервалом и пределом.
   });
 }
 
