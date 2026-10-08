@@ -241,7 +241,15 @@ test('экран «Уведомления»: устройство, тихие ч
       quiet_start: '23:00',
       quiet_end: '07:30',
       daily_budget: 3,
-      enabled_kinds: ['deadline'],
+      enabled_kinds: [
+        'deadline',
+        'readings_open',
+        'readings_closing',
+        'readings_last_day',
+        'payment_upcoming',
+        'payment_due',
+        'verification',
+      ],
       hide_text: false,
     },
   ]);
