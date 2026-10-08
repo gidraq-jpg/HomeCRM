@@ -109,8 +109,7 @@ export const RadarItem = z.object({
   meter: z.object({ id: z.string(), title: z.string() }).nullish(),
   /** Окно показаний без активных счётчиков. */
   needsMeters: z.boolean().default(false),
-  /** Начисление, к которому относится срок оплаты (R1a.7–8); у прежних сроков 
-ull. */
+  /** Начисление, к которому относится срок оплаты (R1a.7–8); у прежних сроков пусто. */
   chargeId: z.string().nullish(),
   primaryAction: PrimaryAction.nullish(),
 });
