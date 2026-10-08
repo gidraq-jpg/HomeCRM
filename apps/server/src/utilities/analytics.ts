@@ -1,6 +1,8 @@
 import { sql } from '@homecrm/db';
 import {
   BillingPeriod,
+  CalendarDate,
+  calendarInstant,
   canView,
   DeadlineRule,
   deadlineOccurrences,
@@ -80,9 +82,13 @@ export function analyticsRoutes(route: DataRoute) {
       if (!windowsByRule.has(key)) {
         const rule = a.data.readingRule ? DeadlineRule.parse(a.data.readingRule) : null;
         const window = rule
-          ? deadlineOccurrences(rule, new Date(`${month}-01T00:00:00Z`), a.zone, 62, true).find(
-              (o) => o.date.startsWith(month),
-            )
+          ? deadlineOccurrences(
+              rule,
+              calendarInstant(CalendarDate.parse(`${month}-01`), a.zone),
+              a.zone,
+              62,
+              true,
+            ).find((o) => o.date.startsWith(month))
           : undefined;
         windowsByRule.set(
           key,

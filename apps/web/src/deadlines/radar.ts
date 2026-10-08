@@ -15,7 +15,14 @@ import { describeRule, KIND_LABELS, occurrenceRelative, occurrenceWhen } from '.
 export type RadarGroup = (typeof RADAR_GROUPS)[number];
 
 /** Группы радара по порядку: сначала самое срочное. */
-export const GROUP_ORDER: readonly RadarGroup[] = ['overdue', 'now', '7days', '30days', '90days'];
+export const GROUP_ORDER: readonly RadarGroup[] = [
+  'overdue',
+  'now',
+  '7days',
+  '30days',
+  '90days',
+  'later',
+];
 
 export const GROUP_LABELS: Readonly<Record<RadarGroup, string>> = {
   overdue: 'Просрочено',
@@ -23,6 +30,7 @@ export const GROUP_LABELS: Readonly<Record<RadarGroup, string>> = {
   '7days': '7 дней',
   '30days': '30 дней',
   '90days': '90 дней',
+  later: 'Позже',
 };
 
 /** Пояснение к группе: что в неё попадает. */
@@ -32,6 +40,7 @@ export const GROUP_HINTS: Readonly<Record<RadarGroup, string>> = {
   '7days': 'Ближайшая неделя.',
   '30days': 'До месяца.',
   '90days': 'До трёх месяцев.',
+  later: 'Предупреждение уже началось, срок дальше трёх месяцев.',
 };
 
 export type RadarView = 'mine' | 'house';
@@ -114,7 +123,7 @@ export function cardPath(kind: SourceKind, id: string): string {
 
 /** Коммунальный срок из пункта радара; прежние сроки и пункты без объекта дают `null`. */
 export function utilityOf(item: RadarItem, endsAt: Date): UtilityRow | null {
-  if (item.sourceKind === 'record' || !item.object) return null;
+  if (item.sourceKind === 'record' || item.sourceKind === 'document' || !item.object) return null;
   const objectId = item.object.id;
   const account = item.utilityAccount ?? null;
   const meter = item.meter ?? null;
@@ -210,6 +219,7 @@ export function groupRows(rows: readonly RadarRow[]): Record<RadarGroup, RadarRo
     '7days': [],
     '30days': [],
     '90days': [],
+    later: [],
   };
   for (const row of [...rows].sort((a, b) => a.startsAt - b.startsAt)) groups[row.group].push(row);
   return groups;

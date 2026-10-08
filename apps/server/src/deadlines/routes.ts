@@ -288,7 +288,7 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
         .filter(
           (x) =>
             (x.completedAt === null || (x.sourceKind === 'readings' && !x.needsMeters)) &&
-            endDate(x) >= from,
+            (endDate(x) >= from || (x.sourceKind === 'document' && x.endsAt < now)),
         )
         .map((x) => ({
           ...x,
@@ -321,9 +321,7 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
         items,
         recalculating: result.rows[0]?.recalculating ?? false,
         groups: Object.fromEntries(
-          [...RADAR_GROUPS, ...(items.some((x) => x.group === 'later') ? ['later'] : [])].map(
-            (group) => [group, items.filter((x) => x.group === group).length],
-          ),
+          RADAR_GROUPS.map((group) => [group, items.filter((x) => x.group === group).length]),
         ),
       };
     });

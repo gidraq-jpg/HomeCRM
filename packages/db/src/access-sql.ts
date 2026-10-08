@@ -72,7 +72,7 @@ export function canViewSql(): string {
 /** canWrite: видит и (личное, или не ребёнок, или ребёнку можно этот вид записи). */
 /** canViewDocument: барьер переживает смену роли владельца документа. */
 export function documentChildBarrierSql(recipient = 'app.current_account_id()'): string {
-  return `documents.is_identity AND documents.space_kind='household' AND EXISTS(SELECT 1 FROM space_members owner WHERE owner.space_id=documents.space_id AND owner.account_id=documents.owner_account_id AND owner.role='child') AND EXISTS(SELECT 1 FROM space_members viewer WHERE viewer.space_id=documents.space_id AND viewer.account_id=${recipient} AND viewer.role='child' AND viewer.left_at IS NULL)`;
+  return `documents.is_identity AND documents.space_kind='household' AND app.document_owner_is_child(documents.owner_account_id) AND EXISTS(SELECT 1 FROM space_members viewer WHERE viewer.space_id=documents.space_id AND viewer.account_id=${recipient} AND viewer.role='child' AND viewer.left_at IS NULL)`;
 }
 export const DOCUMENT_VISIBLE_SQL = `NOT (${documentChildBarrierSql()})`;
 

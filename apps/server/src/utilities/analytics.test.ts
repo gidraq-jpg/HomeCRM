@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import type { Device } from '../testing/device.ts';
 import { createWorld, type World } from '../testing/world.ts';
 
@@ -232,4 +232,43 @@ it('UTIL-11: статус окна требует каждый прибор, у�
   expect(
     summary.objects.find((o) => o.id === id)?.accounts.find((a) => a.id === manualId)?.status,
   ).toBe('transmitted');
+});
+
+it('UTIL-11: окно первого числа начинается в местную полночь Asia/Vladivostok', async () => {
+  await world.database.admin.query("UPDATE spaces SET time_zone='Asia/Vladivostok' WHERE id=$1", [
+    world.houseId,
+  ]);
+  const id = await object();
+  const response = await adult.post(`/api/objects/${id}/accounts`, {
+    data: {
+      transmission: { method: 'phone', phone: '000000' },
+      readingRule: {
+        kind: 'repeat',
+        anchor: '2026-10-01',
+        repeat: { unit: 'month', day: 1 },
+        endTime: '00:00',
+      },
+    },
+  });
+  expect(response.status, response.text).toBe(201);
+  const acc = response.json<{ id: string }>().id;
+  const status = async () => {
+    const result = await adult.get('/api/utilities/month?month=2026-10');
+    expect(result.status, result.text).toBe(200);
+    return result
+      .json<{ objects: { id: string; accounts: { id: string; status: string }[] }[] }>()
+      .objects.find((o) => o.id === id)
+      ?.accounts.find((a) => a.id === acc)?.status;
+  };
+  vi.useFakeTimers({ toFake: ['Date'] });
+  try {
+    vi.setSystemTime(new Date('2026-09-30T13:59:59Z'));
+    expect(await status()).toBe('not_open');
+    vi.setSystemTime(new Date('2026-09-30T14:00:00Z'));
+    expect(await status()).toBe('not_transmitted');
+    vi.setSystemTime(new Date('2026-09-30T14:00:01Z'));
+    expect(await status()).toBe('not_transmitted');
+  } finally {
+    vi.useRealTimers();
+  }
 });

@@ -1,6 +1,6 @@
 import { DeadlineRule } from '@homecrm/shared';
 import { describe, expect, it } from 'vitest';
-import type { RadarItem } from './api.ts';
+import { RadarItem } from './api.ts';
 import {
   buildRows,
   filterRows,
@@ -143,6 +143,16 @@ describe('радар: пункты и группы (DEAD-3)', () => {
     expect(kinds('personal')).toEqual(['personal']);
   });
 
+  it('ответ с документом later проходит контракт и попадает в последнюю группу «Позже»', () => {
+    const parsed = RadarItem.parse(
+      item('long-warning', { sourceKind: 'document', group: 'later' }),
+    );
+    const grouped = groupRows(rows([parsed]));
+    expect(grouped.later.map((row) => row.id)).toEqual(['long-warning']);
+    expect(GROUP_ORDER.at(-1)).toBe('later');
+    expect(GROUP_LABELS.later).toBe('Позже');
+  });
+
   it('группы идут в порядке срочности, внутри группы — по времени', () => {
     expect(GROUP_ORDER.map((group) => GROUP_LABELS[group])).toEqual([
       'Просрочено',
@@ -150,6 +160,7 @@ describe('радар: пункты и группы (DEAD-3)', () => {
       '7 дней',
       '30 дней',
       '90 дней',
+      'Позже',
     ]);
     const grouped = groupRows(
       rows([

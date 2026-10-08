@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { createWorkerDatabase, sql } from '@homecrm/db';
+import { canViewSql, createWorkerDatabase, sql } from '@homecrm/db';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { enqueueDeadlineWarnings, refreshDeadlines } from '../deadlines/engine.ts';
 import { FileCipher } from '../files/crypto.ts';
@@ -391,4 +391,191 @@ it('DOC-5/DATA-1: очистка старой версии не удаляет �
     status: 'valid',
     previousId: null,
   });
+});
+
+it('DOC-3: внесённый просроченным документ остаётся в «Просрочено» после needsRefresh', async () => {
+  const old = await create({ data: { type: 'contract', expiresOn: '2020-01-01' } });
+  const worker = createWorkerDatabase(world.database.worker);
+  const now = new Date('2026-10-08T07:00Z');
+  const occurrence = async () =>
+    (
+      await world.database.admin.query(
+        'SELECT o.id,o.date::text FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id WHERE d.document_id=$1',
+        [old.id],
+      )
+    ).rows;
+  await refreshDeadlines(worker, now, true);
+  const before = await occurrence();
+  expect(before).toEqual([{ id: expect.any(String), date: '2020-01-01' }]);
+  const radar = async () => {
+    const response = await adult.get('/api/deadlines?from=2026-10-01&to=2027-01-01');
+    expect(response.status, response.text).toBe(200);
+    expect(
+      response.json<{ items: { documentId: string; group: string }[] }>().items,
+    ).toContainEqual(expect.objectContaining({ documentId: old.id, group: 'overdue' }));
+  };
+  await radar();
+  expect(
+    (
+      await adult.request('PATCH', `/api/documents/${old.id}`, {
+        json: {
+          data: { type: 'contract', expiresOn: '2020-01-01', warnings: [30] },
+        },
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await world.database.admin.query('SELECT needs_refresh FROM deadlines WHERE document_id=$1', [
+        old.id,
+      ])
+    ).rows[0]?.needs_refresh,
+  ).toBe(true);
+  await refreshDeadlines(worker, now);
+  expect(await occurrence()).toEqual(before);
+  await radar();
+});
+
+it('DOC-5: продливший чужой документ не может приватизировать новую версию или стереть прежний вклад', async () => {
+  const old = await create({ placement: { spaceId: world.houseId, audience: 'adults' } }, admin);
+  const response = await adult.post(`/api/documents/${old.id}/renew`, {
+    data: { type: 'contract' },
+  });
+  expect(response.status, response.text).toBe(201);
+  const current = response.json<{ id: string }>();
+  const row = (
+    await world.database.admin.query('SELECT has_other_contributions FROM documents WHERE id=$1', [
+      current.id,
+    ])
+  ).rows[0];
+  expect(row?.has_other_contributions).toBe(true);
+  expect(
+    (
+      await adult.post(`/api/documents/${current.id}/move`, {
+        spaceId: world.boris.personalSpaceId,
+        confirmed: true,
+      })
+    ).status,
+  ).toBe(403);
+  const next = await adult.post(`/api/documents/${current.id}/renew`, {
+    data: { type: 'contract' },
+  });
+  expect(next.status, next.text).toBe(201);
+  expect(
+    (
+      await adult.post(`/api/documents/${next.json<{ id: string }>().id}/move`, {
+        spaceId: world.boris.personalSpaceId,
+        confirmed: true,
+      })
+    ).status,
+  ).toBe(403);
+});
+
+it('DOC-7: список и цепочка версий без запросов summary на каждую строку', async () => {
+  let current = await create({ data: { type: 'contract' } });
+  const ids = [current.id];
+  for (let i = 0; i < 4; i++) {
+    const next = await adult.post(`/api/documents/${current.id}/renew`, {
+      data: { type: 'contract' },
+    });
+    expect(next.status, next.text).toBe(201);
+    current = next.json<typeof current>();
+    ids.push(current.id);
+  }
+  const counts: { select: number; execute: number }[] = [];
+  const original = world.module.appDb.withAccount.bind(world.module.appDb);
+  const spy = vi.spyOn(world.module.appDb, 'withAccount').mockImplementation((id, fn, options) =>
+    original(
+      id,
+      async (tx) => {
+        const select = vi.spyOn(tx, 'select');
+        const execute = vi.spyOn(tx, 'execute');
+        try {
+          return await fn(tx);
+        } finally {
+          counts.push({ select: select.mock.calls.length, execute: execute.mock.calls.length });
+          select.mockRestore();
+          execute.mockRestore();
+        }
+      },
+      options,
+    ),
+  );
+  try {
+    const list = await adult.get('/api/documents?status=all');
+    expect(list.status, list.text).toBe(200);
+    expect(list.json<{ id: string }[]>().map((r) => r.id)).toEqual(expect.arrayContaining(ids));
+    expect(counts.at(-1)).toEqual({ select: 1, execute: 0 });
+    const versions = await adult.get(`/api/documents/${current.id}/versions`);
+    expect(versions.status, versions.text).toBe(200);
+    expect(versions.json<{ id: string }[]>().map((r) => r.id)).toEqual(ids);
+    expect(counts.at(-1)).toEqual({ select: 1, execute: 0 });
+  } finally {
+    spy.mockRestore();
+  }
+});
+
+it('DOC-2: API закрывает удостоверение владельца-ребёнка из другого дома, включая создание и список', async () => {
+  const house = (
+    await world.database.admin.query(
+      "INSERT INTO spaces(kind,name,time_zone) VALUES('household','Вымышленный второй дом','Asia/Vladivostok') RETURNING id",
+    )
+  ).rows[0].id as string;
+  await world.database.admin.query(
+    "INSERT INTO space_members(space_id,account_id,role) VALUES($1,$2,'admin'),($1,$3,'adult')",
+    [house, world.anna.id, world.boris.id],
+  );
+  const old = await create(
+    {
+      owner: { kind: 'member', id: world.boris.id },
+      data: { type: 'birth_certificate' },
+      placement: { spaceId: world.houseId, audience: 'household' },
+    },
+    admin,
+  );
+  expect((await child.get(`/api/documents/${old.id}`)).status).toBe(200);
+  await world.database.admin.query(
+    "UPDATE space_members SET role='child' WHERE space_id=$1 AND account_id=$2",
+    [house, world.boris.id],
+  );
+  try {
+    // Владелец ребёнок во втором доме; зритель-ребёнок состоит только в первом.
+    expect(
+      (
+        await admin.post('/api/documents', {
+          title: 'Вымышленное удостоверение другого дома',
+          owner: { kind: 'member', id: world.boris.id },
+          data: { type: 'russian_passport' },
+          placement: { spaceId: world.houseId, audience: 'household' },
+        })
+      ).status,
+    ).toBe(403);
+    expect((await child.get(`/api/documents/${old.id}`)).status).toBe(404);
+    expect((await child.get(`/api/documents/${old.id}/versions`)).status).toBe(404);
+    expect((await child.get('/api/documents?status=all')).text).not.toContain(old.id);
+    expect((await admin.get(`/api/documents/${old.id}`)).status).toBe(200);
+    // Второй барьер API проверяем отдельно: в своей тестовой базе временно оставляем только canView.
+    const original = (
+      await world.database.admin.query(
+        "SELECT qual FROM pg_policies WHERE tablename='documents' AND policyname='documents_select'",
+      )
+    ).rows[0].qual as string;
+    await world.database.owner.query(
+      `ALTER POLICY documents_select ON documents USING (${canViewSql()})`,
+    );
+    try {
+      expect((await child.get(`/api/documents/${old.id}`)).status).toBe(404);
+      expect((await child.get(`/api/documents/${old.id}/versions`)).status).toBe(404);
+      expect((await child.get('/api/documents?status=all')).text).not.toContain(old.id);
+    } finally {
+      await world.database.owner.query(
+        `ALTER POLICY documents_select ON documents USING (${original})`,
+      );
+    }
+  } finally {
+    await world.database.admin.query(
+      "UPDATE space_members SET role='adult' WHERE space_id=$1 AND account_id=$2",
+      [house, world.boris.id],
+    );
+  }
 });

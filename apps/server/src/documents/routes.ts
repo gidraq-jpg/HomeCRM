@@ -56,55 +56,53 @@ const Create = z.strictObject({
   assigneeId: z.uuid().optional(),
 });
 async function read(tx: Transaction, account: Account, id: string, lock = false) {
-  const query = tx.select().from(documents).where(eq(documents.id, id));
+  const query = tx
+    .select({ document: documents, ...summaryFields })
+    .from(documents)
+    .where(eq(documents.id, id));
   const [row] = await (lock ? query.for('update') : query);
-  if (!row || !(await visibleDocument(tx, account, row))) missing();
-  return row;
+  if (!row || !visibleDocument(account, row.document, row.ownerIsChild)) missing();
+  return row.document;
 }
-async function visibleDocument(
-  tx: Transaction,
+const summaryFields = {
+  ownerIsChild: sql<boolean>`app.document_owner_is_child(${documents.ownerAccountId})`,
+  contactId: sql<
+    string | null
+  >`(SELECT c.id FROM contacts c WHERE c.id=documents.owner_contact_id)`,
+  previousId: sql<string | null>`(SELECT p.id FROM documents p WHERE p.id=documents.previous_id)`,
+};
+type SummaryFields = { ownerIsChild: boolean; contactId: string | null; previousId: string | null };
+function visibleDocument(
   account: Account,
   row: typeof documents.$inferSelect,
+  ownerIsChild: boolean,
 ) {
-  const [owner] =
-    row.ownerAccountId && row.spaceKind === 'household'
-      ? await tx
-          .select()
-          .from(spaceMembers)
-          .where(
-            and(
-              eq(spaceMembers.spaceId, row.spaceId),
-              eq(spaceMembers.accountId, row.ownerAccountId),
-            ),
-          )
-      : [];
   return canViewDocument(
     account.viewer,
     placementOf(row),
     IDENTITY_DOCUMENT_TYPES.includes(row.data.type),
-    owner?.role === 'child',
+    ownerIsChild,
   );
 }
-async function summary(tx: Transaction, row: typeof documents.$inferSelect) {
-  const [contact] = row.ownerContactId
-    ? await tx.select({ id: contacts.id }).from(contacts).where(eq(contacts.id, row.ownerContactId))
-    : [];
-  const [previous] = row.previousId
-    ? await tx.select({ id: documents.id }).from(documents).where(eq(documents.id, row.previousId))
-    : [];
+function present(row: typeof documents.$inferSelect, fields: SummaryFields) {
   return {
     ...publicRecord(row),
     data: row.data,
     status: row.status,
-    previousId: previous?.id ?? null,
+    previousId: fields.previousId,
     owner: row.ownerAccountId
       ? { kind: 'member', id: row.ownerAccountId }
       : row.ownerObjectId
         ? { kind: 'object', id: row.ownerObjectId }
-        : contact
-          ? { kind: 'contact', id: contact.id }
+        : fields.contactId
+          ? { kind: 'contact', id: fields.contactId }
           : null,
   };
+}
+async function summary(tx: Transaction, row: typeof documents.$inferSelect) {
+  const [fields] = await tx.select(summaryFields).from(documents).where(eq(documents.id, row.id));
+  if (!fields) missing();
+  return present(row, fields);
 }
 async function ownerPlace(tx: Transaction, account: Account, owner: DocumentOwner | null) {
   if (owner?.kind === 'object') return placementOf(await getObject(tx, account, owner.id));
@@ -155,17 +153,10 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
       place.kind === 'household' &&
       place.audience === 'household'
     ) {
-      const child = await tx
-        .select()
-        .from(spaceMembers)
-        .where(
-          and(
-            eq(spaceMembers.accountId, body.owner.id),
-            eq(spaceMembers.role, 'child'),
-            isNull(spaceMembers.leftAt),
-          ),
-        );
-      if (child.some((m) => m.spaceId === place.spaceId)) deny();
+      const { rows } = await tx.execute<{ child: boolean }>(
+        sql`SELECT app.document_owner_is_child(${body.owner.id}::uuid) AS child`,
+      );
+      if (rows[0]?.child) deny();
     }
     const [row] = await tx
       .insert(documents)
@@ -218,7 +209,7 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
         )
       : [];
     const rows = await tx
-      .select({ document: documents })
+      .select({ document: documents, ...summaryFields })
       .from(documents)
       .innerJoin(spaces, eq(spaces.id, documents.spaceId))
       .leftJoin(
@@ -255,11 +246,9 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
       .orderBy(documents.title, documents.id)
       .limit(query.limit)
       .offset(query.offset);
-    return Promise.all(
-      rows
-        .filter(({ document }) => canView(account.viewer, placementOf(document)))
-        .map(({ document }) => summary(tx, document)),
-    );
+    return rows
+      .filter(({ document, ownerIsChild }) => visibleDocument(account, document, ownerIsChild))
+      .map(({ document, ...fields }) => present(document, fields));
   });
   route('GET', '/api/documents/:id', 200, async (tx, account, request) =>
     summary(tx, await read(tx, account, parse(Id, request.params).id)),
@@ -344,11 +333,25 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
     return summary(tx, created);
   });
   route('GET', '/api/documents/:id/versions', 200, async (tx, account, request) => {
-    const row = await read(tx, account, parse(Id, request.params).id);
-    const result = await tx.execute<{ id: string }>(
-      sql`WITH RECURSIVE ancestors AS (SELECT id,previous_id FROM documents WHERE id=${row.id}::uuid UNION ALL SELECT d.id,d.previous_id FROM documents d JOIN ancestors a ON d.id=a.previous_id), versions AS (SELECT id FROM ancestors WHERE previous_id IS NULL OR NOT EXISTS(SELECT 1 FROM documents p WHERE p.id=ancestors.previous_id) UNION ALL SELECT d.id FROM documents d JOIN versions v ON d.previous_id=v.id) SELECT id FROM versions`,
-    );
-    return Promise.all(result.rows.map(async ({ id }) => summary(tx, await read(tx, account, id))));
+    const { id } = parse(Id, request.params);
+    const rows = await tx
+      .select({ document: documents, ...summaryFields })
+      .from(documents)
+      .where(sql`${documents.id} IN (
+        WITH RECURSIVE ancestors AS (
+          SELECT id,previous_id FROM documents WHERE id=${id}::uuid
+          UNION ALL SELECT d.id,d.previous_id FROM documents d JOIN ancestors a ON d.id=a.previous_id
+        ), versions AS (
+          SELECT id FROM ancestors WHERE previous_id IS NULL OR NOT EXISTS(SELECT 1 FROM documents p WHERE p.id=ancestors.previous_id)
+          UNION ALL SELECT d.id FROM documents d JOIN versions v ON d.previous_id=v.id
+        ) SELECT id FROM versions
+      )`)
+      .orderBy(documents.createdAt, documents.id);
+    const visible = rows
+      .filter(({ document, ownerIsChild }) => visibleDocument(account, document, ownerIsChild))
+      .map(({ document, ...fields }) => present(document, fields));
+    if (!visible.some((document) => document.id === id)) missing();
+    return visible;
   });
   for (const action of ['trash', 'restore'] as const) {
     const handler = async (

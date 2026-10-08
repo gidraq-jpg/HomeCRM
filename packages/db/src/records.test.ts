@@ -105,7 +105,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         ...(name === 'objects' ? { objects_documents: 'cascade_object_documents' } : {}),
         ...(name === 'documents'
           ? {
-              documents_00_document: 'document_guard',
+              documents_document: 'document_guard',
               documents_deadlines: 'document_deadline',
               documents_files_placement: 'cascade_file_placement',
               documents_source_metadata: 'sync_source_deadlines',

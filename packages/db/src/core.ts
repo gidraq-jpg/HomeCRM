@@ -289,6 +289,12 @@ export const householdAccess = pgTable(
       to: appRole,
       using: sql.raw('account_id = app.current_account_id()'),
     }),
+    // Только служебный факт для барьера удостоверений, без выдачи чужих членств приложению.
+    pgPolicy('household_access_document_owner', {
+      for: 'select',
+      to: ownerRole,
+      using: sql.raw("role = 'child' AND current_setting('app.document_owner_lookup',true) = 'on'"),
+    }),
     // Владелец функции не получает обход RLS: FORCE действует, прямой доступ запрещён.
     // У runtime-ролей нет DML и EXECUTE функции синхронизации.
     pgPolicy('household_access_sync', {
