@@ -12,7 +12,9 @@ import { useRefreshOrganizations } from './queries.ts';
 /** Можно ли здесь создавать организации: общие заводят взрослые (PRD 6.2). */
 export function useCanCreateOrganization(): boolean {
   const { me, householdId } = useHousehold();
-  return creatableOrganizationVisibilities(viewerOf(me), householdId).length > 0;
+  return (
+    creatableOrganizationVisibilities(viewerOf(me), householdId, me.personalSpaceId).length > 0
+  );
 }
 
 /**
@@ -29,7 +31,7 @@ export function CreateOrganization({
   const { me, householdId } = useHousehold();
   const refresh = useRefreshOrganizations();
   const state = useAction();
-  const options = creatableOrganizationVisibilities(viewerOf(me), householdId);
+  const options = creatableOrganizationVisibilities(viewerOf(me), householdId, me.personalSpaceId);
   const [visibility, setVisibility] = useState<Visibility>(
     options.includes('household') ? 'household' : (options[0] ?? 'personal'),
   );
@@ -54,7 +56,7 @@ export function CreateOrganization({
         void state.run(async () => {
           const created = await createOrganization(
             values,
-            organizationPlacement(visibility, householdId),
+            organizationPlacement(visibility, householdId, me.personalSpaceId),
           );
           await refresh();
           await onCreated(created);

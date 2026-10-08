@@ -22,11 +22,13 @@ export const AccountCard = z.object({
   updatedAt: z.string(),
   deletedAt: z.string().nullable(),
   data: UtilityAccountData,
-  /** Скрытый от читателя и отсутствующий поставщик сервер отдаёт одинаково: двумя `null`. */
+  /** Скрытый от читателя и отсутствующий поставщик: двумя `null`; различает их `supplierHidden`. */
   supplierId: z.string().nullable(),
   supplier: z
     .object({ id: z.string(), title: z.string(), deletedAt: z.string().nullable() })
     .nullable(),
+  /** Поставщик назначен, но скрыт от читателя: без раскрытия его id (PR #38). */
+  supplierHidden: z.boolean().default(false),
 });
 export type AccountCard = z.infer<typeof AccountCard>;
 
@@ -65,4 +67,10 @@ export function trashAccount(id: string) {
 
 export function restoreAccount(id: string) {
   return apiRequest('POST', `accounts/${id}/restore`, AccountCard, {});
+}
+
+/** Корзина счетов одним запросом: все независимо удалённые счета, которые видит участник. */
+export function fetchTrashedAccounts(signal?: AbortSignal) {
+  const query = new URLSearchParams({ trash: 'true', limit: String(PAGE_SIZE) });
+  return apiRequest('GET', `accounts?${query}`, z.array(AccountCard), undefined, signal);
 }

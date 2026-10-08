@@ -181,8 +181,8 @@ export function AccountForm({
           <p className="field__hint" id={id('supplier-hint')}>
             {organizations.isPending
               ? 'Загружаем организации…'
-              : card && card.supplier === null
-                ? 'Если поставщик скрыт от вас, форма его не изменит, пока вы не выберете другого.'
+              : card?.supplierHidden
+                ? 'Поставщик скрыт от вас: форма его не изменит, пока вы не выберете другого.'
                 : 'Организации ведутся в разделе «Ещё → Организации».'}
           </p>
           {organizations.isError ? <ObjectError error={organizations.error} action="load" /> : null}

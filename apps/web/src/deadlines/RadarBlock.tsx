@@ -8,6 +8,7 @@ import { DeadlineError, RecalculatingNotice } from './components.tsx';
 import { pointCount, RadarRows } from './RadarScreen.tsx';
 import { filterRows } from './radar.ts';
 import { useRadar } from './useRadar.ts';
+import { isOpenWindow } from './utility.ts';
 
 /** Сколько срочных пунктов показывает «Сегодня»; остальные — в полном радаре. */
 const LIMIT = 5;
@@ -32,7 +33,7 @@ export function RadarBlock() {
     );
   } else {
     const urgent = filterRows(radar.rows, { view: 'mine', scope, meId: me.id }).filter(
-      (row) => row.group === 'overdue' || row.group === 'now',
+      (row) => (row.group === 'overdue' || row.group === 'now') && !isOpenWindow(row),
     );
     // Просроченное идёт первым: `groupRows` не нужен, достаточно порядка по группе и времени.
     urgent.sort(

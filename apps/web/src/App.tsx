@@ -101,6 +101,7 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="more/notifications" element={<NotificationsScreen />} />
         <Route path="more/notifications/log" element={<DeliveriesScreen />} />
         <Route path="open/:recordId" element={<OpenRecordScreen />} />
+        <Route path="open/:recordId/:screen" element={<OpenRecordScreen />} />
         <Route path="search" element={<SearchScreen />} />
         <Route path="*" element={<NotFoundScreen />} />
       </Routes>

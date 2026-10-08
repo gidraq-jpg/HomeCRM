@@ -9,12 +9,33 @@ const EN_DASH = String.fromCodePoint(0x2013);
 
 export const KIND_LABELS: Record<string, string> = {
   deadline: 'Сроки записей',
+  readings_open: 'Открылось окно показаний',
+  readings_closing: 'Окно закрывается завтра',
+  readings_last_day: 'Последний день окна',
+  payment_upcoming: 'Оплата через 3 дня',
+  payment_due: 'Оплата сегодня',
+  verification: 'Подходит срок поверки',
 };
 
 export const KIND_HINTS: Record<string, string> = {
-  deadline: 'Предупреждения о подходящих сроках: окно показаний, оплата, поверка, документ.',
+  deadline: 'Предупреждения о сроках, которые вы добавили в карточках заметок и объектов.',
+  readings_open: 'Окно передачи показаний по лицевому счёту началось.',
+  readings_closing: 'Завтра последний день, чтобы передать показания.',
+  readings_last_day: 'Сегодня окно передачи показаний закрывается.',
+  payment_upcoming: 'Предупреждение за три дня до срока оплаты.',
+  payment_due: 'Сегодня срок оплаты по лицевому счёту.',
+  verification: 'Приближается срок поверки счётчика: за 60, 30 и 7 дней.',
 };
 
+/** Виды коммунальных сроков (UTIL-13): в настройках идут отдельным блоком, каждый со своим переключателем. */
+export const UTILITY_KINDS = [
+  'readings_open',
+  'readings_closing',
+  'readings_last_day',
+  'payment_upcoming',
+  'payment_due',
+  'verification',
+] as const;
 export function kindLabel(kind: string): string {
   return KIND_LABELS[kind] ?? 'Другое';
 }

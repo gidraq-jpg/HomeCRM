@@ -29,6 +29,8 @@ function item(id: string, patch: Partial<RadarItem>): RadarItem {
     audience: 'household',
     assigneeId: ME,
     group: '7days',
+    sourceKind: 'record',
+    needsMeters: false,
     ...patch,
   };
 }
@@ -163,5 +165,75 @@ describe('радар: пункты и группы (DEAD-3)', () => {
     expect(grouped['7days'].map((row) => row.id)).toEqual(['2', '1']);
     expect(grouped.overdue.map((row) => row.id)).toEqual(['3']);
     expect(grouped.now).toEqual([]);
+  });
+});
+
+describe('радар: коммунальные сроки (UTIL-13)', () => {
+  const object = { id: 'object-living', title: 'Квартира у парка', status: 'living' };
+  const utility = (id: string, patch: Partial<RadarItem>) =>
+    rows([
+      item(id, {
+        deadlineId: `managed-${id}`,
+        objectId: object.id,
+        title: object.title,
+        object,
+        ...patch,
+      }),
+    ])[0] as RadarRow;
+
+  it('объект с названием и статусом идёт первым, затем лицевой счёт; срок не правится', () => {
+    const row = utility('1', {
+      sourceKind: 'readings',
+      group: 'now',
+      date: '2026-10-06',
+      startsAt: '2026-10-05T21:00:00.000Z',
+      endsAt: '2026-10-25T20:59:59.999Z',
+      utilityAccount: { id: 'account-1', title: 'Электроэнергия', number: 'TEST-123' },
+      primaryAction: { kind: 'enter_readings', label: 'Внести показания', objectId: object.id },
+    });
+    expect(row.title).toBe('Квартира у парка');
+    expect(row.what).toBe('Окно показаний');
+    expect(row.utility).toMatchObject({
+      kind: 'readings',
+      objectId: object.id,
+      status: 'living',
+      source: 'Электроэнергия · № TEST-123',
+      endDate: '2026-10-25',
+      openLabel: 'Открыть счёт',
+      openTo: '/home/object-living/accounts',
+    });
+    expect(row.to).toBe('/home/object-living/accounts');
+  });
+
+  it('оплата и поверка: действия из primaryAction, поверка открывает счётчик', () => {
+    const payment = utility('2', {
+      sourceKind: 'payment',
+      utilityAccount: { id: 'account-1', title: 'Вода', number: null },
+      primaryAction: { kind: 'mark_payment', label: 'Отметить оплату', occurrenceId: '2' },
+    });
+    const verification = utility('3', {
+      sourceKind: 'verification',
+      meter: { id: 'meter-1', title: 'ХВС, санузел' },
+      primaryAction: { kind: 'verify_meter', label: 'Поверка проведена', meterId: 'meter-1' },
+    });
+    expect(payment.utility).toMatchObject({ source: 'Вода', accountId: 'account-1' });
+    expect(payment.utility?.action?.kind).toBe('mark_payment');
+    expect(verification.utility).toMatchObject({
+      source: 'ХВС, санузел',
+      meterId: 'meter-1',
+      openLabel: 'Открыть счётчик',
+      openTo: '/home/object-living/meters',
+    });
+    expect(verification.what).toBe('Поверка счётчика');
+  });
+
+  it('неизвестный статус не ломает пункт; прежний срок остаётся прежним', () => {
+    const row = utility('4', {
+      sourceKind: 'payment',
+      object: { ...object, status: null },
+      utilityAccount: { id: 'a', title: 'Газ', number: '' },
+    });
+    expect(row.utility?.status).toBeNull();
+    expect(rows([item('5', { deadlineId: 'deadline-a' })])[0]?.utility).toBeNull();
   });
 });

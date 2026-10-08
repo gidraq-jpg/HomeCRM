@@ -5,11 +5,12 @@ import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
-import { Row, RowList } from '../ui/Row.tsx';
+import { Row, RowContent, RowList } from '../ui/Row.tsx';
 import { DeadlineError, RecalculatingNotice } from './components.tsx';
 import {
   filterRows,
@@ -20,6 +21,7 @@ import {
   type RadarView,
   VIEW_LABELS,
 } from './radar.ts';
+import { UtilityActions } from './UtilityActions.tsx';
 import { useRadar } from './useRadar.ts';
 
 const BACK = { to: '/more', label: 'Ещё' } as const;
@@ -31,14 +33,17 @@ const VIEW_OPTIONS = (Object.keys(VIEW_LABELS) as RadarView[]).map((value) => ({
 /** Сколько пунктов по-русски: «1 пункт», «2 пункта», «5 пунктов». */
 export const pointCount = (count: number) => countWord(count, ['пункт', 'пункта', 'пунктов']);
 
-/** Пункт радара: название записи, что за срок, когда, значок пространства, переход в карточку. */
-export function RadarRows({ rows, label }: { rows: readonly RadarRow[]; label: string }) {
+/**
+ * Коммунальный срок: объект с названием и статусом первым («Живём», «Сдаётся»), затем счёт или
+ * счётчик, основное действие и «Открыть счёт» / «Открыть счётчик». Сам срок здесь не правится.
+ */
+function UtilityRadarItem({ row }: { row: RadarRow }) {
+  const { utility } = row;
+  if (utility === null) return null;
   return (
-    <RowList label={label}>
-      {rows.map((row) => (
-        <Row
-          key={row.id}
-          {...(row.to === null ? {} : { to: row.to })}
+    <li className="radar-utility">
+      <div className="row">
+        <RowContent
           icon={
             row.group === 'overdue' ? (
               <Warning size={22} aria-hidden />
@@ -47,10 +52,21 @@ export function RadarRows({ rows, label }: { rows: readonly RadarRow[]; label: s
             )
           }
           {...(row.group === 'overdue' ? { iconTone: 'warning' as const } : {})}
-          title={row.title ?? 'Запись не найдена'}
+          title={
+            <>
+              {row.title ?? 'Объект'}
+              {utility.status ? (
+                <span className="row__status">
+                  <PropertyStatusBadge status={utility.status} />
+                </span>
+              ) : null}
+            </>
+          }
           meta={
             <>
-              <span className="radar-line">{row.what}</span>
+              <span className="radar-line">
+                {row.what} · {utility.source}
+              </span>
               <span className="radar-line">
                 {row.when} · {row.relative}
               </span>
@@ -58,7 +74,44 @@ export function RadarRows({ rows, label }: { rows: readonly RadarRow[]; label: s
           }
           badge={row.visibility}
         />
-      ))}
+      </div>
+      <UtilityActions utility={utility} />
+    </li>
+  );
+}
+
+/** Пункт радара: название записи, что за срок, когда, значок пространства, переход в карточку. */
+export function RadarRows({ rows, label }: { rows: readonly RadarRow[]; label: string }) {
+  return (
+    <RowList label={label}>
+      {rows.map((row) =>
+        row.utility ? (
+          <UtilityRadarItem key={row.id} row={row} />
+        ) : (
+          <Row
+            key={row.id}
+            {...(row.to === null ? {} : { to: row.to })}
+            icon={
+              row.group === 'overdue' ? (
+                <Warning size={22} aria-hidden />
+              ) : (
+                <CalendarBlank size={22} aria-hidden />
+              )
+            }
+            {...(row.group === 'overdue' ? { iconTone: 'warning' as const } : {})}
+            title={row.title ?? 'Запись не найдена'}
+            meta={
+              <>
+                <span className="radar-line">{row.what}</span>
+                <span className="radar-line">
+                  {row.when} · {row.relative}
+                </span>
+              </>
+            }
+            badge={row.visibility}
+          />
+        ),
+      )}
     </RowList>
   );
 }
@@ -179,8 +232,8 @@ export function RadarScreen() {
         </p>
       ) : null}
       <p className="muted radar-note">
-        Даты и время — по часовому поясу дома. Закрывать пункты радара в приложении пока нельзя:
-        откройте карточку записи.
+        Даты и время — по часовому поясу дома. Оплату, поверку и передачу окна без счётчиков можно
+        отметить прямо здесь; остальные сроки закрываются в карточке записи.
       </p>
       <Link className="text-button" to="/more/house">
         Часовой пояс дома

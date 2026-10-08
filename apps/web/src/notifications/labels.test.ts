@@ -3,10 +3,12 @@ import { ApiError } from '../auth/api.ts';
 import {
   budgetText,
   clockText,
+  KIND_HINTS,
   kindLabel,
   notificationError,
   quietHoursText,
   resultInfo,
+  UTILITY_KINDS,
 } from './labels.ts';
 import { PushError } from './push.ts';
 
@@ -48,5 +50,28 @@ describe('тексты уведомлений', () => {
     expect(notificationError(new ApiError(403, 'HOUSE_REQUIRED'), 'enable')).toContain('дома');
     expect(notificationError(new ApiError(404, 'NOT_FOUND'), 'remove')).toContain('нет в списке');
     expect(notificationError(new ApiError(500, 'X'), 'load')).toContain('Не удалось загрузить');
+  });
+});
+
+describe('виды коммунальных уведомлений (UTIL-13)', () => {
+  it('у каждого вида своя подпись и подсказка', () => {
+    const kinds = [
+      'readings_open',
+      'readings_closing',
+      'readings_last_day',
+      'payment_upcoming',
+      'payment_due',
+      'verification',
+    ];
+    expect(kinds.map(kindLabel)).toEqual([
+      'Открылось окно показаний',
+      'Окно закрывается завтра',
+      'Последний день окна',
+      'Оплата через 3 дня',
+      'Оплата сегодня',
+      'Подходит срок поверки',
+    ]);
+    for (const kind of kinds) expect(KIND_HINTS[kind]).toBeTruthy();
+    expect(UTILITY_KINDS).toEqual(kinds);
   });
 });

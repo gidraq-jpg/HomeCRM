@@ -8,6 +8,7 @@ import type { Me } from './auth/api.ts';
 function me(role: 'admin' | 'adult' | 'child' | null): Me {
   return {
     id: 'fictional-account',
+    personalSpaceId: 'fictional-personal',
     displayName: 'Борис',
     username: 'boris',
     email: null,

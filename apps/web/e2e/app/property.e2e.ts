@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
+import { setScope } from '../support/helpers.ts';
 import { apiAs, expectNothingStored, objectLinks, openAs, openHome } from './notes-support.ts';
 import {
   openObjectTab,
@@ -276,7 +277,7 @@ test('недвижимость: статус рядом с названием в
   });
 });
 
-test('скрытый поставщик: «не указан или скрыт», сохранение других полей его не стирает', async ({
+test('скрытый поставщик: «Поставщик скрыт», сохранение других полей его не стирает', async ({
   family,
   browser,
 }, info) => {
@@ -299,14 +300,14 @@ test('скрытый поставщик: «не указан или скрыт»
   try {
     await openObjectTab(anna.page, object.id, '/accounts', 'Квартира у парка');
     const list = anna.page.getByRole('list', { name: 'Лицевые счета' });
-    await expect(list).toContainText('не указан или скрыт');
+    await expect(list).toContainText('Поставщик скрыт');
     await expect(list).not.toContainText('Вымышленный личный мастер');
     await expect(list.getByRole('link', { name: /мастер/ })).toHaveCount(0);
     await checkApp(anna.page, info, 'account-hidden-supplier');
 
     await list.getByRole('button', { name: 'Править' }).click();
     await expect(anna.page.getByLabel('Поставщик', { exact: true })).toHaveValue('');
-    await expect(anna.page.getByText('Если поставщик скрыт от вас')).toBeVisible();
+    await expect(anna.page.getByText('Поставщик скрыт от вас')).toBeVisible();
     await anna.page.getByLabel('Заметка', { exact: true }).fill('Заметка администратора');
     await accountForm(anna.page).getByRole('button', { name: 'Сохранить', exact: true }).click();
     await expect(toast(anna.page)).toContainText('Лицевой счёт сохранён');
@@ -365,8 +366,30 @@ test('ребёнок: не видит «Счета» объекта «Взрос
   // Организация «Вся семья» видна, связь с квартирой «Взрослые» — нет.
   await page.goto('#/more/organizations');
   await expect(page.getByRole('link', { name: /Вымышленная УК/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Добавить организацию' })).toHaveCount(0);
   await checkApp(page, info, 'organizations-child');
+  // Ребёнок может завести только личную организацию: «Только я» через id личного пространства.
+  await page.getByRole('link', { name: 'Добавить организацию' }).click();
+  const visibility = page.locator('form.org-form').getByRole('group', { name: 'Кто видит' });
+  await expect(visibility.getByRole('radio')).toHaveCount(1);
+  await expect(visibility.getByRole('radio', { name: 'Только я' })).toBeChecked();
+  await page.getByLabel('Название', { exact: true }).fill('Вымышленная секция');
+  await page
+    .locator('form.org-form')
+    .getByRole('button', { name: 'Сохранить', exact: true })
+    .click();
+  await expect(toast(page)).toContainText('Организация сохранена');
+  const placed = await family.database.admin.query(
+    "SELECT space_id, space_kind FROM contacts WHERE title = 'Вымышленная секция'",
+  );
+  expect(placed.rows).toEqual([
+    { space_id: family.person('child').personalSpaceId, space_kind: 'personal' },
+  ]);
+  // «Личное» на сервере: общая УК пропадает из списка, личная секция остаётся.
+  await page.goto('#/more/organizations');
+  await setScope(page, 'Личное');
+  await expect(page.getByRole('link', { name: /Вымышленная секция/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Вымышленная УК/ })).toHaveCount(0);
+  await setScope(page, 'Всё');
   await page.getByRole('link', { name: /Вымышленная УК/ }).click();
   await expect(page.getByRole('list', { name: 'Телефоны' })).toContainText('Диспетчер');
   await expect(page.getByText('Квартира взрослых')).toHaveCount(0);

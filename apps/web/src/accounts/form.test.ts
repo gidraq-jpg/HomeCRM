@@ -29,6 +29,7 @@ function card(data: Partial<UtilityAccountData> = {}): AccountCard {
     data: UtilityAccountData.parse(data),
     supplierId: null,
     supplier: null,
+    supplierHidden: false,
   };
 }
 

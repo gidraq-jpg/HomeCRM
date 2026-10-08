@@ -24,25 +24,27 @@ export function organizationAbilities(
 }
 
 /**
- * Где можно создать организацию. «Только я» не предлагается: идентификатора личного пространства
- * клиент не знает, а без `placement` сервер создаёт организацию общей. Без дома остаётся личное:
- * тогда сервер сам берёт личное пространство.
+ * Где можно создать организацию: общие места по правилам доступа и «Только я» — через id личного
+ * пространства из `/me`. Без дома остаётся личное: сервер сам берёт личное пространство.
  */
 export function creatableOrganizationVisibilities(
   viewer: Viewer,
   householdId: string | null,
+  personalSpaceId: string | null,
 ): Visibility[] {
   if (householdId === null) return ['personal'];
   return creatableVisibilities(viewer, householdId, CONTACT_TYPE).filter(
-    (visibility) => visibility !== 'personal',
+    (visibility) => visibility !== 'personal' || personalSpaceId !== null,
   );
 }
 
-/** Аргумент `placement` для создания организации; без дома его нет. */
+/** Аргумент `placement` для создания организации; без дома и личного пространства его нет. */
 export function organizationPlacement(
   visibility: Visibility,
   householdId: string | null,
+  personalSpaceId: string | null,
 ): Placement | undefined {
-  if (visibility === 'personal' || householdId === null) return undefined;
+  if (visibility === 'personal') return personalSpaceId ? { spaceId: personalSpaceId } : undefined;
+  if (householdId === null) return undefined;
   return { spaceId: householdId, audience: visibility };
 }

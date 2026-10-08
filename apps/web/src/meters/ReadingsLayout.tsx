@@ -2,10 +2,12 @@ import { ArrowsLeftRight } from '@phosphor-icons/react';
 import { createContext, useContext, useMemo, useState } from 'react';
 import { Outlet, useParams } from 'react-router';
 import { Notice } from '../auth/components.tsx';
+import { useRadar } from '../deadlines/useRadar.ts';
+import { openWindowObjectIds } from '../deadlines/utility.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { viewerOf } from '../notes/abilities.ts';
 import { objectAbilities } from '../objects/abilities.ts';
-import type { ObjectCard } from '../objects/api.ts';
+import type { ObjectCard, ObjectSummary } from '../objects/api.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectCard, useObjectsList } from '../objects/queries.ts';
@@ -60,7 +62,7 @@ export function useReadings(): ReadingsContext {
   return value;
 }
 
-/** Выбор другой недвижимости: окон показаний в радаре пока нет, поэтому показываем всю недвижимость. */
+/** Выбор другой недвижимости: сначала объекты с открытым окном показаний, затем остальные. */
 function SwitchObject({ currentId }: { currentId: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -74,11 +76,39 @@ function SwitchObject({ currentId }: { currentId: string }) {
   );
 }
 
+function SwitchRows({ label, objects }: { label: string; objects: readonly ObjectSummary[] }) {
+  return (
+    <RowList label={label}>
+      {objects.map((object) => (
+        <Row
+          key={object.id}
+          to={`/home/${object.id}/readings`}
+          title={
+            <>
+              {object.title}
+              {object.typeData.status ? (
+                <span className="row__status">
+                  <PropertyStatusBadge status={object.typeData.status} />
+                </span>
+              ) : null}
+            </>
+          }
+          {...(object.typeData.address ? { meta: object.typeData.address } : {})}
+        />
+      ))}
+    </RowList>
+  );
+}
+
 function SwitchSheet({ currentId, onClose }: { currentId: string; onClose: () => void }) {
   const query = useObjectsList(false);
+  const radar = useRadar({ poll: false });
   const others = (query.data?.pages.flat() ?? []).filter(
     (object) => object.objectType === 'property' && object.id !== currentId,
   );
+  const open = openWindowObjectIds(radar.rows);
+  const withWindow = others.filter((object) => open.has(object.id));
+  const rest = others.filter((object) => !open.has(object.id));
   return (
     <Sheet
       open
@@ -86,38 +116,28 @@ function SwitchSheet({ currentId, onClose }: { currentId: string; onClose: () =>
         if (!next) onClose();
       }}
       title="Другой объект"
-      description="Выберите недвижимость, по которой вводите показания. Название объекта всегда стоит в заголовке экрана."
+      description="Выберите недвижимость, по которой вводите показания. Сначала идут объекты с открытым окном показаний. Название объекта всегда стоит в заголовке экрана."
     >
       {query.isPending ? <Notice>Загружаем объекты…</Notice> : null}
       {query.isError ? <ObjectError error={query.error} action="load" /> : null}
       {query.data && others.length === 0 ? (
         <p className="muted sheet__block">Других объектов недвижимости пока нет.</p>
       ) : null}
-      {others.length > 0 ? (
-        <RowList label="Недвижимость">
-          {others.map((object) => (
-            <Row
-              key={object.id}
-              to={`/home/${object.id}/readings`}
-              title={
-                <>
-                  {object.title}
-                  {object.typeData.status ? (
-                    <span className="row__status">
-                      <PropertyStatusBadge status={object.typeData.status} />
-                    </span>
-                  ) : null}
-                </>
-              }
-              {...(object.typeData.address ? { meta: object.typeData.address } : {})}
-            />
-          ))}
-        </RowList>
+      {withWindow.length > 0 ? (
+        <>
+          <p className="sheet__label">Открыто окно показаний</p>
+          <SwitchRows label="Недвижимость с открытым окном" objects={withWindow} />
+        </>
+      ) : null}
+      {rest.length > 0 ? (
+        <>
+          {withWindow.length > 0 ? <p className="sheet__label">Остальная недвижимость</p> : null}
+          <SwitchRows label="Недвижимость" objects={rest} />
+        </>
       ) : null}
     </Sheet>
   );
 }
-
 function ReadingsView({ card }: { card: ObjectCard }) {
   const { me, householdId } = useHousehold();
   const abilities = objectAbilities(viewerOf(me), card, householdId);

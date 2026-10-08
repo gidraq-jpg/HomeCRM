@@ -1,5 +1,6 @@
 import { CalendarBlank, FileText } from '@phosphor-icons/react';
 import { RadarBlock } from '../deadlines/RadarBlock.tsx';
+import { ReadingsWindowCards } from '../deadlines/ReadingsWindowCards.tsx';
 import { PushCard } from '../notifications/PushCard.tsx';
 import { SectionPlaceholder } from './SectionPlaceholder.tsx';
 
@@ -12,6 +13,7 @@ export function TodayScreen() {
       icon={<CalendarBlank size={24} aria-hidden />}
       top={
         <>
+          <ReadingsWindowCards />
           <RadarBlock />
           <PushCard />
         </>

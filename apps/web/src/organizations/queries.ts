@@ -4,6 +4,8 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
+import { useScope } from '../access/ScopeContext.tsx';
+import { listScopeOf } from '../notes/queries.ts';
 import {
   type ContactCard,
   fetchOrganization,
@@ -15,16 +17,23 @@ import {
 // Ключи запросов не содержат названий, телефонов и адресов: только идентификаторы и режим списка.
 const ORGANIZATIONS = 'organizations';
 
-/** Список организаций (постранично) с фильтром по типу; режим «Всё · Общее · Личное» применяет экран. */
+/** Список организаций (постранично) с фильтром по типу и режимом «Всё · Общее · Личное» (scope на сервере). */
 export function useOrganizationsList(trash: boolean, organizationType: OrganizationType | null) {
+  const { scope } = useScope();
+  const listScope = listScopeOf(scope);
   return useInfiniteQuery({
-    queryKey: [ORGANIZATIONS, 'list', trash, organizationType],
+    queryKey: [ORGANIZATIONS, 'list', trash, organizationType, listScope],
     initialPageParam: 0,
     // Смена фильтра не заменяет экран на «Загружаем…»: прежний список виден, фокус на месте.
     placeholderData: keepPreviousData,
     queryFn: ({ pageParam, signal }) =>
       fetchOrganizations(
-        { trash, offset: pageParam, ...(organizationType ? { organizationType } : {}) },
+        {
+          trash,
+          offset: pageParam,
+          scope: listScope,
+          ...(organizationType ? { organizationType } : {}),
+        },
         signal,
       ),
     getNextPageParam: (last: ContactCard[], pages) =>
