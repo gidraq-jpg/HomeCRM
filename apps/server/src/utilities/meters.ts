@@ -12,6 +12,7 @@ import {
   utilityAccounts,
 } from '@homecrm/db';
 import {
+  CalendarDate,
   canRestore,
   canTrash,
   canView,
@@ -252,6 +253,31 @@ async function createMeter(
 }
 
 export async function meterRoutes(route: DataRoute) {
+  route('POST', '/api/meters/:id/verify', 200, async (tx, account, request) => {
+    const body = parse(
+      z.strictObject({
+        verifiedOn: CalendarDate,
+        nextVerificationOn: CalendarDate.nullable().optional(),
+      }),
+      request.body,
+    );
+    const row = await getMeter(tx, account, parse(Id, request.params).id, true);
+    requireWrite(account, row, 'meter');
+    if (row.data.status !== 'active') throw new Failure(409, 'METER_INACTIVE');
+    const [updated] = await tx
+      .update(meters)
+      .set({
+        data: resolveMeterData({
+          ...row.data,
+          verifiedOn: body.verifiedOn,
+          nextVerificationOn: body.nextVerificationOn,
+        }),
+      })
+      .where(eq(meters.id, row.id))
+      .returning();
+    if (!updated) deny();
+    return meterSummary(updated);
+  });
   route('POST', '/api/objects/:id/meters', 201, async (tx, account, request) =>
     createMeter(tx, account, parse(Id, request.params).id, parse(CreateMeter, request.body)),
   );

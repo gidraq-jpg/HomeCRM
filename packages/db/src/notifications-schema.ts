@@ -103,7 +103,7 @@ export const notificationSettings = pgTable(
     ),
     check(
       'notification_settings_kinds',
-      sql`enabled_kinds <@ '["deadline"]'::jsonb AND jsonb_typeof(enabled_kinds) = 'array'`,
+      sql`enabled_kinds <@ '["deadline","readings_open","readings_closing","readings_last_day","payment_upcoming","payment_due","verification"]'::jsonb AND jsonb_typeof(enabled_kinds) = 'array'`,
     ),
   ],
 );

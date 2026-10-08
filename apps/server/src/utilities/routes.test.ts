@@ -124,7 +124,7 @@ it('S1: первая квартира только с названием, три
       object.id,
     ])
   ).rows;
-  expect(rows[0].n).toBe(0);
+  expect(rows[0].n).toBe(6);
   expect((await property()).typeData).toEqual({});
   expect((await property(adult, { placement: { spaceId: world.houseId } })).audience).toBe(
     'adults',

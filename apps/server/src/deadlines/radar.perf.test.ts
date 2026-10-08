@@ -72,3 +72,50 @@ it('радар на 500 заметках и 500 объектах: названи
   expect(ids.every((id) => !hidden.includes(id))).toBe(true);
   expect(hidden).not.toContain('Вымышленный радар');
 }, 120_000);
+it('UTIL-13: радар 500 коммунальных объектов и 1000 сроков одним ответом, p95 до 300 мс', async () => {
+  await world.database.admin.query('DELETE FROM deadlines');
+  const parentIds = (
+    await world.database.admin.query(
+      `INSERT INTO objects(space_id,space_kind,author_id,title,object_type,type_data)
+    SELECT $1,'personal',$2,'Вымышленная коммуналка '||i,'property','{"status":"rented"}' FROM generate_series(1,500) i RETURNING id`,
+      [world.boris.personalSpaceId, world.boris.id],
+    )
+  ).rows.map((r) => r.id);
+  const reading = {
+    kind: 'repeat',
+    anchor: '2026-01-01',
+    repeat: { unit: 'month', day: 10, endDay: 12 },
+  };
+  const payment = { kind: 'repeat', anchor: '2026-01-01', repeat: { unit: 'month', day: 10 } };
+  await world.database.admin.query(
+    `INSERT INTO utility_accounts(space_id,space_kind,author_id,title,parent_id,data)
+    SELECT space_id,space_kind,author_id,'Вымышленный счёт',id,$2::jsonb FROM objects WHERE id=ANY($1::uuid[])`,
+    [parentIds, JSON.stringify({ readingRule: reading, paymentRule: payment })],
+  );
+  await world.database.admin.query(
+    `INSERT INTO meters(space_id,space_kind,author_id,title,parent_id,utility_account_id)
+    SELECT space_id,space_kind,author_id,'Вымышленный прибор',parent_id,id FROM utility_accounts WHERE parent_id=ANY($1::uuid[])`,
+    [parentIds],
+  );
+  await world.database.worker.query(`INSERT INTO deadline_occurrences(deadline_id,date,starts_at,ends_at,time_zone,warnings_at,space_id,space_kind,author_id,assignee_id)
+    SELECT id,'2026-10-10','2026-10-09T19:00:00Z','2026-10-12T18:59:59Z','Asia/Yekaterinburg','[]',space_id,space_kind,author_id,assignee_id FROM deadlines WHERE source_kind<>'record'`);
+  await world.database.worker.query('UPDATE deadlines SET needs_refresh=false');
+  const url = '/api/deadlines?from=2000-01-01&to=2099-12-31';
+  for (let i = 0; i < 3; i++) await adult.get(url);
+  const timings: number[] = [];
+  for (let i = 0; i < 20; i++) {
+    const start = performance.now();
+    const response = await adult.get(url);
+    timings.push(performance.now() - start);
+    expect(response.status, response.text).toBe(200);
+    const items = response.json<{
+      items: { sourceKind: string; object: { status: string }; utilityAccount: { id: string } }[];
+    }>().items;
+    expect(items).toHaveLength(1000);
+    expect(items.every((r) => r.object.status === 'rented' && r.utilityAccount.id)).toBe(true);
+  }
+  const p95 = percentile(timings, 0.95);
+  console.info(`Utility radar 1000 deadlines: p95=${p95.toFixed(1)} ms`);
+  expect(p95).toBeLessThan(300);
+  expect((await admin.get(url)).json<{ items: unknown[] }>().items).toEqual([]);
+}, 120_000);

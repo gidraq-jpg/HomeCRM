@@ -26,6 +26,11 @@ export const MeterData = z.strictObject({
   verifiedOn: CalendarDate.nullable().default(null),
   verificationYears: z.number().int().min(1).max(50).optional(),
   nextVerificationOn: CalendarDate.nullable().optional(),
+  verificationWarnings: z.array(z.number().int().min(0).max(365)).max(20).optional(),
+  verificationWarningTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
   status: z.enum(['active', 'replaced', 'removed']).default('active'),
 });
 export type MeterData = z.infer<typeof MeterData>;

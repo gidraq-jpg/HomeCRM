@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from '@homecrm/db';
-import { NotificationSettings } from '@homecrm/shared';
+import { localDate, NotificationSettings } from '@homecrm/shared';
 import { budgetDate, DEFAULT_SETTINGS, quietUntil, retryAt } from './policy.ts';
 import { type PushSender, pushErrorCode } from './transport.ts';
 
@@ -18,8 +18,11 @@ async function currentSource(client: PoolClient, notificationId: string) {
     time_zone: string;
     record_id: string;
     source_type: 'note' | 'object';
+    source_kind: 'record' | 'readings' | 'payment' | 'verification';
+    starts_at: Date;
+    ends_at: Date;
   }>(
-    `SELECT n.recipient_id,n.warning_at,s.time_zone,coalesce(d.note_id,d.object_id) AS record_id,
+    `SELECT n.recipient_id,n.warning_at,s.time_zone,coalesce(d.note_id,d.object_id) AS record_id,d.source_kind,o.starts_at,o.ends_at,
       CASE WHEN d.note_id IS NOT NULL THEN 'note' ELSE 'object' END AS source_type
     FROM deadline_notifications n JOIN deadline_occurrences o ON o.id=n.occurrence_id
     JOIN deadlines d ON d.id=o.deadline_id JOIN spaces s ON s.id=d.household_id
@@ -27,6 +30,7 @@ async function currentSource(client: PoolClient, notificationId: string) {
     WHERE n.id=$1 AND n.status='pending' AND d.deleted_at IS NULL AND NOT d.needs_refresh
       AND o.deleted_at IS NULL AND o.completed_at IS NULL AND o.time_zone=s.time_zone
       AND o.warnings_at ? to_char(n.warning_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+      AND (d.source_kind<>'readings' OR app.utility_window_open(d.utility_account_id,o.starts_at,o.ends_at,o.time_zone))
     `,
     [notificationId],
   );
@@ -54,7 +58,26 @@ async function currentSource(client: PoolClient, notificationId: string) {
     );
     if (!visible.rowCount) return null;
   }
-  return row;
+  const date = localDate(row.warning_at, row.time_zone);
+  const notificationKind: (typeof NotificationSettings._output.enabledKinds)[number] =
+    row.source_kind === 'readings'
+      ? date === localDate(row.starts_at, row.time_zone)
+        ? 'readings_open'
+        : date === localDate(row.ends_at, row.time_zone)
+          ? 'readings_last_day'
+          : 'readings_closing'
+      : row.source_kind === 'payment'
+        ? date === localDate(row.starts_at, row.time_zone)
+          ? 'payment_due'
+          : 'payment_upcoming'
+        : row.source_kind === 'verification'
+          ? 'verification'
+          : 'deadline';
+  const untilStart =
+    (Date.parse(localDate(row.starts_at, row.time_zone)) - Date.parse(date)) / 86_400_000;
+  const untilEnd =
+    (Date.parse(localDate(row.ends_at, row.time_zone)) - Date.parse(date)) / 86_400_000;
+  return { ...row, notificationKind, untilStart, untilEnd };
 }
 
 async function transaction<T>(client: PoolClient, fn: () => Promise<T>): Promise<T> {
@@ -112,7 +135,10 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
           )
         ).rows[0];
         const settings = NotificationSettings.parse(raw ?? DEFAULT_SETTINGS);
-        if (!settings.enabledKinds.includes('deadline')) {
+        if (
+          !settings.enabledKinds.includes('deadline') &&
+          !settings.enabledKinds.includes(source.notificationKind)
+        ) {
           await client.query(
             "UPDATE deadline_notifications SET status='cancelled',cancellation_reason='settings' WHERE id=$1",
             [delivery.notification_id],
@@ -174,11 +200,26 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
             device,
             {
               kind: 'deadline',
+              ...(source.source_kind === 'record'
+                ? {}
+                : { notificationKind: source.notificationKind }),
               recordId: source.record_id,
               text:
                 (settings?.hide_text ?? true)
                   ? 'В HomeCRM есть новое'
-                  : 'Подходит срок записи в HomeCRM',
+                  : {
+                      deadline: 'Подходит срок записи в HomeCRM',
+                      readings_open: 'Открылось окно показаний',
+                      readings_closing:
+                        source.untilEnd === 1
+                          ? 'Окно закрывается завтра'
+                          : 'Подходит конец окна показаний',
+                      readings_last_day: 'Последний день передачи показаний',
+                      payment_upcoming:
+                        source.untilStart === 3 ? 'Оплата через 3 дня' : 'Подходит срок оплаты',
+                      payment_due: 'Оплата сегодня',
+                      verification: 'Подходит срок поверки',
+                    }[source.notificationKind],
             },
             delivery.id,
           );

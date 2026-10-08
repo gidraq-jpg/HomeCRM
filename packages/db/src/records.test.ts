@@ -84,6 +84,9 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ? { [`${name}_deadlines`]: 'sync_source_deadlines' }
           : {}),
         ...(name === 'notes' ? { notes_placement: 'cascade_note_placement' } : {}),
+        ...(['utility_accounts', 'meters'].includes(name)
+          ? { [`${name}_deadlines`]: 'utility_source_deadlines' }
+          : {}),
         ...(name === 'note_items' ? { note_items_00_parent_lock: 'lock_note_parent' } : {}),
         [`${name}_links_purge`]: 'purge_record_links',
         ...(['notes', 'objects'].includes(name)
@@ -137,7 +140,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           `${name}.${name}_purge:DELETE`,
           `${name}.${name}_reassign_select:SELECT`,
           `${name}.${name}_reassign:UPDATE`,
-          ...(['notes', 'objects'].includes(name)
+          ...(['notes', 'objects', 'meters', 'meter_readings'].includes(name)
             ? [`${name}.${name}_deadline_worker_select:SELECT`]
             : []),
           ...(name === 'object_events'

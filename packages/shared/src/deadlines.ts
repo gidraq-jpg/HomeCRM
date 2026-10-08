@@ -21,6 +21,8 @@ const common = {
   endTime: Clock.optional(),
   durationDays: duration,
   warnings,
+  warningTime: Clock.optional(),
+  endWarnings: z.array(z.number().int().min(0).max(365)).max(20).optional(),
 };
 const repeat = z.discriminatedUnion('unit', [
   z.strictObject({
@@ -170,9 +172,23 @@ export function deadlineOccurrences(
         date: CalendarDate.parse(format(date, 'yyyy-MM-dd')),
         startsAt: new Date(+date),
         endsAt: new Date(+end),
-        warningsAt: [...new Set(rule.warnings)]
-          .sort((a, b) => b - a)
-          .map((n) => new Date(+addDays(date, -n))),
+        warningsAt: [
+          ...new Set([
+            ...rule.warnings.map(
+              (n) =>
+                +addDays(
+                  rule.warningTime ? at(format(date, 'yyyy-MM-dd'), rule.warningTime, zone) : date,
+                  -n,
+                ),
+            ),
+            ...(rule.endWarnings ?? []).map(
+              (n) =>
+                +addDays(at(format(end, 'yyyy-MM-dd'), rule.warningTime ?? rule.time, zone), -n),
+            ),
+          ]),
+        ]
+          .sort((a, b) => a - b)
+          .map((n) => new Date(n)),
       },
     ];
   });

@@ -159,3 +159,44 @@ it('endDay не допускает одновременно длительнос
   expect(DeadlineRule.safeParse({ ...rule, durationDays: 1 }).success).toBe(false);
   expect(DeadlineRule.safeParse(rule).success).toBe(true);
 });
+it('UTIL-13: февраль, граница месяца, открытие/закрытие и предупреждения в 09:00 дома', () => {
+  const [feb] = calc(
+    {
+      kind: 'repeat',
+      anchor: '2026-01-01',
+      repeat: { unit: 'month', day: 29, endDay: 31 },
+      warnings: [0],
+      endWarnings: [1, 0],
+      warningTime: '09:00',
+    },
+    '2026-02-01T00:00:00Z',
+    28,
+  );
+  expect(feb?.startsAt.toISOString()).toBe('2026-02-27T19:00:00.000Z');
+  expect(feb?.endsAt.toISOString()).toBe('2026-02-28T18:59:59.999Z');
+  expect(feb?.warningsAt.map((d) => d.toISOString())).toEqual([
+    '2026-02-27T04:00:00.000Z',
+    '2026-02-28T04:00:00.000Z',
+  ]);
+  expect(feb && radarGroup(feb, new Date('2026-02-27T18:59:59Z'), zone)).toBe('7days');
+  expect(feb && radarGroup(feb, new Date('2026-02-27T19:00:00Z'), zone)).toBe('now');
+  expect(feb && radarGroup(feb, new Date('2026-02-28T19:00:00Z'), zone)).toBe('overdue');
+  const cross = calc(
+    {
+      kind: 'repeat',
+      anchor: '2026-01-01',
+      repeat: { unit: 'month', day: 28, endDay: 5 },
+      warnings: [0],
+      endWarnings: [1, 0],
+      warningTime: '09:00',
+    },
+    '2026-11-01T00:00:00Z',
+    40,
+  ).find((x) => x.date === '2026-11-28');
+  expect(cross?.endsAt.toISOString()).toBe('2026-12-05T18:59:59.999Z');
+  expect(cross?.warningsAt.map((d) => d.toISOString())).toEqual([
+    '2026-11-28T04:00:00.000Z',
+    '2026-12-04T04:00:00.000Z',
+    '2026-12-05T04:00:00.000Z',
+  ]);
+});
