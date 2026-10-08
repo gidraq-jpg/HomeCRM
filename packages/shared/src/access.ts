@@ -179,6 +179,7 @@ export function canChangeAudience(viewer: Viewer, record: RecordFacts, target: P
 /** Может ли участник убрать запись в корзину. В общем — только взрослые. */
 export function canTrash(viewer: Viewer, record: RecordFacts): boolean {
   const { placement } = record;
+  if (record.type === 'utility_payment' || record.type === 'utility_charge') return false;
   if (!canView(viewer, placement)) return false;
   if (placement.kind === 'personal') return true;
   const role = roleIn(viewer, placement.spaceId);
@@ -188,6 +189,7 @@ export function canTrash(viewer: Viewer, record: RecordFacts): boolean {
 /** Может ли участник восстановить запись из корзины. В общем — администратор или взрослый-автор. */
 export function canRestore(viewer: Viewer, record: RecordFacts): boolean {
   const { placement } = record;
+  if (record.type === 'utility_payment' || record.type === 'utility_charge') return false;
   if (!canView(viewer, placement)) return false;
   if (placement.kind === 'personal') return true;
   const role = roleIn(viewer, placement.spaceId);

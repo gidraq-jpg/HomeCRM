@@ -100,6 +100,14 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ? { [`${name}_00_parent_lock`]: 'lock_object_parent' }
           : {}),
         ...(name === 'object_events' ? { object_events_01_snapshot: 'event_snapshot' } : {}),
+        ...(['utility_charges', 'utility_payments'].includes(name)
+          ? { [`${name}_00_financial`]: 'financial_guard' }
+          : {}),
+        ...(['utility_accounts', 'utility_charges'].includes(name)
+          ? { [`${name}_financial_placement`]: 'cascade_financial_placement' }
+          : {}),
+        ...(name === 'utility_charges' ? { utility_charges_deadlines: 'charge_deadline' } : {}),
+        ...(name === 'utility_payments' ? { utility_payments_settle: 'settle_charge' } : {}),
         ...(name === 'utility_accounts'
           ? { utility_accounts_01_supplier: 'utility_supplier_guard' }
           : {}),
@@ -140,8 +148,11 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           `${name}.${name}_purge:DELETE`,
           `${name}.${name}_reassign_select:SELECT`,
           `${name}.${name}_reassign:UPDATE`,
-          ...(['notes', 'objects', 'meters', 'meter_readings'].includes(name)
+          ...(['notes', 'objects', 'meters', 'meter_readings', 'utility_charges'].includes(name)
             ? [`${name}.${name}_deadline_worker_select:SELECT`]
+            : []),
+          ...(name === 'utility_accounts'
+            ? ['utility_accounts.utility_accounts_charges_worker:SELECT']
             : []),
           ...(name === 'object_events'
             ? [
@@ -207,6 +218,7 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'template_applications', // charges-matrix.test.ts: собственные неизменяемые квитанции.
       'export_events', // export-matrix.test.ts: область экспорта, чтение и неизменяемость журнала.
       'push_subscriptions',
       'notification_settings',

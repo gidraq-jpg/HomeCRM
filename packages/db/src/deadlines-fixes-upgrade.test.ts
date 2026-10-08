@@ -70,10 +70,14 @@ it('обновление с R0.7 сохраняет источники, прав
       source_kind: 'record',
       utility_account_id: null,
       meter_id: null,
+      charge_id: null,
+      label: null,
     });
     delete row.value.source_kind;
     delete row.value.utility_account_id;
     delete row.value.meter_id;
+    delete row.value.charge_id;
+    delete row.value.label;
   }
   expect(after).toEqual(before);
   await runMigrations(db.owner);

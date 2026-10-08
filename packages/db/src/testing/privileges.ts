@@ -28,6 +28,7 @@ const FROZEN = ['id', 'author_id', 'created_at', 'updated_at'];
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
+    template_applications: { SELECT: 'all', INSERT: 'all' },
     export_events: {
       SELECT: 'all',
       INSERT: ['account_id', 'kind', 'household_id', 'counts', 'size_bytes'],
@@ -56,6 +57,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
       INSERT: 'all',
       UPDATE: [
         'rule',
+        'label',
         'deleted_at',
         'space_id',
         'space_kind',
@@ -94,6 +96,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         'source_kind',
         'utility_account_id',
         'meter_id',
+        'charge_id',
         'household_id',
         'rule',
         'space_id',
@@ -197,6 +200,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         ...(name === 'object_events' ? ['contact_table', 'contact_id'] : []),
         ...(name === 'meters' ? ['utility_account_id', 'is_active'] : []),
         ...(name === 'meter_readings' ? ['occurred_on', 'transmitted_at'] : []),
+        ...(name === 'utility_charges' ? ['period', 'due_on', 'is_paid', 'cancelled_at'] : []),
       ],
       UPDATE: ['assignee_id', ...(name === 'object_events' ? ['contact_table', 'contact_id'] : [])],
       DELETE: 'all',

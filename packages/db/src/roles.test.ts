@@ -75,7 +75,7 @@ describe('роли базы', () => {
       expect(roles, policyname).toHaveLength(1);
       if (roles[0] === DB_ROLES.worker) {
         expect(policyname).toMatch(
-          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$|^spaces_timezone_(worker|initialize)$|^deadlines_(engine|refresh)$|^deadline_(occurrences|notifications)_worker_(select|insert|update|delete)$|^(notes|objects|meters|meter_readings)_deadline_worker_select$|^(push_(subscriptions|attempts|deliveries)|notification_settings)_worker_(select|insert|update|delete)$/,
+          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$|^spaces_timezone_(worker|initialize)$|^deadlines_(engine|refresh)$|^deadline_(occurrences|notifications)_worker_(select|insert|update|delete)$|^(notes|objects|meters|meter_readings|utility_charges)_deadline_worker_select$|^utility_accounts_charges_worker$|^(push_(subscriptions|attempts|deliveries)|notification_settings)_worker_(select|insert|update|delete)$/,
         );
       } else if (roles[0] === DB_ROLES.owner) {
         expect([

@@ -36,6 +36,7 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
     WHERE n.id=$1 AND n.status='pending' AND d.deleted_at IS NULL AND NOT d.needs_refresh
       AND o.deleted_at IS NULL AND (o.completed_at IS NULL OR d.source_kind='readings') AND o.time_zone=s.time_zone
       AND o.warnings_at ? to_char(n.warning_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+      AND (d.source_kind<>'payment' OR app.utility_payment_open(d.utility_account_id,d.charge_id,o.date))
       AND (d.source_kind<>'readings' OR app.utility_window_open(d.utility_account_id,o.starts_at,o.ends_at,o.time_zone))
     `,
     [notificationId],

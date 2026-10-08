@@ -23,13 +23,15 @@ type Data = Record<string, unknown>;
 export const EXPORT_PAGE_SIZE = 100;
 /** Разделяет временные выгрузки параллельных процессов, включая независимые тестовые прогоны. */
 export const EXPORT_TEMP_PREFIX = `homecrm-export-${process.pid}-`;
-const OMIT = sql`ARRAY['search_text','is_active','has_other_contributions','assignee_house_id','assignee_adult_id','assignee_adult_flag','storage_key','envelope','preview_storage_key','preview_envelope','needs_refresh']::text[]`;
+const OMIT = sql`ARRAY['search_text','is_active','is_paid','has_other_contributions','assignee_house_id','assignee_adult_id','assignee_adult_flag','storage_key','envelope','preview_storage_key','preview_envelope','needs_refresh']::text[]`;
 const TABLES = [
   'notes',
   'note_items',
   'objects',
   'contacts',
   'utility_accounts',
+  'utility_charges',
+  'utility_payments',
   'meters',
   'meter_readings',
   'object_fields',
@@ -45,6 +47,8 @@ const HISTORY_TABLES = [
   'objects',
   'contacts',
   'utility_accounts',
+  'utility_charges',
+  'utility_payments',
   'meters',
   'meter_readings',
   'object_fields',

@@ -27,7 +27,7 @@ import {
   spaces,
   workerRole,
 } from './core.ts';
-import { meters, utilityAccounts } from './schema.ts';
+import { meters, utilityAccounts, utilityCharges } from './schema.ts';
 
 // Явная проверка пространства плюс чтение источника под его RLS. Подзапросы могут
 // строиться один раз для списка; построчная PL/pgSQL-проверка здесь не нужна.
@@ -62,6 +62,10 @@ export const deadlines = pgTable(
     utilityAccountId: uuid('utility_account_id').references(() => utilityAccounts.id, {
       onDelete: 'cascade',
     }),
+    label: text('label'),
+    chargeId: uuid('charge_id')
+      .references(() => utilityCharges.id, { onDelete: 'cascade' })
+      .unique(),
     meterId: uuid('meter_id').references(() => meters.id, { onDelete: 'cascade' }),
     householdId: uuid('household_id')
       .notNull()
@@ -76,9 +80,11 @@ export const deadlines = pgTable(
     check('deadlines_one_source', sql`(note_id IS NULL) <> (object_id IS NULL)`),
     check(
       'deadlines_utility_source',
-      sql`(source_kind='record' AND utility_account_id IS NULL AND meter_id IS NULL) OR (object_id IS NOT NULL AND note_id IS NULL AND ((source_kind IN ('readings','payment') AND utility_account_id IS NOT NULL AND meter_id IS NULL) OR (source_kind='verification' AND meter_id IS NOT NULL AND utility_account_id IS NULL)))`,
+      sql`(source_kind='record' AND utility_account_id IS NULL AND meter_id IS NULL AND charge_id IS NULL) OR (object_id IS NOT NULL AND note_id IS NULL AND ((source_kind IN ('readings','payment') AND utility_account_id IS NOT NULL AND meter_id IS NULL AND (charge_id IS NULL OR source_kind='payment')) OR (source_kind='verification' AND meter_id IS NOT NULL AND utility_account_id IS NULL AND charge_id IS NULL)))`,
     ),
-    unique('deadlines_account_kind_key').on(t.utilityAccountId, t.sourceKind),
+    uniqueIndex('deadlines_account_kind_key')
+      .on(t.utilityAccountId, t.sourceKind)
+      .where(sql`charge_id IS NULL`),
     unique('deadlines_meter_kind_key').on(t.meterId, t.sourceKind),
     index('deadlines_note_idx').on(t.noteId),
     index('deadlines_object_idx').on(t.objectId),
@@ -98,13 +104,13 @@ export const deadlines = pgTable(
     pgPolicy('deadlines_utility_insert', {
       for: 'insert',
       to: appRole,
-      withCheck: sql`pg_trigger_depth()>0 AND source_kind<>'record' AND coalesce(utility_account_id,meter_id)=nullif(current_setting('app.utility_source_id',true),'')::uuid`,
+      withCheck: sql`pg_trigger_depth()>0 AND source_kind<>'record' AND coalesce(charge_id,utility_account_id,meter_id)=nullif(current_setting('app.utility_source_id',true),'')::uuid`,
     }),
     pgPolicy('deadlines_utility_update', {
       for: 'update',
       to: appRole,
-      using: sql`pg_trigger_depth()>0 AND source_kind<>'record' AND coalesce(utility_account_id,meter_id)=nullif(current_setting('app.utility_source_id',true),'')::uuid`,
-      withCheck: sql`pg_trigger_depth()>0 AND source_kind<>'record' AND coalesce(utility_account_id,meter_id)=nullif(current_setting('app.utility_source_id',true),'')::uuid`,
+      using: sql`pg_trigger_depth()>0 AND source_kind<>'record' AND coalesce(charge_id,utility_account_id,meter_id)=nullif(current_setting('app.utility_source_id',true),'')::uuid`,
+      withCheck: sql`pg_trigger_depth()>0 AND source_kind<>'record' AND coalesce(charge_id,utility_account_id,meter_id)=nullif(current_setting('app.utility_source_id',true),'')::uuid`,
     }),
     pgPolicy('deadlines_update', {
       for: 'update',
