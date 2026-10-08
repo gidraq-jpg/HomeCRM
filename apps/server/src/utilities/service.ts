@@ -106,6 +106,7 @@ export async function accountSummary(
     parentId: row.parentId,
     data: row.data,
     supplierId: supplier?.id ?? null,
+    supplierHidden: row.supplierId !== null && supplier === null,
     supplier,
   };
 }

@@ -42,6 +42,7 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
           id: deadlines.id,
           noteId: deadlines.noteId,
           objectId: deadlines.objectId,
+          sourceKind: deadlines.sourceKind,
           householdId: deadlines.householdId,
           rule: deadlines.rule,
           spaceId: deadlines.spaceId,
@@ -137,10 +138,18 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
       WHERE n.occurrence_id=o.id AND n.status='pending' AND
       (d.deleted_at IS NOT NULL OR d.needs_refresh OR o.deleted_at IS NOT NULL OR o.completed_at IS NOT NULL OR
        n.recipient_id<>o.assignee_id OR NOT (o.warnings_at ? to_char(n.warning_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')))`);
+    await tx.execute(sql`UPDATE deadline_notifications n SET status='cancelled' FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id
+      WHERE n.occurrence_id=o.id AND n.status='pending' AND d.source_kind='readings' AND NOT app.utility_window_open(d.utility_account_id,o.starts_at,o.ends_at,o.time_zone)`);
     const rows = await tx
       .select()
       .from(occurrences)
-      .where(and(isNull(occurrences.deletedAt), isNull(occurrences.completedAt)));
+      .where(
+        and(
+          isNull(occurrences.deletedAt),
+          isNull(occurrences.completedAt),
+          sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.id=${occurrences.deadlineId} AND (d.source_kind<>'readings' OR app.utility_window_open(d.utility_account_id,${occurrences.startsAt},${occurrences.endsAt},${occurrences.timeZone})))`,
+        ),
+      );
     for (const row of rows) {
       const [rule] = await tx
         .select({

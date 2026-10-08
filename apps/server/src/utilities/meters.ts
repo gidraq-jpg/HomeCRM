@@ -12,6 +12,7 @@ import {
   utilityAccounts,
 } from '@homecrm/db';
 import {
+  CalendarDate,
   canRestore,
   canTrash,
   canView,
@@ -252,6 +253,31 @@ async function createMeter(
 }
 
 export async function meterRoutes(route: DataRoute) {
+  route('POST', '/api/meters/:id/verify', 200, async (tx, account, request) => {
+    const body = parse(
+      z.strictObject({
+        verifiedOn: CalendarDate,
+        nextVerificationOn: CalendarDate.nullable().optional(),
+      }),
+      request.body,
+    );
+    const row = await getMeter(tx, account, parse(Id, request.params).id, true);
+    requireWrite(account, row, 'meter');
+    if (row.data.status !== 'active') throw new Failure(409, 'METER_INACTIVE');
+    const [updated] = await tx
+      .update(meters)
+      .set({
+        data: resolveMeterData({
+          ...row.data,
+          verifiedOn: body.verifiedOn,
+          nextVerificationOn: body.nextVerificationOn,
+        }),
+      })
+      .where(eq(meters.id, row.id))
+      .returning();
+    if (!updated) deny();
+    return meterSummary(updated);
+  });
   route('POST', '/api/objects/:id/meters', 201, async (tx, account, request) =>
     createMeter(tx, account, parse(Id, request.params).id, parse(CreateMeter, request.body)),
   );
@@ -307,7 +333,11 @@ export async function meterRoutes(route: DataRoute) {
     requireWrite(account, row, 'meter');
     version(body.expectedUpdatedAt, row.updatedAt);
     await accountOf(tx, account, row.parentId, body.utilityAccountId ?? null);
-    if (body.data && body.data.status !== row.data.status && body.data.status === 'replaced')
+    if (
+      body.data &&
+      body.data.status !== row.data.status &&
+      (body.data.status === 'replaced' || row.data.status === 'replaced')
+    )
       throw new Failure(409, 'USE_METER_REPLACEMENT');
     const [updated] = await tx
       .update(meters)
@@ -514,12 +544,23 @@ export async function meterRoutes(route: DataRoute) {
           )
             throw new Failure(409, 'READING_DATE_ORDER');
         }
+        const consumption =
+          type === 'meter_reading' && action === 'restore'
+            ? readingConsumption(
+                meter.data,
+                (row as Reading).values,
+                (await historyOf(tx, meter.id))[0]?.values ?? null,
+                (row as Reading).rollover,
+              )
+            : undefined;
         const [updated] = await tx
           .update(table)
           .set({ deletedAt: action === 'trash' ? new Date() : null })
           .where(eq(table.id, id))
           .returning();
         if (!updated) deny();
+        if (type === 'meter_reading' && action === 'restore')
+          await tx.update(meterReadings).set({ consumption }).where(eq(meterReadings.id, id));
         return { id: updated.id, deletedAt: updated.deletedAt };
       };
       const path = type === 'meter' ? 'meters' : 'readings';

@@ -76,6 +76,7 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
           and(
             eq(source === 'notes' ? deadlines.noteId : deadlines.objectId, sourceId),
             isNull(deadlines.deletedAt),
+            eq(deadlines.sourceKind, 'record'),
           ),
         );
     });
@@ -146,6 +147,7 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
               ),
             );
           if (!item) throw new Failure(404, 'NOT_FOUND');
+          if (item.sourceKind !== 'record') throw new Failure(409, 'EDIT_UTILITY_SOURCE');
           const table = item.noteId ? notes : objects;
           const [parent] = await tx
             .select()
@@ -195,51 +197,131 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
     return options.appDb.withAccount(account.id, async (tx) => {
       // План с вложенным RLS дороже компилировать, чем выполнить на сотнях сроков.
       await tx.execute(sql`SET LOCAL jit=off`);
-      const rows = await tx
-        .select({
-          ...getTableColumns(deadlineOccurrencesTable),
-          noteId: deadlines.noteId,
-          objectId: deadlines.objectId,
-          rule: deadlines.rule,
-          title: sql<string>`coalesce(${notes.title}, ${objects.title})`,
-        })
-        .from(deadlineOccurrencesTable)
-        .innerJoin(deadlines, eq(deadlines.id, deadlineOccurrencesTable.deadlineId))
-        .leftJoin(notes, eq(notes.id, deadlines.noteId))
-        .leftJoin(objects, eq(objects.id, deadlines.objectId))
-        .where(
-          and(
-            sql`${deadlineOccurrencesTable.date} <= ${to}`,
-            isNull(notes.deletedAt),
-            isNull(objects.deletedAt),
-          ),
-        )
-        .orderBy(deadlineOccurrencesTable.startsAt, deadlineOccurrencesTable.id);
+      type RadarRow = typeof deadlineOccurrencesTable.$inferSelect & {
+        noteId: string | null;
+        objectId: string | null;
+        title: string;
+        rule: typeof DeadlineRule._output;
+        sourceKind: 'record' | 'readings' | 'payment' | 'verification';
+        object: { id: string; title: string; status: string | null } | null;
+        utilityAccount: { id: string; title: string; number: string; transmission: unknown } | null;
+        meter: { id: string; title: string } | null;
+      };
+      // Те же условия DEAD-5, что у app.utility_window_open, над наборами под RLS:
+      // материализация не запускает отдельный SQL-план с политиками на каждое окно.
+      const result = await tx.execute<{ items: RadarRow[]; recalculating: boolean }>(sql`
+        WITH visible_deadlines AS MATERIALIZED (SELECT * FROM deadlines),
+        visible_occurrences AS MATERIALIZED (SELECT * FROM deadline_occurrences),
+        visible_notes AS MATERIALIZED (SELECT id,title,deleted_at FROM notes),
+        visible_objects AS MATERIALIZED (SELECT id,title,type_data,deleted_at FROM objects),
+        visible_accounts AS MATERIALIZED (SELECT id,title,data FROM utility_accounts),
+        visible_meters AS MATERIALIZED (SELECT id,title,utility_account_id,is_active,deleted_at FROM meters),
+        visible_readings AS MATERIALIZED (SELECT parent_id,occurred_on,transmitted_at,deleted_at FROM meter_readings),
+        radar AS (
+          SELECT o.id,o.deadline_id AS "deadlineId",o.date,o.starts_at AS "startsAt",o.ends_at AS "endsAt",o.time_zone AS "timeZone",
+           o.warnings_at AS "warningsAt",o.completed_at AS "completedAt",o.space_id AS "spaceId",o.space_kind AS "spaceKind",o.audience,
+           o.author_id AS "authorId",o.assignee_id AS "assigneeId",o.deleted_at AS "deletedAt",
+           d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(n.title,p.title) AS title,
+           CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'title',p.title,'status',p.type_data->>'status') END AS object,
+           CASE WHEN a.id IS NOT NULL THEN jsonb_build_object('id',a.id,'title',a.title,'number',a.data->>'number','transmission',a.data->'transmission') END AS "utilityAccount",
+           CASE WHEN m.id IS NOT NULL THEN jsonb_build_object('id',m.id,'title',m.title) END AS meter
+          FROM visible_occurrences o JOIN visible_deadlines d ON d.id=o.deadline_id
+          LEFT JOIN visible_notes n ON n.id=d.note_id LEFT JOIN visible_objects p ON p.id=d.object_id
+          LEFT JOIN visible_accounts a ON a.id=d.utility_account_id LEFT JOIN visible_meters m ON m.id=d.meter_id
+          WHERE o.date<=${to} AND d.deleted_at IS NULL AND n.deleted_at IS NULL AND p.deleted_at IS NULL
+           AND (d.source_kind<>'readings' OR (
+            EXISTS (SELECT 1 FROM visible_meters m WHERE m.utility_account_id=d.utility_account_id AND m.is_active AND m.deleted_at IS NULL)
+            AND EXISTS (SELECT 1 FROM visible_meters m WHERE m.utility_account_id=d.utility_account_id AND m.is_active AND m.deleted_at IS NULL
+             AND NOT EXISTS (SELECT 1 FROM visible_readings r WHERE r.parent_id=m.id AND r.deleted_at IS NULL AND r.transmitted_at IS NOT NULL
+              AND r.occurred_on BETWEEN (o.starts_at AT TIME ZONE o.time_zone)::date AND (o.ends_at AT TIME ZONE o.time_zone)::date))))
+          ORDER BY o.starts_at,o.id
+        ) SELECT coalesce(jsonb_agg(radar),'[]'::jsonb) AS items,
+          (EXISTS (SELECT 1 FROM visible_deadlines d WHERE d.deleted_at IS NULL AND d.needs_refresh)
+           OR EXISTS (SELECT 1 FROM visible_occurrences o JOIN visible_deadlines d ON d.id=o.deadline_id
+            JOIN spaces s ON s.id=d.household_id WHERE d.deleted_at IS NULL AND o.time_zone<>s.time_zone)) AS recalculating
+        FROM radar`);
+      const rows = (result.rows[0]?.items ?? []).map((x) => ({
+        ...x,
+        startsAt: new Date(x.startsAt),
+        endsAt: new Date(x.endsAt),
+      }));
       const now = new Date();
+      // Многие коммунальные сроки приходятся на один день. Преобразуем одинаковые
+      // моменты в пояс дома один раз на ответ, без кэша между пользователями.
+      const endDates = new Map<string, string>();
+      const radarGroups = new Map<string, ReturnType<typeof radarGroup>>();
+      const endDate = (x: (typeof rows)[number]) => {
+        const key = `${x.timeZone}:${+x.endsAt}`;
+        if (!endDates.has(key)) endDates.set(key, localDate(x.endsAt, x.timeZone));
+        return endDates.get(key) as string;
+      };
+      const groupFor = (x: (typeof rows)[number]) => {
+        const key = `${x.timeZone}:${+x.startsAt}:${+x.endsAt}`;
+        if (!radarGroups.has(key)) radarGroups.set(key, radarGroup(x, now, x.timeZone));
+        return radarGroups.get(key) ?? null;
+      };
       const items = rows
-        .filter((x) => x.completedAt === null && localDate(x.endsAt, x.timeZone) >= from)
-        .map((x) => ({ ...x, group: radarGroup(x, now, x.timeZone) }))
+        .filter((x) => x.completedAt === null && endDate(x) >= from)
+        .map((x) => ({
+          ...x,
+          group: groupFor(x),
+          primaryAction:
+            x.sourceKind === 'readings'
+              ? { kind: 'enter_readings', label: 'Внести показания', objectId: x.objectId }
+              : x.sourceKind === 'payment'
+                ? { kind: 'mark_payment', label: 'Отметить оплату', occurrenceId: x.id }
+                : x.sourceKind === 'verification'
+                  ? { kind: 'verify_meter', label: 'Поверка проведена', meterId: x.meter?.id }
+                  : null,
+        }))
         .filter((x) => x.group !== null);
       return {
         items,
-        recalculating:
-          (
-            await tx
-              .select({ id: deadlines.id })
-              .from(deadlines)
-              .leftJoin(spaces, eq(spaces.id, deadlines.householdId))
-              .where(
-                and(
-                  isNull(deadlines.deletedAt),
-                  sql`(${deadlines.needsRefresh} OR EXISTS (SELECT 1 FROM deadline_occurrences o WHERE o.deadline_id=${deadlines.id} AND o.time_zone<>${spaces.timeZone}))`,
-                ),
-              )
-              .limit(1)
-          ).length > 0,
+        recalculating: result.rows[0]?.recalculating ?? false,
         groups: Object.fromEntries(
           RADAR_GROUPS.map((group) => [group, items.filter((x) => x.group === group).length]),
         ),
       };
+    });
+  });
+  app.post('/api/deadlines/occurrences/:id/complete-payment', async (request, reply) => {
+    const account = await currentAccount(request, reply);
+    if (!account) return reply;
+    const { id } = parse(Id, request.params);
+    const { completed } = parse(
+      z.strictObject({ completed: z.boolean().default(true) }),
+      request.body ?? {},
+    );
+    return options.appDb.withAccount(account.id, async (tx) => {
+      const [item] = await tx
+        .select({ occurrence: deadlineOccurrencesTable, deadline: deadlines })
+        .from(deadlineOccurrencesTable)
+        .innerJoin(deadlines, eq(deadlines.id, deadlineOccurrencesTable.deadlineId))
+        .where(eq(deadlineOccurrencesTable.id, id));
+      if (!item || item.deadline.deletedAt !== null) throw new Failure(404, 'NOT_FOUND');
+      if (item.deadline.sourceKind !== 'payment') throw new Failure(409, 'NOT_A_PAYMENT');
+      const [parent] = await tx
+        .select()
+        .from(objects)
+        .where(eq(objects.id, item.deadline.objectId ?? ''))
+        .for('update');
+      if (
+        !parent ||
+        !canWriteDeadline(account.viewer, {
+          type: 'object',
+          placement: placementOf(parent),
+          authorId: parent.authorId,
+          trashed: parent.deletedAt !== null,
+        })
+      )
+        throw new Failure(403, 'ACCESS_DENIED');
+      const [updated] = await tx
+        .update(deadlineOccurrencesTable)
+        .set({ completedAt: completed ? sql`coalesce(completed_at,now())` : null })
+        .where(eq(deadlineOccurrencesTable.id, id))
+        .returning();
+      if (!updated) throw new Failure(409, 'CONFLICT');
+      return updated;
     });
   });
   app.get('/api/deadlines/trash', async (request, reply) => {
@@ -255,7 +337,7 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
         .from(deadlines)
         .leftJoin(notes, eq(notes.id, deadlines.noteId))
         .leftJoin(objects, eq(objects.id, deadlines.objectId))
-        .where(isNotNull(deadlines.deletedAt))
+        .where(and(isNotNull(deadlines.deletedAt), eq(deadlines.sourceKind, 'record')))
         .orderBy(deadlines.deletedAt, deadlines.id)
         .then((rows) =>
           rows.map((item) => ({

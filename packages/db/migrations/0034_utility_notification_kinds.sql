@@ -1,0 +1,2 @@
+ALTER TABLE "notification_settings" DROP CONSTRAINT "notification_settings_kinds";--> statement-breakpoint
+ALTER TABLE "notification_settings" ADD CONSTRAINT "notification_settings_kinds" CHECK (enabled_kinds <@ '["deadline","readings_open","readings_closing","readings_last_day","payment_upcoming","payment_due","verification"]'::jsonb AND jsonb_typeof(enabled_kinds) = 'array');

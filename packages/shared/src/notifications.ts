@@ -1,7 +1,15 @@
 import { z } from 'zod';
 
 /** R0.7 принимает предупреждения общего движка сроков; остальные источники появятся позже. */
-export const NOTIFICATION_KINDS = ['deadline'] as const;
+export const NOTIFICATION_KINDS = [
+  'deadline',
+  'readings_open',
+  'readings_closing',
+  'readings_last_day',
+  'payment_upcoming',
+  'payment_due',
+  'verification',
+] as const;
 const Clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 export const NotificationSettings = z.strictObject({
   quietStart: Clock.default('22:00'),

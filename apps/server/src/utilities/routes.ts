@@ -91,7 +91,10 @@ export async function utilityRoutes(app: FastifyInstance, module: AuthModule) {
   });
   route('GET', '/api/contacts', 200, async (tx, account, request) => {
     const query = parse(
-      List.extend({ organizationType: z.enum(ORGANIZATION_TYPES).optional() }),
+      List.extend({
+        organizationType: z.enum(ORGANIZATION_TYPES).optional(),
+        scope: z.enum(['all', 'personal', 'household']).default('all'),
+      }),
       request.query,
     );
     const rows = await tx
@@ -99,6 +102,7 @@ export async function utilityRoutes(app: FastifyInstance, module: AuthModule) {
       .from(contacts)
       .where(
         and(
+          query.scope === 'all' ? undefined : eq(contacts.spaceKind, query.scope),
           query.trash === 'true'
             ? sql`${contacts.deletedAt} IS NOT NULL`
             : isNull(contacts.deletedAt),
@@ -111,6 +115,25 @@ export async function utilityRoutes(app: FastifyInstance, module: AuthModule) {
       .limit(query.limit)
       .offset(query.offset);
     return rows.filter((row) => canView(account.viewer, placementOf(row))).map(contactSummary);
+  });
+  route('GET', '/api/accounts', 200, async (tx, account, request) => {
+    const query = parse(List, request.query);
+    const rows = await tx
+      .select()
+      .from(utilityAccounts)
+      .where(
+        query.trash === 'true'
+          ? sql`${utilityAccounts.deletedAt} IS NOT NULL`
+          : isNull(utilityAccounts.deletedAt),
+      )
+      .orderBy(utilityAccounts.createdAt, utilityAccounts.id)
+      .limit(query.limit)
+      .offset(query.offset);
+    const result = [];
+    for (const row of rows)
+      if (canView(account.viewer, placementOf(row)))
+        result.push(await accountSummary(tx, account, row));
+    return result;
   });
   route('GET', '/api/objects/:id/accounts', 200, async (tx, account, request) => {
     const parent = await getObject(tx, account, parse(Id, request.params).id);

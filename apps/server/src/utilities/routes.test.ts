@@ -32,6 +32,7 @@ interface Contact extends RecordRow {
   data: { organizationType: string; phones: unknown[] };
 }
 interface Account extends RecordRow {
+  supplierHidden: boolean;
   parentId: string;
   supplierId: string | null;
   supplier: { id: string; title: string } | null;
@@ -123,7 +124,7 @@ it('S1: первая квартира только с названием, три
       object.id,
     ])
   ).rows;
-  expect(rows[0].n).toBe(0);
+  expect(rows[0].n).toBe(6);
   expect((await property()).typeData).toEqual({});
   expect((await property(adult, { placement: { spaceId: world.houseId } })).audience).toBe(
     'adults',
@@ -286,6 +287,7 @@ it('OBJ-2: собственник-контакт виден только вме�
     const provider = (await device.get(`/api/accounts/${own.id}`)).json<Account>();
     expect(provider.supplierId).toBeNull();
     expect(provider.supplier).toBeNull();
+    expect(provider.supplierHidden).toBe(true);
     expect((await device.get(`/api/objects/${object.id}`)).text).not.toContain(owner.id);
     expect((await device.get(`/api/contacts/${owner.id}`)).status).toBe(404);
   }
@@ -309,6 +311,7 @@ it('OBJ-2: собственник-контакт виден только вме�
   });
   expect(cleared.status, cleared.text).toBe(200);
   expect(cleared.json<Account>().supplierId).toBeNull();
+  expect(cleared.json<Account>().supplierHidden).toBe(false);
   const copy = await child.post(`/api/objects/${object.id}/copy`);
   expect(copy.status, copy.text).toBe(201);
   expect(
@@ -387,4 +390,29 @@ it('UTIL-1: копия из другого дома отбрасывает не�
     ownerMemberIds: [world.boris.id],
     areaHundredths: 5731,
   });
+});
+it('API экранов: своё личное пространство, scope организаций и общая корзина счетов под RLS', async () => {
+  expect((await adult.get('/api/me')).json<{ personalSpaceId: string }>().personalSpaceId).toBe(
+    world.boris.personalSpaceId,
+  );
+  const own = await contact(adult, { placement: { spaceId: world.boris.personalSpaceId } });
+  const common = await contact();
+  const personal = (await adult.get('/api/contacts?scope=personal')).json<Contact[]>();
+  expect(personal.map((r) => r.id)).toContain(own.id);
+  expect(personal.map((r) => r.id)).not.toContain(common.id);
+  expect((await adult.get('/api/contacts?scope=household')).text).not.toContain(own.id);
+  expect((await admin.get('/api/contacts?scope=personal')).text).not.toContain(own.id);
+  const hidden = await property();
+  const visible = await property(adult, {
+    placement: { spaceId: world.houseId, audience: 'household' },
+  });
+  const a = await account(hidden.id);
+  const b = await account(visible.id);
+  expect((await adult.post(`/api/objects/${hidden.id}/trash`)).status).toBe(200);
+  expect((await adult.post(`/api/accounts/${b.id}/trash`)).status).toBe(200);
+  const trash = (await adult.get('/api/accounts?trash=true')).json<Account[]>();
+  expect(trash.map((r) => r.id)).toEqual(expect.arrayContaining([a.id, b.id]));
+  const kidTrash = (await child.get('/api/accounts?trash=true')).json<Account[]>();
+  expect(kidTrash.map((r) => r.id)).toContain(b.id);
+  expect(kidTrash.map((r) => r.id)).not.toContain(a.id);
 });

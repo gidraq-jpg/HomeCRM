@@ -322,6 +322,7 @@ export async function seedFamily(admin: pg.Pool, family: Family): Promise<void> 
 
 /** Вымышленные метаданные блоков для общей матрицы; файлов на диске нет. */
 export function fileFixture(type: RecordType) {
+  if (type === 'meter_reading') return { occurredOn: '2026-10-01' };
   return type === 'note_file' || type === 'object_file'
     ? { mimeType: 'application/pdf', sizeBytes: 8, storageKey: randomUUID(), envelope: {} }
     : {};

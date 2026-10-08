@@ -61,6 +61,17 @@ it('обновление с R0.7 сохраняет источники, прав
   const after = await snapshot();
   // Новое поле технической причины отмены пусто у существующих предупреждений.
   for (const row of after[3] ?? []) delete row.value.cancellation_reason;
+  // Прежние сроки остаются обычными записями без коммунальных ссылок.
+  for (const row of after[1] ?? []) {
+    expect(row.value).toMatchObject({
+      source_kind: 'record',
+      utility_account_id: null,
+      meter_id: null,
+    });
+    delete row.value.source_kind;
+    delete row.value.utility_account_id;
+    delete row.value.meter_id;
+  }
   expect(after).toEqual(before);
   await runMigrations(db.owner);
 });

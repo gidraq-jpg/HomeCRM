@@ -426,10 +426,13 @@ const metersDefinition = recordTable(
   'meter',
   {
     parentId: uuid('parent_id').notNull(),
-    utilityAccountId: uuid('utility_account_id').references(() => utilityAccounts.id),
+    utilityAccountId: uuid('utility_account_id').references(() => utilityAccounts.id, {
+      onDelete: 'set null',
+    }),
     previousMeterId: uuid('previous_meter_id').references((): AnyPgColumn => meters.id, {
       onDelete: 'set null',
     }),
+    isActive: boolean('is_active').generatedAlwaysAs(sql`data->>'status'='active'`),
     data: jsonb('data')
       .$type<MeterData>()
       .notNull()
@@ -438,7 +441,16 @@ const metersDefinition = recordTable(
       sql`title || ' ' || coalesce(data->>'serialNumber','')`,
     ),
   },
-  { parent: objects },
+  {
+    parent: objects,
+    extraPolicies: [
+      pgPolicy('meters_deadline_worker_select', {
+        for: 'select',
+        to: workerRole,
+        using: sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.object_id=meters.parent_id AND d.source_kind<>'record')`,
+      }),
+    ],
+  },
 );
 export const meters = metersDefinition.table;
 export const metersHistory = metersDefinition.history;
@@ -447,7 +459,7 @@ const meterReadingsDefinition = recordTable(
   'meter_reading',
   {
     parentId: uuid('parent_id').notNull(),
-    occurredOn: date('occurred_on').notNull().default(sql`CURRENT_DATE`),
+    occurredOn: date('occurred_on').notNull(),
     values: numeric('values').array().notNull().default(sql`ARRAY[0.000]::numeric[]`),
     consumption: numeric('consumption').array(),
     rollover: boolean('rollover').notNull().default(false),
@@ -455,7 +467,16 @@ const meterReadingsDefinition = recordTable(
     transmittedAt: timestamp('transmitted_at', { withTimezone: true }),
     transmissionMethod: text('transmission_method'),
   },
-  { parent: meters },
+  {
+    parent: meters,
+    extraPolicies: [
+      pgPolicy('meter_readings_deadline_worker_select', {
+        for: 'select',
+        to: workerRole,
+        using: sql`EXISTS (SELECT 1 FROM meters m WHERE m.id=meter_readings.parent_id)`,
+      }),
+    ],
+  },
 );
 export const meterReadings = meterReadingsDefinition.table;
 export const meterReadingsHistory = meterReadingsDefinition.history;

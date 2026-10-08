@@ -27,6 +27,7 @@ import {
   spaces,
   workerRole,
 } from './core.ts';
+import { meters, utilityAccounts } from './schema.ts';
 
 // Явная проверка пространства плюс чтение источника под его RLS. Подзапросы могут
 // строиться один раз для списка; построчная PL/pgSQL-проверка здесь не нужна.
@@ -54,6 +55,14 @@ export const deadlines = pgTable(
     id: id(),
     noteId: uuid('note_id'),
     objectId: uuid('object_id'),
+    sourceKind: text('source_kind')
+      .$type<'record' | 'readings' | 'payment' | 'verification'>()
+      .notNull()
+      .default('record'),
+    utilityAccountId: uuid('utility_account_id').references(() => utilityAccounts.id, {
+      onDelete: 'cascade',
+    }),
+    meterId: uuid('meter_id').references(() => meters.id, { onDelete: 'cascade' }),
     householdId: uuid('household_id')
       .notNull()
       .references(() => spaces.id),
@@ -65,6 +74,12 @@ export const deadlines = pgTable(
   },
   (t) => [
     check('deadlines_one_source', sql`(note_id IS NULL) <> (object_id IS NULL)`),
+    check(
+      'deadlines_utility_source',
+      sql`(source_kind='record' AND utility_account_id IS NULL AND meter_id IS NULL) OR (object_id IS NOT NULL AND note_id IS NULL AND ((source_kind IN ('readings','payment') AND utility_account_id IS NOT NULL AND meter_id IS NULL) OR (source_kind='verification' AND meter_id IS NOT NULL AND utility_account_id IS NULL)))`,
+    ),
+    unique('deadlines_account_kind_key').on(t.utilityAccountId, t.sourceKind),
+    unique('deadlines_meter_kind_key').on(t.meterId, t.sourceKind),
     index('deadlines_note_idx').on(t.noteId),
     index('deadlines_object_idx').on(t.objectId),
     foreignKey({ columns: [t.spaceId, t.spaceKind], foreignColumns: [spaces.id, spaces.kind] }),
@@ -79,6 +94,17 @@ export const deadlines = pgTable(
       withCheck: sql.raw(
         `${deadlineWritableSql} AND author_id = app.current_account_id() AND deleted_at IS NULL`,
       ),
+    }),
+    pgPolicy('deadlines_utility_insert', {
+      for: 'insert',
+      to: appRole,
+      withCheck: sql`pg_trigger_depth()>0 AND source_kind<>'record' AND coalesce(utility_account_id,meter_id)=nullif(current_setting('app.utility_source_id',true),'')::uuid`,
+    }),
+    pgPolicy('deadlines_utility_update', {
+      for: 'update',
+      to: appRole,
+      using: sql`pg_trigger_depth()>0 AND source_kind<>'record' AND coalesce(utility_account_id,meter_id)=nullif(current_setting('app.utility_source_id',true),'')::uuid`,
+      withCheck: sql`pg_trigger_depth()>0 AND source_kind<>'record' AND coalesce(utility_account_id,meter_id)=nullif(current_setting('app.utility_source_id',true),'')::uuid`,
     }),
     pgPolicy('deadlines_update', {
       for: 'update',
@@ -142,6 +168,12 @@ export const deadlineOccurrencesTable = pgTable(
       to: appRole,
       using: sql`pg_trigger_depth() > 0 AND deadline_id = nullif(current_setting('app.deadline_cascade_id',true),'')::uuid`,
       withCheck: sql`pg_trigger_depth() > 0 AND deadline_id = nullif(current_setting('app.deadline_cascade_id',true),'')::uuid`,
+    }),
+    pgPolicy('deadline_occurrences_complete_payment', {
+      for: 'update',
+      to: appRole,
+      using: sql`deleted_at IS NULL AND EXISTS (SELECT 1 FROM deadlines d WHERE d.id=deadline_id AND d.source_kind='payment' AND d.deleted_at IS NULL AND app.deadline_source_allowed(d.note_id,d.object_id,true))`,
+      withCheck: sql`deleted_at IS NULL AND EXISTS (SELECT 1 FROM deadlines d WHERE d.id=deadline_id AND d.source_kind='payment' AND d.deleted_at IS NULL AND app.deadline_source_allowed(d.note_id,d.object_id,true))`,
     }),
     ...(['select', 'update'] as const).map((op) =>
       pgPolicy(`deadline_occurrences_owner_${op}`, {
