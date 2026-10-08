@@ -3,6 +3,7 @@ import { Notice } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { viewerOf } from '../notes/abilities.ts';
+import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import { Page } from '../ui/Page.tsx';
 import { objectAbilities } from './abilities.ts';
@@ -15,7 +16,10 @@ const BACK = { to: '/home', label: 'Дом' } as const;
 /** Название вкладки одинаковое для всех объектов: название объекта в историю браузера не попадает. */
 const TAB_TITLE = 'Объект';
 
-/** Карточка объекта (PRD, раздел 14): вкладки «Обзор», «Лента», «Файлы» на второй строке под названием. */
+/**
+ * Карточка объекта (PRD, раздел 14): вкладки «Обзор», «Лента», «Файлы» и, у недвижимости, «Счета»
+ * на второй строке под названием; статус недвижимости стоит рядом с названием.
+ */
 export function ObjectScreen() {
   const { objectId } = useParams();
   const query = useObjectCard(objectId);
@@ -45,6 +49,7 @@ function ObjectView({ card }: { card: ObjectCard }) {
   const abilities = objectAbilities(viewerOf(me), card, householdId);
   const base = `/home/${card.id}`;
   const trashed = card.deletedAt !== null;
+  const property = card.objectType === 'property';
   const eyebrow = `${OBJECT_TYPE_LABELS[card.objectType]} · изменён ${formatMoment(card.updatedAt, me.timeZone)}`;
 
   return (
@@ -53,6 +58,9 @@ function ObjectView({ card }: { card: ObjectCard }) {
       documentTitle={TAB_TITLE}
       eyebrow={trashed ? `${eyebrow} · в корзине` : eyebrow}
       back={BACK}
+      {...(property && card.typeData.status
+        ? { status: <PropertyStatusBadge status={card.typeData.status} /> }
+        : {})}
       tabs={
         <LinkTabs
           label="Разделы объекта"
@@ -60,6 +68,7 @@ function ObjectView({ card }: { card: ObjectCard }) {
             { to: base, label: 'Обзор', end: true },
             { to: `${base}/timeline`, label: 'Лента' },
             { to: `${base}/files`, label: 'Файлы' },
+            ...(property ? [{ to: `${base}/accounts`, label: 'Счета' }] : []),
           ]}
         />
       }

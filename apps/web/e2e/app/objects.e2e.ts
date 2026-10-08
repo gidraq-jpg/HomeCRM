@@ -183,12 +183,12 @@ test('карточка: вкладки на второй строке видны
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Квартира у парка');
 
   const tabs = page.getByRole('navigation', { name: 'Разделы объекта' });
-  await expect(tabs.getByRole('link')).toHaveText(['Обзор', 'Лента', 'Файлы']);
+  await expect(tabs.getByRole('link')).toHaveText(['Обзор', 'Лента', 'Файлы', 'Счета']);
   await expect(tabs.getByRole('link', { name: 'Обзор' })).toHaveAttribute('aria-current', 'page');
   const heading = await page.getByRole('heading', { level: 1 }).boundingBox();
   const viewport = page.viewportSize();
   expect(heading && viewport).toBeTruthy();
-  for (const name of ['Обзор', 'Лента', 'Файлы']) {
+  for (const name of ['Обзор', 'Лента', 'Файлы', 'Счета']) {
     const box = await tabs.getByRole('link', { name }).boundingBox();
     expect(box, name).not.toBeNull();
     if (!box || !heading || !viewport) continue;

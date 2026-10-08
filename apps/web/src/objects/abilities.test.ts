@@ -22,6 +22,7 @@ function object(change: Partial<ObjectSummary> = {}): ObjectSummary {
     id: 'object-1',
     title: 'Квартира',
     objectType: 'property',
+    typeData: {},
     spaceId: HOUSE,
     spaceKind: 'household',
     audience: 'adults',

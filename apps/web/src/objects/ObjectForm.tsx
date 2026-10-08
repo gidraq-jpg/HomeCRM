@@ -1,8 +1,16 @@
+import type { PropertyData } from '@homecrm/shared';
 import { Plus, Trash } from '@phosphor-icons/react';
 import { type FormEvent, type ReactNode, useId, useState } from 'react';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { Notice, type useAction } from '../auth/components.tsx';
+import { PropertyFields } from '../property/PropertyFields.tsx';
+import {
+  EMPTY_PROPERTY,
+  type PropertyDraft,
+  type PropertyErrors,
+  toPropertyData,
+} from '../property/property.ts';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
 import { type FieldInput, MAX_FIELD_NAME, MAX_FIELD_VALUE, MAX_FIELDS, MAX_TITLE } from './api.ts';
 import { ObjectError } from './components.tsx';
@@ -15,6 +23,8 @@ export interface ObjectDraft {
   /** Ответственный; в личном объекте это всегда владелец, выбор не показывается. */
   assigneeId: string | null;
   fields: DraftField[];
+  /** Поля недвижимости: показываются, когда выбран тип «Недвижимость». */
+  property: PropertyDraft;
 }
 
 export const EMPTY_DRAFT: ObjectDraft = {
@@ -22,6 +32,7 @@ export const EMPTY_DRAFT: ObjectDraft = {
   objectType: 'other',
   assigneeId: null,
   fields: [],
+  property: EMPTY_PROPERTY,
 };
 
 export interface ObjectValues {
@@ -29,6 +40,9 @@ export interface ObjectValues {
   objectType: ObjectType;
   assigneeId: string | null;
   fields: FieldInput[];
+  /** Поля недвижимости; 
+ull, если выбран другой тип. */
+  typeData: PropertyData | null;
 }
 
 interface VisibilityChoice {
@@ -92,9 +106,11 @@ export function ObjectForm({
   const [objectType, setObjectType] = useState<ObjectType>(draft.objectType);
   const [assigneeId, setAssigneeId] = useState(draft.assigneeId);
   const [fields, setFields] = useState<DraftField[]>(draft.fields);
+  const [property, setProperty] = useState<PropertyDraft>(draft.property);
+  const [propertyErrors, setPropertyErrors] = useState<PropertyErrors>({});
   const [touched, setTouched] = useState(false);
   const [unnamed, setUnnamed] = useState<string | null>(null);
-  const ids = { title: useId(), assignee: useId() };
+  const ids = { title: useId(), assignee: useId(), property: useId() };
 
   const titleMissing = touched && title.trim() === '';
 
@@ -106,7 +122,19 @@ export function ObjectForm({
       return null;
     }
     setUnnamed(null);
-    return { title: title.trim(), objectType, assigneeId, fields: parsed.fields };
+    let typeData: PropertyData | null = null;
+    if (objectType === 'property') {
+      const result = toPropertyData(property);
+      if (!result.ok) {
+        setPropertyErrors(result.errors);
+        const first = result.errors.address ? 'address' : result.errors.area ? 'area' : 'cadastral';
+        document.getElementById(`${ids.property}-${first}`)?.focus();
+        return null;
+      }
+      typeData = result.data;
+    }
+    setPropertyErrors({});
+    return { title: title.trim(), objectType, assigneeId, fields: parsed.fields, typeData };
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -160,6 +188,15 @@ export function ObjectForm({
           }}
         />
       </div>
+
+      {objectType === 'property' ? (
+        <PropertyFields
+          draft={property}
+          errors={propertyErrors}
+          idPrefix={ids.property}
+          onChange={(change) => setProperty((previous) => ({ ...previous, ...change }))}
+        />
+      ) : null}
 
       {mode === 'edit' && assignees.length > 1 ? (
         <div className="field">

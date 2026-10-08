@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { ScopeProvider } from './access/ScopeContext.tsx';
+import { ObjectAccounts } from './accounts/ObjectAccounts.tsx';
 import type { Me } from './auth/api.ts';
 import { ExportScreen } from './auth/ExportScreen.tsx';
 import { SecurityScreen } from './auth/SecurityScreen.tsx';
@@ -21,6 +22,9 @@ import { ObjectOverview } from './objects/ObjectOverview.tsx';
 import { ObjectScreen } from './objects/ObjectScreen.tsx';
 import { ObjectsScreen } from './objects/ObjectsScreen.tsx';
 import { ObjectTimeline } from './objects/ObjectTimeline.tsx';
+import { NewOrganizationScreen } from './organizations/NewOrganizationScreen.tsx';
+import { OrganizationScreen } from './organizations/OrganizationScreen.tsx';
+import { OrganizationsScreen } from './organizations/OrganizationsScreen.tsx';
 import { DocumentsScreen, TodayScreen } from './screens/EmptySections.tsx';
 import { InviteScreen } from './screens/InviteScreen.tsx';
 import { MemberScreen } from './screens/MemberScreen.tsx';
@@ -60,6 +64,7 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
           <Route index element={<ObjectOverview />} />
           <Route path="timeline" element={<ObjectTimeline />} />
           <Route path="files" element={<ObjectFiles />} />
+          <Route path="accounts" element={<ObjectAccounts />} />
         </Route>
         <Route path="documents" element={<DocumentsScreen />} />
         <Route path="people" element={<PeopleScreen />} />
@@ -76,6 +81,9 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="more/notes" element={<NotesScreen />} />
         <Route path="more/notes/new" element={<NewNoteScreen />} />
         <Route path="more/notes/:noteId" element={<NoteScreen />} />
+        <Route path="more/organizations" element={<OrganizationsScreen />} />
+        <Route path="more/organizations/new" element={<NewOrganizationScreen />} />
+        <Route path="more/organizations/:organizationId" element={<OrganizationScreen />} />
         <Route path="more/trash" element={<TrashScreen />} />
         <Route path="more/radar" element={<RadarScreen />} />
         <Route path="more/house" element={<HouseScreen />} />
