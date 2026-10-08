@@ -1,0 +1,3 @@
+ALTER TABLE "documents" DROP CONSTRAINT "documents_owner_contact_id_contacts_id_fk";
+--> statement-breakpoint
+CREATE POLICY "documents_object_cascade" ON "documents" AS PERMISSIVE FOR UPDATE TO "homecrm_app" USING (pg_trigger_depth()>0 AND owner_object_id=nullif(current_setting('app.document_object_id',true),'')::uuid) WITH CHECK (pg_trigger_depth()>0 AND owner_object_id=nullif(current_setting('app.document_object_id',true),'')::uuid);

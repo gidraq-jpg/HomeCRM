@@ -211,11 +211,12 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
       // План с вложенным RLS дороже компилировать, чем выполнить на сотнях сроков.
       await tx.execute(sql`SET LOCAL jit=off`);
       type RadarRow = typeof deadlineOccurrencesTable.$inferSelect & {
+        documentId: string | null;
         noteId: string | null;
         objectId: string | null;
         title: string;
         rule: typeof DeadlineRule._output;
-        sourceKind: 'record' | 'readings' | 'payment' | 'verification';
+        sourceKind: 'record' | 'readings' | 'payment' | 'verification' | 'document';
         object: { id: string; title: string; status: string | null } | null;
         utilityAccount: { id: string; title: string; number: string; transmission: unknown } | null;
         meter: { id: string; title: string } | null;
@@ -236,15 +237,15 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
           SELECT o.id,o.deadline_id AS "deadlineId",o.date,o.starts_at AS "startsAt",o.ends_at AS "endsAt",o.time_zone AS "timeZone",
            o.warnings_at AS "warningsAt",o.completed_at AS "completedAt",o.space_id AS "spaceId",o.space_kind AS "spaceKind",o.audience,
            o.author_id AS "authorId",o.assignee_id AS "assigneeId",o.deleted_at AS "deletedAt",
-           d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(d.label,n.title,p.title) AS title,d.charge_id AS "chargeId",
+           d.document_id AS "documentId",d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(d.label,n.title,p.title,doc.title) AS title,d.charge_id AS "chargeId",
            CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'title',p.title,'status',p.type_data->>'status') END AS object,
            CASE WHEN a.id IS NOT NULL THEN jsonb_build_object('id',a.id,'title',a.title,'number',a.data->>'number','transmission',a.data->'transmission') END AS "utilityAccount",
            (d.source_kind='readings' AND NOT EXISTS (SELECT 1 FROM visible_meters vm WHERE vm.utility_account_id=d.utility_account_id AND vm.is_active AND vm.deleted_at IS NULL)) AS "needsMeters",
            CASE WHEN m.id IS NOT NULL THEN jsonb_build_object('id',m.id,'title',m.title) END AS meter
           FROM visible_occurrences o JOIN visible_deadlines d ON d.id=o.deadline_id
-          LEFT JOIN notes n ON n.id=d.note_id LEFT JOIN objects p ON p.id=d.object_id
+          LEFT JOIN documents doc ON doc.id=d.document_id LEFT JOIN notes n ON n.id=d.note_id LEFT JOIN objects p ON p.id=d.object_id
           LEFT JOIN utility_accounts a ON a.id=d.utility_account_id LEFT JOIN meters m ON m.id=d.meter_id
-          WHERE o.date<=${to} AND d.deleted_at IS NULL AND n.deleted_at IS NULL AND p.deleted_at IS NULL
+          WHERE o.date<=${to} AND d.deleted_at IS NULL AND n.deleted_at IS NULL AND p.deleted_at IS NULL AND doc.deleted_at IS NULL AND (d.document_id IS NULL OR (doc.id IS NOT NULL AND doc.status='valid'))
            AND (d.source_kind<>'payment' OR CASE WHEN d.charge_id IS NOT NULL THEN EXISTS (SELECT 1 FROM visible_charges c WHERE c.id=d.charge_id AND c.deleted_at IS NULL AND c.cancelled_at IS NULL AND NOT c.is_paid) ELSE NOT EXISTS (SELECT 1 FROM visible_charges c WHERE c.parent_id=d.utility_account_id AND c.deleted_at IS NULL AND c.cancelled_at IS NULL AND c.period=to_char(o.date-interval '1 month','YYYY-MM')) END)
            AND (d.source_kind<>'readings' OR (
             (o.ends_at>=CURRENT_TIMESTAMP AND o.completed_at IS NULL AND NOT EXISTS (SELECT 1 FROM visible_meters m WHERE m.utility_account_id=d.utility_account_id AND m.is_active AND m.deleted_at IS NULL))
@@ -275,7 +276,13 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
       const groupFor = (x: (typeof rows)[number]) => {
         const key = `${x.timeZone}:${+x.startsAt}:${+x.endsAt}`;
         if (!radarGroups.has(key)) radarGroups.set(key, radarGroup(x, now, x.timeZone));
-        return radarGroups.get(key) ?? null;
+        const group = radarGroups.get(key) ?? null;
+        return (
+          group ??
+          (x.sourceKind === 'document' && x.warningsAt.some((date) => new Date(date) <= now)
+            ? 'later'
+            : null)
+        );
       };
       const items = rows
         .filter(
@@ -314,7 +321,9 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
         items,
         recalculating: result.rows[0]?.recalculating ?? false,
         groups: Object.fromEntries(
-          RADAR_GROUPS.map((group) => [group, items.filter((x) => x.group === group).length]),
+          [...RADAR_GROUPS, ...(items.some((x) => x.group === 'later') ? ['later'] : [])].map(
+            (group) => [group, items.filter((x) => x.group === group).length],
+          ),
         ),
       };
     });

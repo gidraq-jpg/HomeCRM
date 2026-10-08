@@ -71,9 +71,15 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         [`public.${name}`],
       );
       expect(Object.fromEntries(rows.map((row) => [row.name, row.fn]))).toEqual({
-        ...(['notes', 'note_items', 'objects', 'object_fields', 'object_events', 'meters'].includes(
-          name,
-        )
+        ...([
+          'notes',
+          'note_items',
+          'objects',
+          'object_fields',
+          'object_events',
+          'meters',
+          'documents',
+        ].includes(name)
           ? { [`${name}_search`]: 'sync_search_entry' }
           : {}),
         [`${name}_defaults`]: 'record_defaults',
@@ -96,6 +102,16 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ? { [`${name}_00_lifecycle`]: 'file_lifecycle' }
           : {}),
         ...(name === 'objects' ? { objects_placement: 'cascade_object_placement' } : {}),
+        ...(name === 'objects' ? { objects_documents: 'cascade_object_documents' } : {}),
+        ...(name === 'documents'
+          ? {
+              documents_00_document: 'document_guard',
+              documents_deadlines: 'document_deadline',
+              documents_files_placement: 'cascade_file_placement',
+              documents_source_metadata: 'sync_source_deadlines',
+            }
+          : {}),
+        ...(name === 'document_files' ? { document_files_00_lifecycle: 'file_lifecycle' } : {}),
         ...(['object_fields', 'object_events', 'utility_accounts', 'meters'].includes(name)
           ? { [`${name}_00_parent_lock`]: 'lock_object_parent' }
           : {}),
@@ -148,12 +164,20 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           `${name}.${name}_purge:DELETE`,
           `${name}.${name}_reassign_select:SELECT`,
           `${name}.${name}_reassign:UPDATE`,
-          ...(['notes', 'objects', 'meters', 'meter_readings', 'utility_charges'].includes(name)
+          ...([
+            'notes',
+            'objects',
+            'meters',
+            'meter_readings',
+            'utility_charges',
+            'documents',
+          ].includes(name)
             ? [`${name}.${name}_deadline_worker_select:SELECT`]
             : []),
           ...(name === 'utility_accounts'
             ? ['utility_accounts.utility_accounts_charges_worker:SELECT']
             : []),
+          ...(name === 'documents' ? ['documents.documents_object_cascade:UPDATE'] : []),
           ...(name === 'object_events'
             ? [
                 'object_events.object_events_cascade_select:SELECT',

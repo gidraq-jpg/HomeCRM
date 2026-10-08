@@ -78,6 +78,8 @@ it('обновление с R0.7 сохраняет источники, прав
     delete row.value.meter_id;
     delete row.value.charge_id;
     delete row.value.label;
+    expect(row.value.document_id).toBeNull();
+    delete row.value.document_id;
   }
   expect(after).toEqual(before);
   await runMigrations(db.owner);

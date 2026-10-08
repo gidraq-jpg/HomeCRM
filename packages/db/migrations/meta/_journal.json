@@ -267,6 +267,41 @@
       "when": 1791464157141,
       "tag": "0037_charges_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791480211566,
+      "tag": "0038_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1791480359310,
+      "tag": "0039_documents_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1791480566345,
+      "tag": "0040_document_owner_policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791481112429,
+      "tag": "0041_document_visibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791482623909,
+      "tag": "0042_document-recipient-access",
+      "breakpoints": true
     }
   ]
 }

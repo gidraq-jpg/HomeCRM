@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { BillingPeriod, Cents, ChargeLine, PAYMENT_METHODS, PaymentInput } from './charges.ts';
 import { DeadlineRule, TimeZone } from './deadlines.ts';
+import { DocumentData } from './documents.ts';
 import { DecimalValue, MeterData } from './meters.ts';
 import { NotificationSettings } from './notifications.ts';
 import { OrganizationData, UtilityAccountData } from './utilities.ts';
@@ -68,6 +69,15 @@ const reference = z.strictObject({ table: z.string(), id: uuid });
 export const ExportRecords = {
   export_events: ExportEvent,
   notes: z.strictObject({ ...record, body: z.string(), pinned: z.boolean() }),
+  documents: z.strictObject({
+    ...record,
+    data: DocumentData,
+    owner_account_id: uuid.nullable(),
+    owner_contact_id: uuid.nullable(),
+    owner_object_id: uuid.nullable(),
+    previous_id: uuid.nullable(),
+    status: z.enum(['valid', 'invalid']),
+  }),
   note_items: z.strictObject({
     ...record,
     parent_id: uuid,
@@ -149,6 +159,7 @@ export const ExportRecords = {
   }),
   note_files: z.strictObject({ ...record, ...file, parent_id: uuid }),
   object_files: z.strictObject({ ...record, ...file, parent_id: uuid }),
+  document_files: z.strictObject({ ...record, ...file, parent_id: uuid }),
   profile_files: z.strictObject({ ...file, account_id: uuid }),
   record_links: z.strictObject({
     id: uuid,
@@ -170,7 +181,10 @@ export const ExportRecords = {
     deleted_at: instant.nullable(),
     note_id: uuid.nullable(),
     object_id: uuid.nullable(),
-    source_kind: z.enum(['record', 'readings', 'payment', 'verification']).default('record'),
+    document_id: uuid.nullable().default(null),
+    source_kind: z
+      .enum(['record', 'readings', 'payment', 'verification', 'document'])
+      .default('record'),
     utility_account_id: uuid.nullable().default(null),
     meter_id: uuid.nullable().default(null),
     charge_id: uuid.nullable().default(null),

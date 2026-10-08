@@ -11,7 +11,7 @@ export async function exportFiles(tx: Transaction, account: Account, services: F
     sql`select pg_advisory_xact_lock_shared(hashtextextended('file-block-cleanup',0))`,
   );
   const result = [];
-  for (const type of ['note', 'object'] as const)
+  for (const type of ['note', 'object', 'document'] as const)
     for (const file of await tx.select().from(fileTable(type))) {
       if (file.spaceKind !== 'personal' && account.viewer.memberships.get(file.spaceId) !== 'admin')
         continue;
@@ -19,7 +19,10 @@ export async function exportFiles(tx: Transaction, account: Account, services: F
       if (
         !canViewFile(
           account.viewer,
-          factsOf(file, type === 'note' ? 'note_file' : 'object_file'),
+          factsOf(
+            file,
+            type === 'note' ? 'note_file' : type === 'document' ? 'document_file' : 'object_file',
+          ),
           parent.facts,
         )
       )

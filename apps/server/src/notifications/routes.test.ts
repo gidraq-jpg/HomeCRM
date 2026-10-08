@@ -73,6 +73,47 @@ beforeEach(async () => {
 afterAll(async () => {
   await world?.close();
 });
+it('DOC-2: перед отправкой смена роли закрывает удостоверение и отменяет доставку ребёнку', async () => {
+  await world.database.admin.query(
+    "UPDATE space_members SET role='adult' WHERE space_id=$1 AND account_id=$2",
+    [world.houseId, world.vera.id],
+  );
+  try {
+    await subscribe(child);
+    const response = await adult.post('/api/documents', {
+      title: 'Вымышленное удостоверение для уведомления',
+      owner: { kind: 'member', id: world.vera.id },
+      assigneeId: world.vera.id,
+      placement: { spaceId: world.houseId, audience: 'household' },
+      data: { type: 'birth_certificate', expiresOn: '2026-10-07', warnings: [0] },
+    });
+    expect(response.status, response.text).toBe(201);
+    const db = createWorkerDatabase(world.database.worker);
+    await refreshDeadlines(db, now, true);
+    await enqueueDeadlineWarnings(db, now);
+    expect(
+      (
+        await world.database.admin.query(
+          "SELECT count(*)::int AS n FROM deadline_notifications WHERE status='pending'",
+        )
+      ).rows[0]?.n,
+    ).toBe(1);
+    await world.database.admin.query(
+      "UPDATE space_members SET role='child' WHERE space_id=$1 AND account_id=$2",
+      [world.houseId, world.vera.id],
+    );
+    await dispatchNotifications(world.database.worker, send, now);
+    expect(send).not.toHaveBeenCalled();
+    expect((await world.database.admin.query('SELECT status FROM push_deliveries')).rows).toEqual([
+      { status: 'cancelled' },
+    ]);
+  } finally {
+    await world.database.admin.query(
+      "UPDATE space_members SET role='child' WHERE space_id=$1 AND account_id=$2",
+      [world.houseId, world.vera.id],
+    );
+  }
+});
 it('API возвращает defaults, валидирует настройки и подписку, скрывает endpoint и закрывает чужое личное', async () => {
   const sub = await subscribe();
   expect((await adult.get('/api/notifications/settings')).json()).toEqual({
