@@ -760,7 +760,7 @@ test('радар: документ с длинным предупреждени�
   const boris = await apiAs(family, 'adult');
   const created = await boris.post('documents', {
     title: 'Вымышленный загранпаспорт',
-    data: { type: 'international_passport', expiresOn: homeDate(120) },
+    data: { type: 'international_passport', expiresOn: homeDate(91) },
     placement: { spaceId: family.houseId, audience: 'adults' },
   });
   expect(created.status).toBe(201);
