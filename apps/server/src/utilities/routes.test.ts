@@ -45,6 +45,7 @@ async function property(device = adult, body: Record<string, unknown> = {}) {
   const result = await device.post('/api/objects', {
     title: 'Вымышленная квартира',
     objectType: 'property',
+    placement: { spaceId: world.houseId, audience: 'adults' },
     ...body,
   });
   expect(result.status, result.text).toBe(201);
@@ -127,6 +128,15 @@ it('S1: первая квартира только с названием, три
   expect((await property(adult, { placement: { spaceId: world.houseId } })).audience).toBe(
     'adults',
   );
+});
+it('UTIL-1: прежний запрос без placement сохраняет «Только я», включая поля недвижимости', async () => {
+  for (const typeData of [undefined, { address: 'Личный вымышленный адрес' }]) {
+    const object = await property(adult, { placement: undefined, typeData });
+    expect(object.spaceId).toBe(world.boris.personalSpaceId);
+    expect(object.audience).toBeNull();
+    for (const device of [admin, child])
+      expect((await device.get(`/api/objects/${object.id}`)).status).toBe(404);
+  }
 });
 it('UTIL-1: правка полей, поиск адреса и кадастра, скрытая недвижимость не попадает ребёнку', async () => {
   const object = await property();

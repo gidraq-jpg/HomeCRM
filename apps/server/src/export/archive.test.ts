@@ -258,6 +258,7 @@ it('UTIL-2: ZIP сохраняет счета в корзине и скрыва�
   const property = await adult.post('/api/objects', {
     title: 'Вымышленная квартира для архива',
     objectType: 'property',
+    placement: { spaceId: world.houseId, audience: 'adults' },
     typeData: { areaHundredths: 5731 },
   });
   expect(property.status, property.text).toBe(201);

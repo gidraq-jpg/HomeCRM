@@ -30,12 +30,7 @@ import type { z } from 'zod';
 import type { Account } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import { copyFiles, fileSummary, filesOf } from '../files/service.ts';
-import {
-  accountSummary,
-  defaultHousePlacement,
-  peopleOf,
-  validateProperty,
-} from '../utilities/service.ts';
+import { accountSummary, peopleOf, validateProperty } from '../utilities/service.ts';
 import { exportLinks, registerLinks } from './links.ts';
 import {
   AudienceChange,
@@ -290,16 +285,14 @@ export async function objectsRoutes(app: FastifyInstance, module: AuthModule) {
   route('POST', '/api/objects', 201, async (tx, account, request) => {
     const body = parse(CreateObject, request.body);
     if (body.fields.some((field) => field.id)) throw new Failure(400, 'INVALID_FIELD');
-    const place =
-      body.objectType === 'property' && !body.placement
-        ? await defaultHousePlacement(tx, account, 'adults')
-        : await placementFrom(
-            tx,
-            account,
-            body.placement?.spaceId,
-            body.placement?.audience,
-            body.objectType === 'property' ? 'adults' : 'household',
-          );
+    // Прежний клиент передаёт «Только я» отсутствием placement; его нельзя делать общим.
+    const place = await placementFrom(
+      tx,
+      account,
+      body.placement?.spaceId,
+      body.placement?.audience,
+      body.objectType === 'property' ? 'adults' : 'household',
+    );
     if (body.typeData && body.objectType !== 'property') throw new Failure(400, 'INVALID_INPUT');
     const typeData =
       body.objectType === 'property'
