@@ -131,6 +131,43 @@ it('CONT-1/3: роль связи, люди в объекте, скрытая о
     ]),
   );
 });
+it('CONT-3: оба порядка связи исключают из блока объекта контакт и связь в корзине', async () => {
+  const response = await adult.post('/api/objects', {
+    title: 'Вымышленный объект корзины контактов',
+    placement: { spaceId: world.houseId, audience: 'household' },
+  });
+  expect(response.status, response.text).toBe(201);
+  const object = response.json<{ id: string }>();
+  const people = async () =>
+    (await admin.get(`/api/objects/${object.id}`))
+      .json<{
+        peopleAndOrganizations: { contact: { id: string } }[];
+      }>()
+      .peopleAndOrganizations.map((item) => item.contact.id);
+  for (const trash of ['contact', 'link'])
+    for (const reverse of [false, true]) {
+      const contact = await person({
+        placement: { spaceId: world.houseId, audience: 'household' },
+      });
+      const objectRef = { type: 'object', id: object.id },
+        contactRef = { type: 'contact', id: contact.id };
+      const created = await adult.post('/api/links', {
+        left: reverse ? contactRef : objectRef,
+        right: reverse ? objectRef : contactRef,
+        role: 'Сосед',
+      });
+      expect(created.status, created.text).toBe(201);
+      expect(await people()).toContain(contact.id);
+      const link = created.json<{ id: string }>();
+      const removed = await adult.post(
+        trash === 'contact' ? `/api/contacts/${contact.id}/trash` : `/api/links/${link.id}/trash`,
+        {},
+      );
+      expect(removed.status, removed.text).toBe(200);
+      expect(await people()).not.toContain(contact.id);
+    }
+});
+
 it('CONT-4: лента объекта требует оба конца, ребёнок не видит взрослые взаимодействия', async () => {
   const object = (
     await adult.post('/api/objects', {

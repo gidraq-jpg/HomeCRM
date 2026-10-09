@@ -142,7 +142,7 @@ export async function peopleOf(tx: Transaction, account: Account, objectId: stri
       and(
         isNull(recordLinks.deletedAt),
         isNull(contacts.deletedAt),
-        sql`(${recordLinks.leftTable}='objects' AND ${recordLinks.leftId}=${objectId}::uuid AND ${recordLinks.rightTable}='contacts') OR (${recordLinks.rightTable}='objects' AND ${recordLinks.rightId}=${objectId}::uuid AND ${recordLinks.leftTable}='contacts')`,
+        sql`((${recordLinks.leftTable}='objects' AND ${recordLinks.leftId}=${objectId}::uuid AND ${recordLinks.rightTable}='contacts') OR (${recordLinks.rightTable}='objects' AND ${recordLinks.rightId}=${objectId}::uuid AND ${recordLinks.leftTable}='contacts'))`,
       ),
     );
   return rows
