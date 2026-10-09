@@ -23,11 +23,12 @@ type Data = Record<string, unknown>;
 export const EXPORT_PAGE_SIZE = 100;
 /** Разделяет временные выгрузки параллельных процессов, включая независимые тестовые прогоны. */
 export const EXPORT_TEMP_PREFIX = `homecrm-export-${process.pid}-`;
-const OMIT = sql`ARRAY['search_text','is_active','is_paid','has_other_contributions','assignee_house_id','assignee_adult_id','assignee_adult_flag','storage_key','envelope','preview_storage_key','preview_envelope','needs_refresh']::text[]`;
+const OMIT = sql`ARRAY['search_text','is_active','is_paid','is_identity','has_other_contributions','assignee_house_id','assignee_adult_id','assignee_adult_flag','storage_key','envelope','preview_storage_key','preview_envelope','needs_refresh']::text[]`;
 const TABLES = [
   'notes',
   'note_items',
   'objects',
+  'documents',
   'contacts',
   'utility_accounts',
   'utility_charges',
@@ -40,8 +41,9 @@ const TABLES = [
   'shopping_items',
   'deadlines',
 ] as const;
-const FILE_TABLES = ['note_files', 'object_files', 'profile_files'] as const;
+const FILE_TABLES = ['note_files', 'object_files', 'document_files', 'profile_files'] as const;
 const HISTORY_TABLES = [
+  'documents',
   'notes',
   'note_items',
   'objects',
@@ -55,6 +57,7 @@ const HISTORY_TABLES = [
   'object_events',
   'tasks',
   'shopping_items',
+  'document_files',
   'note_files',
   'object_files',
 ] as const;
@@ -98,7 +101,7 @@ async function checkFile(tx: Transaction, account: Account, table: string, row: 
     if (row.account_id !== account.id) throw new Failure(403, 'ACCESS_DENIED');
     return;
   }
-  const type = table === 'note_files' ? 'note' : 'object';
+  const type = table === 'note_files' ? 'note' : table === 'document_files' ? 'document' : 'object';
   const parent = await readReference(tx, account, { type, id: String(row.parent_id) });
   if (
     !canViewFile(
@@ -135,6 +138,26 @@ async function* records(
       ? sql`(to_jsonb(t) - ${OMIT} - 'values' - 'consumption') || jsonb_build_object('values',ARRAY(SELECT v::text FROM unnest(t.values) v),'consumption',CASE WHEN t.consumption IS NULL THEN NULL ELSE ARRAY(SELECT v::text FROM unnest(t.consumption) v) END)`
       : undefined;
   for await (const row of rows(tx, table, where, projection)) {
+    if (table === 'documents') {
+      if (
+        row.owner_contact_id &&
+        !(
+          await tx.execute(
+            sql`SELECT 1 FROM contacts t WHERE id=${row.owner_contact_id}::uuid AND ${scope.kind === 'personal' ? sql`true` : scopeWhere(scope)}`,
+          )
+        ).rowCount
+      )
+        row.owner_contact_id = null;
+      if (
+        row.previous_id &&
+        !(
+          await tx.execute(
+            sql`SELECT 1 FROM documents t WHERE id=${row.previous_id}::uuid AND ${scope.kind === 'personal' ? sql`true` : scopeWhere(scope)}`,
+          )
+        ).rowCount
+      )
+        row.previous_id = null;
+    }
     if (table === 'utility_accounts' && row.supplier_id) {
       const result = await tx.execute(
         sql`SELECT 1 FROM contacts t WHERE id=${String(row.supplier_id)}::uuid AND ${scope.kind === 'personal' ? sql`true` : scopeWhere(scope)} `,

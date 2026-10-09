@@ -11,9 +11,21 @@ const Query = z.object({
   q: z.string().trim().max(200).default(''),
   scope: z.enum(['all', 'household', 'personal']).default('all'),
 });
-const labels = { note: 'Заметки', object: 'Объекты', object_event: 'События' } as const;
+const labels = {
+  note: 'Заметки',
+  object: 'Объекты',
+  object_event: 'События',
+  document: 'Документы',
+} as const;
 interface Hit extends Record<string, unknown> {
-  source_type: 'note' | 'note_item' | 'object' | 'object_field' | 'object_event' | 'meter';
+  source_type:
+    | 'note'
+    | 'note_item'
+    | 'object'
+    | 'object_field'
+    | 'object_event'
+    | 'meter'
+    | 'document';
   source_id: string;
   target_id: string;
   title: string;

@@ -25,7 +25,7 @@ async function snapshot() {
       table,
       rows: (
         await db.admin.query(
-          `SELECT to_jsonb(t)-ARRAY['label','charge_id'] AS data FROM ${table} t ORDER BY id`,
+          `SELECT to_jsonb(t)-ARRAY['label','charge_id','document_id'] AS data FROM ${table} t ORDER BY id`,
         )
       ).rows,
     })),

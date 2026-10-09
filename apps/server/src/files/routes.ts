@@ -1,5 +1,5 @@
 import multipart from '@fastify/multipart';
-import { eq, notes, objects, profileFiles, sql, type Transaction } from '@homecrm/db';
+import { documents, eq, notes, objects, profileFiles, sql, type Transaction } from '@homecrm/db';
 import { canRestore, canTrash, canViewFile, canWrite, canWriteProfileFile } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -43,7 +43,7 @@ async function parentOf(
 ) {
   const reference = await readReference(tx, account, { type, id });
   if (!lock) return reference;
-  const table = type === 'note' ? notes : objects;
+  const table = type === 'note' ? notes : type === 'document' ? documents : objects;
   const [row] = await tx.select().from(table).where(eq(table.id, id)).for('update');
   if (!row) deny();
   return { row, facts: factsOf(row, type) };
@@ -60,7 +60,10 @@ async function visibleFile(
   if (
     !canViewFile(
       account.viewer,
-      factsOf(row, type === 'note' ? 'note_file' : 'object_file'),
+      factsOf(
+        row,
+        type === 'note' ? 'note_file' : type === 'document' ? 'document_file' : 'object_file',
+      ),
       parent.facts,
     )
   )
@@ -124,9 +127,9 @@ export async function filesRoutes(
   });
   route('GET', '/api/files/trash', 200, async (tx, account) => {
     const result = [];
-    for (const type of ['note', 'object'] as const) {
+    for (const type of ['note', 'object', 'document'] as const) {
       const table = fileTable(type);
-      const parentTable = type === 'note' ? notes : objects;
+      const parentTable = type === 'note' ? notes : type === 'document' ? documents : objects;
       const rows = await tx
         .select({ file: table, parent: parentTable })
         .from(table)
@@ -159,8 +162,8 @@ export async function filesRoutes(
     }
     return result;
   });
-  for (const type of ['note', 'object'] as const) {
-    const path = `/api/${type === 'note' ? 'notes' : 'objects'}/:id/files`;
+  for (const type of ['note', 'object', 'document'] as const) {
+    const path = `/api/${type === 'note' ? 'notes' : type === 'document' ? 'documents' : 'objects'}/:id/files`;
     route('GET', path, 200, async (tx, account, request) => {
       const id = parse(Id, request.params).id;
       const deleted = parse(Deleted, request.query).deleted === '1';
@@ -231,7 +234,7 @@ export async function filesRoutes(
         await tx.execute(
           sql`select pg_advisory_xact_lock_shared(hashtextextended('file-block-cleanup',0))`,
         );
-        for (const type of ['note', 'object'] as const) {
+        for (const type of ['note', 'object', 'document'] as const) {
           const table = fileTable(type);
           const [file] = await tx.select().from(table).where(eq(table.id, id));
           if (!file) continue;

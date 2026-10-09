@@ -75,11 +75,12 @@ describe('роли базы', () => {
       expect(roles, policyname).toHaveLength(1);
       if (roles[0] === DB_ROLES.worker) {
         expect(policyname).toMatch(
-          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$|^spaces_timezone_(worker|initialize)$|^deadlines_(engine|refresh)$|^deadline_(occurrences|notifications)_worker_(select|insert|update|delete)$|^(notes|objects|meters|meter_readings|utility_charges)_deadline_worker_select$|^utility_accounts_charges_worker$|^(push_(subscriptions|attempts|deliveries)|notification_settings)_worker_(select|insert|update|delete)$/,
+          /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$|^spaces_timezone_(worker|initialize)$|^deadlines_(engine|refresh)$|^deadline_(occurrences|notifications)_worker_(select|insert|update|delete)$|^(notes|objects|meters|meter_readings|utility_charges|documents)_deadline_worker_select$|^utility_accounts_charges_worker$|^(push_(subscriptions|attempts|deliveries)|notification_settings)_worker_(select|insert|update|delete)$/,
         );
       } else if (roles[0] === DB_ROLES.owner) {
         expect([
           'household_access_sync',
+          'household_access_document_owner',
           'member_profiles_initialize',
           'search_index_sync',
           'push_subscriptions_leave',
@@ -93,7 +94,7 @@ describe('роли базы', () => {
     }
   });
 
-  it('SECURITY DEFINER только у закрытых триггеров ADR-0022 и ADR-0027; runtime-роли не вызывают их', async () => {
+  it('SECURITY DEFINER: закрытые триггеры и только булев факт роли владельца документа', async () => {
     const { rows } = await database.admin.query(
       `SELECT p.proname, pg_get_userbyid(p.proowner) AS owner,
          has_function_privilege('homecrm_app', p.oid, 'EXECUTE') AS app,
@@ -105,6 +106,7 @@ describe('роли базы', () => {
     expect(rows).toEqual(
       [
         'claim_push_endpoint',
+        'document_owner_is_child',
         'initialize_member_profile',
         'remove_member_push',
         'sync_household_access',
@@ -113,9 +115,9 @@ describe('роли базы', () => {
       ].map((proname) => ({
         proname,
         owner: DB_ROLES.owner,
-        app: false,
+        app: proname === 'document_owner_is_child',
         auth: false,
-        worker: false,
+        worker: proname === 'document_owner_is_child',
       })),
     );
   });

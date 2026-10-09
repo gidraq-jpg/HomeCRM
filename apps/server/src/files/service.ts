@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   type AppDatabase,
+  documentFiles,
   eq,
   memberProfiles,
   noteFiles,
@@ -14,8 +15,9 @@ import { columnsOf, deny, placementOf, type Row } from '../objects/support.ts';
 import type { FileCipher } from './crypto.ts';
 import type { FileStorage } from './storage.ts';
 
-export type ParentType = 'note' | 'object';
-export const fileTable = (type: ParentType) => (type === 'note' ? noteFiles : objectFiles);
+export type ParentType = 'note' | 'object' | 'document';
+export const fileTable = (type: ParentType) =>
+  type === 'note' ? noteFiles : type === 'document' ? documentFiles : objectFiles;
 export type FileRow = typeof noteFiles.$inferSelect;
 export interface FileServices {
   storage: FileStorage;

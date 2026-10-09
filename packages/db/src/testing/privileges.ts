@@ -91,6 +91,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     deadlines: {
       SELECT: [
         'id',
+        'document_id',
         'note_id',
         'object_id',
         'source_kind',
@@ -196,7 +197,8 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         'assignee_id',
         'deleted_at',
         ...columns.filter((column) => column.name === 'parent_id').map((column) => column.name),
-        ...(['notes', 'objects'].includes(name) ? ['audience'] : []),
+        ...(['notes', 'objects', 'documents'].includes(name) ? ['audience'] : []),
+        ...(name === 'documents' ? ['owner_account_id', 'is_identity'] : []),
         ...(name === 'object_events' ? ['contact_table', 'contact_id'] : []),
         ...(name === 'meters' ? ['utility_account_id', 'is_active'] : []),
         ...(name === 'meter_readings' ? ['occurred_on', 'transmitted_at'] : []),

@@ -25,6 +25,7 @@ import {
   requireWrite,
   version,
 } from '../objects/support.ts';
+import { analyticsRoutes } from './analytics.ts';
 import { chargeRoutes } from './charges.ts';
 import { meterRoutes } from './meters.ts';
 import { accountSummary, contactSummary, defaultHousePlacement, provider } from './service.ts';
@@ -70,6 +71,7 @@ const List = z.strictObject({
 
 export async function utilityRoutes(app: FastifyInstance, module: AuthModule) {
   const route = dataRoutes(app, module);
+  analyticsRoutes(route);
   await meterRoutes(route);
   await chargeRoutes(route);
   await templateRoutes(route);

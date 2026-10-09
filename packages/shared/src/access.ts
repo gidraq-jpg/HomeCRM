@@ -83,6 +83,24 @@ export function canView(viewer: Viewer, placement: Placement): boolean {
   return placement.audience === 'household' || ADULT_ROLES.has(role);
 }
 
+/** DOC-2: удостоверения ребёнка не открываются детям общей аудиторией. */
+export function canViewDocument(
+  viewer: Viewer,
+  placement: Placement,
+  identity: boolean,
+  ownerIsChild: boolean,
+): boolean {
+  return (
+    canView(viewer, placement) &&
+    !(
+      placement.kind === 'household' &&
+      identity &&
+      ownerIsChild &&
+      roleIn(viewer, placement.spaceId) === 'child'
+    )
+  );
+}
+
 /** DEAD-1, OBJ-5: срок наследует доступ источника, включая корзину. */
 export function canViewDeadline(viewer: Viewer, source: RecordFacts): boolean {
   return canView(viewer, source.placement);

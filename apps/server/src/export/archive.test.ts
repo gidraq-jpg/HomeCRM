@@ -695,3 +695,55 @@ it.each(['personal', 'adults'] as const)(
     }
   },
 );
+
+it('DOC-1/5: архив содержит версии документов, историю и расшифрованные страницы; чужое личное скрыто', async () => {
+  const oldResponse = await adult.post('/api/documents', {
+    title: 'Вымышленный договор экспорта',
+    data: { type: 'contract', number: 'EXPORT-FAKE-001', expiresOn: '2026-12-01' },
+  });
+  expect(oldResponse.status, oldResponse.text).toBe(201);
+  const old = oldResponse.json<{ id: string }>();
+  const renewed = await adult.post(`/api/documents/${old.id}/renew`, {
+    data: { type: 'contract', number: 'EXPORT-FAKE-002', indefinite: true },
+  });
+  expect(renewed.status, renewed.text).toBe(201);
+  const current = renewed.json<{ id: string }>();
+  const key = randomUUID(),
+    file = randomUUID();
+  const sealed = cipher.seal(payload, key);
+  await storage.put(key, sealed.block);
+  await world.database.admin.query(
+    `INSERT INTO document_files(id,parent_id,space_id,space_kind,author_id,title,mime_type,size_bytes,storage_key,envelope)
+    VALUES($1,$2,$3,'personal',$4,'Вымышленная страница.pdf','application/pdf',$5,$6,$7)`,
+    [
+      file,
+      current.id,
+      world.boris.personalSpaceId,
+      world.boris.id,
+      payload.length,
+      key,
+      sealed.envelope,
+    ],
+  );
+  const response = await archive(adult, world.boris.password);
+  expect(response.statusCode, response.body).toBe(200);
+  const entries = await unpack(response.rawPayload);
+  expect(json(entries, 'documents')).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: old.id,
+        status: 'invalid',
+        data: expect.objectContaining({ number: 'EXPORT-FAKE-001' }),
+      }),
+      expect.objectContaining({ id: current.id, previous_id: old.id }),
+    ]),
+  );
+  expect(json(entries, 'history')).toEqual(
+    expect.arrayContaining([expect.objectContaining({ table: 'documents', record_id: old.id })]),
+  );
+  const metadata = json(entries, 'document_files').find((row: { id: string }) => row.id === file);
+  expect(entries.get(metadata.archive_path)).toEqual(payload);
+  const other = await unpack((await archive(admin, world.anna.password)).rawPayload);
+  expect(json(other, 'documents')).toEqual([]);
+  expect(json(other, 'document_files')).toEqual([]);
+});

@@ -2,6 +2,8 @@ import {
   and,
   type Database,
   deadlines,
+  documentChildBarrierSql,
+  documents,
   eq,
   isNull,
   notes,
@@ -45,6 +47,7 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
           id: deadlines.id,
           createdAt: deadlines.createdAt,
           chargeId: deadlines.chargeId,
+          documentId: deadlines.documentId,
           noteId: deadlines.noteId,
           objectId: deadlines.objectId,
           sourceKind: deadlines.sourceKind,
@@ -69,25 +72,38 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
       if (!house?.timeZone) throw new Error('House time zone is not initialized');
       const zone = TimeZone.parse(house.timeZone);
       const rule = DeadlineRule.parse(deadline.rule);
-      const sourceTable = deadline.noteId ? notes : objects;
+      const sourceTable = deadline.noteId ? notes : deadline.documentId ? documents : objects;
       const [source] = await tx
         .select({ assigneeId: sourceTable.assigneeId, deletedAt: sourceTable.deletedAt })
         .from(sourceTable)
-        .where(eq(sourceTable.id, deadline.noteId ?? deadline.objectId ?? ''));
+        .where(
+          eq(sourceTable.id, deadline.noteId ?? deadline.objectId ?? deadline.documentId ?? ''),
+        );
       const active = deadline.deletedAt === null && source?.deletedAt === null;
       if (!active) {
         if (deadline.needsRefresh)
           await tx.update(deadlines).set({ needsRefresh: false }).where(eq(deadlines.id, id));
         return;
       }
-      const utility = deadline.sourceKind !== 'record' && deadline.chargeId === null;
-      const baseline = utility ? deadline.createdAt : shiftLocalDays(now, -90, zone);
+      const utility =
+        !['record', 'document'].includes(deadline.sourceKind) && deadline.chargeId === null;
+      const baseline = utility
+        ? deadline.createdAt
+        : deadline.sourceKind === 'document'
+          ? now
+          : shiftLocalDays(now, -90, zone);
       const horizon = shiftLocalDays(now, 90, zone);
       const byDate = new Map<string, ReturnType<typeof deadlineOccurrences>[number]>();
       // Коммунальные повторы начинаются у источника, а не за 90 дней до запуска.
       // Части ограничены календарным лимитом общего движка; старые реальные долги сохраняются.
       for (let cursor = baseline; cursor <= horizon; cursor = shiftLocalDays(cursor, 181, zone)) {
-        for (const item of deadlineOccurrences(rule, cursor, zone, 180, true)) {
+        for (const item of deadlineOccurrences(
+          rule,
+          cursor,
+          zone,
+          deadline.sourceKind === 'document' ? 365 : 180,
+          true,
+        )) {
           if (!utility || (item.endsAt >= baseline && item.startsAt <= horizon))
             byDate.set(item.date, item);
         }
@@ -176,6 +192,7 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
     for (const row of rows) {
       const [rule] = await tx
         .select({
+          documentId: deadlines.documentId,
           noteId: deadlines.noteId,
           objectId: deadlines.objectId,
           deletedAt: deadlines.deletedAt,
@@ -188,11 +205,11 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
         .from(deadlines)
         .where(eq(deadlines.id, row.deadlineId));
       if (!rule || rule.deletedAt !== null || rule.dirty) continue;
-      const sourceTable = rule.noteId ? notes : objects;
+      const sourceTable = rule.noteId ? notes : rule.documentId ? documents : objects;
       const [source] = await tx
         .select({ assigneeId: sourceTable.assigneeId, deletedAt: sourceTable.deletedAt })
         .from(sourceTable)
-        .where(eq(sourceTable.id, rule.noteId ?? rule.objectId ?? ''));
+        .where(eq(sourceTable.id, rule.noteId ?? rule.objectId ?? rule.documentId ?? ''));
       if (!source?.assigneeId || source.deletedAt !== null) continue;
       const recipient = source.assigneeId;
       const visible =
@@ -216,7 +233,14 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
             sql`SELECT 1 FROM meters WHERE utility_account_id=${rule.utilityAccountId} AND is_active AND deleted_at IS NULL LIMIT 1`,
           )
         ).rowCount === 0;
-      if (!visible || expiredEmptyWindow) {
+      const hiddenIdentity =
+        rule.documentId !== null &&
+        (
+          await tx.execute(
+            sql`WITH target AS (SELECT ${recipient}::uuid AS account_id) SELECT 1 FROM documents CROSS JOIN target WHERE documents.id=${rule.documentId}::uuid AND (${sql.raw(documentChildBarrierSql('target.account_id'))})`,
+          )
+        ).rowCount === 1;
+      if (!visible || expiredEmptyWindow || hiddenIdentity) {
         await tx.execute(
           sql`UPDATE deadline_notifications SET status='cancelled' WHERE occurrence_id=${row.id} AND status='pending'`,
         );

@@ -173,7 +173,7 @@ function attemptsFor(
         label: record.label,
         expected:
           (record.facts.placement.kind === 'household' ||
-            ['utility_charge', 'utility_payment'].includes(record.type)) &&
+            ['utility_charge', 'utility_payment', 'document'].includes(record.type)) &&
           canView(viewer.viewer, record.facts.placement),
         run: async (tx) => {
           const table = RECORD_HISTORY_TABLES[record.type];
@@ -314,6 +314,7 @@ function attemptsFor(
               'object_event',
               'note_file',
               'object_file',
+              'document_file',
               'utility_account',
               'meter',
               'meter_reading',
@@ -433,7 +434,7 @@ async function listMismatches(
         const expectedHistory =
           expected &&
           (record.facts.placement.kind === 'household' ||
-            ['utility_charge', 'utility_payment'].includes(record.type));
+            ['utility_charge', 'utility_payment', 'document'].includes(record.type));
         checks++;
         if (expectedHistory) allowedByReference++;
         if (expectedHistory !== visibleHistory.has(record.id)) {

@@ -193,7 +193,7 @@ export function deadlineOccurrences(
     ];
   });
 }
-export const RADAR_GROUPS = ['overdue', 'now', '7days', '30days', '90days'] as const;
+export const RADAR_GROUPS = ['overdue', 'now', '7days', '30days', '90days', 'later'] as const;
 export function radarGroup(
   occurrence: Pick<DeadlineOccurrence, 'startsAt' | 'endsAt'>,
   now: Date,

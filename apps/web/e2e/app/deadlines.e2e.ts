@@ -751,3 +751,25 @@ test('названия записей и сроков не попадают в �
   await expectNothingStored(page, ['Квартира у парка', 'Страховка дачи']);
   expect(messages.join('\n')).not.toMatch(/Квартира у парка|Страховка дачи/);
 });
+
+test('радар: документ с длинным предупреждением находится в последней группе «Позже»', async ({
+  page,
+  family,
+}, info) => {
+  await setHomeZone(family);
+  const boris = await apiAs(family, 'adult');
+  const created = await boris.post('documents', {
+    title: 'Вымышленный загранпаспорт',
+    data: { type: 'international_passport', expiresOn: homeDate(91) },
+    placement: { spaceId: family.houseId, audience: 'adults' },
+  });
+  expect(created.status).toBe(201);
+  await recalc(family);
+  await signInAs(page, family, 'adult');
+  await openRadar(page);
+  const later = page.getByRole('list', { name: 'Позже', exact: true });
+  await expect(later).toContainText('Вымышленный загранпаспорт');
+  const headings = page.getByRole('heading', { level: 2 });
+  await expect(headings.last()).toHaveText('Позже');
+  await checkApp(page, info, 'radar-document-later');
+});

@@ -28,7 +28,7 @@ export const SEARCH_VIEW_SQL = `${canViewSql()} AND (
     app.placement_visible(origin_space_id,origin_space_kind,origin_audience)
     AND app.search_parent_visible(target_id)
   )
-)`;
+) AND (source_type <> 'document' OR EXISTS(SELECT 1 FROM documents d WHERE d.id=source_id))`;
 
 export const searchIndex = pgTable(
   'search_index',

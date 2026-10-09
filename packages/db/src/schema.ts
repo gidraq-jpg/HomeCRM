@@ -8,6 +8,7 @@
 
 import {
   type ChargeLine,
+  type DocumentData,
   MeterData,
   OBJECT_TYPES,
   type OrganizationData,
@@ -38,6 +39,7 @@ import {
 import {
   canInviteSql,
   canResetPasswordSql,
+  DOCUMENT_VISIBLE_SQL,
   INVITATION_TTL,
   ownAccountSql,
   type RecordType,
@@ -278,6 +280,61 @@ export const recordLinks = pgTable(
   ],
 );
 
+/** DOC-1/5: версии — самостоятельные записи с собственным доступом и историей. */
+const documentsDefinition = recordTable(
+  'documents',
+  'document',
+  {
+    data: jsonb('data').$type<DocumentData>().notNull().default({
+      type: 'other',
+      series: '',
+      number: '',
+      issuedBy: '',
+      issuedOn: null,
+      expiresOn: null,
+      indefinite: false,
+      note: '',
+      tags: [],
+    }),
+    ownerAccountId: uuid('owner_account_id').references(() => accounts.id),
+    ownerContactId: uuid('owner_contact_id'),
+    ownerObjectId: uuid('owner_object_id').references(() => objects.id, { onDelete: 'cascade' }),
+    previousId: uuid('previous_id').references((): AnyPgColumn => documents.id, {
+      onDelete: 'set null',
+    }),
+    status: text('status').$type<'valid' | 'invalid'>().notNull().default('valid'),
+    isIdentity: boolean('is_identity').generatedAlwaysAs(
+      sql`data->>'type' IN ('russian_passport','international_passport','birth_certificate','snils','inn','driver_license')`,
+    ),
+  },
+  {
+    visibleSql: DOCUMENT_VISIBLE_SQL,
+    updateVisibilitySql: DOCUMENT_VISIBLE_SQL,
+    extraChecks: [
+      check(
+        'documents_one_owner',
+        sql`num_nonnulls(owner_account_id,owner_contact_id,owner_object_id)<=1`,
+      ),
+      check('documents_status', sql`status IN ('valid','invalid')`),
+    ],
+    extraPolicies: [
+      pgPolicy('documents_deadline_worker_select', {
+        for: 'select',
+        to: workerRole,
+        using: sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.document_id=documents.id)`,
+      }),
+      pgPolicy('documents_object_cascade', {
+        for: 'update',
+        to: appRole,
+        using: sql`pg_trigger_depth()>0 AND owner_object_id=nullif(current_setting('app.document_object_id',true),'')::uuid`,
+        withCheck: sql`pg_trigger_depth()>0 AND owner_object_id=nullif(current_setting('app.document_object_id',true),'')::uuid`,
+      }),
+    ],
+  },
+);
+export const documents = documentsDefinition.table;
+export const documentsHistory = documentsDefinition.history;
+
 /** OBJ-4: метаданные и конверт ключа находятся только в базе, блоки — на томе. */
 const fileColumns = () => ({
   parentId: uuid('parent_id').notNull(),
@@ -298,6 +355,13 @@ const objectFilesDefinition = recordTable('object_files', 'object_file', fileCol
 });
 export const objectFiles = objectFilesDefinition.table;
 export const objectFilesHistory = objectFilesDefinition.history;
+const documentFilesDefinition = recordTable('document_files', 'document_file', fileColumns(), {
+  parent: documents,
+  visibleSql: 'EXISTS (SELECT 1 FROM documents d WHERE d.id=parent_id)',
+  updateVisibilitySql: 'EXISTS (SELECT 1 FROM documents d WHERE d.id=parent_id)',
+});
+export const documentFiles = documentFilesDefinition.table;
+export const documentFilesHistory = documentFilesDefinition.history;
 
 /** Фото принадлежит профилю; семейная аудитория вычисляется по действующим членствам. */
 export const profileFiles = pgTable(
@@ -586,6 +650,8 @@ export const RECORD_TABLES = {
   meter_reading: meterReadings,
   utility_charge: utilityCharges,
   utility_payment: utilityPayments,
+  document: documents,
+  document_file: documentFiles,
 } as const satisfies Record<RecordType, unknown>;
 
 /** История изменений каждого вида записи (OBJ-6). */
@@ -605,6 +671,8 @@ export const RECORD_HISTORY_TABLES = {
   meter_reading: meterReadingsHistory,
   utility_charge: utilityChargesHistory,
   utility_payment: utilityPaymentsHistory,
+  document: documentsHistory,
+  document_file: documentFilesHistory,
 } as const satisfies Record<RecordType, unknown>;
 // ---------------------------------------------------------------------------------------------
 // Таблицы входа (ADR-0005). Первые шесть — модели Better Auth: имена моделей и полей заданы в

@@ -61,8 +61,8 @@ export function fetchTrashedDeadlines(signal?: AbortSignal) {
 }
 
 /** Вид источника срока (ADR-0033): прежний срок записи или управляемый срок счёта или счётчика. */
-export const SOURCE_KINDS = ['record', 'readings', 'payment', 'verification'] as const;
-export type UtilitySourceKind = Exclude<(typeof SOURCE_KINDS)[number], 'record'>;
+export const SOURCE_KINDS = ['record', 'readings', 'payment', 'verification', 'document'] as const;
+export type UtilitySourceKind = Exclude<(typeof SOURCE_KINDS)[number], 'record' | 'document'>;
 
 /** Основное действие пункта радара (docs/utility-deadlines-api.md). Подписи приходят с сервера. */
 export const PrimaryAction = z.object({

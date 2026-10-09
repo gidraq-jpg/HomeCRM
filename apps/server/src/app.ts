@@ -6,6 +6,7 @@ import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
 import { initializeHouseTimeZones } from './deadlines/engine.ts';
 import { deadlinesRoutes } from './deadlines/routes.ts';
+import { documentRoutes } from './documents/routes.ts';
 import { exportRoutes } from './export/routes.ts';
 import { filesRoutes } from './files/routes.ts';
 import { type FileServices, fileTransactions } from './files/service.ts';
@@ -158,6 +159,7 @@ export function buildApp(
       ...(dependencies.files ? { files: dependencies.files } : {}),
     });
     void app.register(deadlinesRoutes, auth);
+    void app.register(documentRoutes, auth);
     void app.register(notificationRoutes, {
       ...auth,
       ...(config.VAPID_PUBLIC_KEY ? { publicKey: config.VAPID_PUBLIC_KEY } : {}),
