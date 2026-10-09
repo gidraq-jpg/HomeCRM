@@ -50,6 +50,7 @@ export const TYPE_LABELS: Readonly<Record<RecordType, string>> = {
   note_file: 'файл заметки',
   object_file: 'файл объекта',
   contact: 'контакт',
+  contact_interaction: 'взаимодействие',
   utility_account: 'лицевой счёт',
   meter: 'счётчик',
   meter_reading: 'показание',
@@ -182,6 +183,7 @@ export function buildFamily(): Family {
 
   const records: SeededRecord[] = [];
   const parents = new Map<Placement, string>();
+  const contactParents = new Map<Placement, string>();
   const objectParents = new Map<Placement, string>();
   const meterParents = new Map<Placement, string>();
   const accountParents = new Map<Placement, string>();
@@ -194,6 +196,8 @@ export function buildFamily(): Family {
           for (const trashed of [false, true]) {
             const facts: RecordFacts = { placement, type, authorId, assigneeId, trashed };
             const id = randomUUID();
+            if (type === 'contact' && !trashed && !contactParents.has(placement))
+              contactParents.set(placement, id);
             if (type === 'document' && !trashed && !documentParents.has(placement))
               documentParents.set(placement, id);
             if (type === 'note' && !trashed && !parents.has(placement)) parents.set(placement, id);
@@ -213,17 +217,19 @@ export function buildFamily(): Family {
   }
   const parentIdFor = (placement: Placement, type: RecordType = 'note_item'): string => {
     const found = (
-      type === 'document_file'
-        ? documentParents
-        : type === 'utility_charge'
-          ? accountParents
-          : type === 'utility_payment'
-            ? chargeParents
-            : type === 'meter_reading'
-              ? meterParents
-              : ['note_item', 'note_file'].includes(type)
-                ? parents
-                : objectParents
+      type === 'contact_interaction'
+        ? contactParents
+        : type === 'document_file'
+          ? documentParents
+          : type === 'utility_charge'
+            ? accountParents
+            : type === 'utility_payment'
+              ? chargeParents
+              : type === 'meter_reading'
+                ? meterParents
+                : ['note_item', 'note_file'].includes(type)
+                  ? parents
+                  : objectParents
     ).get(placement);
     if (found === undefined) throw new Error('No parent note in this place');
     return found;
@@ -233,6 +239,7 @@ export function buildFamily(): Family {
       record.parentId = parentIdFor(record.facts.placement);
     if (
       record.type === 'document_file' ||
+      record.type === 'contact_interaction' ||
       record.type === 'object_field' ||
       record.type === 'object_event' ||
       record.type === 'object_file' ||

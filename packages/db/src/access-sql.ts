@@ -18,6 +18,7 @@ export const RECORD_TYPES = [
   'note_file',
   'object_file',
   'contact',
+  'contact_interaction',
   'utility_account',
   'meter',
   'meter_reading',

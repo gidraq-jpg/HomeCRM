@@ -104,7 +104,7 @@ interface FeedRow extends Record<string, unknown> {
   id: string;
   object_id: string;
   at: string;
-  source: 'object' | 'field' | 'manual' | 'reading';
+  source: 'object' | 'field' | 'manual' | 'reading' | 'interaction';
   payload: Record<string, unknown>;
   space_id: string;
   space_kind: 'personal' | 'household';
@@ -151,6 +151,12 @@ async function feed(
         r.space_id,r.space_kind,r.audience,s.owner_account_id,NULL::uuid,NULL::jsonb
       FROM meter_readings r JOIN meters m ON m.id=r.parent_id LEFT JOIN spaces s ON s.id=r.space_id
       WHERE m.parent_id IN (${ids}) AND (${includeDeleted} OR (r.deleted_at IS NULL AND m.deleted_at IS NULL))
+      UNION ALL
+      SELECT i.id,i.object_id,i.occurred_on::timestamp AT TIME ZONE 'UTC','interaction',
+        jsonb_build_object('interactionId',i.id,'contactId',i.parent_id,'kind',i.kind,'occurredOn',i.occurred_on,'text',i.title,'amountCents',i.amount_cents,'callAgain',i.call_again),
+        i.space_id,i.space_kind,i.audience,s.owner_account_id,NULL::uuid,NULL::jsonb
+      FROM contact_interactions i JOIN contacts c ON c.id=i.parent_id JOIN objects o ON o.id=i.object_id LEFT JOIN spaces s ON s.id=i.space_id
+      WHERE i.object_id IN (${ids}) AND i.deleted_at IS NULL AND c.deleted_at IS NULL AND o.deleted_at IS NULL
       UNION ALL
       SELECT e.id,e.parent_id,e.occurred_on::timestamp AT TIME ZONE 'UTC','manual',
         jsonb_build_object('parentId',e.parent_id,'occurredOn',e.occurred_on,'text',e.title,'amountKopecks',e.amount_kopecks,'rating',e.rating,

@@ -119,6 +119,15 @@ export function canViewLink(viewer: Viewer, left: RecordFacts, right: RecordFact
   return canView(viewer, left.placement) && canView(viewer, right.placement);
 }
 
+/** CONT-4: дочернее взаимодействие не открывается шире контакта. */
+export function canViewInteraction(
+  viewer: Viewer,
+  interaction: RecordFacts,
+  contact: RecordFacts,
+): boolean {
+  return canViewLink(viewer, interaction, contact);
+}
+
 /** Подписать, создать или убрать связь может читатель обоих концов с правом правки хотя бы одного. */
 export function canWriteLink(viewer: Viewer, left: RecordFacts, right: RecordFacts): boolean {
   return canViewLink(viewer, left, right) && (canWrite(viewer, left) || canWrite(viewer, right));

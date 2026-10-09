@@ -30,6 +30,7 @@ const TABLES = [
   'objects',
   'documents',
   'contacts',
+  'contact_interactions',
   'utility_accounts',
   'utility_charges',
   'utility_payments',
@@ -48,6 +49,7 @@ const HISTORY_TABLES = [
   'note_items',
   'objects',
   'contacts',
+  'contact_interactions',
   'utility_accounts',
   'utility_charges',
   'utility_payments',
@@ -138,6 +140,21 @@ async function* records(
       ? sql`(to_jsonb(t) - ${OMIT} - 'values' - 'consumption') || jsonb_build_object('values',ARRAY(SELECT v::text FROM unnest(t.values) v),'consumption',CASE WHEN t.consumption IS NULL THEN NULL ELSE ARRAY(SELECT v::text FROM unnest(t.consumption) v) END)`
       : undefined;
   for await (const row of rows(tx, table, where, projection)) {
+    if (
+      (table === 'contacts' && row.organization_id) ||
+      (table === 'contact_interactions' && row.object_id)
+    ) {
+      const target = table === 'contacts' ? 'contacts' : 'objects';
+      const key = table === 'contacts' ? 'organization_id' : 'object_id';
+      if (
+        !(
+          await tx.execute(
+            sql`SELECT 1 FROM ${sql.identifier(target)} t WHERE id=${String(row[key])}::uuid AND ${scope.kind === 'personal' ? sql`true` : scopeWhere(scope)}`,
+          )
+        ).rowCount
+      )
+        row[key] = null;
+    }
     if (table === 'documents') {
       if (
         row.owner_contact_id &&
@@ -195,7 +212,7 @@ async function* histories(tx: Transaction, scope: ExportScope) {
       `${table}_history`,
       sql`${scopeWhere(scope)} AND EXISTS (SELECT 1 FROM ${sql.identifier(table)} p WHERE p.id=t.record_id AND ${scopeWhere(scope, 'p')}
           ${table === 'object_events' && scope.kind === 'household' ? sql`AND p.origin_space_kind='household' AND p.origin_space_id=${scope.householdId}::uuid` : sql``})`,
-      sql`(to_jsonb(t) - 'changes') || jsonb_build_object('table', ${table}::text, 'changes', t.changes - ${OMIT} - ARRAY['contact_id','contact_table','supplier_id']::text[])`,
+      sql`(to_jsonb(t) - 'changes') || jsonb_build_object('table', ${table}::text, 'changes', t.changes - ${OMIT} - ARRAY['contact_id','contact_table','supplier_id','organization_id','object_id']::text[])`,
     ))
       yield row;
 }

@@ -1,17 +1,10 @@
-import { and, contacts, eq, isNull, sql, type Transaction, utilityAccounts } from '@homecrm/db';
-import {
-  canCreate,
-  canRestore,
-  canTrash,
-  canView,
-  ORGANIZATION_TYPES,
-  OrganizationData,
-  UtilityAccountData,
-} from '@homecrm/shared';
+import { and, eq, isNull, sql, type Transaction, utilityAccounts } from '@homecrm/db';
+import { canRestore, canTrash, canView, UtilityAccountData } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
+import { contactRoutes } from '../contacts/routes.ts';
 import { getObject } from '../objects/routes.ts';
 import {
   columnsOf,
@@ -20,7 +13,6 @@ import {
   factsOf,
   missing,
   parse,
-  placementFrom,
   placementOf,
   requireWrite,
   version,
@@ -28,26 +20,11 @@ import {
 import { analyticsRoutes } from './analytics.ts';
 import { chargeRoutes } from './charges.ts';
 import { meterRoutes } from './meters.ts';
-import { accountSummary, contactSummary, defaultHousePlacement, provider } from './service.ts';
+import { accountSummary, provider } from './service.ts';
 import { templateRoutes } from './templates.ts';
 
 const Id = z.strictObject({ id: z.uuid() });
 const title = z.string().trim().min(1).max(200);
-const CreateContact = z.strictObject({
-  title,
-  kind: z.literal('organization').default('organization'),
-  data: OrganizationData.default(() => OrganizationData.parse({})),
-  placement: z
-    .strictObject({ spaceId: z.uuid(), audience: z.enum(['household', 'adults']).optional() })
-    .optional(),
-});
-const PatchContact = z
-  .strictObject({
-    title: title.optional(),
-    data: OrganizationData.optional(),
-    expectedUpdatedAt: z.iso.datetime().optional(),
-  })
-  .refine((body) => body.title !== undefined || body.data !== undefined);
 const CreateAccount = z.strictObject({
   title: title.default('Лицевой счёт'),
   supplierId: z.uuid().nullable().default(null),
@@ -75,53 +52,7 @@ export async function utilityRoutes(app: FastifyInstance, module: AuthModule) {
   await meterRoutes(route);
   await chargeRoutes(route);
   await templateRoutes(route);
-  route('POST', '/api/contacts', 201, async (tx, account, request) => {
-    const body = parse(CreateContact, request.body);
-    const place = body.placement
-      ? await placementFrom(tx, account, body.placement.spaceId, body.placement.audience)
-      : await defaultHousePlacement(tx, account, 'household');
-    if (!canCreate(account.viewer, { type: 'contact', placement: place, authorId: account.id }))
-      deny();
-    const [row] = await tx
-      .insert(contacts)
-      .values({
-        ...columnsOf(place),
-        title: body.title,
-        kind: body.kind,
-        data: body.data,
-        authorId: account.id,
-      })
-      .returning();
-    if (!row) deny();
-    return contactSummary(row);
-  });
-  route('GET', '/api/contacts', 200, async (tx, account, request) => {
-    const query = parse(
-      List.extend({
-        organizationType: z.enum(ORGANIZATION_TYPES).optional(),
-        scope: z.enum(['all', 'personal', 'household']).default('all'),
-      }),
-      request.query,
-    );
-    const rows = await tx
-      .select()
-      .from(contacts)
-      .where(
-        and(
-          query.scope === 'all' ? undefined : eq(contacts.spaceKind, query.scope),
-          query.trash === 'true'
-            ? sql`${contacts.deletedAt} IS NOT NULL`
-            : isNull(contacts.deletedAt),
-          query.organizationType
-            ? sql`${contacts.data}->>'organizationType'=${query.organizationType}`
-            : undefined,
-        ),
-      )
-      .orderBy(contacts.title, contacts.id)
-      .limit(query.limit)
-      .offset(query.offset);
-    return rows.filter((row) => canView(account.viewer, placementOf(row))).map(contactSummary);
-  });
+  await contactRoutes(route);
   route('GET', '/api/accounts', 200, async (tx, account, request) => {
     const query = parse(List, request.query);
     const rows = await tx
@@ -183,9 +114,9 @@ export async function utilityRoutes(app: FastifyInstance, module: AuthModule) {
     if (!row) deny();
     return accountSummary(tx, account, row);
   });
-  for (const type of ['contact', 'utility_account'] as const) {
-    const table = type === 'contact' ? contacts : utilityAccounts;
-    const path = type === 'contact' ? 'contacts' : 'accounts';
+  for (const type of ['utility_account'] as const) {
+    const table = utilityAccounts;
+    const path = 'accounts';
     const read = async (tx: Transaction, account: Account, id: string, lock = false) => {
       const [row] = await tx.select().from(table).where(eq(table.id, id));
       if (!row || !canView(account.viewer, placementOf(row))) missing();
@@ -197,14 +128,13 @@ export async function utilityRoutes(app: FastifyInstance, module: AuthModule) {
       return locked;
     };
     const summary = (tx: Transaction, account: Account, row: Awaited<ReturnType<typeof read>>) =>
-      'parentId' in row ? accountSummary(tx, account, row) : contactSummary(row);
+      accountSummary(tx, account, row);
     route('GET', `/api/${path}/:id`, 200, async (tx, account, request) =>
       summary(tx, account, await read(tx, account, parse(Id, request.params).id)),
     );
     route('PATCH', `/api/${path}/:id`, 200, async (tx, account, request) => {
       const id = parse(Id, request.params).id;
-      const body =
-        type === 'contact' ? parse(PatchContact, request.body) : parse(PatchAccount, request.body);
+      const body = parse(PatchAccount, request.body);
       const row = await read(tx, account, id, true);
       requireWrite(account, row, type);
       if ('parentId' in row && (await getObject(tx, account, row.parentId)).deletedAt !== null)

@@ -16,6 +16,7 @@ const labels = {
   object: 'Объекты',
   object_event: 'События',
   document: 'Документы',
+  contact: 'Люди и организации',
 } as const;
 interface Hit extends Record<string, unknown> {
   source_type:
@@ -25,7 +26,8 @@ interface Hit extends Record<string, unknown> {
     | 'object_field'
     | 'object_event'
     | 'meter'
-    | 'document';
+    | 'document'
+    | 'contact';
   source_id: string;
   target_id: string;
   title: string;
