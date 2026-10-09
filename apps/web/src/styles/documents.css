@@ -1,0 +1,85 @@
+/* Документы (DOC-1…7): список, карточка, форма, версии. Цели нажатия — не меньше 44 px (--tap). */
+
+.document-filters {
+  margin-bottom: 18px;
+}
+
+.document-filters .chip-group {
+  margin: 0;
+}
+
+.row__state {
+  margin-top: 4px;
+}
+
+.document-form {
+  display: block;
+}
+
+.document-form .btn-row {
+  margin-top: 18px;
+}
+
+.document-form .check-line {
+  margin-top: 16px;
+}
+
+/* Серия и номер: скрыты до нажатия «Показать» */
+.secret {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.secret__value {
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.secret__toggle {
+  min-height: var(--tap);
+}
+
+.document-note {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* Версии */
+.version-list {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.version {
+  display: grid;
+  gap: 4px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.version__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.version__meta {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.version .text-button {
+  justify-self: start;
+}
+
+/* Блок «Кто видит» после кнопок действий не прилипает к ним */
+.btn-row + .section {
+  margin-top: 22px;
+}

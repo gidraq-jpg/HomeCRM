@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import { ApiError } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
+import { fetchDocument } from '../documents/api.ts';
 import { fetchNote } from '../notes/api.ts';
 import { fetchObject } from '../objects/api.ts';
 import { Page } from '../ui/Page.tsx';
@@ -15,7 +16,7 @@ type Target =
   | { kind: 'missing' }
   | { kind: 'error' };
 
-/** Запись уведомления может быть объектом или заметкой: push несёт только её идентификатор. */
+/** Запись уведомления может быть объектом, заметкой или документом: push несёт только идентификатор. */
 async function locate(id: string, screen: string, signal: AbortSignal): Promise<Target> {
   try {
     await fetchObject(id, signal);
@@ -28,6 +29,12 @@ async function locate(id: string, screen: string, signal: AbortSignal): Promise<
   try {
     await fetchNote(id, signal);
     return { kind: 'found', to: `/more/notes/${id}` };
+  } catch (error) {
+    if (!(error instanceof ApiError && error.status === 404)) throw error;
+  }
+  try {
+    await fetchDocument(id, signal);
+    return { kind: 'found', to: `/documents/${id}` };
   } catch (error) {
     if (!(error instanceof ApiError && error.status === 404)) throw error;
   }

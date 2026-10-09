@@ -1,4 +1,4 @@
-import { Buildings, ListChecks, Note, UserPlus } from '@phosphor-icons/react';
+import { Buildings, FileText, ListChecks, Note, UserPlus } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
@@ -10,7 +10,7 @@ interface AddMenuProps {
 }
 
 /**
- * Панель «+»: только то, что уже можно создать. Сейчас это заметка и объект — каждому — и
+ * Панель «+»: только то, что уже можно создать. Сейчас это заметка, объект и документ — каждому — и
  * приглашение участника — администратору. Остальные разделы честно названы неготовыми.
  */
 export function AddMenu({ open, onOpenChange }: AddMenuProps) {
@@ -43,6 +43,12 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
           onClick={() => go('/home/new')}
         />
         <Row
+          icon={<FileText size={22} aria-hidden />}
+          title="Документ"
+          meta="Паспорт, полис, договор: серия и номер, срок, страницы-сканы"
+          onClick={() => go('/documents/new')}
+        />
+        <Row
           icon={<ListChecks size={22} aria-hidden />}
           title="Из шаблона"
           meta="Новая квартира или дом: счета, счётчики и сроки сразу"
@@ -58,10 +64,10 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
         ) : null}
       </RowList>
       <p className="muted add-note">
-        Дела и документы в приложении пока создавать нельзя: эти разделы не готовы.
+        Дела в приложении пока создавать нельзя: этот раздел не готов.
         {isAdmin
           ? ''
-          : ' Сейчас можно записать заметку, завести объект, заполнить «Обо мне» и посмотреть, кто в доме.'}
+          : ' Сейчас можно записать заметку, завести объект или документ, заполнить «Обо мне» и посмотреть, кто в доме.'}
       </p>
     </Sheet>
   );

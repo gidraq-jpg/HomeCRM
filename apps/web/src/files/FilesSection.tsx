@@ -57,6 +57,8 @@ interface FilesSectionProps {
   canAdd: boolean;
   /** Перечитать карточку после изменения. */
   refresh: () => Promise<unknown>;
+  /** Скан открывается на весь экран (DOC-6); без флага — нижней панелью. */
+  fullScreenViewer?: boolean;
 }
 
 export function isImage(file: Pick<FileMeta, 'mimeType'>) {
@@ -91,12 +93,14 @@ function FileRow({
   parent,
   card,
   refresh,
+  fullScreenViewer = false,
 }: {
   file: ListedFile;
   parent: FileParent;
   card: FilesCard;
   /** Перечитать карточку и списки удалённых файлов. */
   refresh: () => Promise<unknown>;
+  fullScreenViewer?: boolean;
 }) {
   const { me } = useHousehold();
   const nameOf = usePersonName();
@@ -108,7 +112,7 @@ function FileRow({
   const deleted = file.deletedAt !== null;
   const parentTrashed = card.deletedAt !== null;
   const facts = {
-    ...factsOf(card, viewer, parent.kind === 'note' ? 'note_file' : 'object_file'),
+    ...factsOf(card, viewer, `${parent.kind}_file`),
     authorId: file.authorId,
     trashed: deleted,
   };
@@ -248,6 +252,7 @@ function FileRow({
           }}
           title="Просмотр файла"
           description={`${formatFileSize(file.sizeBytes)} · ${formatDay(file.createdAt, me.timeZone)}`}
+          fullScreen={fullScreenViewer}
         >
           <img className="file-viewer__image" src={fileUrl(file.id)} alt={file.name} />
           <a className="btn btn--secondary btn--block sheet__next" href={fileUrl(file.id)} download>
@@ -331,7 +336,13 @@ function UploadRow({
  * только через `/api/files/:id` с сессией, публичных ссылок нет. PDF открывается в новой вкладке
  * через `?inline=1`. «Удалённые файлы» приходят от сервера, поэтому видны и после перезагрузки.
  */
-export function FilesSection({ parent, card, canAdd, refresh }: FilesSectionProps) {
+export function FilesSection({
+  parent,
+  card,
+  canAdd,
+  refresh,
+  fullScreenViewer = false,
+}: FilesSectionProps) {
   const toast = useToast();
   const picker = useRef<HTMLInputElement>(null);
   const refreshFiles = useRefreshFiles();
@@ -416,7 +427,14 @@ export function FilesSection({ parent, card, canAdd, refresh }: FilesSectionProp
       {live.length > 0 ? (
         <ul className="file-list" aria-label="Файлы записи">
           {live.map((file) => (
-            <FileRow key={file.id} file={file} parent={parent} card={card} refresh={refreshAll} />
+            <FileRow
+              key={file.id}
+              file={file}
+              parent={parent}
+              card={card}
+              refresh={refreshAll}
+              fullScreenViewer={fullScreenViewer}
+            />
           ))}
         </ul>
       ) : null}

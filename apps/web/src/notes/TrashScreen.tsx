@@ -6,6 +6,7 @@ import {
   CreditCard,
   DownloadSimple,
   FilePdf,
+  FileText,
   ImageSquare,
   Note,
   Trash,
@@ -28,6 +29,10 @@ import { restoreDeadline, type TrashedDeadline } from '../deadlines/api.ts';
 import { DeadlineError } from '../deadlines/components.tsx';
 import { describeRule } from '../deadlines/labels.ts';
 import { useRefreshDeadlines, useTrashedDeadlines } from '../deadlines/queries.ts';
+import { type DocumentCard, NO_FILTERS, restoreDocument } from '../documents/api.ts';
+import { DocumentError } from '../documents/components.tsx';
+import { DOCUMENT_LABELS, documentCount } from '../documents/labels.ts';
+import { useDocumentsList, useRefreshDocuments } from '../documents/queries.ts';
 import { fileUrl, restoreFile, restoreProfilePhoto, type TrashedFile } from '../files/api.ts';
 import { fileErrorMessage } from '../files/errors.ts';
 import { isPdf } from '../files/FilesSection.tsx';
@@ -219,6 +224,55 @@ function OrganizationTrashRow({ organization }: { organization: ContactCard }) {
   );
 }
 
+function DocumentTrashRow({ document }: { document: DocumentCard }) {
+  const { me, householdId } = useHousehold();
+  const refresh = useRefreshDocuments();
+  const toast = useToast();
+  const state = useAction();
+  const [done, setDone] = useState(false);
+  const abilities = noteAbilities(viewerOf(me), document, householdId, 'document');
+  const visibility = visibilityOf(document);
+  const deletedAt = document.deletedAt ?? document.updatedAt;
+
+  return (
+    <li className="trash-item">
+      <div className="row">
+        <RowContent
+          icon={<FileText size={22} aria-hidden />}
+          title={document.title}
+          meta={`${DOCUMENT_LABELS[document.data.type]} · ${VISIBILITY_LABELS[visibility]} · удалён ${formatDay(deletedAt, me.timeZone)}, хранится до ${formatDay(keepUntil(deletedAt), me.timeZone)}`}
+          badge={visibility}
+        />
+      </div>
+      {abilities.restore ? (
+        <button
+          type="button"
+          className="btn btn--secondary btn--block"
+          disabled={state.disabled || done}
+          onClick={() =>
+            void state.run(async () => {
+              await restoreDocument(document.id);
+              setDone(true);
+              await refresh();
+              toast.show({
+                message: 'Документ возвращён',
+                detail: 'Он снова в разделе «Документы», вместе со страницами.',
+              });
+            })
+          }
+        >
+          <ArrowCounterClockwise size={20} aria-hidden />
+          {state.pending ? 'Возвращаем…' : 'Восстановить'}
+        </button>
+      ) : (
+        <p className="muted trash-item__note">
+          Вернуть этот документ может его автор-взрослый или администратор.
+        </p>
+      )}
+      <DocumentError error={state.error} action="restore" />
+    </li>
+  );
+}
 function AccountTrashRow({ item }: { item: TrashedAccount }) {
   const { me, householdId } = useHousehold();
   const refresh = useRefreshAccounts();
@@ -273,6 +327,7 @@ function AccountTrashRow({ item }: { item: TrashedAccount }) {
 const PARENT_LABELS = {
   note: 'из заметки',
   object: 'из объекта',
+  document: 'из документа',
   profile: 'фото профиля',
 } as const;
 
@@ -290,7 +345,9 @@ function FileTrashRow({ file }: { file: TrashedFile }) {
       ? `/more/notes/${file.parentId}`
       : file.parentType === 'object'
         ? `/home/${file.parentId}/files`
-        : null;
+        : file.parentType === 'document'
+          ? `/documents/${file.parentId}`
+          : null;
 
   return (
     <li className="trash-item">
@@ -321,7 +378,10 @@ function FileTrashRow({ file }: { file: TrashedFile }) {
                 if (profile) await restoreProfilePhoto(file.id);
                 else
                   await restoreFile(
-                    { kind: file.parentType === 'note' ? 'note' : 'object', id: file.parentId },
+                    {
+                      kind: file.parentType === 'profile' ? 'object' : file.parentType,
+                      id: file.parentId,
+                    },
                     file.id,
                   );
                 setDone(true);
@@ -348,7 +408,11 @@ function FileTrashRow({ file }: { file: TrashedFile }) {
         </a>
         {parentPath === null ? null : (
           <Link className="btn btn--secondary" to={parentPath}>
-            {file.parentType === 'note' ? 'К заметке' : 'К объекту'}
+            {file.parentType === 'note'
+              ? 'К заметке'
+              : file.parentType === 'document'
+                ? 'К документу'
+                : 'К объекту'}
           </Link>
         )}
       </div>
@@ -417,6 +481,7 @@ export function TrashScreen() {
   const deadlinesQuery = useTrashedDeadlines();
   const organizationsQuery = useOrganizationsList(true, null);
   const accountsQuery = useTrashedAccounts();
+  const documentsQuery = useDocumentsList({ ...NO_FILTERS, status: 'all' }, true);
   const { scope, setScope } = useScope();
 
   if (notesQuery.isPending || objectsQuery.isPending || filesQuery.isPending) {
@@ -453,13 +518,15 @@ export function TrashScreen() {
     matchesScope(visibilityOf(item), scope),
   );
   const accounts = accountsQuery.data ?? [];
+  const documents = documentsQuery.data?.pages.flat() ?? [];
   const total =
     notes.length +
     objects.length +
     files.length +
     deadlines.length +
     organizations.length +
-    accounts.length;
+    accounts.length +
+    documents.length;
   const failed =
     notesQuery.data === undefined ||
     objectsQuery.data === undefined ||
@@ -469,7 +536,9 @@ export function TrashScreen() {
     organizationsQuery.isError ||
     organizationsQuery.isPending ||
     accountsQuery.isError ||
-    accountsQuery.isPending;
+    accountsQuery.isPending ||
+    documentsQuery.isError ||
+    documentsQuery.isPending;
 
   return (
     <Page title="Корзина" back={BACK} {...(total > 0 ? { eyebrow: recordCount(total) } : {})}>
@@ -526,8 +595,8 @@ export function TrashScreen() {
       {total === 0 && !failed ? (
         <EmptyState icon={<Trash size={24} aria-hidden />} title="В корзине пусто">
           <p>
-            Удалённые заметки, объекты и файлы хранятся здесь 30 дней, потом исчезают навсегда. Пока
-            ничего не удалено.
+            Удалённые заметки, объекты, документы и файлы хранятся здесь 30 дней, потом исчезают
+            навсегда. Пока ничего не удалено.
           </p>
           <p>{EMPTY_SCOPE_EXPLANATION[scope]}</p>
           {scope === 'all' ? null : (
@@ -654,6 +723,40 @@ export function TrashScreen() {
         </Section>
       ) : null}
 
+      {documentsQuery.isError ? (
+        <>
+          <DocumentError error={documentsQuery.error} action="load" />
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => void documentsQuery.refetch()}
+          >
+            Повторить загрузку документов из корзины
+          </button>
+        </>
+      ) : null}
+      {documents.length > 0 ? (
+        <Section
+          title="Документы"
+          aside={<span className="muted">{documentCount(documents.length)}</span>}
+        >
+          <ul className="trash-list" aria-label="Удалённые документы">
+            {documents.map((document) => (
+              <DocumentTrashRow key={document.id} document={document} />
+            ))}
+          </ul>
+          {documentsQuery.hasNextPage ? (
+            <button
+              type="button"
+              className="btn btn--secondary btn--block list-action"
+              disabled={documentsQuery.isFetchingNextPage}
+              onClick={() => void documentsQuery.fetchNextPage()}
+            >
+              {documentsQuery.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё документы'}
+            </button>
+          ) : null}
+        </Section>
+      ) : null}
       {files.length > 0 ? (
         <Section title="Файлы" aside={<span className="muted">{fileCount(files.length)}</span>}>
           <ul className="trash-list" aria-label="Удалённые файлы">

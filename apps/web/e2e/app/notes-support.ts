@@ -21,11 +21,16 @@ export interface UploadPayload {
 
 /** Взрослый и ребёнок входят по паролю; администратору нужен второй фактор, он ходит через экран. */
 export async function apiAs(family: Family, role: 'adult' | 'child'): Promise<Api> {
+  return apiAsUser(family, role, family.person(role).password);
+}
+
+/** То же по имени и паролю: так входит участник, которого тест добавил сам (второй ребёнок). */
+export async function apiAsUser(family: Family, username: string, password: string): Promise<Api> {
   const { origin } = family;
   const signed = await fetch(`${origin}/api/auth/sign-in/username`, {
     method: 'POST',
     headers: { origin, 'content-type': 'application/json' },
-    body: JSON.stringify({ username: role, password: family.person(role).password }),
+    body: JSON.stringify({ username, password }),
   });
   if (signed.status !== 200) throw new Error('Test sign-in failed');
   const cookie = signed.headers

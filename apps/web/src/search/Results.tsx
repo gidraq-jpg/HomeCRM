@@ -1,4 +1,4 @@
-import { Buildings, ClockCounterClockwise, Note } from '@phosphor-icons/react';
+import { Buildings, ClockCounterClockwise, FileText, Note } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
@@ -6,7 +6,19 @@ import { countWord } from '../ui/format.ts';
 import { Section } from '../ui/Page.tsx';
 import type { SearchResult } from './api.ts';
 
-const icons = { note: Note, object: Buildings, object_event: ClockCounterClockwise };
+const icons = {
+  note: Note,
+  object: Buildings,
+  object_event: ClockCounterClockwise,
+  document: FileText,
+};
+/** Куда ведёт результат: заметка, документ, объект или его лента. */
+function pathOf(item: SearchResult['groups'][number]['items'][number]): string {
+  if (item.type === 'note') return `/more/notes/${item.targetId}`;
+  if (item.type === 'document') return `/documents/${item.targetId}`;
+  return `/home/${item.targetId}${item.type === 'object_event' ? '/timeline' : ''}`;
+}
+
 /** Фрагменты — текстовые узлы React. HTML исходной заметки не становится разметкой. */
 function Snippet({ text }: { text: string }) {
   return text.split(/(‹[^›]*›)/g).map((part, index) =>
@@ -39,14 +51,7 @@ export function Results({ data }: { data: SearchResult }) {
             <ul className="row-list">
               {group.items.map((item) => (
                 <li key={item.id} className="search-result">
-                  <Link
-                    className="row"
-                    to={
-                      item.type === 'note'
-                        ? `/more/notes/${item.targetId}`
-                        : `/home/${item.targetId}${item.type === 'object_event' ? '/timeline' : ''}`
-                    }
-                  >
+                  <Link className="row" to={pathOf(item)}>
                     <span className="row__icon">
                       <Icon size={22} aria-hidden />
                     </span>
@@ -59,7 +64,7 @@ export function Results({ data }: { data: SearchResult }) {
                     </span>
                     <AccessBadge visibility={item.visibility} />
                   </Link>
-                  {item.numbers.length > 0 ? (
+                  {item.type !== 'document' && item.numbers.length > 0 ? (
                     <ul className="search-result__numbers">
                       {item.numbers.map((number) => (
                         <li key={number}>

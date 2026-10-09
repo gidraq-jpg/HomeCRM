@@ -271,3 +271,27 @@ describe('срок оплаты начисления', () => {
     expect(without?.openTo).toBe('/home/object-1/accounts');
   });
 });
+
+describe('радар: срок документа (DOC-3)', () => {
+  it('ведёт в карточку документа, название приходит с сервером; «Позже» идёт последней группой', () => {
+    const [row] = rows([
+      item('doc', {
+        sourceKind: 'document',
+        documentId: 'document-1',
+        title: 'Загранпаспорт Веры',
+        group: 'later',
+      }),
+    ]);
+    expect(row?.to).toBe('/documents/document-1');
+    expect(row?.title).toBe('Загранпаспорт Веры');
+    expect(row?.what).toBe('Срок документа');
+    expect(row?.utility).toBeNull();
+    expect(GROUP_ORDER[GROUP_ORDER.length - 1]).toBe('later');
+    expect(GROUP_LABELS.later).toBe('Позже');
+  });
+
+  it('пункт без идентификатора документа остаётся без перехода', () => {
+    const [row] = rows([item('doc', { sourceKind: 'document', title: 'Полис' })]);
+    expect(row?.to).toBeNull();
+  });
+});

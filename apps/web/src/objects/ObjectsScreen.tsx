@@ -1,4 +1,4 @@
-import { Buildings, ListChecks, Plus } from '@phosphor-icons/react';
+import { Buildings, ListChecks, Plus, Receipt } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
@@ -24,6 +24,7 @@ import {
 
 export const NEW_OBJECT = '/home/new';
 export const FROM_TEMPLATE = '/home/from-template';
+export const MONTH_SCREEN = '/home/month';
 
 export function ObjectRows({
   objects,
@@ -145,6 +146,12 @@ export function ObjectsScreen() {
         <EmptyObjects />
       ) : (
         <>
+          {all.some((object) => object.objectType === 'property') ? (
+            <Link className="btn btn--secondary btn--block month-link" to={MONTH_SCREEN}>
+              <Receipt size={20} aria-hidden />
+              Коммуналка за месяц
+            </Link>
+          ) : null}
           {groups.map(([type, items]) => (
             <Section
               key={type}

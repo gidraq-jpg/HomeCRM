@@ -329,6 +329,19 @@ html[data-keyboard="open"] .chrome {
   transform: translateX(-50%);
 }
 
+/* Скан документа открывается на весь экран (DOC-6). */
+.sheet--full {
+  top: 0;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  border-radius: 0;
+}
+
+.sheet--full .file-viewer__image {
+  max-height: calc(100dvh - 200px);
+}
+
 .sheet__header {
   display: flex;
   align-items: center;
