@@ -12,6 +12,7 @@ import { factsOf, newPlacement, viewerOf, visibilityOf } from '../notes/abilitie
 import { PropertyFacts } from '../property/PropertyFacts.tsx';
 import { propertyDraft } from '../property/property.ts';
 import { useToast } from '../ui/Toast.tsx';
+import { ObjectAnalytics } from '../utilities/ObjectAnalytics.tsx';
 import { assigneeChoices, creatableObjectVisibilities } from './abilities.ts';
 import { createObject, MAX_TITLE, patchObject, restoreObject, trashObject } from './api.ts';
 import { ObjectError } from './components.tsx';
@@ -256,6 +257,8 @@ export function ObjectOverview() {
       {!trashed ? <PeopleBlock card={card} /> : null}
 
       {!trashed ? <DeadlinesSection source="objects" card={card} /> : null}
+
+      {!trashed && card.objectType === 'property' ? <ObjectAnalytics objectId={card.id} /> : null}
 
       <LinksSection
         record={{ type: 'object', id: card.id }}

@@ -118,6 +118,11 @@ export interface RowContext {
   today: DateOnly;
 }
 
+/** Подпись срока, полученного из даты окончания документа. */
+export const DOCUMENT_WHAT = 'Срок документа';
+
+export const documentPath = (id: string) => `/documents/${id}`;
+
 export function cardPath(kind: SourceKind, id: string): string {
   return kind === 'notes' ? `/more/notes/${id}` : `/home/${id}`;
 }
@@ -172,6 +177,22 @@ export function buildRows(items: readonly RadarItem[], context: RowContext): Rad
         startsAt: timing.startsAt.getTime(),
         to: utility.openTo,
         utility,
+      };
+    }
+    // Срок документа (DOC-3): название приходит с сервером, переход — в карточку документа.
+    if (item.sourceKind === 'document') {
+      return {
+        id: item.id,
+        group: item.group,
+        title: item.title ?? null,
+        what: DOCUMENT_WHAT,
+        when: occurrenceWhen(timing, item.timeZone, context.now),
+        relative: occurrenceRelative(timing, item.timeZone, context.now),
+        visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
+        assigneeId: item.assigneeId,
+        startsAt: timing.startsAt.getTime(),
+        to: item.documentId ? documentPath(item.documentId) : null,
+        utility: null,
       };
     }
     const located = item.rule

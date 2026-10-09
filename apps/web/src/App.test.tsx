@@ -66,8 +66,22 @@ describe('рабочее приложение', () => {
   });
 
   it('разделы без данных честно говорят, что создавать пока нечего', () => {
-    expect(text(render('/documents'))).toContain('Документов пока нет');
     expect(text(render('/today'))).toContain('Дел на сегодня пока нет');
+  });
+
+  it('«Документы»: список ждёт данные API; форма — «Кто видит» над «Сохранить», серия и номер не скрыты от автора', () => {
+    expect(text(render('/documents'))).toContain('Загружаем документы');
+    const form = text(render('/documents/new'));
+    expect(form).toContain('Новый документ');
+    expect(form.indexOf('Кто видит')).toBeLessThan(form.indexOf('>Сохранить<'));
+    expect(form).toContain('value="personal"');
+    expect(text(render('/documents/abc'))).toContain('Загружаем документ');
+  });
+
+  it('«Коммуналка за месяц» открывается и ждёт данные API', () => {
+    const html = text(render('/home/month'));
+    expect(html).toContain('Коммуналка за месяц');
+    expect(html).toContain('Загружаем месяц');
   });
 
   it('«Дом»: экраны объектов открываются и ждут данные API', () => {

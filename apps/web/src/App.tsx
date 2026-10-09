@@ -7,6 +7,9 @@ import { ExportScreen } from './auth/ExportScreen.tsx';
 import { SecurityScreen } from './auth/SecurityScreen.tsx';
 import { ChargesScreen } from './charges/ChargesScreen.tsx';
 import { RadarScreen } from './deadlines/RadarScreen.tsx';
+import { DocumentScreen } from './documents/DocumentScreen.tsx';
+import { DocumentsScreen } from './documents/DocumentsScreen.tsx';
+import { NewDocumentScreen } from './documents/NewDocumentScreen.tsx';
 import { HouseholdProvider } from './household/HouseholdContext.tsx';
 import { HouseScreen } from './household/HouseScreen.tsx';
 import { ObjectMeters } from './meters/ObjectMeters.tsx';
@@ -31,7 +34,7 @@ import { ObjectTimeline } from './objects/ObjectTimeline.tsx';
 import { NewOrganizationScreen } from './organizations/NewOrganizationScreen.tsx';
 import { OrganizationScreen } from './organizations/OrganizationScreen.tsx';
 import { OrganizationsScreen } from './organizations/OrganizationsScreen.tsx';
-import { DocumentsScreen, TodayScreen } from './screens/EmptySections.tsx';
+import { TodayScreen } from './screens/EmptySections.tsx';
 import { InviteScreen } from './screens/InviteScreen.tsx';
 import { MemberScreen } from './screens/MemberScreen.tsx';
 import { MoreScreen } from './screens/MoreScreen.tsx';
@@ -46,6 +49,7 @@ import { SECTIONS } from './shell/sections.ts';
 import { NewFromTemplateScreen } from './templates/NewFromTemplateScreen.tsx';
 import { StartScreen } from './templates/StartScreen.tsx';
 import { ToastProvider } from './ui/Toast.tsx';
+import { MonthScreen } from './utilities/MonthScreen.tsx';
 
 interface AppProps {
   /** Вошедший участник: его роль и дом определяют, что показывать. */
@@ -68,6 +72,7 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="today" element={<TodayScreen />} />
         <Route path="home" element={<ObjectsScreen />} />
         <Route path="home/new" element={<NewObjectScreen />} />
+        <Route path="home/month" element={<MonthScreen />} />
         <Route path="home/from-template" element={<NewFromTemplateScreen />} />
         <Route path="home/from-template/:templateId" element={<NewFromTemplateScreen />} />
         <Route path="start" element={<StartScreen />} />
@@ -86,6 +91,8 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
           <Route path="transfer" element={<ReadingsTransfer />} />
         </Route>
         <Route path="documents" element={<DocumentsScreen />} />
+        <Route path="documents/new" element={<NewDocumentScreen />} />
+        <Route path="documents/:documentId" element={<DocumentScreen />} />
         <Route path="people" element={<PeopleScreen />} />
         <Route path="people/invite" element={<InviteScreen />} />
         <Route path="people/members/:accountId" element={<MemberScreen />} />

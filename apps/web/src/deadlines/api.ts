@@ -89,6 +89,8 @@ export const RadarItem = z.object({
   deadlineId: z.string(),
   noteId: z.string().nullish(),
   objectId: z.string().nullish(),
+  /** Документ, из даты окончания которого получен срок (DOC-3); у остальных сроков пусто. */
+  documentId: z.string().nullish(),
   title: z.string().optional(),
   rule: DeadlineRule.optional(),
   /** Календарная дата начала в поясе дома: `YYYY-MM-DD`. */

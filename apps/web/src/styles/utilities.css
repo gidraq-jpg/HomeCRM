@@ -1,0 +1,225 @@
+/* «Коммуналка за месяц» и аналитика объекта (UTIL-11, UTIL-12). Цели нажатия — не меньше 44 px (--tap). */
+
+.month-link {
+  margin-bottom: 18px;
+}
+
+.month-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.month-switch__label {
+  flex: 1;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.month-object {
+  display: block;
+}
+
+.month-object .card__title a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--ink);
+}
+
+.month-object > .facts {
+  margin-top: 8px;
+}
+
+.month-object__empty {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin-top: 12px;
+}
+
+.month-accounts {
+  display: grid;
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.month-account {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.month-account:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.month-account__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+.month-account__title {
+  min-width: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.month-account__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.month-account__links .btn {
+  flex: 1 1 auto;
+}
+
+.month-note {
+  margin-top: 12px;
+}
+
+/* Аналитика */
+.analytics-block {
+  margin-bottom: 18px;
+}
+
+.analytics-block__title {
+  margin-bottom: 6px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart__axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart__bar {
+  fill: var(--green);
+}
+
+.chart__bar--second {
+  stroke: var(--green);
+  stroke-width: 1;
+}
+
+.chart__hatch-bg {
+  fill: var(--surface);
+}
+
+.chart__hatch-line {
+  fill: var(--green);
+}
+
+.chart__marker {
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.chart__label,
+.chart__scale {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-legend__mark {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+}
+
+.chart-legend__mark--solid {
+  background: var(--green);
+}
+
+.chart-legend__mark--hatch {
+  border: 1px solid var(--green);
+  background: repeating-linear-gradient(45deg, var(--surface) 0 2px, var(--green) 2px 4px);
+}
+
+.chart-legend__mark--dash {
+  height: 0;
+  border-top: 2px solid var(--ink);
+}
+
+.analytics-tables {
+  margin-top: 6px;
+}
+
+.analytics-tables > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--green);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.data-table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table caption {
+  padding-bottom: 6px;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  text-align: left;
+}
+
+.data-table th,
+.data-table td {
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.data-table th[scope="col"] {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.data-table th:first-child,
+.data-table td:first-child {
+  text-align: left;
+}
+
+.data-table th[scope="row"] {
+  font-weight: 500;
+}

@@ -14,9 +14,19 @@ interface SheetProps {
   children: ReactNode;
   /** Для подтверждений, которые нельзя закрыть случайным касанием по фону. */
   role?: 'dialog' | 'alertdialog';
+  /** Панель на весь экран: для просмотра сканов документов (DOC-6). */
+  fullScreen?: boolean;
 }
 
-export function Sheet({ open, onOpenChange, title, description, children, role }: SheetProps) {
+export function Sheet({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  role,
+  fullScreen = false,
+}: SheetProps) {
   // Панели открываются не через Dialog.Trigger, поэтому Radix не знает, куда вернуть фокус:
   // запоминаем элемент, с которого панель открыли, и возвращаем фокус на него при закрытии.
   const opener = useRef<HTMLElement | null>(null);
@@ -26,7 +36,7 @@ export function Sheet({ open, onOpenChange, title, description, children, role }
       <Dialog.Portal>
         <Dialog.Overlay className="sheet-overlay" />
         <Dialog.Content
-          className="sheet"
+          className={fullScreen ? 'sheet sheet--full' : 'sheet'}
           {...(role ? { role } : {})}
           onOpenAutoFocus={() => {
             opener.current =
