@@ -35,7 +35,14 @@ BEGIN
  JOIN LATERAL (
   SELECT s.id,s.time_zone FROM spaces s WHERE s.kind='household' AND (s.id=d.space_id OR (d.space_kind='personal' AND EXISTS(SELECT 1 FROM space_members m WHERE m.space_id=s.id AND m.account_id=d.assignee_id AND m.left_at IS NULL))) ORDER BY s.id LIMIT 1
  ) h ON true
- CROSS JOIN LATERAL (SELECT app.document_rule(d.data,coalesce(p.birth_date,CASE WHEN c.data->>'birthday' ~ '^\d{4}-\d{2}-\d{2}$' THEN (c.data->>'birthday')::date END),(d.created_at AT TIME ZONE coalesce(h.time_zone,'UTC'))::date) AS rule) r
+ CROSS JOIN LATERAL (SELECT app.document_rule(d.data,coalesce(
+  CASE WHEN (d.space_kind='personal' AND (d.assignee_id=d.owner_account_id OR EXISTS(
+    SELECT 1 FROM space_members a JOIN space_members b ON a.space_id=b.space_id
+    WHERE a.account_id=d.owner_account_id AND b.account_id=d.assignee_id AND a.left_at IS NULL AND b.left_at IS NULL)))
+    OR (d.space_kind='household' AND EXISTS(SELECT 1 FROM space_members a WHERE a.space_id=d.space_id AND a.account_id=d.owner_account_id AND a.left_at IS NULL))
+   THEN p.birth_date END,
+  CASE WHEN c.data->>'birthday' ~ '^\d{4}-\d{2}-\d{2}$' THEN (c.data->>'birthday')::date END
+ ),(d.created_at AT TIME ZONE coalesce(h.time_zone,'UTC'))::date) AS rule) r
  WHERE d.data->>'type'='russian_passport' AND d.status='valid' AND d.data->>'indefinite'<>'true' AND r.rule IS NOT NULL AND NOT EXISTS(SELECT 1 FROM deadlines old WHERE old.document_id=d.id);
  PERFORM set_config('app.passport_backfill','',true);
  EXECUTE definition;

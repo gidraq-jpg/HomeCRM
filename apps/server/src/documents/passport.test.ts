@@ -149,3 +149,140 @@ it('DOC-4: контакт без года не даёт возраст; доба
     expiryRule: { kind: 'after', eventDate: null },
   });
 });
+
+it('DOC-4/SPACE-3: закрытая дата контакта не передаётся в ранее связанный общий или чужой личный паспорт', async () => {
+  const response = await adult.post('/api/contacts', {
+    title: 'Вымышленный контакт границы доступа',
+    kind: 'person',
+    placement: { spaceId: world.houseId, audience: 'household' },
+    data: { birthday: '2006-12-01' },
+  });
+  expect(response.status, response.text).toBe(201);
+  const contact = response.json<{ id: string }>();
+  const create = async (device: Device, shared = false) => {
+    const result = await device.post('/api/documents', {
+      title: 'Вымышленный паспорт границы доступа',
+      owner: { kind: 'contact', id: contact.id },
+      data: { type: 'russian_passport', issuedOn: '2020-01-01' },
+      ...(shared ? { placement: { spaceId: world.houseId, audience: 'household' } } : {}),
+    });
+    expect(result.status, result.text).toBe(201);
+    expect(result.json()).toMatchObject({ expiryRule: { date: '2026-12-01' } });
+    return result.json<{ id: string }>();
+  };
+  const own = await create(adult),
+    foreign = await create(admin),
+    shared = await create(admin, true);
+  expect(
+    (
+      await adult.post(`/api/contacts/${contact.id}/move`, {
+        spaceId: world.boris.personalSpaceId,
+        confirmed: true,
+      })
+    ).status,
+  ).toBe(200);
+  const changed = await adult.request('PATCH', `/api/contacts/${contact.id}`, {
+    json: { data: { birthday: '2006-11-10' } },
+  });
+  expect(changed.status, changed.text).toBe(200);
+  expect((await admin.get(`/api/contacts/${contact.id}`)).status).toBe(404);
+  expect((await adult.get(`/api/documents/${own.id}`)).json()).toMatchObject({
+    expiryRule: { date: '2026-11-10' },
+  });
+  for (const doc of [foreign, shared])
+    expect((await admin.get(`/api/documents/${doc.id}`)).json()).toMatchObject({
+      expiryRule: { date: '2026-12-01' },
+    });
+  await refreshDeadlines(
+    createWorkerDatabase(world.database.worker),
+    new Date('2026-10-09T00:00:00Z'),
+    true,
+  );
+  const radar = (await admin.get('/api/deadlines?from=2026-01-01&to=2031-12-31')).json<{
+    items: { documentId: string; date: string }[];
+  }>();
+  for (const doc of [foreign, shared])
+    expect(radar.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ documentId: doc.id, date: '2026-12-01' })]),
+    );
+});
+
+it('DOC-4/SPACE-3: взрослое поле не обновляет паспорт ребёнка, но обновляет личный паспорт взрослого', async () => {
+  const child = world.device();
+  await child.signIn(world.vera.username, world.vera.password);
+  const response = await adult.post('/api/contacts', {
+    title: 'Вымышленный контакт взрослой аудитории',
+    kind: 'person',
+    placement: { spaceId: world.houseId, audience: 'household' },
+    data: { birthday: '2006-12-01' },
+  });
+  expect(response.status, response.text).toBe(201);
+  const contact = response.json<{ id: string }>();
+  const create = async (device: Device) => {
+    const result = await device.post('/api/documents', {
+      title: 'Вымышленный паспорт взрослой аудитории',
+      owner: { kind: 'contact', id: contact.id },
+      data: { type: 'russian_passport', issuedOn: '2020-01-01' },
+    });
+    expect(result.status, result.text).toBe(201);
+    return result.json<{ id: string }>();
+  };
+  const childDoc = await create(child),
+    adultDoc = await create(admin);
+  expect(
+    (
+      await adult.post(`/api/contacts/${contact.id}/move`, {
+        spaceId: world.houseId,
+        audience: 'adults',
+        confirmed: true,
+      })
+    ).status,
+  ).toBe(200);
+  const changed = await adult.request('PATCH', `/api/contacts/${contact.id}`, {
+    json: { data: { birthday: '2006-11-10' } },
+  });
+  expect(changed.status, changed.text).toBe(200);
+  expect((await child.get(`/api/documents/${childDoc.id}`)).json()).toMatchObject({
+    expiryRule: { date: '2026-12-01' },
+  });
+  expect((await admin.get(`/api/documents/${adultDoc.id}`)).json()).toMatchObject({
+    expiryRule: { date: '2026-11-10' },
+  });
+});
+
+it('DOC-4/SPACE-10: после ухода участника новая дата профиля не попадает в паспорт бывшей семьи', async () => {
+  const isolated = await createWorld();
+  try {
+    const former = isolated.device(),
+      reader = (await signedInAdmin(isolated)).device;
+    await former.signIn(isolated.boris.username, isolated.boris.password);
+    expect(
+      (await former.request('PATCH', '/api/me/profile', { json: { birthDate: '2006-12-01' } }))
+        .status,
+    ).toBe(200);
+    const create = async (device: Device) => {
+      const result = await device.post('/api/documents', {
+        title: 'Вымышленный паспорт бывшей семьи',
+        owner: { kind: 'member', id: isolated.boris.id },
+        data: { type: 'russian_passport', issuedOn: '2020-01-01' },
+      });
+      expect(result.status, result.text).toBe(201);
+      return result.json<{ id: string }>();
+    };
+    const own = await create(former),
+      foreign = await create(reader);
+    expect((await former.post(`/api/households/${isolated.houseId}/leave`, {})).status).toBe(200);
+    const changed = await former.request('PATCH', '/api/me/profile', {
+      json: { birthDate: '2006-11-10' },
+    });
+    expect(changed.status, changed.text).toBe(200);
+    expect((await reader.get(`/api/documents/${foreign.id}`)).json()).toMatchObject({
+      expiryRule: { date: '2026-12-01' },
+    });
+    expect((await former.get(`/api/documents/${own.id}`)).json()).toMatchObject({
+      expiryRule: { date: '2026-11-10' },
+    });
+  } finally {
+    await isolated.close();
+  }
+});

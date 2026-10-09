@@ -66,6 +66,20 @@ BEGIN
  FOR d IN SELECT * FROM public.documents WHERE data->>'type'='russian_passport' AND data->>'expiresOn' IS NULL AND status='valid' AND data->>'indefinite'<>'true' AND
    (owner_account_id=nullif(current_setting('app.passport_owner_account',true),'')::uuid OR owner_contact_id=nullif(current_setting('app.passport_owner_contact',true),'')::uuid)
  LOOP
+  -- Новая закрытая дата рождения не должна попадать читателям ранее связанного документа.
+  -- Индекс членств доступен владельцу только внутри закрытого триггера (глубина 1).
+  IF TG_TABLE_NAME='contacts' THEN
+   IF d.space_kind='personal' THEN
+    IF NOT ((NEW.space_kind='personal' AND NEW.space_id=d.space_id) OR
+      (NEW.space_kind='household' AND EXISTS(SELECT 1 FROM public.household_access a WHERE a.space_id=NEW.space_id AND a.account_id=d.assignee_id AND (NEW.audience='household' OR a.role IN ('admin','adult'))))) THEN CONTINUE; END IF;
+   ELSIF NEW.space_kind<>'household' OR NEW.space_id<>d.space_id OR (NEW.audience='adults' AND d.audience<>'adults') THEN CONTINUE;
+   END IF;
+  ELSE
+   IF d.space_kind='personal' THEN
+    IF d.assignee_id<>NEW.account_id AND NOT EXISTS(SELECT 1 FROM public.household_access a JOIN public.household_access b ON a.space_id=b.space_id WHERE a.account_id=NEW.account_id AND b.account_id=d.assignee_id) THEN CONTINUE; END IF;
+   ELSIF NOT EXISTS(SELECT 1 FROM public.household_access a WHERE a.space_id=d.space_id AND a.account_id=NEW.account_id) THEN CONTINUE;
+   END IF;
+  END IF;
   PERFORM set_config('app.deadline_source_id',d.id::text,true);
   PERFORM set_config('app.passport_document_id',d.id::text,true);
   SELECT household_id INTO house FROM public.deadlines WHERE document_id=d.id;

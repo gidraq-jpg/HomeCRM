@@ -6,7 +6,12 @@ import { MIGRATIONS_DIR, runMigrations } from './migrate.ts';
 import { createTestDatabase, type TestDatabase } from './testing/database.ts';
 import { buildFamily, seedPeople } from './testing/family.ts';
 
-let db: TestDatabase, folder: string, passport: string, organization: string, explicit: string;
+let db: TestDatabase,
+  folder: string,
+  passport: string,
+  organization: string,
+  explicit: string,
+  formerPassport: string;
 const family = buildFamily();
 const tables = [
   'contacts',
@@ -65,6 +70,26 @@ beforeAll(async () => {
       [author.personalSpaceId, author.id],
     )
   ).rows[0].id;
+  const former = family.person('mila'),
+    reader = family.person('anna');
+  await db.admin.query(
+    "UPDATE space_members SET role='adult' WHERE account_id=$1 AND role='child'",
+    [former.id],
+  );
+  await db.admin.query("UPDATE member_profiles SET birth_date='2006-12-01' WHERE account_id=$1", [
+    former.id,
+  ]);
+  formerPassport = (
+    await db.admin.query(
+      `INSERT INTO documents(space_id,space_kind,author_id,title,owner_account_id,data)
+    VALUES($1,'personal',$2,'Вымышленный паспорт бывшего участника',$3,
+    '{"type":"russian_passport","issuedOn":"2020-01-01","indefinite":false}') RETURNING id`,
+      [reader.personalSpaceId, reader.id, former.id],
+    )
+  ).rows[0].id;
+  await db.admin.query('UPDATE space_members SET left_at=now(),left_by=$1 WHERE account_id=$1', [
+    former.id,
+  ]);
 });
 afterAll(async () => {
   await db?.drop();
@@ -80,6 +105,10 @@ it('0043 → люди и паспорт: исходные данные и ист
   expect(
     (await db.admin.query('SELECT rule FROM deadlines WHERE document_id=$1', [passport])).rows,
   ).toMatchObject([{ rule: { date: '2026-12-01', durationDays: 90, warnings: [60, 30] } }]);
+  expect(
+    (await db.admin.query('SELECT rule FROM deadlines WHERE document_id=$1', [formerPassport]))
+      .rows,
+  ).toMatchObject([{ rule: { kind: 'after', eventDate: null } }]);
   expect(
     (
       await db.admin.query(
