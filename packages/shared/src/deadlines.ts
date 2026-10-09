@@ -43,7 +43,13 @@ const repeat = z.discriminatedUnion('unit', [
 export const DeadlineRule = z
   .discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('date'), date: CalendarDate, ...common }),
-    z.strictObject({ kind: z.literal('window'), date: CalendarDate, ...common, endTime: Clock }),
+    z.strictObject({
+      kind: z.literal('window'),
+      date: CalendarDate,
+      ...common,
+      endTime: Clock,
+      passportYears: z.union([z.literal(20), z.literal(45)]).optional(),
+    }),
     z.strictObject({ kind: z.literal('repeat'), anchor: CalendarDate, repeat, ...common }),
     z.strictObject({
       kind: z.literal('after'),

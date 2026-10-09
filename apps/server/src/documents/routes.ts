@@ -72,10 +72,16 @@ const summaryFields = {
   ownerIsChild: sql<boolean>`app.document_owner_is_child(${documents.ownerAccountId})`,
   contactId: sql<
     string | null
-  >`(SELECT c.id FROM contacts c WHERE c.id=documents.owner_contact_id)`,
+  >`(SELECT c.id FROM contacts c WHERE c.id=documents.owner_contact_id AND c.deleted_at IS NULL)`,
   objectTitle: sql<
     string | null
   >`(SELECT o.title FROM objects o WHERE o.id=documents.owner_object_id AND o.deleted_at IS NULL)`,
+  objectId: sql<
+    string | null
+  >`(SELECT o.id FROM objects o WHERE o.id=documents.owner_object_id AND o.deleted_at IS NULL)`,
+  memberId: sql<
+    string | null
+  >`(SELECT p.account_id FROM member_profiles p WHERE p.account_id=documents.owner_account_id)`,
   ownerContactTitle: sql<
     string | null
   >`(SELECT c.title FROM contacts c WHERE c.id=documents.owner_contact_id AND c.deleted_at IS NULL)`,
@@ -86,6 +92,8 @@ type SummaryFields = {
   ownerIsChild: boolean;
   contactId: string | null;
   objectTitle: string | null;
+  objectId: string | null;
+  memberId: string | null;
   ownerContactTitle: string | null;
   previousId: string | null;
 };
@@ -111,10 +119,10 @@ function present(row: typeof documents.$inferSelect, fields: SummaryFields) {
     warnings: row.data.warnings ?? documentWarnings(row.data.type),
     status: row.status,
     previousId: fields.previousId,
-    owner: row.ownerAccountId
-      ? { kind: 'member', id: row.ownerAccountId }
-      : row.ownerObjectId
-        ? { kind: 'object', id: row.ownerObjectId }
+    owner: fields.memberId
+      ? { kind: 'member', id: fields.memberId }
+      : fields.objectId
+        ? { kind: 'object', id: fields.objectId }
         : fields.contactId
           ? { kind: 'contact', id: fields.contactId }
           : null,
@@ -296,6 +304,7 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
         .strictObject({
           title: title.optional(),
           data: DocumentData.optional(),
+          owner: DocumentOwner.nullable().optional(),
           expectedUpdatedAt: z.iso.datetime().optional(),
         })
         .refine((b) => b.title !== undefined || b.data !== undefined),
@@ -305,7 +314,16 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
     requireWrite(account, row, 'document');
     if (row.status !== 'valid') throw new Failure(409, 'DOCUMENT_INVALID');
     version(body.expectedUpdatedAt, row.updatedAt);
-    const { expectedUpdatedAt: _version, ...changes } = body;
+    if (body.owner !== undefined) {
+      const current = (await summary(tx, row)).owner;
+      if (
+        (body.owner === null && current !== null) ||
+        (body.owner !== null &&
+          (body.owner.kind !== current?.kind || body.owner.id !== current?.id))
+      )
+        throw new Failure(400, 'OWNER_IMMUTABLE');
+    }
+    const { expectedUpdatedAt: _version, owner: _owner, ...changes } = body;
     const [updated] = await tx
       .update(documents)
       .set(changes)

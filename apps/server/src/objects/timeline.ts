@@ -153,7 +153,7 @@ async function feed(
       WHERE m.parent_id IN (${ids}) AND (${includeDeleted} OR (r.deleted_at IS NULL AND m.deleted_at IS NULL))
       UNION ALL
       SELECT i.id,i.object_id,i.occurred_on::timestamp AT TIME ZONE 'UTC','interaction',
-        jsonb_build_object('interactionId',i.id,'contactId',i.parent_id,'kind',i.kind,'occurredOn',i.occurred_on,'text',i.title,'amountCents',i.amount_cents,'callAgain',i.call_again),
+        jsonb_build_object('interactionId',i.id,'contactId',i.parent_id,'contactTitle',c.title,'kind',i.kind,'occurredOn',i.occurred_on,'text',i.title,'amountCents',i.amount_cents,'callAgain',i.call_again),
         i.space_id,i.space_kind,i.audience,s.owner_account_id,NULL::uuid,NULL::jsonb
       FROM contact_interactions i JOIN contacts c ON c.id=i.parent_id JOIN objects o ON o.id=i.object_id LEFT JOIN spaces s ON s.id=i.space_id
       WHERE i.object_id IN (${ids}) AND i.deleted_at IS NULL AND c.deleted_at IS NULL AND o.deleted_at IS NULL

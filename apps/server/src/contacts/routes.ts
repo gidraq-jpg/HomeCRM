@@ -187,12 +187,21 @@ export async function contactRoutes(route: DataRoute) {
     version(body.expectedUpdatedAt, row.updatedAt);
     const data =
       body.data === undefined ? undefined : parse(Create, { kind: row.kind, data: body.data }).data;
-    if (body.organizationId !== undefined)
-      await validateOrganization(tx, account, row.kind, body.organizationId);
-    await tx
-      .update(contacts)
-      .set({ title: body.title, data, organizationId: body.organizationId })
-      .where(eq(contacts.id, row.id));
+    let organizationId = body.organizationId;
+    if (organizationId === null && row.organizationId) {
+      const [visible] = await tx
+        .select({ id: contacts.id })
+        .from(contacts)
+        .where(and(eq(contacts.id, row.organizationId), isNull(contacts.deletedAt)));
+      if (!visible) organizationId = undefined;
+    }
+    if (organizationId !== undefined)
+      await validateOrganization(tx, account, row.kind, organizationId);
+    if (body.title !== undefined || data !== undefined || organizationId !== undefined)
+      await tx
+        .update(contacts)
+        .set({ title: body.title, data, organizationId })
+        .where(eq(contacts.id, row.id));
     return summary(tx, row.id);
   });
   route('GET', '/api/contacts/:id/history', 200, async (tx, account, request) => {
@@ -359,10 +368,22 @@ export async function contactRoutes(route: DataRoute) {
         if (action === 'patch') {
           requireWrite(account, row, 'contact_interaction');
           const body = parse(
-            InteractionData.extend({ expectedUpdatedAt: z.iso.datetime().optional() }),
+            InteractionData.extend({
+              objectId: z.uuid().nullable().optional(),
+              expectedUpdatedAt: z.iso.datetime().optional(),
+            }),
             request.body,
           );
           version(body.expectedUpdatedAt, row.updatedAt);
+          let objectId = body.objectId;
+          if (objectId === null && row.objectId) {
+            const [visible] = await tx
+              .execute<{ id: string }>(
+                sql`SELECT id FROM objects WHERE id=${row.objectId}::uuid AND deleted_at IS NULL`,
+              )
+              .then((result) => result.rows);
+            if (!visible) objectId = undefined;
+          }
           if (body.objectId) {
             const object = await getObject(tx, account, body.objectId);
             if (object.deletedAt) missing();
@@ -375,7 +396,7 @@ export async function contactRoutes(route: DataRoute) {
               occurredOn: body.occurredOn,
               amountCents: body.amountCents,
               callAgain: body.callAgain,
-              objectId: body.objectId,
+              objectId,
             })
             .where(eq(contactInteractions.id, row.id));
         } else {

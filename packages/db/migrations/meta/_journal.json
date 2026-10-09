@@ -372,6 +372,13 @@
       "when": 1791561793418,
       "tag": "0052_birthday_delivery",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791567578383,
+      "tag": "0053_passport_milestone",
+      "breakpoints": true
     }
   ]
 }
