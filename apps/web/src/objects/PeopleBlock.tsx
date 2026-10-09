@@ -1,5 +1,5 @@
 import { canWrite, canWriteLink, type RecordFacts } from '@homecrm/shared';
-import { AddressBook, Check, Plus } from '@phosphor-icons/react';
+import { AddressBook, Check, Plus, User } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
 import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
@@ -8,6 +8,8 @@ import { factsOf, viewerOf } from '../notes/abilities.ts';
 import { CONTACT_TYPE } from '../organizations/abilities.ts';
 import { ORGANIZATION_TYPE_LABELS } from '../organizations/form.ts';
 import { useOrganizationOptions } from '../organizations/queries.ts';
+import { categoriesLabel } from '../people/labels.ts';
+import { usePeopleOptions } from '../people/queries.ts';
 import { normalizeText } from '../ui/format.ts';
 import { RowContent, RowList } from '../ui/Row.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
@@ -21,6 +23,16 @@ import { useRefreshObjects } from './queries.ts';
 
 /** Типичные подписи связи: нажатие подставляет текст в поле. */
 const ROLE_SUGGESTIONS = ['УК', 'Аварийная служба', 'Поставщик', 'Собственник'] as const;
+const PERSON_ROLE_SUGGESTIONS = ['Мастер', 'Собственник', 'Арендатор', 'Сосед'] as const;
+
+type ObjectContact = ObjectCard['peopleAndOrganizations'][number]['contact'];
+
+/** Пояснение к строке без подписи роли: тип организации или категории человека. */
+function kindLabel(contact: ObjectContact): string {
+  if (contact.kind === 'organization')
+    return ORGANIZATION_TYPE_LABELS[contact.data.organizationType];
+  return categoriesLabel(contact.data.categories) || 'Человек';
+}
 
 function PersonItem({
   item,
@@ -38,15 +50,17 @@ function PersonItem({
 
   return (
     <li className="link-item">
-      <Link className="row" to={`/more/organizations/${item.contact.id}`}>
+      <Link className="row" to={`/people/contacts/${item.contact.id}`}>
         <RowContent
-          icon={<AddressBook size={22} aria-hidden />}
-          title={item.contact.title}
-          meta={
-            item.role === ''
-              ? ORGANIZATION_TYPE_LABELS[item.contact.data.organizationType]
-              : item.role
+          icon={
+            item.contact.kind === 'person' ? (
+              <User size={22} aria-hidden />
+            ) : (
+              <AddressBook size={22} aria-hidden />
+            )
           }
+          title={item.contact.title}
+          meta={item.role === '' ? kindLabel(item.contact) : item.role}
           chevron
         />
       </Link>
@@ -82,29 +96,35 @@ function PersonItem({
   );
 }
 
-function LinkOrganizationSheet({
+function LinkContactSheet({
+  kind,
   card,
   objectFacts,
   linked,
   onClose,
 }: {
+  kind: 'organization' | 'person';
   card: ObjectCard;
   objectFacts: RecordFacts;
   linked: ReadonlySet<string>;
   onClose: () => void;
 }) {
+  const person = kind === 'person';
   const { me } = useHousehold();
   const toast = useToast();
   const refresh = useRefreshObjects();
   const state = useAction();
-  const options = useOrganizationOptions();
+  const organizations = useOrganizationOptions(!person);
+  const people = usePeopleOptions(person);
+  const options = person ? people : organizations;
+  const list: ObjectContact[] = options.data ?? [];
   const [filter, setFilter] = useState('');
   const [role, setRole] = useState('');
   const [chosen, setChosen] = useState<string | null>(null);
   const ids = { filter: useId(), role: useId() };
   const viewer = viewerOf(me);
 
-  const available = (options.data ?? []).filter(
+  const available = list.filter(
     (item) =>
       !linked.has(item.id) &&
       canWriteLink(viewer, objectFacts, factsOf(item, viewer, CONTACT_TYPE)),
@@ -122,15 +142,26 @@ function LinkOrganizationSheet({
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
-      title="Связать с организацией"
-      description="Выберите организацию и подпишите роль: УК, поставщик, аварийная служба. Связь увидят только те, кто видит и объект, и организацию."
+      title={person ? 'Связать с человеком' : 'Связать с организацией'}
+      description={
+        person
+          ? 'Выберите человека и подпишите роль: мастер, собственник, арендатор. Связь увидят только те, кто видит и объект, и контакт.'
+          : 'Выберите организацию и подпишите роль: УК, поставщик, аварийная служба. Связь увидят только те, кто видит и объект, и организацию.'
+      }
     >
-      {options.isPending ? <Notice>Загружаем организации…</Notice> : null}
+      {options.isPending ? (
+        <Notice>{person ? 'Загружаем людей…' : 'Загружаем организации…'}</Notice>
+      ) : null}
       {options.isError ? <ObjectError error={options.error} action="load" /> : null}
       {options.data && available.length === 0 ? (
         <p className="muted sheet__block">
-          Нет организаций, которые можно связать: все видимые уже связаны с этим объектом или их ещё
-          нет. <Link to="/more/organizations">Открыть «Организации»</Link>
+          {person ? 'Нет людей' : 'Нет организаций'}, которые можно связать: все видимые уже связаны
+          с этим объектом или их ещё нет.{' '}
+          {person ? (
+            <Link to="/people">Открыть «Люди»</Link>
+          ) : (
+            <Link to="/more/organizations">Открыть «Организации»</Link>
+          )}
         </p>
       ) : null}
       {available.length > 0 ? (
@@ -150,9 +181,16 @@ function LinkOrganizationSheet({
             />
           </div>
           {shown.length === 0 ? (
-            <p className="muted sheet__block">Ничего не нашли среди загруженных организаций.</p>
+            <p className="muted sheet__block">
+              Ничего не нашли среди загруженных {person ? 'людей' : 'организаций'}.
+            </p>
           ) : (
-            <ul className="row-list picker-list" aria-label="Организации, которые можно связать">
+            <ul
+              className="row-list picker-list"
+              aria-label={
+                person ? 'Люди, которых можно связать' : 'Организации, которые можно связать'
+              }
+            >
               {shown.map((item) => {
                 const on = item.id === chosen;
                 return (
@@ -164,9 +202,15 @@ function LinkOrganizationSheet({
                       onClick={() => setChosen(on ? null : item.id)}
                     >
                       <RowContent
-                        icon={<AddressBook size={22} aria-hidden />}
+                        icon={
+                          person ? (
+                            <User size={22} aria-hidden />
+                          ) : (
+                            <AddressBook size={22} aria-hidden />
+                          )
+                        }
                         title={item.title}
-                        meta={ORGANIZATION_TYPE_LABELS[item.data.organizationType]}
+                        meta={kindLabel(item)}
                         aside={on ? <Check size={20} weight="bold" aria-hidden /> : undefined}
                       />
                     </button>
@@ -189,7 +233,7 @@ function LinkOrganizationSheet({
             />
             <fieldset className="role-suggestions">
               <legend className="visually-hidden">Частые подписи</legend>
-              {ROLE_SUGGESTIONS.map((suggestion) => (
+              {(person ? PERSON_ROLE_SUGGESTIONS : ROLE_SUGGESTIONS).map((suggestion) => (
                 <button
                   type="button"
                   className="chip-button"
@@ -217,7 +261,9 @@ function LinkOrganizationSheet({
               role.trim(),
             );
             await refresh();
-            toast.show({ message: 'Организация связана с объектом' });
+            toast.show({
+              message: person ? 'Человек связан с объектом' : 'Организация связана с объектом',
+            });
             onClose();
           })
         }
@@ -231,21 +277,23 @@ function LinkOrganizationSheet({
   );
 }
 
-/** Блок «Люди и организации» карточки объекта: связанные организации с подписью роли. */
+/** Блок «Люди и организации» карточки объекта: связанные люди и организации с подписью роли. */
 export function PeopleBlock({ card }: { card: ObjectCard }) {
   const { me } = useHousehold();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<'organization' | 'person' | null>(null);
   const viewer = viewerOf(me);
   const objectFacts = factsOf(card, viewer, 'object');
   const items = card.peopleAndOrganizations;
   const linked = new Set(items.map((item) => item.contact.id));
   const trashed = card.deletedAt !== null;
-  const options = useOrganizationOptions(!trashed);
-  // Кнопка только тем, кто может связать: пишет в объект или в одну из видимых организаций.
+  const organizations = useOrganizationOptions(!trashed);
+  const people = usePeopleOptions(!trashed);
+  // Кнопка только тем, кто может связать: пишет в объект или в один из видимых контактов.
+  const candidates: ObjectContact[] = [...(organizations.data ?? []), ...(people.data ?? [])];
   const canLink =
     !trashed &&
     (canWrite(viewer, objectFacts) ||
-      (options.data ?? []).some(
+      candidates.some(
         (item) =>
           !linked.has(item.id) &&
           canWriteLink(viewer, objectFacts, factsOf(item, viewer, CONTACT_TYPE)),
@@ -261,8 +309,8 @@ export function PeopleBlock({ card }: { card: ObjectCard }) {
       </div>
       {items.length === 0 ? (
         <p className="muted">
-          Пока никого нет. Свяжите, например, управляющую компанию и аварийную службу: их телефоны
-          будут под рукой.
+          Пока никого нет. Свяжите, например, управляющую компанию, аварийную службу или мастера: их
+          телефоны будут под рукой.
         </p>
       ) : (
         <RowList label="Люди и организации">
@@ -272,21 +320,32 @@ export function PeopleBlock({ card }: { card: ObjectCard }) {
         </RowList>
       )}
       {canLink ? (
-        <button
-          type="button"
-          className="btn btn--secondary btn--block list-action"
-          onClick={() => setOpen(true)}
-        >
-          <Plus size={20} weight="bold" aria-hidden />
-          Связать с организацией…
-        </button>
+        <>
+          <button
+            type="button"
+            className="btn btn--secondary btn--block list-action"
+            onClick={() => setOpen('organization')}
+          >
+            <Plus size={20} weight="bold" aria-hidden />
+            Связать с организацией…
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--block list-action"
+            onClick={() => setOpen('person')}
+          >
+            <Plus size={20} weight="bold" aria-hidden />
+            Связать с человеком…
+          </button>
+        </>
       ) : null}
       {open ? (
-        <LinkOrganizationSheet
+        <LinkContactSheet
+          kind={open}
           card={card}
           objectFacts={objectFacts}
           linked={linked}
-          onClose={() => setOpen(false)}
+          onClose={() => setOpen(null)}
         />
       ) : null}
     </section>

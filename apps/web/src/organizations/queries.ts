@@ -64,6 +64,7 @@ export function useRefreshOrganizations() {
   return () =>
     Promise.all([
       client.invalidateQueries({ queryKey: [ORGANIZATIONS] }),
+      client.invalidateQueries({ queryKey: ['contacts'] }),
       client.invalidateQueries({ queryKey: ['objects'] }),
       client.invalidateQueries({ queryKey: ['accounts'] }),
       client.invalidateQueries({ queryKey: ['links'] }),

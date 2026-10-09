@@ -40,7 +40,7 @@ export function DocumentVersions({ card }: { card: DocumentCard }) {
         {versions.map((version) => {
           const current = version.id === card.id;
           const valid = version.status === 'valid';
-          const info = expiryInfo(version.data, valid, today);
+          const info = expiryInfo(version.data, valid, today, version.expiryRule);
           const period = version.data.indefinite
             ? 'бессрочно'
             : [

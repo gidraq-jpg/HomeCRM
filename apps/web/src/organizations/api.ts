@@ -1,9 +1,10 @@
-import { AUDIENCES, type ORGANIZATION_TYPES, OrganizationData } from '@homecrm/shared';
+import type { ORGANIZATION_TYPES, OrganizationData } from '@homecrm/shared';
 import * as z from 'zod';
 import { apiRequest } from '../auth/api.ts';
 import type { ListScope, Placement } from '../notes/api.ts';
+import { AnyContact, OrganizationCard } from '../people/schema.ts';
 
-// Организации (CONT-2, ADR-0031, docs/property-accounts-api.md). Ответы проверяются схемами.
+// Организации (CONT-2, ADR-0031, ADR-0036, docs/passport-people-api.md). Ответы проверяются схемами.
 // Названия, телефоны и адреса живут только в ответах и памяти страницы: в адреса, журнал,
 // localStorage и кэш сервис-воркера они не попадают.
 
@@ -14,27 +15,15 @@ export const MAX_LABEL = 200;
 export const MAX_TEXT = 4000;
 export const MAX_NOTE = 10_000;
 
-export const ContactCard = z.object({
-  id: z.string(),
-  title: z.string(),
-  kind: z.string(),
-  spaceId: z.string(),
-  spaceKind: z.enum(['personal', 'household']),
-  audience: z.enum(AUDIENCES).nullable(),
-  authorId: z.string(),
-  assigneeId: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  deletedAt: z.string().nullable(),
-  data: OrganizationData,
-});
-export type ContactCard = z.infer<typeof ContactCard>;
+/** Организация. Люди приходят из того же маршрута и описаны в `people/schema.ts`. */
+export const ContactCard = OrganizationCard;
+export type ContactCard = OrganizationCard;
 
-/** Связь объекта с организацией из карточки объекта: подпись роли и сама организация. */
+/** Связь объекта с контактом из карточки объекта: подпись роли и сама организация или человек. */
 export const PersonLink = z.object({
   linkId: z.string(),
   role: z.string(),
-  contact: ContactCard,
+  contact: AnyContact,
 });
 export type PersonLink = z.infer<typeof PersonLink>;
 
@@ -59,7 +48,9 @@ export function fetchOrganizations(
   },
   signal?: AbortSignal,
 ) {
+  // Люди живут в том же маршруте: без `kind` их карточки попали бы в список организаций.
   const query = new URLSearchParams({
+    kind: 'organization',
     trash: String(options.trash),
     limit: String(PAGE_SIZE),
     offset: String(options.offset),

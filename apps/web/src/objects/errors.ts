@@ -18,6 +18,8 @@ export type ObjectAction =
   | 'link'
   | 'account'
   | 'contact'
+  | 'person'
+  | 'interaction'
   | 'meter'
   | 'replace'
   | 'reading'
@@ -36,6 +38,10 @@ const INVALID: Readonly<Partial<Record<ObjectAction, string>>> = {
     'Проверьте лицевой счёт: ссылки начинаются с http:// или https://, день — от 1 до 31, номер и название не длиннее 200 знаков.',
   contact:
     'Проверьте организацию: название обязательно (до 200 знаков), телефонов не больше 20, сайт — ссылка на http:// или https://.',
+  person:
+    'Проверьте человека: ФИО обязательно (до 200 знаков), телефонов, почт и мессенджеров не больше 20, ссылки начинаются с http:// или https://, день рождения — настоящая дата.',
+  interaction:
+    'Проверьте запись: нужны дата и текст (до 10 000 знаков), сумма — в рублях без минуса.',
 };
 
 export function objectErrorMessage(error: unknown, action: ObjectAction): string {
@@ -52,6 +58,9 @@ export function objectErrorMessage(error: unknown, action: ObjectAction): string
     }
     if (action === 'contact') {
       return 'Организации больше нет, или она стала вам недоступна. Вернитесь к списку и обновите его.';
+    }
+    if (action === 'person' || action === 'interaction') {
+      return 'Контакта или записи больше нет, или они стали вам недоступны. Вернитесь к списку «Люди» и обновите его.';
     }
     return action === 'link' || action === 'event'
       ? 'Запись больше недоступна: её удалили или она стала вам недоступна. Обновите страницу.'
@@ -75,6 +84,9 @@ export function objectErrorMessage(error: unknown, action: ObjectAction): string
         return 'Менять ленту этого объекта вам нельзя. Обновите страницу: возможно, права изменились.';
       case 'account':
         return 'Менять лицевые счета этого объекта могут только взрослые. Вернуть счёт из корзины может его автор-взрослый или администратор.';
+      case 'person':
+      case 'interaction':
+        return 'Менять общие контакты и записи о взаимодействиях могут только взрослые. Вернуть контакт из корзины может его автор-взрослый или администратор.';
       case 'contact':
         return 'Менять общие организации могут только взрослые. Вернуть организацию из корзины может её автор-взрослый или администратор.';
       default:
@@ -83,7 +95,12 @@ export function objectErrorMessage(error: unknown, action: ObjectAction): string
   }
   if (status === 409) {
     if (isStaleVersion(error)) {
-      if (action === 'account' || action === 'contact') {
+      if (
+        action === 'account' ||
+        action === 'contact' ||
+        action === 'person' ||
+        action === 'interaction'
+      ) {
         return 'Запись изменили, пока вы её правили. Обновите страницу и повторите.';
       }
       return action === 'event'

@@ -424,9 +424,7 @@ test('ошибка загрузки состава не ломает экран:
   await page.route('**/members', (route) => route.fulfill({ status: 503, json: { code: 'DOWN' } }));
   await openSection(page, '/people', 'Люди');
   await expect(page.getByText('Не удалось загрузить данные')).toBeVisible();
-  await expect(
-    page.getByRole('heading', { level: 2, name: 'Организации и мастера' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Контакты' })).toBeVisible();
   await page.unroute('**/members');
   await page.getByRole('button', { name: 'Повторить загрузку участников' }).click();
   await expect(members(page).getByRole('listitem')).toHaveCount(3);

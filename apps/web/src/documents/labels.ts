@@ -5,6 +5,7 @@ import {
   type DocumentType,
 } from '@homecrm/shared';
 import {
+  addDays,
   countWord,
   type DateOnly,
   daysBetween,
@@ -62,21 +63,99 @@ export interface ExpiryInfo {
   until: string;
 }
 
+/** Правило срока из ответа сервера: нужны только вид, начало окна, его длина и ожидание даты рождения. */
+export interface ExpiryRuleLike {
+  kind: string;
+  date?: string | undefined;
+  durationDays?: number | undefined;
+  eventDate?: string | null | undefined;
+}
+
+/** Поля документа, от которых зависит срок. */
+export interface ExpiryData {
+  expiresOn: string | null;
+  indefinite: boolean;
+  type?: DocumentType | undefined;
+  issuedOn?: string | null | undefined;
+}
+
+/** Откуда взят срок документа (DOC-4): явная дата важнее вычисленной по возрасту. */
+export type ExpirySource =
+  | { kind: 'explicit'; until: DateOnly }
+  | { kind: 'indefinite' }
+  | {
+      kind: 'age';
+      /** Начало окна замены (день рождения, на который приходится граница) и его конец. */
+      start: DateOnly;
+      until: DateOnly;
+      /** 20 или 45, если это видно по дате выдачи; иначе неизвестно. */
+      years: 20 | 45 | null;
+    }
+  | { kind: 'pending' }
+  | { kind: 'none' };
+
+/** Сколько лет, по дате выдачи, остаётся до границы: до 7 лет — первая замена (20), от 20 — вторая (45). */
+function passportYears(issuedOn: string | null, start: DateOnly): 20 | 45 | null {
+  if (issuedOn === null) return null;
+  const years = daysBetween(issuedOn as DateOnly, start) / 365.25;
+  if (years <= 7) return 20;
+  return years >= 20 ? 45 : null;
+}
+
+/**
+ * Откуда взят срок. Паспорт РФ без явной даты получает от сервера окно замены по возрасту (`window`)
+ * либо ожидание даты рождения владельца (`after` без даты события). Дату рождения сервер не отдаёт.
+ */
+export function expirySource(
+  data: ExpiryData,
+  rule: ExpiryRuleLike | null | undefined,
+): ExpirySource {
+  if (data.indefinite) return { kind: 'indefinite' };
+  if (data.expiresOn !== null) return { kind: 'explicit', until: data.expiresOn as DateOnly };
+  if (data.type === 'russian_passport' && rule) {
+    if (rule.kind === 'window' && rule.date !== undefined) {
+      const start = rule.date as DateOnly;
+      return {
+        kind: 'age',
+        start,
+        until: addDays(start, rule.durationDays ?? 0),
+        years: passportYears(data.issuedOn ?? null, start),
+      };
+    }
+    if (rule.kind === 'after' && (rule.eventDate === null || rule.eventDate === undefined)) {
+      return { kind: 'pending' };
+    }
+  }
+  return { kind: 'none' };
+}
+
 /**
  * Срок документа на сегодня в часовом поясе дома. Недействительная версия срока не показывает:
  * её срок снят вместе с версией (ADR-0035). Статус всегда с текстом, не только цвет.
+ * Срок паспорта по возрасту считается от конца окна замены; без даты рождения он «вычисляется».
  */
 export function expiryInfo(
-  data: { expiresOn: string | null; indefinite: boolean },
+  data: ExpiryData,
   valid: boolean,
   today: DateOnly,
+  rule?: ExpiryRuleLike | null,
 ): ExpiryInfo {
   if (!valid) return { tone: 'neutral', label: 'Недействителен', until: 'недействителен' };
-  if (data.indefinite) return { tone: 'neutral', label: 'Бессрочно', until: 'бессрочно' };
-  if (data.expiresOn === null) {
+  const source = expirySource(data, rule);
+  if (source.kind === 'indefinite') {
+    return { tone: 'neutral', label: 'Бессрочно', until: 'бессрочно' };
+  }
+  if (source.kind === 'pending') {
+    return {
+      tone: 'neutral',
+      label: 'Срок вычислится по дате рождения',
+      until: 'срок вычислится по дате рождения',
+    };
+  }
+  if (source.kind === 'none') {
     return { tone: 'neutral', label: 'Срок не указан', until: 'срок не указан' };
   }
-  const end = data.expiresOn as DateOnly;
+  const end = source.until;
   const until = `до ${formatShortDate(end, today)}`;
   const left = daysBetween(today, end);
   if (left < 0) {
@@ -88,7 +167,6 @@ export function expiryInfo(
   }
   return { tone: 'ok', label: `Действует ${until}`, until };
 }
-
 /** Дата для карточки: «5 окт. 2030» — год всегда, документ живёт годами. */
 export function dateLabel(value: string | null): string {
   return value === null ? '—' : formatFullDate(value as DateOnly);

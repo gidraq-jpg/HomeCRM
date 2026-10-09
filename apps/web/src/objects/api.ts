@@ -1,4 +1,4 @@
-import { AUDIENCES, OBJECT_TYPES, PropertyData } from '@homecrm/shared';
+import { AUDIENCES, INTERACTION_KINDS, OBJECT_TYPES, PropertyData } from '@homecrm/shared';
 import * as z from 'zod';
 import { apiRequest } from '../auth/api.ts';
 import { FileMeta } from '../files/api.ts';
@@ -202,7 +202,23 @@ export const ReadingEvent = z.object({
 });
 export type ReadingEvent = z.infer<typeof ReadingEvent>;
 
-export const TimelineItem = z.union([ManualEvent, AutoItem, ReadingEvent]);
+/** Взаимодействие контакта с этим объектом в ленте (CONT-4): видно, только если виден и контакт. */
+export const InteractionEvent = z.object({
+  id: z.string(),
+  at: z.string(),
+  source: z.literal('interaction'),
+  interactionId: z.string(),
+  contactId: z.string(),
+  kind: z.enum(INTERACTION_KINDS),
+  /** Календарная дата YYYY-MM-DD: без часового пояса. */
+  occurredOn: z.string(),
+  text: z.string(),
+  amountCents: z.number().nullable(),
+  callAgain: z.boolean().nullable(),
+});
+export type InteractionEvent = z.infer<typeof InteractionEvent>;
+
+export const TimelineItem = z.union([ManualEvent, AutoItem, ReadingEvent, InteractionEvent]);
 export type TimelineItem = z.infer<typeof TimelineItem>;
 export type AutoEvent = z.infer<typeof AutoItem>;
 
