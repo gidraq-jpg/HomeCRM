@@ -13,6 +13,7 @@ import { OBJECT_TYPE_ICONS } from '../objects/types.ts';
 export function routeOf(ref: RecordRef): string | null {
   if (ref.type === 'object') return `/home/${ref.id}`;
   if (ref.type === 'note') return `/more/notes/${ref.id}`;
+  if (ref.type === 'contact') return `/people/contacts/${ref.id}`;
   return null;
 }
 

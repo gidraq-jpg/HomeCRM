@@ -1,14 +1,14 @@
 import { ROLE_LABELS } from '@homecrm/shared';
-import { AddressBook, Lock, UserPlus } from '@phosphor-icons/react';
+import { AddressBook, UserPlus } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
-import { SCOPE_LABELS } from '../access/scope.ts';
 import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { ActionError, Avatar } from '../household/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
-import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
+import { ContactsList } from '../people/ContactsList.tsx';
+import { EmptyState } from '../ui/EmptyState.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
 
@@ -85,35 +85,18 @@ function Members() {
 }
 
 /**
- * «Люди»: участники дома (SPACE-8…10). Контактов — организаций и мастеров — в приложении
- * ещё нет, экран говорит об этом прямо.
+ * «Люди»: участники дома (SPACE-8…10) и контакты — люди и организации (CONT-1, CONT-2) с поиском
+ * и фильтром по категории.
  */
 export function PeopleScreen() {
-  const { scope, setScope } = useScope();
+  const { scope } = useScope();
   const { isAdmin } = useHousehold();
   // Участники дома — часть общего пространства: в режиме «Личное» их нет.
   const showMembers = scope !== 'personal';
 
   return (
     <Page title="Люди">
-      {showMembers ? (
-        <Members />
-      ) : (
-        <EmptyState icon={<Lock size={24} aria-hidden />} title="В режиме «Личное» людей нет">
-          <p>
-            Участники дома входят в общее пространство, а здесь только ваши записи. Личных контактов
-            в приложении пока нет.
-          </p>
-          <p>{EMPTY_SCOPE_EXPLANATION.personal}</p>
-          <button
-            type="button"
-            className="btn btn--secondary btn--block"
-            onClick={() => setScope('all')}
-          >
-            Показать «{SCOPE_LABELS.all}»
-          </button>
-        </EmptyState>
-      )}
+      {showMembers ? <Members /> : null}
 
       {showMembers && isAdmin ? (
         <Link className="btn btn--primary btn--block list-action" to="/people/invite">
@@ -122,14 +105,7 @@ export function PeopleScreen() {
         </Link>
       ) : null}
 
-      {showMembers ? (
-        <Section title="Организации и мастера">
-          <p className="muted">
-            Контактов пока нет: добавлять организации, мастеров и личные контакты в приложении пока
-            нельзя.
-          </p>
-        </Section>
-      ) : null}
+      <ContactsList />
     </Page>
   );
 }

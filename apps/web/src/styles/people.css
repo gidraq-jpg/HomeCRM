@@ -1,0 +1,74 @@
+/* Люди, взаимодействия, быстрые действия, срок документа по возрасту. Цели нажатия — не меньше 44 px (--tap). */
+
+/* Быстрые действия: «Позвонить», «Написать», «На карте» */
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+
+.quick-actions .btn {
+  flex: 1 1 120px;
+  min-height: 52px;
+}
+
+/* Ссылки и стопки значений в карточке */
+.facts__stack {
+  display: grid;
+  justify-items: end;
+}
+
+.facts dd a {
+  min-width: var(--tap);
+}
+
+/* Категории в форме человека */
+.category-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 10px;
+}
+
+.category-list .check-line {
+  margin-top: 0;
+}
+
+/* Срок документа по возрасту (DOC-4) */
+.expiry-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.expiry-note p + p {
+  margin-top: 6px;
+}
+
+.expiry-note__title {
+  font-weight: 650;
+}
+
+/* Предупреждения документа: правка в карточке (DOC-3) */
+.warnings-edit {
+  display: grid;
+  gap: 8px;
+}
+
+.expiry-note a {
+  display: inline-flex;
+  align-items: center;
+  min-width: var(--tap);
+  min-height: var(--tap);
+}
+
+.facts dd .warnings-edit {
+  width: 100%;
+}
+
+.facts dd .text-button {
+  flex: none;
+  white-space: nowrap;
+}
