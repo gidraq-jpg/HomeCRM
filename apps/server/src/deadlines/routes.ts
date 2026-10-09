@@ -209,11 +209,12 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
       request.query,
     );
     return options.appDb.withAccount(account.id, async (tx) => {
-      // План с вложенным RLS дороже компилировать, чем выполнить на сотнях сроков.
-      await tx.execute(sql`SET LOCAL jit=off`);
-      // Вложенные RLS-подзапросы над тысячей источников быстрее соединяются наборами.
-      // Настройка действует только в транзакции радара; замеры проверяют тот же порог 300 мс.
-      await tx.execute(sql`SET LOCAL enable_nestloop=off`);
+      // План с вложенным RLS дороже компилировать, чем выполнить на сотнях сроков;
+      // источники быстрее соединяются наборами. Обе настройки — одним запросом,
+      // только в этой транзакции; замеры проверяют тот же порог 300 мс.
+      await tx.execute(
+        sql`SELECT set_config('jit','off',true),set_config('enable_nestloop','off',true)`,
+      );
       type RadarRow = typeof deadlineOccurrencesTable.$inferSelect & {
         documentId: string | null;
         contactId: string | null;
