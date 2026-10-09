@@ -309,6 +309,48 @@
       "when": 1791485364864,
       "tag": "0043_document_review",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791510381003,
+      "tag": "0044_passport_people",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1791510381004,
+      "tag": "0045_people_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1791510693027,
+      "tag": "0046_passport_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791510693028,
+      "tag": "0047_passport_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1791510693029,
+      "tag": "0048_people_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1791510693030,
+      "tag": "0049_passport_birth_visibility",
+      "breakpoints": true
     }
   ]
 }

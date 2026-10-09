@@ -8,7 +8,14 @@ import {
   type Transaction,
   type utilityAccounts,
 } from '@homecrm/db';
-import { canView, type Placement, PropertyData } from '@homecrm/shared';
+import {
+  canView,
+  contactActions,
+  OrganizationData,
+  PersonData,
+  type Placement,
+  PropertyData,
+} from '@homecrm/shared';
 import type { Account } from '../auth/account.ts';
 import {
   Failure,
@@ -87,7 +94,9 @@ export function publicRecord<T extends Row & { title: string; createdAt: Date; u
   };
 }
 export function contactSummary(row: typeof contacts.$inferSelect) {
-  return { ...publicRecord(row), kind: row.kind, data: row.data };
+  const data =
+    row.kind === 'person' ? PersonData.parse(row.data) : OrganizationData.parse(row.data);
+  return { ...publicRecord(row), kind: row.kind, data, actions: contactActions(data) };
 }
 export async function accountSummary(
   tx: Transaction,
@@ -122,24 +131,25 @@ export async function provider(tx: Transaction, account: Account, id: string | n
     missing();
 }
 export async function peopleOf(tx: Transaction, account: Account, objectId: string) {
-  const links = await tx
-    .select()
+  const rows = await tx
+    .select({ link: recordLinks, contact: contacts })
     .from(recordLinks)
+    .innerJoin(
+      contacts,
+      sql`${contacts.id}=CASE WHEN ${recordLinks.leftTable}='contacts' THEN ${recordLinks.leftId} ELSE ${recordLinks.rightId} END`,
+    )
     .where(
       and(
         isNull(recordLinks.deletedAt),
-        sql`(${recordLinks.leftTable}='objects' AND ${recordLinks.leftId}=${objectId}::uuid AND ${recordLinks.rightTable}='contacts') OR (${recordLinks.rightTable}='objects' AND ${recordLinks.rightId}=${objectId}::uuid AND ${recordLinks.leftTable}='contacts')`,
+        isNull(contacts.deletedAt),
+        sql`((${recordLinks.leftTable}='objects' AND ${recordLinks.leftId}=${objectId}::uuid AND ${recordLinks.rightTable}='contacts') OR (${recordLinks.rightTable}='objects' AND ${recordLinks.rightId}=${objectId}::uuid AND ${recordLinks.leftTable}='contacts'))`,
       ),
     );
-  const result = [];
-  for (const link of links) {
-    const id = link.leftTable === 'contacts' ? link.leftId : link.rightId;
-    const [row] = await tx
-      .select()
-      .from(contacts)
-      .where(and(eq(contacts.id, id), isNull(contacts.deletedAt)));
-    if (row && canView(account.viewer, placementOf(row)))
-      result.push({ linkId: link.id, role: link.role, contact: contactSummary(row) });
-  }
-  return result;
+  return rows
+    .filter(({ contact }) => canView(account.viewer, placementOf(contact)))
+    .map(({ link, contact }) => ({
+      linkId: link.id,
+      role: link.role,
+      contact: contactSummary(contact),
+    }));
 }

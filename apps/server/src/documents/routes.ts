@@ -18,10 +18,12 @@ import {
   canTrash,
   canView,
   canViewDocument,
+  type DeadlineRule,
   DOCUMENT_LABELS,
   DOCUMENT_TYPES,
   DocumentData,
   DocumentOwner,
+  documentWarnings,
   IDENTITY_DOCUMENT_TYPES,
 } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
@@ -65,13 +67,19 @@ async function read(tx: Transaction, account: Account, id: string, lock = false)
   return row.document;
 }
 const summaryFields = {
+  expiryRule: sql<DeadlineRule | null>`(SELECT d.rule FROM deadlines d WHERE d.document_id=documents.id AND d.deleted_at IS NULL)`,
   ownerIsChild: sql<boolean>`app.document_owner_is_child(${documents.ownerAccountId})`,
   contactId: sql<
     string | null
   >`(SELECT c.id FROM contacts c WHERE c.id=documents.owner_contact_id)`,
   previousId: sql<string | null>`(SELECT p.id FROM documents p WHERE p.id=documents.previous_id)`,
 };
-type SummaryFields = { ownerIsChild: boolean; contactId: string | null; previousId: string | null };
+type SummaryFields = {
+  expiryRule: DeadlineRule | null;
+  ownerIsChild: boolean;
+  contactId: string | null;
+  previousId: string | null;
+};
 function visibleDocument(
   account: Account,
   row: typeof documents.$inferSelect,
@@ -88,6 +96,8 @@ function present(row: typeof documents.$inferSelect, fields: SummaryFields) {
   return {
     ...publicRecord(row),
     data: row.data,
+    expiryRule: fields.expiryRule,
+    warnings: row.data.warnings ?? documentWarnings(row.data.type),
     status: row.status,
     previousId: fields.previousId,
     owner: row.ownerAccountId
@@ -136,7 +146,11 @@ const ownerColumns = (owner: DocumentOwner | null) => ({
 export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
   const route = dataRoutes(app, module);
   route('GET', '/api/document-types', 200, async () =>
-    DOCUMENT_TYPES.map((type) => ({ type, label: DOCUMENT_LABELS[type] })),
+    DOCUMENT_TYPES.map((type) => ({
+      type,
+      label: DOCUMENT_LABELS[type],
+      warnings: documentWarnings(type),
+    })),
   );
   route('POST', '/api/documents', 201, async (tx, account, request) => {
     const body = parse(Create, request.body);
@@ -233,7 +247,7 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
                 : eq(documents.ownerAccountId, query.ownerId)
             : undefined,
           query.expiry
-            ? sql`(${documents.data}->>'expiresOn')::date ${query.expiry === 'expired' ? sql`< ${today}` : sql`BETWEEN ${today} AND ${today}+90`}`
+            ? sql`(SELECT (d.rule->>'date')::date+coalesce((d.rule->>'durationDays')::int,0) FROM deadlines d WHERE d.document_id=documents.id AND d.deleted_at IS NULL) ${query.expiry === 'expired' ? sql`< ${today}` : sql`BETWEEN ${today} AND ${today}+90`}`
             : undefined,
           query.q
             ? sql`(${documents.title} ILIKE ${`%${query.q.replace(/[\\%_]/g, '\\$&')}%`} OR ${documents.data}->>'type'=ANY(ARRAY[${sql.join(

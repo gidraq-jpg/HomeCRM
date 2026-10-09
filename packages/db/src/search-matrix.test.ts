@@ -24,6 +24,7 @@ const sources = new Set([
   'object_event',
   'meter',
   'document',
+  'contact',
 ]);
 it('матрица индекса: все участники × записи; чужое личное, взрослые и корзина скрыты до счётчика', async () => {
   const app = createAppDatabase(db.app);

@@ -88,7 +88,7 @@ export const PatchEvent = CreateEvent.partial()
   .refine((body) => Object.keys(eventFields).some((key) => key in body));
 export const TimelineCursor = z.strictObject({
   at: z.iso.datetime(),
-  source: z.enum(['object', 'field', 'manual', 'reading']),
+  source: z.enum(['object', 'field', 'manual', 'reading', 'interaction']),
   id: z.uuid(),
 });
 export const ListTimeline = z.strictObject({

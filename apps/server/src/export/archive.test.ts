@@ -747,3 +747,78 @@ it('DOC-1/5: архив содержит версии документов, ис
   expect(json(other, 'documents')).toEqual([]);
   expect(json(other, 'document_files')).toEqual([]);
 });
+
+it('CONT-1/4: экспорт людей и взаимодействий валиден; чужое личное и скрытые указатели отсутствуют', async () => {
+  const organization = (
+    await adult.post('/api/contacts', {
+      title: 'Вымышленная личная организация экспорта',
+      placement: { spaceId: world.boris.personalSpaceId },
+    })
+  ).json<{ id: string }>();
+  const contact = (
+    await adult.post('/api/contacts', {
+      title: 'Вымышленный общий человек экспорта',
+      kind: 'person',
+      organizationId: organization.id,
+      placement: { spaceId: world.houseId, audience: 'household' },
+      data: {
+        categories: ['neighbor'],
+        birthday: '--05-10',
+        phones: [{ number: '+7 900 000-00-00' }],
+      },
+    })
+  ).json<{ id: string }>();
+  const privatePerson = (
+    await adult.post('/api/contacts', {
+      title: 'Вымышленный секретный человек экспорта',
+      kind: 'person',
+    })
+  ).json<{ id: string }>();
+  const object = (
+    await adult.post('/api/objects', {
+      title: 'Вымышленный личный объект экспорта взаимодействия',
+      placement: { spaceId: world.boris.personalSpaceId },
+    })
+  ).json<{ id: string }>();
+  const created = await adult.post(`/api/contacts/${contact.id}/interactions`, {
+    kind: 'work',
+    occurredOn: '2026-10-09',
+    text: 'Вымышленная общая работа экспорта',
+    amountCents: 12345,
+    callAgain: true,
+    objectId: object.id,
+  });
+  expect(created.status, created.text).toBe(201);
+  const interaction = created.json<{ id: string }>();
+  const response = await archive(admin, world.anna.password, {
+    kind: 'household',
+    householdId: world.houseId,
+  });
+  expect(response.statusCode, response.body).toBe(200);
+  const entries = await unpack(response.rawPayload);
+  const exportedPerson = json(entries, 'contacts').find((r: { id: string }) => r.id === contact.id);
+  expect(ExportRecords.contacts.parse(exportedPerson)).toMatchObject({
+    kind: 'person',
+    organization_id: null,
+    data: { birthday: '--05-10' },
+  });
+  const exportedInteraction = json(entries, 'contact_interactions').find(
+    (r: { id: string }) => r.id === interaction.id,
+  );
+  expect(ExportRecords.contact_interactions.parse(exportedInteraction)).toMatchObject({
+    amount_cents: 12345,
+    call_again: true,
+    object_id: null,
+  });
+  const data = [...entries.values()].map((v) => v.toString()).join('\n');
+  for (const id of [organization.id, privatePerson.id, object.id]) expect(data).not.toContain(id);
+  expect(json(entries, 'history')).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ table: 'contact_interactions', record_id: interaction.id }),
+    ]),
+  );
+  const personal = await unpack((await archive(adult, world.boris.password)).rawPayload);
+  expect(json(personal, 'contacts')).toEqual(
+    expect.arrayContaining([expect.objectContaining({ id: privatePerson.id })]),
+  );
+});

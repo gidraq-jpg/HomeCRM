@@ -13,6 +13,7 @@ import {
   OBJECT_TYPES,
   type OrganizationData,
   type PaymentInput,
+  type PersonData,
   type UtilityAccountData,
 } from '@homecrm/shared';
 import { sql } from 'drizzle-orm';
@@ -29,6 +30,7 @@ import {
   numeric,
   pgEnum,
   pgPolicy,
+  pgRole,
   pgTable,
   text,
   timestamp,
@@ -318,6 +320,11 @@ const documentsDefinition = recordTable(
       check('documents_status', sql`status IN ('valid','invalid')`),
     ],
     extraPolicies: [
+      pgPolicy('documents_passport_refresh', {
+        for: 'select',
+        to: pgRole('homecrm_owner').existing(),
+        using: sql`pg_trigger_depth()>0 AND data->>'type'='russian_passport' AND (owner_account_id=nullif(current_setting('app.passport_owner_account',true),'')::uuid OR owner_contact_id=nullif(current_setting('app.passport_owner_contact',true),'')::uuid)`,
+      }),
       pgPolicy('documents_deadline_worker_select', {
         for: 'select',
         to: workerRole,
@@ -451,7 +458,8 @@ const contactsDefinition = recordTable(
   'contact',
   {
     kind: text('kind').notNull().default('organization'),
-    data: jsonb('data').$type<OrganizationData>().notNull().default({
+    organizationId: uuid('organization_id'),
+    data: jsonb('data').$type<OrganizationData | PersonData>().notNull().default({
       organizationType: 'other',
       phones: [],
       website: null,
@@ -460,10 +468,35 @@ const contactsDefinition = recordTable(
       note: '',
     }),
   },
-  { extraChecks: [check('contacts_kind_check', sql`kind = 'organization'`)] },
+  { extraChecks: [check('contacts_kind_check', sql`kind IN ('organization','person')`)] },
 );
 export const contacts = contactsDefinition.table;
 export const contactsHistory = contactsDefinition.history;
+
+/** CONT-4: запись наследует место контакта; объект — отдельный видимый конец связи. */
+const contactInteractionsDefinition = recordTable(
+  'contact_interactions',
+  'contact_interaction',
+  {
+    parentId: uuid('parent_id').notNull(),
+    kind: text('kind').notNull().default('call'),
+    occurredOn: date('occurred_on').notNull().default(sql`CURRENT_DATE`),
+    amountCents: bigint('amount_cents', { mode: 'number' }),
+    callAgain: boolean('call_again'),
+    objectId: uuid('object_id'),
+  },
+  {
+    parent: contacts,
+    visibleSql: 'EXISTS (SELECT 1 FROM contacts c WHERE c.id=parent_id)',
+    updateVisibilitySql: 'EXISTS (SELECT 1 FROM contacts c WHERE c.id=parent_id)',
+    extraChecks: [
+      check('contact_interactions_kind', sql`kind IN ('call','visit','message','work')`),
+      check('contact_interactions_amount', sql`amount_cents BETWEEN 0 AND 9007199254740991`),
+    ],
+  },
+);
+export const contactInteractions = contactInteractionsDefinition.table;
+export const contactInteractionsHistory = contactInteractionsDefinition.history;
 /** UTIL-2, OBJ-5: доступ и жизненный цикл определяет объект. */
 const utilityAccountsDefinition = recordTable(
   'utility_accounts',
@@ -645,6 +678,7 @@ export const RECORD_TABLES = {
   note_file: noteFiles,
   object_file: objectFiles,
   contact: contacts,
+  contact_interaction: contactInteractions,
   utility_account: utilityAccounts,
   meter: meters,
   meter_reading: meterReadings,
@@ -666,6 +700,7 @@ export const RECORD_HISTORY_TABLES = {
   note_file: noteFilesHistory,
   object_file: objectFilesHistory,
   contact: contactsHistory,
+  contact_interaction: contactInteractionsHistory,
   utility_account: utilityAccountsHistory,
   meter: metersHistory,
   meter_reading: meterReadingsHistory,

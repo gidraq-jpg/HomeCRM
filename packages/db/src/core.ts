@@ -145,6 +145,11 @@ export const spaces = pgTable(
       sql.raw(`(kind = 'personal') = (owner_account_id IS NOT NULL)`),
     ),
     pgPolicy('spaces_select', { for: 'select', to: appRole, using: sql.raw(SPACES_SELECT_SQL) }),
+    pgPolicy('spaces_passport_timezone', {
+      for: 'select',
+      to: ownerRole,
+      using: sql`pg_trigger_depth()>0 AND id=nullif(current_setting('app.passport_house_id',true),'')::uuid AND kind='household'`,
+    }),
     pgPolicy('spaces_timezone_admin', {
       for: 'update',
       to: appRole,

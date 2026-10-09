@@ -1,5 +1,6 @@
 export * from './access.ts';
 export * from './charges.ts';
+export * from './contacts.ts';
 export * from './deadlines.ts';
 export * from './documents.ts';
 export * from './export.ts';

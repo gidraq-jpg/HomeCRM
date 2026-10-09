@@ -79,6 +79,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           'object_events',
           'meters',
           'documents',
+          'contacts',
         ].includes(name)
           ? { [`${name}_search`]: 'sync_search_entry' }
           : {}),
@@ -90,6 +91,16 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ? { [`${name}_deadlines`]: 'sync_source_deadlines' }
           : {}),
         ...(name === 'notes' ? { notes_placement: 'cascade_note_placement' } : {}),
+        ...(name === 'contacts'
+          ? {
+              contacts_01_kind: 'contact_guard',
+              contacts_placement: 'cascade_contact_placement',
+              contacts_passport: 'refresh_passport_birthday',
+            }
+          : {}),
+        ...(name === 'contact_interactions'
+          ? { contact_interactions_00_contact: 'interaction_guard' }
+          : {}),
         ...(['utility_accounts', 'meters'].includes(name)
           ? { [`${name}_deadlines`]: 'utility_source_deadlines' }
           : {}),
@@ -177,7 +188,12 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ...(name === 'utility_accounts'
             ? ['utility_accounts.utility_accounts_charges_worker:SELECT']
             : []),
-          ...(name === 'documents' ? ['documents.documents_object_cascade:UPDATE'] : []),
+          ...(name === 'documents'
+            ? [
+                'documents.documents_object_cascade:UPDATE',
+                'documents.documents_passport_refresh:SELECT',
+              ]
+            : []),
           ...(name === 'object_events'
             ? [
                 'object_events.object_events_cascade_select:SELECT',

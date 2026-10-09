@@ -82,6 +82,8 @@ describe('роли базы', () => {
           'household_access_sync',
           'household_access_document_owner',
           'member_profiles_initialize',
+          'documents_passport_refresh',
+          'spaces_passport_timezone',
           'search_index_sync',
           'push_subscriptions_leave',
           'deadlines_owner_select',
@@ -94,7 +96,7 @@ describe('роли базы', () => {
     }
   });
 
-  it('SECURITY DEFINER: закрытые триггеры и только булев факт роли владельца документа', async () => {
+  it('SECURITY DEFINER: закрытые триггеры и булевы проверки доступа без выдачи данных', async () => {
     const { rows } = await database.admin.query(
       `SELECT p.proname, pg_get_userbyid(p.proowner) AS owner,
          has_function_privilege('homecrm_app', p.oid, 'EXECUTE') AS app,
@@ -108,6 +110,8 @@ describe('роли базы', () => {
         'claim_push_endpoint',
         'document_owner_is_child',
         'initialize_member_profile',
+        'passport_birth_visible',
+        'refresh_passport_birthday',
         'remove_member_push',
         'sync_household_access',
         'sync_search_entry',
@@ -115,7 +119,7 @@ describe('роли базы', () => {
       ].map((proname) => ({
         proname,
         owner: DB_ROLES.owner,
-        app: proname === 'document_owner_is_child',
+        app: ['document_owner_is_child', 'passport_birth_visible'].includes(proname),
         auth: false,
         worker: proname === 'document_owner_is_child',
       })),

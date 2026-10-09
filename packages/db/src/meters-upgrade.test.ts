@@ -12,7 +12,7 @@ let before: unknown;
 const snapshot = async () =>
   (
     await db.admin.query(
-      `SELECT * FROM (SELECT 'objects' source,to_jsonb(t) data FROM objects t UNION ALL SELECT 'objects_history',to_jsonb(t) FROM objects_history t UNION ALL SELECT 'contacts',to_jsonb(t) FROM contacts t UNION ALL SELECT 'contacts_history',to_jsonb(t) FROM contacts_history t UNION ALL SELECT 'utility_accounts',to_jsonb(t) FROM utility_accounts t UNION ALL SELECT 'utility_accounts_history',to_jsonb(t) FROM utility_accounts_history t) s ORDER BY source,data::text`,
+      `SELECT * FROM (SELECT 'objects' source,(to_jsonb(t) - 'organization_id') data FROM objects t UNION ALL SELECT 'objects_history',(to_jsonb(t) - 'organization_id') FROM objects_history t UNION ALL SELECT 'contacts',(to_jsonb(t) - 'organization_id') FROM contacts t UNION ALL SELECT 'contacts_history',(to_jsonb(t) - 'organization_id') FROM contacts_history t UNION ALL SELECT 'utility_accounts',(to_jsonb(t) - 'organization_id') FROM utility_accounts t UNION ALL SELECT 'utility_accounts_history',(to_jsonb(t) - 'organization_id') FROM utility_accounts_history t) s ORDER BY source,data::text`,
     )
   ).rows;
 beforeAll(async () => {

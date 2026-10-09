@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BillingPeriod, Cents, ChargeLine, PAYMENT_METHODS, PaymentInput } from './charges.ts';
+import { INTERACTION_KINDS, PersonData } from './contacts.ts';
 import { DeadlineRule, TimeZone } from './deadlines.ts';
 import { DocumentData } from './documents.ts';
 import { DecimalValue, MeterData } from './meters.ts';
@@ -84,7 +85,29 @@ export const ExportRecords = {
     done: z.boolean(),
     position: z.number().int(),
   }),
-  contacts: z.strictObject({ ...record, kind: z.literal('organization'), data: OrganizationData }),
+  contacts: z.discriminatedUnion('kind', [
+    z.strictObject({
+      ...record,
+      kind: z.literal('organization'),
+      data: OrganizationData,
+      organization_id: uuid.nullable(),
+    }),
+    z.strictObject({
+      ...record,
+      kind: z.literal('person'),
+      data: PersonData,
+      organization_id: uuid.nullable(),
+    }),
+  ]),
+  contact_interactions: z.strictObject({
+    ...record,
+    parent_id: uuid,
+    kind: z.enum(INTERACTION_KINDS),
+    occurred_on: z.iso.date(),
+    amount_cents: Cents.nonnegative().nullable(),
+    call_again: z.boolean().nullable(),
+    object_id: uuid.nullable(),
+  }),
   meters: z.strictObject({
     ...record,
     parent_id: uuid,

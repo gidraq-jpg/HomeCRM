@@ -55,13 +55,30 @@ export const IDENTITY_DOCUMENT_TYPES: readonly DocumentType[] = [
   'inn',
   'driver_license',
 ];
+export const DOCUMENT_WARNING_DEFAULTS: Readonly<Record<DocumentType, readonly number[]>> = {
+  russian_passport: [60, 30],
+  international_passport: [180, 90, 30],
+  birth_certificate: [30, 7],
+  snils: [30, 7],
+  inn: [30, 7],
+  driver_license: [90, 30],
+  oms: [30, 7],
+  dms: [30, 7],
+  osago: [30, 14, 3],
+  kasko: [30, 14, 3],
+  property_insurance: [30, 14, 3],
+  sts: [30, 7],
+  pts: [30, 7],
+  egrn: [30, 7],
+  contract: [60, 30],
+  warranty_receipt: [30],
+  medical: [30, 7],
+  school: [30, 7],
+  certificate: [30, 7],
+  other: [30, 7],
+};
 export function documentWarnings(type: DocumentType): number[] {
-  if (type === 'international_passport') return [180, 90, 30];
-  if (type === 'driver_license') return [90, 30];
-  if (['osago', 'kasko', 'property_insurance'].includes(type)) return [30, 14, 3];
-  if (type === 'contract' || type === 'russian_passport') return [60, 30];
-  if (type === 'warranty_receipt') return [30];
-  return [30, 7];
+  return [...DOCUMENT_WARNING_DEFAULTS[type]];
 }
 export const DocumentData = z
   .strictObject({
