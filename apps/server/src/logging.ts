@@ -35,6 +35,7 @@ export function redactUrl(url: string): string {
       'links',
       'records',
       'contacts',
+      'import',
       'interactions',
       'accounts',
       'meters',

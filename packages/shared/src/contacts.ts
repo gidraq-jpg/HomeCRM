@@ -39,6 +39,7 @@ export const PersonData = z.strictObject({
     .default([]),
   address: z.string().trim().max(4000).default(''),
   birthday: ContactBirthday.nullable().default(null),
+  birthdayEnabled: z.boolean().default(false),
   note: z.string().max(10000).default(''),
 });
 export type PersonData = z.infer<typeof PersonData>;

@@ -351,6 +351,27 @@
       "when": 1791510693030,
       "tag": "0049_passport_birth_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791561603334,
+      "tag": "0050_vcard_birthdays",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1791561661130,
+      "tag": "0051_birthday_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1791561793418,
+      "tag": "0052_birthday_delivery",
+      "breakpoints": true
     }
   ]
 }

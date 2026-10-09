@@ -37,6 +37,7 @@ const Profile = z
     displayName: z.string().trim().min(1).max(100).optional(),
     photoFileId: z.uuid().nullable().optional(),
     birthDate: z.iso.date().nullable().optional(),
+    birthdayEnabled: z.boolean().optional(),
     phone: z.string().trim().max(40).nullable().optional(),
   })
   .refine((body) => Object.keys(body).length > 0);
@@ -79,6 +80,7 @@ export async function householdRoutes(
         displayName: spaceMembers.displayName,
         photoFileId: memberProfiles.photoFileId,
         birthDate: memberProfiles.birthDate,
+        birthdayEnabled: memberProfiles.birthdayEnabled,
         phone: memberProfiles.phone,
       })
       .from(spaceMembers)

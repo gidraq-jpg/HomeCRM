@@ -80,6 +80,10 @@ it('обновление с R0.7 сохраняет источники, прав
     delete row.value.label;
     expect(row.value.document_id).toBeNull();
     delete row.value.document_id;
+    expect(row.value.contact_id).toBeNull();
+    expect(row.value.profile_account_id).toBeNull();
+    delete row.value.contact_id;
+    delete row.value.profile_account_id;
   }
   expect(after).toEqual(before);
   await runMigrations(db.owner);

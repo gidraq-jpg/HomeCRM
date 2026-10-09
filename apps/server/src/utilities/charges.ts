@@ -19,6 +19,7 @@ import {
 } from '@homecrm/shared';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
+import { beginOperation, fingerprint, finishOperation } from '../idempotency.ts';
 import { getObject } from '../objects/routes.ts';
 import {
   columnsOf,
@@ -162,7 +163,11 @@ export async function createPayment(
 export async function chargeRoutes(route: DataRoute) {
   route('POST', '/api/accounts/:id/charges', 201, async (tx, account, request) => {
     const body = parse(ChargeInput, request.body);
-    const parent = await financialAccount(tx, account, parse(Id, request.params).id, true);
+    const parentId = parse(Id, request.params).id;
+    const hash = fingerprint({ parentId, body });
+    const prior = await beginOperation(tx, account.id, body.idempotencyKey, 'charge', hash);
+    if (prior) return chargeSummary(tx, await getCharge(tx, account, prior[0] ?? ''));
+    const parent = await financialAccount(tx, account, parentId, true);
     const dueOn = body.dueOn ?? chargeDueOn(body.period, parent.data.paymentRule);
     if (!dueOn) throw new Failure(400, 'DUE_DATE_REQUIRED');
     const [row] = await tx
@@ -180,6 +185,7 @@ export async function chargeRoutes(route: DataRoute) {
       .returning();
     if (!row) deny();
     await receipt(tx, account, parent, 'utility_charges', row.id, body.receiptId);
+    await finishOperation(tx, account.id, body.idempotencyKey, 'charge', hash, [row.id]);
     return chargeSummary(tx, row);
   });
   route('GET', '/api/accounts/:id/charges', 200, async (tx, account, request) => {
@@ -201,12 +207,26 @@ export async function chargeRoutes(route: DataRoute) {
   );
   route('POST', '/api/charges/:id/payments', 201, async (tx, account, request) => {
     const body = parse(PaymentInput, request.body);
-    return createPayment(
+    const parentId = parse(Id, request.params).id;
+    const hash = fingerprint({ parentId, body });
+    const prior = await beginOperation(tx, account.id, body.idempotencyKey, 'payment', hash);
+    if (prior) {
+      const [row] = await tx
+        .select()
+        .from(utilityPayments)
+        .where(eq(utilityPayments.id, prior[0] ?? ''));
+      if (!row) missing();
+      await getCharge(tx, account, row.parentId);
+      return paymentSummary(tx, row);
+    }
+    const result = await createPayment(
       tx,
       account,
-      await getCharge(tx, account, parse(Id, request.params).id, true),
+      await getCharge(tx, account, parentId, true),
       body,
     );
+    await finishOperation(tx, account.id, body.idempotencyKey, 'payment', hash, [result.id]);
+    return result;
   });
   route('GET', '/api/charges/:id/payments', 200, async (tx, account, request) => {
     const charge = await getCharge(tx, account, parse(Id, request.params).id);

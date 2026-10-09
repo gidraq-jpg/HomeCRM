@@ -205,8 +205,10 @@ export const ExportRecords = {
     note_id: uuid.nullable(),
     object_id: uuid.nullable(),
     document_id: uuid.nullable().default(null),
+    contact_id: uuid.nullable().default(null),
+    profile_account_id: uuid.nullable().default(null),
     source_kind: z
-      .enum(['record', 'readings', 'payment', 'verification', 'document'])
+      .enum(['record', 'readings', 'payment', 'verification', 'document', 'birthday'])
       .default('record'),
     utility_account_id: uuid.nullable().default(null),
     meter_id: uuid.nullable().default(null),
@@ -240,6 +242,7 @@ export const ExportRecords = {
     username: z.string().nullable(),
     email: z.string().nullable(),
     birth_date: z.iso.date().nullable(),
+    birthday_enabled: z.boolean().default(false),
     phone: z.string().nullable(),
     photo_file_id: uuid.nullable(),
   }),

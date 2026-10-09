@@ -81,6 +81,9 @@ describe('роли базы', () => {
         expect([
           'household_access_sync',
           'household_access_document_owner',
+          'household_access_birthday_lookup',
+          'contacts_birthday_lookup',
+          'member_profiles_birthday_lookup',
           'member_profiles_initialize',
           'documents_passport_refresh',
           'spaces_passport_timezone',
@@ -107,6 +110,7 @@ describe('роли базы', () => {
     );
     expect(rows).toEqual(
       [
+        'birthday_delivery_name',
         'claim_push_endpoint',
         'document_owner_is_child',
         'initialize_member_profile',
@@ -121,7 +125,7 @@ describe('роли базы', () => {
         owner: DB_ROLES.owner,
         app: ['document_owner_is_child', 'passport_birth_visible'].includes(proname),
         auth: false,
-        worker: proname === 'document_owner_is_child',
+        worker: ['document_owner_is_child', 'birthday_delivery_name'].includes(proname),
       })),
     );
   });

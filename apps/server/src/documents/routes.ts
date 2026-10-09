@@ -30,6 +30,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
+import { fileSummary, filesOf } from '../files/service.ts';
 import { getObject } from '../objects/routes.ts';
 import {
   columnsOf,
@@ -72,12 +73,20 @@ const summaryFields = {
   contactId: sql<
     string | null
   >`(SELECT c.id FROM contacts c WHERE c.id=documents.owner_contact_id)`,
+  objectTitle: sql<
+    string | null
+  >`(SELECT o.title FROM objects o WHERE o.id=documents.owner_object_id AND o.deleted_at IS NULL)`,
+  ownerContactTitle: sql<
+    string | null
+  >`(SELECT c.title FROM contacts c WHERE c.id=documents.owner_contact_id AND c.deleted_at IS NULL)`,
   previousId: sql<string | null>`(SELECT p.id FROM documents p WHERE p.id=documents.previous_id)`,
 };
 type SummaryFields = {
   expiryRule: DeadlineRule | null;
   ownerIsChild: boolean;
   contactId: string | null;
+  objectTitle: string | null;
+  ownerContactTitle: string | null;
   previousId: string | null;
 };
 function visibleDocument(
@@ -97,6 +106,8 @@ function present(row: typeof documents.$inferSelect, fields: SummaryFields) {
     ...publicRecord(row),
     data: row.data,
     expiryRule: fields.expiryRule,
+    objectTitle: fields.objectTitle,
+    ownerContactTitle: fields.ownerContactTitle,
     warnings: row.data.warnings ?? documentWarnings(row.data.type),
     status: row.status,
     previousId: fields.previousId,
@@ -264,9 +275,13 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
       .filter(({ document, ownerIsChild }) => visibleDocument(account, document, ownerIsChild))
       .map(({ document, ...fields }) => present(document, fields));
   });
-  route('GET', '/api/documents/:id', 200, async (tx, account, request) =>
-    summary(tx, await read(tx, account, parse(Id, request.params).id)),
-  );
+  route('GET', '/api/documents/:id', 200, async (tx, account, request) => {
+    const row = await read(tx, account, parse(Id, request.params).id);
+    return {
+      ...(await summary(tx, row)),
+      files: (await filesOf(tx, 'document', row.id)).filter((f) => !f.deletedAt).map(fileSummary),
+    };
+  });
   route('GET', '/api/documents/:id/history', 200, async (tx, account, request) => {
     const row = await read(tx, account, parse(Id, request.params).id);
     return (

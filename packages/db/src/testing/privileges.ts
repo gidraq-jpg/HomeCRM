@@ -28,6 +28,7 @@ const FROZEN = ['id', 'author_id', 'created_at', 'updated_at'];
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
+    api_operations: { SELECT: 'all', INSERT: 'all' },
     template_applications: { SELECT: 'all', INSERT: 'all' },
     export_events: {
       SELECT: 'all',
@@ -76,7 +77,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     household_access: { SELECT: 'all' },
     member_profiles: {
       SELECT: 'all',
-      UPDATE: ['display_name', 'photo_file_id', 'birth_date', 'phone'],
+      UPDATE: ['display_name', 'photo_file_id', 'birth_date', 'birthday_enabled', 'phone'],
     },
     invitations: { SELECT: 'all', INSERT: 'all', UPDATE: ['revoked_at'] },
     login_events: { SELECT: 'all' },
@@ -92,6 +93,8 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
       SELECT: [
         'id',
         'document_id',
+        'contact_id',
+        'profile_account_id',
         'note_id',
         'object_id',
         'source_kind',
