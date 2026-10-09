@@ -1,7 +1,9 @@
 import { createWorkerDatabase, sql } from '@homecrm/db';
 import { DeadlineRule, DOCUMENT_WARNING_DEFAULTS, deadlineOccurrences } from '@homecrm/shared';
 import { afterAll, beforeAll, expect, it } from 'vitest';
+import { createHousehold, provisionAccount } from '../auth/provision.ts';
 import { refreshDeadlines } from '../deadlines/engine.ts';
+import { redactUrl } from '../logging.ts';
 import type { Device } from '../testing/device.ts';
 import { signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type World } from '../testing/world.ts';
@@ -193,6 +195,19 @@ it('DOC-4/SPACE-3: закрытая дата контакта не переда�
     expect((await admin.get(`/api/documents/${doc.id}`)).json()).toMatchObject({
       expiryRule: { date: '2026-12-01' },
     });
+  // Правка документа не передаёт закрытую дату и не сбрасывает известный срок в ожидание.
+  for (const [device, doc] of [
+    [admin, foreign],
+    [adult, shared],
+    [admin, shared],
+  ] as const) {
+    const before = (await admin.get(`/api/documents/${doc.id}`)).json<{ expiryRule: unknown }>();
+    const edited = await device.request('PATCH', `/api/documents/${doc.id}`, {
+      json: { data: { type: 'russian_passport', issuedOn: '2020-01-02', warnings: [15, 2] } },
+    });
+    expect(edited.status, edited.text).toBe(200);
+    expect(edited.json<{ expiryRule: unknown }>().expiryRule).toEqual(before.expiryRule);
+  }
   await refreshDeadlines(
     createWorkerDatabase(world.database.worker),
     new Date('2026-10-09T00:00:00Z'),
@@ -205,6 +220,135 @@ it('DOC-4/SPACE-3: закрытая дата контакта не переда�
     expect(radar.items).toEqual(
       expect.arrayContaining([expect.objectContaining({ documentId: doc.id, date: '2026-12-01' })]),
     );
+});
+
+it.each(['personal', 'adults'] as const)(
+  'DOC-4/SPACE-3: общий паспорт с контактом %s не раскрывает ребёнку дату через expiryRule и радар',
+  async (audience) => {
+    const child = world.device();
+    await child.signIn(world.vera.username, world.vera.password);
+    const contactResponse = await adult.post('/api/contacts', {
+      title: 'Вымышленный закрытый владелец общего паспорта',
+      kind: 'person',
+      ...(audience === 'adults' ? { placement: { spaceId: world.houseId, audience } } : {}),
+      data: { birthday: '2006-12-01' },
+    });
+    expect(contactResponse.status, contactResponse.text).toBe(201);
+    const contact = contactResponse.json<{ id: string }>();
+    const created = await adult.post('/api/documents', {
+      title: 'Вымышленный общий паспорт закрытого контакта',
+      owner: { kind: 'contact', id: contact.id },
+      placement: { spaceId: world.houseId, audience: 'household' },
+      data: { type: 'russian_passport', issuedOn: '2020-01-01' },
+    });
+    expect(created.status, created.text).toBe(201);
+    const doc = created.json<{ id: string }>();
+    expect((await child.get(`/api/contacts/${contact.id}`)).status).toBe(404);
+    const read = await child.get(`/api/documents/${doc.id}`);
+    expect(read.status, read.text).toBe(200);
+    expect(read.json()).toMatchObject({ expiryRule: { kind: 'after', eventDate: null } });
+    expect(read.text).not.toContain('2026-12-01');
+    expect(
+      (
+        await adult.request('PATCH', `/api/contacts/${contact.id}`, {
+          json: { data: { birthday: '2006-11-10' } },
+        })
+      ).status,
+    ).toBe(200);
+    const edited = await adult.request('PATCH', `/api/documents/${doc.id}`, {
+      json: { data: { type: 'russian_passport', issuedOn: '2020-01-02', warnings: [15, 2] } },
+    });
+    expect(edited.status, edited.text).toBe(200);
+    expect(edited.json()).toMatchObject({ expiryRule: { kind: 'after', eventDate: null } });
+    await refreshDeadlines(
+      createWorkerDatabase(world.database.worker),
+      new Date('2026-10-09T00:00:00Z'),
+      true,
+    );
+    const radar = await child.get('/api/deadlines?from=2026-01-01&to=2031-12-31');
+    expect(radar.status, radar.text).toBe(200);
+    expect(radar.text).not.toContain(doc.id);
+  },
+);
+
+it('DOC-4/SPACE-10: профиль владельца из другой семьи автора не раскрывается части читателей паспорта', async () => {
+  const isolated = await createWorld();
+  try {
+    const writer = (await signedInAdmin(isolated)).device;
+    await isolated.database.admin.query(
+      "UPDATE spaces SET time_zone='Asia/Yekaterinburg' WHERE id=$1",
+      [isolated.houseId],
+    );
+    const child = isolated.device();
+    await child.signIn(isolated.vera.username, isolated.vera.password);
+    const otherHouse = await createHousehold(isolated.fixtures, 'Вымышленная другая семья');
+    const owner = await provisionAccount(isolated.fixtures, {
+      username: 'other-owner',
+      displayName: 'Вымышленный владелец',
+      password: 'fictional-owner-pass-4711',
+      householdId: otherHouse,
+      role: 'adult',
+    });
+    await isolated.database.admin.query(
+      "INSERT INTO space_members(space_id,account_id,role) VALUES($1,$2,'adult')",
+      [otherHouse, isolated.anna.id],
+    );
+    await isolated.database.admin.query(
+      "UPDATE member_profiles SET birth_date='2006-12-01' WHERE account_id=$1",
+      [owner.id],
+    );
+    for (const [account, expected] of [
+      [isolated.anna.id, 1],
+      [isolated.vera.id, 0],
+    ] as const) {
+      const result = await isolated.module.appDb.withAccount(account, (tx) =>
+        tx.execute(sql`SELECT birth_date FROM member_profiles WHERE account_id=${owner.id}`),
+      );
+      expect(result.rows).toHaveLength(expected);
+    }
+    const response = await writer.post('/api/documents', {
+      title: 'Вымышленный общий паспорт чужого профиля',
+      owner: { kind: 'member', id: owner.id },
+      placement: { spaceId: isolated.houseId, audience: 'household' },
+      data: { type: 'russian_passport', issuedOn: '2020-01-01' },
+    });
+    expect(response.status, response.text).toBe(201);
+    const doc = response.json<{ id: string }>();
+    expect((await child.get(`/api/documents/${doc.id}`)).json()).toMatchObject({
+      expiryRule: { kind: 'after', eventDate: null },
+    });
+    const profileOwner = isolated.device();
+    await profileOwner.signIn('other-owner', 'fictional-owner-pass-4711');
+    const changed = await profileOwner.request('PATCH', '/api/me/profile', {
+      json: { birthDate: '2006-11-10' },
+    });
+    expect(changed.status, changed.text).toBe(200);
+    const edited = await writer.request('PATCH', `/api/documents/${doc.id}`, {
+      json: { data: { type: 'russian_passport', issuedOn: '2020-01-02' } },
+    });
+    expect(edited.status, edited.text).toBe(200);
+    expect(edited.json()).toMatchObject({ expiryRule: { kind: 'after', eventDate: null } });
+    await refreshDeadlines(
+      createWorkerDatabase(isolated.database.worker),
+      new Date('2026-10-09T00:00:00Z'),
+      true,
+    );
+    expect((await child.get('/api/deadlines?from=2026-01-01&to=2031-12-31')).text).not.toContain(
+      doc.id,
+    );
+  } finally {
+    await isolated.close();
+  }
+});
+
+it('журнал сохраняет путь interactions, скрывая содержимое запроса', () => {
+  const id = '00000000-0000-0000-0000-000000000001';
+  expect(redactUrl(`/api/contacts/${id}/interactions?text=private`)).toBe(
+    `/api/contacts/${id}/interactions`,
+  );
+  expect(redactUrl(`/api/contacts/${id}/interactions/private/restore?text=private`)).toBe(
+    `/api/contacts/${id}/interactions/[redacted]/restore`,
+  );
 });
 
 it('DOC-4/SPACE-3: взрослое поле не обновляет паспорт ребёнка, но обновляет личный паспорт взрослого', async () => {

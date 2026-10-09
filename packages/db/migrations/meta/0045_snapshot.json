@@ -1,6 +1,6 @@
 {
-  "id": "7742e71f-1b5f-4560-8f34-8fcc814afc7e",
-  "prevId": "83d393dc-a87c-484e-87f9-4df33d0582e5",
+  "id": "83d393dc-a87c-484e-87f9-4df33d0582e5",
+  "prevId": "421da248-fb7e-4064-ba55-af66a0a2ed94",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2094,15 +2094,6 @@
           ],
           "using": "documents.space_kind = 'household' AND documents.deleted_at IS NULL AND EXISTS (\n    SELECT 1 FROM space_members l\n    WHERE l.space_id = documents.space_id AND l.account_id = documents.assignee_id AND l.left_at IS NOT NULL\n  )",
           "withCheck": "EXISTS (\n    SELECT 1 FROM space_members a\n    WHERE a.space_id = documents.space_id AND a.account_id = documents.assignee_id\n      AND a.role = 'admin' AND a.left_at IS NULL\n  )"
-        },
-        "documents_passport_refresh": {
-          "name": "documents_passport_refresh",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "homecrm_owner"
-          ],
-          "using": "pg_trigger_depth()>0 AND data->>'type'='russian_passport' AND (owner_account_id=nullif(current_setting('app.passport_owner_account',true),'')::uuid OR owner_contact_id=nullif(current_setting('app.passport_owner_contact',true),'')::uuid)"
         },
         "documents_deadline_worker_select": {
           "name": "documents_deadline_worker_select",
@@ -11935,15 +11926,6 @@
             "homecrm_app"
           ],
           "using": "owner_account_id = app.current_account_id() OR id IN (SELECT m.space_id FROM space_members m WHERE m.account_id = app.current_account_id() AND m.left_at IS NULL)"
-        },
-        "spaces_passport_timezone": {
-          "name": "spaces_passport_timezone",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "homecrm_owner"
-          ],
-          "using": "pg_trigger_depth()>0 AND id=nullif(current_setting('app.passport_house_id',true),'')::uuid AND kind='household'"
         },
         "spaces_timezone_admin": {
           "name": "spaces_timezone_admin",
