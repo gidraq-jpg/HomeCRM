@@ -54,14 +54,19 @@ export function DocumentRows({
     <RowList label={label}>
       {documents.map((document) => {
         const visibility = visibilityOf(document);
-        const info = expiryInfo(document.data, document.status === 'valid', today);
+        const info = expiryInfo(
+          document.data,
+          document.status === 'valid',
+          today,
+          document.expiryRule,
+        );
         const owner =
           document.owner?.kind === 'member'
             ? nameOf(document.owner.id)
             : document.owner?.kind === 'object'
               ? 'Объект'
               : document.owner?.kind === 'contact'
-                ? 'Организация'
+                ? 'Контакт'
                 : null;
         return (
           <Row

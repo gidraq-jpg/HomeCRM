@@ -10,6 +10,8 @@ import { showDecimal, showWithUnit } from '../meters/decimal.ts';
 import { RESOURCE_UNITS, zoneLabel } from '../meters/labels.ts';
 import { useMeters } from '../meters/queries.ts';
 import { viewerOf } from '../notes/abilities.ts';
+import { KIND_LABELS } from '../people/labels.ts';
+import { useContact } from '../people/queries.ts';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
 import { useToast } from '../ui/Toast.tsx';
@@ -18,6 +20,7 @@ import {
   type AutoEvent,
   createEvent,
   type EventInput,
+  type InteractionEvent,
   type ManualEvent,
   type ObjectCard,
   patchEvent,
@@ -266,6 +269,37 @@ function ReadingItem({ item, meters }: { item: ReadingEvent; meters: readonly Me
     </li>
   );
 }
+/** Взаимодействие контакта с объектом (CONT-4): вид, кто, что было и сколько стоило. */
+function InteractionItem({ item }: { item: InteractionEvent }) {
+  const { me } = useHousehold();
+  const contact = useContact(item.contactId);
+  return (
+    <li className="timeline__item">
+      <div className="timeline__head">
+        <span className="timeline__date">
+          {formatShortDate(item.occurredOn as DateOnly, todayIn(me.timeZone))}
+        </span>
+        <span>{KIND_LABELS[item.kind]}</span>
+      </div>
+      <p className="timeline__text">{item.text}</p>
+      <div className="timeline__facts">
+        <span>
+          Контакт:{' '}
+          <Link className="text-button" to={`/people/contacts/${item.contactId}`}>
+            {contact.data?.title ?? 'открыть'}
+          </Link>
+        </span>
+        {item.amountCents === null ? null : (
+          <span className="amount">{formatRub(item.amountCents)}</span>
+        )}
+        {item.callAgain === null ? null : (
+          <span>{item.callAgain ? 'Звать снова: да' : 'Звать снова: нет'}</span>
+        )}
+      </div>
+    </li>
+  );
+}
+
 /** «Лента» (OBJ-3): автоматические события и ручные записи объекта по дате, новые сверху. */
 export function ObjectTimeline() {
   const { card, abilities } = useObjectContext();
@@ -361,6 +395,8 @@ export function ObjectTimeline() {
               />
             ) : item.source === 'reading' ? (
               <ReadingItem key={`reading:${item.id}`} item={item} meters={meters.data ?? []} />
+            ) : item.source === 'interaction' ? (
+              <InteractionItem key={`interaction:${item.id}`} item={item} />
             ) : (
               <AutoItem key={`${item.source}:${item.id}`} card={card} item={item} />
             ),

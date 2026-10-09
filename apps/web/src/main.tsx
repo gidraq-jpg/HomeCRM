@@ -13,6 +13,7 @@ import './styles/household.css';
 import './styles/notes.css';
 import './styles/objects.css';
 import './styles/organizations.css';
+import './styles/people.css';
 import './styles/meters.css';
 import './styles/files.css';
 import './styles/deadlines.css';

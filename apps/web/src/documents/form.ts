@@ -27,6 +27,8 @@ export interface DocumentDraft {
   tags: string;
   /** Предупреждения в днях через запятую; пусто — значения по умолчанию для типа. */
   warnings: string;
+  /** «Не предупреждать»: в документ уходит пустой список, а не значения типа (DOC-3). */
+  noWarnings: boolean;
 }
 
 export const EMPTY_DOCUMENT: DocumentDraft = {
@@ -41,6 +43,7 @@ export const EMPTY_DOCUMENT: DocumentDraft = {
   note: '',
   tags: '',
   warnings: '',
+  noWarnings: false,
 };
 
 export function draftFrom(title: string, data: DocumentData): DocumentDraft {
@@ -56,6 +59,7 @@ export function draftFrom(title: string, data: DocumentData): DocumentDraft {
     note: data.note,
     tags: data.tags.join(', '),
     warnings: (data.warnings ?? []).join(', '),
+    noWarnings: data.warnings !== undefined && data.warnings.length === 0,
   };
 }
 
@@ -137,7 +141,7 @@ export function toDocument(draft: DocumentDraft): DocumentResult {
   else if (tags.some((tag) => tag.length > MAX_TAG)) {
     errors.tags = `Тег не длиннее ${MAX_TAG} знаков.`;
   }
-  const warnings = parseWarnings(draft.warnings);
+  const warnings = draft.noWarnings ? [] : parseWarnings(draft.warnings);
   if (warnings === null) {
     errors.warnings = 'Введите дни числами от 0 до 365 через запятую, например: 180, 90, 30.';
   } else if (warnings.length > MAX_WARNINGS) {
@@ -155,7 +159,11 @@ export function toDocument(draft: DocumentDraft): DocumentResult {
     indefinite: draft.indefinite,
     note: draft.note,
     tags,
-    ...(warnings !== null && warnings.length > 0 ? { warnings } : {}),
+    ...(draft.noWarnings
+      ? { warnings: [] }
+      : warnings !== null && warnings.length > 0
+        ? { warnings }
+        : {}),
   });
   if (!parsed.success) {
     // Общая схема строже полей формы (например, несуществующая дата 2026-02-31).

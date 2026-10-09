@@ -80,17 +80,13 @@ test('переключатель «Всё · Общее · Личное» зап
   ).toHaveCount(3);
 
   await setScope(page, 'Личное');
-  await expect(
-    page.getByRole('heading', { level: 2, name: 'В режиме «Личное» людей нет' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Контактов пока нет' })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Участники дома' })).toHaveCount(0);
   await checkApp(page, info, 'people-personal');
 
   await page.reload();
   await expect(page.getByRole('radio', { name: 'Личное', exact: true })).toBeChecked();
-  await expect(
-    page.getByRole('heading', { level: 2, name: 'В режиме «Личное» людей нет' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Контактов пока нет' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('homecrm.scope'))).toBe('personal');
 
   await page.getByRole('button', { name: 'Показать «Всё»' }).click();

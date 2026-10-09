@@ -5,6 +5,7 @@ import { useMembers } from '../household/queries.ts';
 import { visibilityOf } from '../notes/abilities.ts';
 import { fetchObjects } from '../objects/api.ts';
 import { useOrganizationOptions } from '../organizations/queries.ts';
+import { usePeopleOptions } from '../people/queries.ts';
 import { NO_OWNER, type OwnerFacts, ownerKey, parseOwnerKey } from './access.ts';
 
 // Владелец документа (DOC-2): участник дома, контакт или объект. Список для выбора собирается из
@@ -16,6 +17,8 @@ export interface OwnerChoices {
   members: { id: string; name: string; child: boolean }[];
   objects: { id: string; title: string; visibility: ReturnType<typeof visibilityOf> }[];
   organizations: { id: string; title: string }[];
+  /** Люди из контактов: у них есть дата рождения, по ней считается срок паспорта. */
+  contacts: { id: string; title: string }[];
   /** Все три списка загружены; пока нет — выбор владельца ещё неполон. */
   ready: boolean;
 }
@@ -28,6 +31,7 @@ export function useOwnerChoices(): OwnerChoices {
     queryFn: ({ signal }) => fetchObjects('all', { trash: false, offset: 0 }, signal),
   });
   const organizations = useOrganizationOptions();
+  const contacts = usePeopleOptions();
   const people = (members.data ?? [])
     .filter((member) => !member.formerMember)
     .map((member) => ({
@@ -48,7 +52,9 @@ export function useOwnerChoices(): OwnerChoices {
       id: item.id,
       title: item.title,
     })),
-    ready: !members.isPending && !objects.isPending && !organizations.isPending,
+    contacts: (contacts.data ?? []).map((item) => ({ id: item.id, title: item.title })),
+    ready:
+      !members.isPending && !objects.isPending && !organizations.isPending && !contacts.isPending,
   };
 }
 
@@ -107,6 +113,15 @@ export function OwnerSelect({ choices, value, onChange }: OwnerSelectProps) {
             {choices.objects.map((object) => (
               <option key={object.id} value={ownerKey({ kind: 'object', id: object.id })}>
                 {object.title}
+              </option>
+            ))}
+          </optgroup>
+        ) : null}
+        {choices.contacts.length > 0 ? (
+          <optgroup label="Люди из контактов">
+            {choices.contacts.map((item) => (
+              <option key={item.id} value={ownerKey({ kind: 'contact', id: item.id })}>
+                {item.title}
               </option>
             ))}
           </optgroup>
