@@ -244,10 +244,11 @@ CREATE FUNCTION app.interaction_guard() RETURNS trigger LANGUAGE plpgsql SET sea
 DECLARE p public.contacts;
 BEGIN
  IF current_user='homecrm_worker' THEN RETURN NEW; END IF;
- IF TG_OP='UPDATE' AND pg_trigger_depth()>1 AND
+ IF TG_OP='UPDATE' AND
    (to_jsonb(NEW)-ARRAY['space_id','space_kind','audience','assignee_id','deleted_at','updated_at','assignee_house_id','assignee_adult_id','assignee_adult_flag']) IS NOT DISTINCT FROM
    (to_jsonb(OLD)-ARRAY['space_id','space_kind','audience','assignee_id','deleted_at','updated_at','assignee_house_id','assignee_adult_id','assignee_adult_flag']) THEN
-  -- Родитель уже заблокирован внешним UPDATE; после помещения в корзину его нельзя блокировать повторно от имени другого взрослого.
+  -- Метаданные не требуют блокировки родителя: его каскад может уже ждать эту дочернюю строку.
+  -- Содержательные операции API сначала блокируют контакт, затем взаимодействие.
   SELECT * INTO p FROM public.contacts WHERE id=NEW.parent_id;
  ELSE
   SELECT * INTO p FROM public.contacts WHERE id=NEW.parent_id FOR UPDATE;

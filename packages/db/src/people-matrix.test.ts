@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { canView, canViewInteraction, type Placement, type RecordFacts } from '@homecrm/shared';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, inject, it } from 'vitest';
@@ -104,4 +105,59 @@ it('лента объекта: все участники × все сочета�
   console.info(
     `People/object access matrix: ${events.length * family.people.length} checks, 0 mismatches`,
   );
+});
+
+it('параллельная корзина контакта и взаимодействия не создаёт взаимную блокировку и не позволяет дату задним числом', async () => {
+  const event = events[0];
+  if (!event) throw new Error('Missing interaction fixture');
+  const contact = (
+    await db.admin.query('SELECT parent_id FROM contact_interactions WHERE id=$1', [event.id])
+  ).rows[0].parent_id as string;
+  const parent = await db.app.connect(),
+    child = await db.app.connect();
+  let updating: Promise<unknown> | undefined;
+  try {
+    for (const client of [parent, child]) {
+      await client.query('BEGIN');
+      await client.query("SELECT set_config('app.account_id',$1,true)", [family.person('anna').id]);
+    }
+    await child.query('SELECT id FROM contact_interactions WHERE id=$1 FOR UPDATE', [event.id]);
+    const pid = (await parent.query('SELECT pg_backend_pid() AS pid')).rows[0].pid as number;
+    updating = parent.query('UPDATE contacts SET deleted_at=now() WHERE id=$1', [contact]).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    const until = Date.now() + 5000;
+    let blocked = false;
+    while (!blocked && Date.now() < until) {
+      blocked = (
+        await db.admin.query('SELECT cardinality(pg_blocking_pids($1))>0 AS blocked', [pid])
+      ).rows[0].blocked as boolean;
+      if (!blocked) await delay(10);
+    }
+    expect(blocked).toBe(true);
+    const result = await child.query(
+      `UPDATE contact_interactions SET deleted_at='2000-01-01' WHERE id=$1
+      RETURNING deleted_at < now()-interval '30 days' AS expired`,
+      [event.id],
+    );
+    expect(result.rows).toEqual([{ expired: false }]);
+    await child.query('ROLLBACK');
+    expect(await updating).toBeNull();
+    await parent.query('COMMIT');
+    expect(
+      (
+        await db.admin.query(
+          'SELECT deleted_at IS NOT NULL AS trashed FROM contact_interactions WHERE parent_id=$1',
+          [contact],
+        )
+      ).rows,
+    ).toEqual(Array.from({ length: family.placements.length }, () => ({ trashed: true })));
+  } finally {
+    await child.query('ROLLBACK');
+    await updating;
+    await parent.query('ROLLBACK');
+    child.release();
+    parent.release();
+  }
 });
