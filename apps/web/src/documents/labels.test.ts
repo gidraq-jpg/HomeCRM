@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { defaultDocumentVisibility, documentVisibilityOptions, NO_OWNER } from './access.ts';
-import { expiryInfo, MASKED_NUMBER, seriesAndNumber, warningsLabel } from './labels.ts';
+import {
+  expiryInfo,
+  expirySource,
+  MASKED_NUMBER,
+  seriesAndNumber,
+  warningsLabel,
+} from './labels.ts';
 
 const TODAY = '2026-10-09' as const;
 const NBSP = String.fromCodePoint(0xa0);
@@ -36,6 +42,49 @@ describe('срок документа словами (PRD 13)', () => {
       tone: 'neutral',
       label: 'Недействителен',
     });
+  });
+});
+
+describe('срок паспорта РФ по возрасту (DOC-4)', () => {
+  const passport = { ...base, type: 'russian_passport' as const, issuedOn: '2020-01-01' };
+  const window = { kind: 'window', date: '2026-12-01', durationDays: 90 };
+
+  it('окно замены даёт срок до конца окна и подсказку про 20 лет', () => {
+    expect(expirySource(passport, window)).toEqual({
+      kind: 'age',
+      start: '2026-12-01',
+      until: '2027-03-01',
+      years: 20,
+    });
+    expect(expiryInfo(passport, true, TODAY, window).tone).toBe('ok');
+    expect(expiryInfo(passport, true, '2027-02-01', window)).toMatchObject({
+      tone: 'warning',
+      label: 'Истекает через 28 дней',
+    });
+  });
+
+  it('45 лет видно по дате выдачи, при неясной дате год не называется', () => {
+    const late = { ...passport, issuedOn: '2002-01-01' };
+    expect(expirySource(late, { ...window, date: '2031-05-14' })).toMatchObject({ years: 45 });
+    const unclear = { ...passport, issuedOn: '2016-01-01' };
+    expect(expirySource(unclear, window)).toMatchObject({ years: null });
+    expect(expirySource({ ...passport, issuedOn: null }, window)).toMatchObject({ years: null });
+  });
+
+  it('явный срок и бессрочность важнее вычисленного', () => {
+    const explicit = { ...passport, expiresOn: '2030-01-01' };
+    expect(expirySource(explicit, window)).toEqual({ kind: 'explicit', until: '2030-01-01' });
+    expect(expirySource({ ...passport, indefinite: true }, window)).toEqual({ kind: 'indefinite' });
+  });
+
+  it('без даты рождения срок ждёт данные и не раскрывает ничего лишнего', () => {
+    const waiting = { kind: 'after', eventDate: null };
+    expect(expirySource(passport, waiting)).toEqual({ kind: 'pending' });
+    expect(expiryInfo(passport, true, TODAY, waiting).label).toBe(
+      'Срок вычислится по дате рождения',
+    );
+    // Другие типы документов вычисленных сроков не получают.
+    expect(expirySource({ ...passport, type: 'osago' }, window)).toEqual({ kind: 'none' });
   });
 });
 

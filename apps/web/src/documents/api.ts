@@ -26,6 +26,18 @@ export const DocumentOwnerRef = z.object({
   id: z.string(),
 });
 
+/**
+ * Правило срока документа (DOC-3, DOC-4): окно замены паспорта по возрасту, явная дата или ожидание
+ * даты рождения владельца. Сама дата рождения в ответ не попадает.
+ */
+export const ExpiryRule = z.object({
+  kind: z.string(),
+  date: z.string().optional(),
+  durationDays: z.number().optional(),
+  eventDate: z.string().nullable().optional(),
+});
+export type ExpiryRule = z.infer<typeof ExpiryRule>;
+
 export const DocumentCard = z.object({
   id: z.string(),
   title: z.string(),
@@ -43,6 +55,10 @@ export const DocumentCard = z.object({
   previousId: z.string().nullable(),
   /** Скрытый владелец-контакт приходит как `null`, как и отсутствующий. */
   owner: DocumentOwnerRef.nullable(),
+  /** Эффективные предупреждения: свои из `data.warnings` или значения типа (приложение Б). */
+  warnings: z.array(z.number()).optional(),
+  /** Производное правило срока; `null` у бессрочных и документов без срока. */
+  expiryRule: ExpiryRule.nullable().optional(),
 });
 export type DocumentCard = z.infer<typeof DocumentCard>;
 

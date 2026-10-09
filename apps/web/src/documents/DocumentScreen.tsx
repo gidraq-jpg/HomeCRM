@@ -1,4 +1,3 @@
-import { documentWarnings } from '@homecrm/shared';
 import {
   ArrowCounterClockwise,
   ArrowsClockwise,
@@ -33,16 +32,12 @@ import {
 import { DocumentError } from './components.tsx';
 import { DocumentForm, type DocumentValues } from './DocumentForm.tsx';
 import { DocumentVersions, InvalidNotice } from './DocumentVersions.tsx';
+import { ExpiryNote } from './ExpiryNote.tsx';
 import { draftFrom, renewalDraft } from './form.ts';
-import {
-  DOCUMENT_LABELS,
-  dateLabel,
-  expiryInfo,
-  seriesAndNumber,
-  warningsLabel,
-} from './labels.ts';
+import { DOCUMENT_LABELS, dateLabel, expiryInfo, expirySource, seriesAndNumber } from './labels.ts';
 import { useDocument, useDocumentFiles, useRefreshDocuments } from './queries.ts';
 import { SecretNumber } from './SecretNumber.tsx';
+import { WarningsEditor } from './WarningsEditor.tsx';
 
 const BACK = { to: '/documents', label: 'Документы' } as const;
 /** Название вкладки одинаковое для всех документов: название и тип в историю браузера не попадают. */
@@ -81,7 +76,7 @@ function OwnerFact({ card }: { card: DocumentCard }) {
   if (owner === null) return <>Не указан</>;
   if (owner.kind === 'member') return <>{nameOf(owner.id)}</>;
   if (owner.kind === 'object') return <Link to={`/home/${owner.id}`}>Объект: открыть</Link>;
-  return <Link to={`/more/organizations/${owner.id}`}>Организация: открыть</Link>;
+  return <Link to={`/people/contacts/${owner.id}`}>Контакт: открыть</Link>;
 }
 
 function DocumentView({ card }: { card: DocumentCard }) {
@@ -104,10 +99,10 @@ function DocumentView({ card }: { card: DocumentCard }) {
   const valid = card.status === 'valid';
   const trashed = card.deletedAt !== null;
   const today = todayIn(me.timeZone);
-  const info = expiryInfo(card.data, valid, today);
+  const info = expiryInfo(card.data, valid, today, card.expiryRule);
+  const source = expirySource(card.data, card.expiryRule);
   const canChange = abilities.edit && valid && !trashed;
   const candidates = assigneeChoices(viewer, card, members.data ?? []);
-  const warnings = card.data.warnings ?? documentWarnings(card.data.type);
   const secret = seriesAndNumber(card.data);
 
   function trash() {
@@ -267,6 +262,7 @@ function DocumentView({ card }: { card: DocumentCard }) {
         </Notice>
       ) : null}
       {valid ? null : <InvalidNotice card={card} />}
+      {valid ? <ExpiryNote card={card} source={source} /> : null}
 
       <dl className="facts">
         <div className="facts__item">
@@ -296,19 +292,25 @@ function DocumentView({ card }: { card: DocumentCard }) {
         <div className="facts__item">
           <dt>Срок действия</dt>
           <dd>
-            {card.data.indefinite
+            {source.kind === 'indefinite'
               ? 'Бессрочно'
-              : card.data.expiresOn
-                ? `до ${dateLabel(card.data.expiresOn)}`
-                : 'Не указан'}
+              : source.kind === 'explicit'
+                ? `до ${dateLabel(source.until)}`
+                : source.kind === 'age'
+                  ? `до ${dateLabel(source.until)} (вычислен по возрасту)`
+                  : source.kind === 'pending'
+                    ? 'Вычислится по дате рождения'
+                    : 'Не указан'}
           </dd>
         </div>
-        {card.data.indefinite || card.data.expiresOn === null ? null : (
+        {source.kind === 'indefinite' ? null : (
           <div className="facts__item">
             <dt>Предупреждения</dt>
-            <dd>{warningsLabel(warnings)}</dd>
+            <dd>
+              <WarningsEditor card={card} canChange={canChange} />
+            </dd>
           </div>
-        )}
+        )}{' '}
         <div className="facts__item">
           <dt>Ответственный за продление</dt>
           <dd>{nameOf(card.assigneeId ?? card.authorId)}</dd>

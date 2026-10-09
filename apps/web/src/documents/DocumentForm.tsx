@@ -91,7 +91,7 @@ export function DocumentForm({
   function textField(
     field: Exclude<DocumentField, 'note' | 'issuedOn' | 'expiresOn'>,
     label: string,
-    options: { maxLength: number; hint?: string; required?: boolean },
+    options: { maxLength: number; hint?: string; required?: boolean; disabled?: boolean },
   ) {
     const error = errors[field];
     return (
@@ -106,6 +106,7 @@ export function DocumentForm({
           maxLength={options.maxLength}
           autoComplete="off"
           required={options.required}
+          disabled={options.disabled}
           aria-invalid={error !== undefined}
           aria-describedby={
             error ? `${id(field)}-error` : options.hint ? `${id(field)}-hint` : undefined
@@ -221,8 +222,12 @@ export function DocumentForm({
         maxLength: 3200,
         hint: 'Через запятую, например: паспорт, поездка.',
       })}
+      <CheckLine checked={values.noWarnings} onChange={(checked) => set({ noWarnings: checked })}>
+        Не предупреждать о сроке
+      </CheckLine>
       {textField('warnings', 'Предупреждать за, дней', {
         maxLength: 200,
+        disabled: values.noWarnings,
         hint: `Через запятую; пусто — как по умолчанию. ${warningsHint}`,
       })}
 
