@@ -85,7 +85,7 @@ export function BarChart({ slots, summary, maxLabel }: BarChartProps) {
                   y={AXIS - height}
                   width={barWidth}
                   height={height}
-                  {...(barIndex === 0 ? {} : { fill: `url(#${hatch})` })}
+                  {...(barIndex === 0 ? {} : { style: { fill: `url(#${hatch})` } })}
                 />
               );
             })}

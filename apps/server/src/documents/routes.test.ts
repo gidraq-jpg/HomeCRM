@@ -3,6 +3,7 @@ import { canViewSql, createWorkerDatabase, sql } from '@homecrm/db';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { enqueueDeadlineWarnings, refreshDeadlines } from '../deadlines/engine.ts';
 import { FileCipher } from '../files/crypto.ts';
+import { redactUrl } from '../logging.ts';
 import { BASE_URL, type Device } from '../testing/device.ts';
 import { signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type World } from '../testing/world.ts';
@@ -578,4 +579,19 @@ it('DOC-2: API закрывает удостоверение владельца-
       [house, world.boris.id],
     );
   }
+});
+
+it('DOC-7: журнал не содержит текста поиска и значений query-параметров документов', () => {
+  const id = '123e4567-e89b-12d3-a456-426614174000';
+  expect(redactUrl('/api/documents?q=SECRET-123&type=osago&ownerId=' + id)).toBe('/api/documents');
+  expect(redactUrl('/api/documents/' + id + '/versions?x=SECRET-123')).toBe(
+    '/api/documents/' + id + '/versions',
+  );
+  expect(redactUrl('/api/documents/' + id + '/files/' + id + '/trash')).toBe(
+    '/api/documents/' + id + '/files/' + id + '/trash',
+  );
+  expect(redactUrl('/api/documents/SECRET-123/renew')).toBe('/api/documents/[redacted]/renew');
+  expect(redactUrl('/api/objects/' + id + '/analytics?month=2026-10')).toBe(
+    '/api/objects/' + id + '/analytics',
+  );
 });
