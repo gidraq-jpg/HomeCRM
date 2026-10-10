@@ -13,7 +13,7 @@ let before: unknown;
 const snapshot = async () =>
   (
     await db.admin.query(`SELECT * FROM (
-  SELECT 'tasks' AS source,to_jsonb(t)-ARRAY['repeat_rule','overdue_policy','series_id','series_trash_key','repeat_template','repeat_processed_on','predecessor_id','completion_event_id','completion_previous_status','completion_undone_at','is_main','radar_occurrence_id'] AS data FROM tasks t
+  SELECT 'tasks' AS source,to_jsonb(t)-ARRAY['repeat_rule','overdue_policy','series_id','series_trash_key','repeat_template','repeat_processed_on','predecessor_id','completion_event_id','repeat_next_event_id','completion_previous_status','completion_undone_at','is_main','radar_occurrence_id'] AS data FROM tasks t
   UNION ALL SELECT 'files',to_jsonb(f) FROM task_files f
   UNION ALL SELECT 'task_history',to_jsonb(h) FROM tasks_history h
   UNION ALL SELECT 'file_history',to_jsonb(h) FROM task_files_history h

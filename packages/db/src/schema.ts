@@ -147,6 +147,7 @@ const tasksDefinition = recordTable(
     repeatProcessedOn: date('repeat_processed_on'),
     predecessorId: uuid('predecessor_id'),
     completionEventId: uuid('completion_event_id'),
+    repeatNextEventId: uuid('repeat_next_event_id'),
     completionPreviousStatus: text('completion_previous_status'),
     completionUndoneAt: timestamp('completion_undone_at', { withTimezone: true }),
     isMain: boolean('is_main').notNull().default(false),
@@ -177,7 +178,7 @@ const tasksDefinition = recordTable(
       uniqueIndex('tasks_series_current')
         .on(sql`series_id`)
         .where(
-          sql`series_id IS NOT NULL AND status IN ('open','waiting') AND deleted_at IS NULL AND (completion_event_id IS NULL OR completion_undone_at IS NOT NULL)`,
+          sql`series_id IS NOT NULL AND status IN ('open','waiting') AND deleted_at IS NULL AND repeat_next_event_id IS NULL`,
         ),
       uniqueIndex('tasks_main_once')
         .on(sql`assignee_id`)

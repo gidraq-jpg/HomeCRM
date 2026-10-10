@@ -414,6 +414,13 @@
       "when": 1791644538455,
       "tag": "0058_task_repeats_review_fixes",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1791648177354,
+      "tag": "0059_task_completion_successor",
+      "breakpoints": true
     }
   ]
 }

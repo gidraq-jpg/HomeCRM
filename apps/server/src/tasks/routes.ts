@@ -463,8 +463,7 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
         if (
           following &&
           row.repeatRule &&
-          (!['open', 'waiting'].includes(row.status) ||
-            (row.completionEventId !== null && row.completionUndoneAt === null))
+          (!['open', 'waiting'].includes(row.status) || row.repeatNextEventId !== null)
         )
           throw new Failure(409, 'NOT_CURRENT_INSTANCE');
         if (row.repeatRule && 'repeatRule' in body && !following)

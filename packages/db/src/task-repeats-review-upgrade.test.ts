@@ -10,7 +10,7 @@ let db: TestDatabase, folder: string, before: Record<string, unknown>[];
 async function snapshot() {
   return (
     await db.admin.query(`SELECT * FROM (
-    SELECT 'tasks' AS source,to_jsonb(t) AS data FROM tasks t
+    SELECT 'tasks' AS source,to_jsonb(t)-'repeat_next_event_id' AS data FROM tasks t
     UNION ALL SELECT 'history',to_jsonb(h) FROM tasks_history h
     UNION ALL SELECT 'deadlines',to_jsonb(d) FROM deadlines d
     UNION ALL SELECT 'notifications',to_jsonb(n) FROM deadline_notifications n

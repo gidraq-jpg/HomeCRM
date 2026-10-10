@@ -916,6 +916,16 @@ it('TASK-3/DATA-2: экспорт сохраняет повтор и ответ�
   const completed = await adult.post(`/api/tasks/${first.id}/status`, { status: 'done' });
   expect(completed.status, completed.text).toBe(200);
   const nextId = completed.json<{ nextTaskId: string }>().nextTaskId;
+  const personal = await archive(adult, world.boris.password, { kind: 'personal' });
+  expect(personal.statusCode, personal.body).toBe(200);
+  const exported = json(await unpack(personal.rawPayload), 'tasks').find(
+    (r: { id: string }) => r.id === first.id,
+  );
+  expect(ExportRecords.tasks.parse(exported).repeat_next_event_id).toBe(
+    completed.json().completionEventId,
+  );
+  const { repeat_next_event_id: _event, ...legacy } = exported;
+  expect(ExportRecords.tasks.parse(legacy).repeat_next_event_id).toBeNull();
   const moved = await adult.post(`/api/tasks/${nextId}/move`, {
     spaceId: world.houseId,
     audience: 'household',

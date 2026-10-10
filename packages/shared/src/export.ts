@@ -198,6 +198,7 @@ export const ExportRecords = {
     repeat_processed_on: z.iso.date().nullable().default(null),
     predecessor_id: uuid.nullable().default(null),
     completion_event_id: uuid.nullable().default(null),
+    repeat_next_event_id: uuid.nullable().default(null),
     completion_previous_status: z.string().nullable().default(null),
     completion_undone_at: instant.nullable().default(null),
     is_main: z.boolean().default(false),
