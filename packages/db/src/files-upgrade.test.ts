@@ -17,7 +17,7 @@ const snapshot = async () =>
   (
     await db.admin.query(`SELECT * FROM (
   SELECT 'notes' source, to_jsonb(r)-'has_other_contributions' value FROM notes r
-  UNION ALL SELECT 'tasks',to_jsonb(r)-'has_other_contributions' FROM tasks r
+  UNION ALL SELECT 'tasks',to_jsonb(r)-ARRAY['has_other_contributions','description','plan_on','plan_time','due_on','due_time','status','checklist','waiting_contact_id','waiting_account_id','check_on','household_id'] FROM tasks r
   UNION ALL SELECT 'shopping',to_jsonb(r)-'has_other_contributions' FROM shopping_items r
   UNION ALL SELECT 'notes_history',to_jsonb(r) FROM notes_history r
   UNION ALL SELECT 'tasks_history',to_jsonb(r) FROM tasks_history r

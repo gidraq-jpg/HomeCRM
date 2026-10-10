@@ -42,7 +42,13 @@ const TABLES = [
   'shopping_items',
   'deadlines',
 ] as const;
-const FILE_TABLES = ['note_files', 'object_files', 'document_files', 'profile_files'] as const;
+const FILE_TABLES = [
+  'note_files',
+  'object_files',
+  'document_files',
+  'task_files',
+  'profile_files',
+] as const;
 const HISTORY_TABLES = [
   'documents',
   'notes',
@@ -60,6 +66,7 @@ const HISTORY_TABLES = [
   'tasks',
   'shopping_items',
   'document_files',
+  'task_files',
   'note_files',
   'object_files',
 ] as const;
@@ -103,7 +110,14 @@ async function checkFile(tx: Transaction, account: Account, table: string, row: 
     if (row.account_id !== account.id) throw new Failure(403, 'ACCESS_DENIED');
     return;
   }
-  const type = table === 'note_files' ? 'note' : table === 'document_files' ? 'document' : 'object';
+  const type =
+    table === 'task_files'
+      ? 'task'
+      : table === 'note_files'
+        ? 'note'
+        : table === 'document_files'
+          ? 'document'
+          : 'object';
   const parent = await readReference(tx, account, { type, id: String(row.parent_id) });
   if (
     !canViewFile(
@@ -118,7 +132,7 @@ async function checkFile(tx: Transaction, account: Account, table: string, row: 
           assigneeId: row.assignee_id as string | null,
           deletedAt: row.deleted_at ? new Date(String(row.deleted_at)) : null,
         },
-        type === 'note' ? 'note_file' : 'object_file',
+        type === 'task' ? 'task_file' : type === 'note' ? 'note_file' : 'object_file',
       ),
       parent.facts,
     )
@@ -140,6 +154,26 @@ async function* records(
       ? sql`(to_jsonb(t) - ${OMIT} - 'values' - 'consumption') || jsonb_build_object('values',ARRAY(SELECT v::text FROM unnest(t.values) v),'consumption',CASE WHEN t.consumption IS NULL THEN NULL ELSE ARRAY(SELECT v::text FROM unnest(t.consumption) v) END)`
       : undefined;
   for await (const row of rows(tx, table, where, projection)) {
+    if (table === 'tasks') {
+      if (
+        row.waiting_contact_id &&
+        !(
+          await tx.execute(
+            sql`SELECT 1 FROM contacts t WHERE id=${row.waiting_contact_id}::uuid AND ${scope.kind === 'personal' ? sql`true` : scopeWhere(scope)}`,
+          )
+        ).rowCount
+      )
+        row.waiting_contact_id = null;
+      if (
+        row.waiting_account_id &&
+        !(
+          await tx.execute(
+            sql`SELECT 1 FROM member_profiles WHERE account_id=${row.waiting_account_id}::uuid`,
+          )
+        ).rowCount
+      )
+        row.waiting_account_id = null;
+    }
     if (
       (table === 'contacts' && row.organization_id) ||
       (table === 'contact_interactions' && row.object_id)

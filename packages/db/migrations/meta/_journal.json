@@ -379,6 +379,20 @@
       "when": 1791567578383,
       "tag": "0053_passport_milestone",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791622281526,
+      "tag": "0054_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1791622420825,
+      "tag": "0055_task_lifecycle",
+      "breakpoints": true
     }
   ]
 }

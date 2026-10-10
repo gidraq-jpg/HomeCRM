@@ -14,6 +14,7 @@ import {
   type OrganizationData,
   type PaymentInput,
   type PersonData,
+  type TaskChecklist,
   type UtilityAccountData,
 } from '@homecrm/shared';
 import { sql } from 'drizzle-orm';
@@ -125,10 +126,52 @@ export const shoppingItems = shoppingItemsDefinition.table;
 export const shoppingItemsHistory = shoppingItemsDefinition.history;
 
 /** Дела: ребёнок пишет только дела, где исполнитель — он. */
-const tasksDefinition = recordTable('tasks', 'task', {
-  dueAt: timestamp('due_at', { withTimezone: true }),
-  doneAt: timestamp('done_at', { withTimezone: true }),
-});
+const tasksDefinition = recordTable(
+  'tasks',
+  'task',
+  {
+    description: text('description').notNull().default(''),
+    planOn: date('plan_on'),
+    planTime: text('plan_time'),
+    dueOn: date('due_on'),
+    dueTime: text('due_time'),
+    // Старое поле сохраняется для совместимости существующих записей.
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    doneAt: timestamp('done_at', { withTimezone: true }),
+    status: text('status')
+      .$type<'open' | 'done' | 'cancelled' | 'not_done' | 'waiting'>()
+      .notNull()
+      .default('open'),
+    checklist: jsonb('checklist').$type<TaskChecklist>().notNull().default([]),
+    waitingContactId: uuid('waiting_contact_id').references((): AnyPgColumn => contacts.id, {
+      onDelete: 'set null',
+    }),
+    waitingAccountId: uuid('waiting_account_id').references(() => accounts.id),
+    checkOn: date('check_on'),
+    householdId: uuid('household_id').references(() => spaces.id),
+  },
+  {
+    extraChecks: [
+      check('tasks_status', sql`status IN ('open','done','cancelled','not_done','waiting')`),
+      check(
+        'tasks_clock',
+        sql`(plan_time IS NULL OR (plan_on IS NOT NULL AND plan_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$')) AND (due_time IS NULL OR (due_on IS NOT NULL AND due_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'))`,
+      ),
+      check(
+        'tasks_waiting',
+        sql`num_nonnulls(waiting_contact_id,waiting_account_id)<=1 AND (status<>'waiting' OR check_on IS NOT NULL)`,
+      ),
+      check('tasks_checklist', sql`jsonb_typeof(checklist)='array'`),
+    ],
+    extraPolicies: [
+      pgPolicy('tasks_deadline_worker_select', {
+        for: 'select',
+        to: workerRole,
+        using: sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.task_id=tasks.id)`,
+      }),
+    ],
+  },
+);
 export const tasks = tasksDefinition.table;
 export const tasksHistory = tasksDefinition.history;
 
@@ -359,6 +402,11 @@ const noteFilesDefinition = recordTable('note_files', 'note_file', fileColumns()
 });
 export const noteFiles = noteFilesDefinition.table;
 export const noteFilesHistory = noteFilesDefinition.history;
+const taskFilesDefinition = recordTable('task_files', 'task_file', fileColumns(), {
+  parent: tasks,
+});
+export const taskFiles = taskFilesDefinition.table;
+export const taskFilesHistory = taskFilesDefinition.history;
 const objectFilesDefinition = recordTable('object_files', 'object_file', fileColumns(), {
   parent: objects,
 });
@@ -683,6 +731,7 @@ export const RECORD_TABLES = {
   note_item: noteItems,
   shopping_item: shoppingItems,
   task: tasks,
+  task_file: taskFiles,
   object: objects,
   object_field: objectFields,
   object_event: objectEvents,
@@ -705,6 +754,7 @@ export const RECORD_HISTORY_TABLES = {
   note_item: noteItemsHistory,
   shopping_item: shoppingItemsHistory,
   task: tasksHistory,
+  task_file: taskFilesHistory,
   object: objectsHistory,
   object_field: objectFieldsHistory,
   object_event: objectEventsHistory,

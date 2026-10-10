@@ -26,6 +26,7 @@ export const RECORD_TYPES = [
   'utility_payment',
   'document',
   'document_file',
+  'task_file',
 ] as const;
 /** Вид записи из RecordFacts.type: у каждой таблицы-примера он свой. */
 export type RecordType = (typeof RECORD_TYPES)[number];
@@ -81,7 +82,7 @@ export function canWriteSql(type: RecordType): string {
   // Ребёнок в общем пишет только покупки и дела, назначенные ему.
   if (type === 'shopping_item') return canViewSql();
   const notChild = `space_kind = 'personal' OR space_id IN ${housesWhere(ADULT_ROLES)}`;
-  const childMayWrite = type === 'task' ? `\n    OR assignee_id = ${ME}` : '';
+  const childMayWrite = ['task', 'task_file'].includes(type) ? `\n    OR assignee_id = ${ME}` : '';
   return `(${canViewSql()} AND (
     ${notChild}${childMayWrite}
   ))`;
@@ -127,8 +128,8 @@ export function recordPolicySql(type: RecordType): {
   return {
     select: canViewSql(),
     insert: `${live} AND author_id = ${ME} AND ${canWriteSql(type)}`,
-    updateUsing: `(${live} AND ${canWriteSql(type)}) OR (${trashed} AND ${canRestoreSql()})${['note_item', 'object_field', 'object_event', 'note_file', 'object_file', 'utility_account', 'meter', 'meter_reading', 'utility_charge', 'utility_payment'].includes(type) ? ` OR (${trashed} AND pg_trigger_depth() > 0 AND ${canWriteSql(type)})` : ''}`,
-    updateCheck: `(${live} AND ${canWriteSql(type)}) OR (${trashed} AND ${canTrashSql()})`,
+    updateUsing: `(${live} AND ${canWriteSql(type)}) OR (${trashed} AND ${canRestoreSql()})${['note_item', 'object_field', 'object_event', 'note_file', 'object_file', 'task_file', 'utility_account', 'meter', 'meter_reading', 'utility_charge', 'utility_payment'].includes(type) ? ` OR (${trashed} AND pg_trigger_depth() > 0 AND ${canWriteSql(type)})` : ''}`,
+    updateCheck: `(${live} AND ${canWriteSql(type)}) OR (${trashed} AND ${canTrashSql()})${type === 'task_file' ? ` OR (${trashed} AND pg_trigger_depth() > 0 AND ${canWriteSql(type)})` : ''}`,
   };
 }
 

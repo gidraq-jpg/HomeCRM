@@ -84,6 +84,8 @@ it('обновление с R0.7 сохраняет источники, прав
     expect(row.value.profile_account_id).toBeNull();
     delete row.value.contact_id;
     delete row.value.profile_account_id;
+    expect(row.value.task_id).toBeNull();
+    delete row.value.task_id;
   }
   expect(after).toEqual(before);
   await runMigrations(db.owner);

@@ -44,6 +44,7 @@ export const TYPE_LABELS: Readonly<Record<RecordType, string>> = {
   note_item: 'пункт заметки',
   shopping_item: 'покупка',
   task: 'дело',
+  task_file: 'файл дела',
   object: 'объект',
   object_field: 'своё поле',
   object_event: 'событие объекта',
@@ -187,6 +188,7 @@ export function buildFamily(): Family {
   const objectParents = new Map<Placement, string>();
   const meterParents = new Map<Placement, string>();
   const accountParents = new Map<Placement, string>();
+  const taskParents = new Map<Placement, string>();
   const documentParents = new Map<Placement, string>();
   const chargeParents = new Map<Placement, string>();
   for (const type of RECORD_TYPES) {
@@ -198,6 +200,8 @@ export function buildFamily(): Family {
             const id = randomUUID();
             if (type === 'contact' && !trashed && !contactParents.has(placement))
               contactParents.set(placement, id);
+            if (type === 'task' && !trashed && !taskParents.has(placement))
+              taskParents.set(placement, id);
             if (type === 'document' && !trashed && !documentParents.has(placement))
               documentParents.set(placement, id);
             if (type === 'note' && !trashed && !parents.has(placement)) parents.set(placement, id);
@@ -217,19 +221,21 @@ export function buildFamily(): Family {
   }
   const parentIdFor = (placement: Placement, type: RecordType = 'note_item'): string => {
     const found = (
-      type === 'contact_interaction'
-        ? contactParents
-        : type === 'document_file'
-          ? documentParents
-          : type === 'utility_charge'
-            ? accountParents
-            : type === 'utility_payment'
-              ? chargeParents
-              : type === 'meter_reading'
-                ? meterParents
-                : ['note_item', 'note_file'].includes(type)
-                  ? parents
-                  : objectParents
+      type === 'task_file'
+        ? taskParents
+        : type === 'contact_interaction'
+          ? contactParents
+          : type === 'document_file'
+            ? documentParents
+            : type === 'utility_charge'
+              ? accountParents
+              : type === 'utility_payment'
+                ? chargeParents
+                : type === 'meter_reading'
+                  ? meterParents
+                  : ['note_item', 'note_file'].includes(type)
+                    ? parents
+                    : objectParents
     ).get(placement);
     if (found === undefined) throw new Error('No parent note in this place');
     return found;
@@ -238,6 +244,7 @@ export function buildFamily(): Family {
     if (record.type === 'note_item' || record.type === 'note_file')
       record.parentId = parentIdFor(record.facts.placement);
     if (
+      record.type === 'task_file' ||
       record.type === 'document_file' ||
       record.type === 'contact_interaction' ||
       record.type === 'object_field' ||
@@ -249,7 +256,16 @@ export function buildFamily(): Family {
       record.type === 'utility_payment' ||
       record.type === 'meter_reading'
     )
-      record.parentId = parentIdFor(record.facts.placement, record.type);
+      record.parentId =
+        record.type === 'task_file'
+          ? (records.find(
+              (parent) =>
+                parent.type === 'task' &&
+                !parent.trashed &&
+                parent.facts.placement === record.facts.placement &&
+                parent.facts.assigneeId === record.facts.assigneeId,
+            )?.id ?? parentIdFor(record.facts.placement, record.type))
+          : parentIdFor(record.facts.placement, record.type);
   }
 
   return {
@@ -355,7 +371,10 @@ export function fileFixture(type: RecordType) {
   if (type === 'utility_payment')
     return { paidOn: '2026-10-08', amountCents: 1, payer: { kind: 'tenant' }, method: 'tenant' };
   if (type === 'meter_reading') return { occurredOn: '2026-10-01' };
-  return type === 'note_file' || type === 'object_file' || type === 'document_file'
+  return type === 'note_file' ||
+    type === 'object_file' ||
+    type === 'document_file' ||
+    type === 'task_file'
     ? { mimeType: 'application/pdf', sizeBytes: 8, storageKey: randomUUID(), envelope: {} }
     : {};
 }

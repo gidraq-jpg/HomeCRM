@@ -7,5 +7,7 @@ export * from './export.ts';
 export * from './meters.ts';
 export * from './notifications.ts';
 export * from './objects.ts';
+export * from './quickline.ts';
+export * from './tasks.ts';
 export * from './templates.ts';
 export * from './utilities.ts';

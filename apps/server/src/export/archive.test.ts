@@ -822,3 +822,84 @@ it('CONT-1/4: экспорт людей и взаимодействий вали
     expect.arrayContaining([expect.objectContaining({ id: privatePerson.id })]),
   );
 });
+
+it('TASK-1/8: архив включает поля дела, чек-лист, файлы и сроки; чужие личные ссылки не попадают в архив дома', async () => {
+  const privateContact = (
+    await adult.post('/api/contacts', {
+      title: 'Личное ожидание экспорта',
+      kind: 'person',
+      data: {},
+    })
+  ).json<{ id: string }>();
+  const personal = (
+    await adult.post('/api/tasks', {
+      title: 'Личное дело экспорта',
+      description: 'Описание дела',
+      checklist: [{ id: randomUUID(), title: 'Пункт экспорта', done: true, position: 0 }],
+      planOn: '2026-10-15',
+    })
+  ).json<{ id: string }>();
+  const shared = (
+    await adult.post('/api/tasks', {
+      title: 'Общее ожидание экспорта',
+      status: 'waiting',
+      waitingContactId: privateContact.id,
+      checkOn: '2026-10-15',
+      placement: { spaceId: world.houseId, audience: 'adults' },
+    })
+  ).json<{ id: string }>();
+  const key = randomUUID(),
+    file = randomUUID(),
+    sealed = cipher.seal(payload, key);
+  await storage.put(key, sealed.block);
+  await world.database.admin.query(
+    `INSERT INTO task_files(id,parent_id,space_id,space_kind,author_id,title,mime_type,size_bytes,storage_key,envelope) VALUES($1,$2,$3,'personal',$4,'Дело.pdf','application/pdf',$5,$6,$7)`,
+    [
+      file,
+      personal.id,
+      world.boris.personalSpaceId,
+      world.boris.id,
+      payload.length,
+      key,
+      sealed.envelope,
+    ],
+  );
+  const privateArchive = await archive(adult, world.boris.password);
+  expect(privateArchive.statusCode, privateArchive.body).toBe(200);
+  const own = await unpack(privateArchive.rawPayload);
+  const task = ExportRecords.tasks.parse(
+    json(own, 'tasks').find((r: { id: string }) => r.id === personal.id),
+  );
+  expect(task).toMatchObject({
+    description: 'Описание дела',
+    plan_on: '2026-10-15',
+    checklist: [{ done: true }],
+  });
+  expect(
+    ExportRecords.task_files.parse(
+      json(own, 'task_files').find((r: { id: string }) => r.id === file),
+    ).parent_id,
+  ).toBe(personal.id);
+  expect(json(own, 'deadlines').some((r: { task_id: string }) => r.task_id === personal.id)).toBe(
+    true,
+  );
+  expect([...own.values()].some((v) => v.equals(payload))).toBe(true);
+  const houseArchive = await archive(admin, world.anna.password, {
+    kind: 'household',
+    householdId: world.houseId,
+  });
+  expect(houseArchive.statusCode, houseArchive.body).toBe(200);
+  const house = await unpack(houseArchive.rawPayload),
+    data = [...house.values()].map((v) => v.toString()).join('\n');
+  expect(
+    ExportRecords.tasks.parse(json(house, 'tasks').find((r: { id: string }) => r.id === shared.id))
+      .waiting_contact_id,
+  ).toBeNull();
+  expect(data).not.toContain(privateContact.id);
+  expect(data).not.toContain(personal.id);
+  expect(data).not.toContain(file);
+  await world.database.admin.query('DELETE FROM tasks WHERE id=ANY($1::uuid[])', [
+    [personal.id, shared.id],
+  ]);
+  await world.database.admin.query('DELETE FROM contacts WHERE id=$1', [privateContact.id]);
+});

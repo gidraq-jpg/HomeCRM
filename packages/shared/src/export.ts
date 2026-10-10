@@ -5,6 +5,7 @@ import { DeadlineRule, TimeZone } from './deadlines.ts';
 import { DocumentData } from './documents.ts';
 import { DecimalValue, MeterData } from './meters.ts';
 import { NotificationSettings } from './notifications.ts';
+import { TaskChecklist, TaskClock, TaskStatus } from './tasks.ts';
 import { OrganizationData, UtilityAccountData } from './utilities.ts';
 
 export const EXPORT_VERSION = 1;
@@ -174,7 +175,22 @@ export const ExportRecords = {
     origin_audience: z.enum(['household', 'adults']).nullable(),
     contact: reference.nullable(),
   }),
-  tasks: z.strictObject({ ...record, due_at: instant.nullable(), done_at: instant.nullable() }),
+  tasks: z.strictObject({
+    ...record,
+    due_at: instant.nullable(),
+    done_at: instant.nullable(),
+    description: z.string(),
+    plan_on: z.iso.date().nullable(),
+    plan_time: TaskClock.nullable(),
+    due_on: z.iso.date().nullable(),
+    due_time: TaskClock.nullable(),
+    status: TaskStatus,
+    checklist: TaskChecklist,
+    waiting_contact_id: uuid.nullable(),
+    waiting_account_id: uuid.nullable(),
+    check_on: z.iso.date().nullable(),
+    household_id: uuid.nullable(),
+  }),
   shopping_items: z.strictObject({
     ...record,
     quantity: z.string().nullable(),
@@ -182,6 +198,7 @@ export const ExportRecords = {
   }),
   note_files: z.strictObject({ ...record, ...file, parent_id: uuid }),
   object_files: z.strictObject({ ...record, ...file, parent_id: uuid }),
+  task_files: z.strictObject({ ...record, ...file, parent_id: uuid }),
   document_files: z.strictObject({ ...record, ...file, parent_id: uuid }),
   profile_files: z.strictObject({ ...file, account_id: uuid }),
   record_links: z.strictObject({
@@ -202,13 +219,24 @@ export const ExportRecords = {
     author_id: uuid,
     assignee_id: uuid,
     deleted_at: instant.nullable(),
+    task_id: uuid.nullable().default(null),
     note_id: uuid.nullable(),
     object_id: uuid.nullable(),
     document_id: uuid.nullable().default(null),
     contact_id: uuid.nullable().default(null),
     profile_account_id: uuid.nullable().default(null),
     source_kind: z
-      .enum(['record', 'readings', 'payment', 'verification', 'document', 'birthday'])
+      .enum([
+        'record',
+        'readings',
+        'payment',
+        'verification',
+        'document',
+        'birthday',
+        'task_plan',
+        'task_due',
+        'task_waiting',
+      ])
       .default('record'),
     utility_account_id: uuid.nullable().default(null),
     meter_id: uuid.nullable().default(null),
