@@ -63,6 +63,8 @@ import {
 } from './core.ts';
 import { recordTable } from './records.ts';
 
+export * from './api-operations-schema.ts';
+
 export * from './core.ts';
 export * from './deadlines-schema.ts';
 export * from './export-schema.ts';
@@ -468,7 +470,16 @@ const contactsDefinition = recordTable(
       note: '',
     }),
   },
-  { extraChecks: [check('contacts_kind_check', sql`kind IN ('organization','person')`)] },
+  {
+    extraChecks: [check('contacts_kind_check', sql`kind IN ('organization','person')`)],
+    extraPolicies: [
+      pgPolicy('contacts_birthday_lookup', {
+        for: 'select',
+        to: pgRole('homecrm_owner').existing(),
+        using: sql`id=nullif(current_setting('app.birthday_contact',true),'')::uuid AND current_setting('app.birthday_lookup',true)='on'`,
+      }),
+    ],
+  },
 );
 export const contacts = contactsDefinition.table;
 export const contactsHistory = contactsDefinition.history;

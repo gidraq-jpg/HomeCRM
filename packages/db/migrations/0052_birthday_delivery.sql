@@ -1,0 +1,3 @@
+CREATE POLICY "contacts_birthday_lookup" ON "contacts" AS PERMISSIVE FOR SELECT TO "homecrm_owner" USING (id=nullif(current_setting('app.birthday_contact',true),'')::uuid AND current_setting('app.birthday_lookup',true)='on');--> statement-breakpoint
+CREATE POLICY "household_access_birthday_lookup" ON "household_access" AS PERMISSIVE FOR SELECT TO "homecrm_owner" USING (current_setting('app.birthday_lookup',true)='on');--> statement-breakpoint
+CREATE POLICY "member_profiles_birthday_lookup" ON "member_profiles" AS PERMISSIVE FOR SELECT TO "homecrm_owner" USING (account_id=nullif(current_setting('app.birthday_profile',true),'')::uuid AND current_setting('app.birthday_lookup',true)='on');

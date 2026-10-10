@@ -4,6 +4,7 @@ import { type FastifyInstance, fastify } from 'fastify';
 import { createAccountReader } from './auth/account.ts';
 import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
+import { contactImportRoutes } from './contacts/import.ts';
 import { initializeHouseTimeZones } from './deadlines/engine.ts';
 import { deadlinesRoutes } from './deadlines/routes.ts';
 import { documentRoutes } from './documents/routes.ts';
@@ -146,7 +147,8 @@ export function buildApp(
           notificationSettings: NotificationSettings.strip().parse(settings ?? {}),
           deadlines: rules.filter(
             (rule) =>
-              rule.spaceKind === 'personal' ||
+              (rule.spaceKind === 'personal' &&
+                (!rule.profileAccountId || rule.profileAccountId === account.id)) ||
               account.viewer.memberships.get(rule.spaceId) === 'admin',
           ),
         };
@@ -160,6 +162,7 @@ export function buildApp(
     });
     void app.register(deadlinesRoutes, auth);
     void app.register(documentRoutes, auth);
+    void app.register(contactImportRoutes, auth);
     void app.register(notificationRoutes, {
       ...auth,
       ...(config.VAPID_PUBLIC_KEY ? { publicKey: config.VAPID_PUBLIC_KEY } : {}),

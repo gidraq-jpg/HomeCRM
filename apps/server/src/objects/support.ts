@@ -22,10 +22,12 @@ import type { AuthModule } from '../auth/routes.ts';
 export class Failure extends Error {
   status: number;
   code: string;
-  constructor(status: number, code: string) {
+  publicMessage?: string;
+  constructor(status: number, code: string, publicMessage?: string) {
     super(code);
     this.status = status;
     this.code = code;
+    if (publicMessage) this.publicMessage = publicMessage;
   }
 }
 export function deny(): never {
@@ -141,7 +143,11 @@ export type DataRoute = (
 export function dataRoutes(app: FastifyInstance, module: AuthModule): DataRoute {
   const currentAccount = createAccountReader(module);
   app.setErrorHandler((error, request, reply) => {
-    if (error instanceof Failure) return reply.code(error.status).send({ code: error.code });
+    if (error instanceof Failure)
+      return reply.code(error.status).send({
+        code: error.code,
+        ...(error.publicMessage ? { message: error.publicMessage } : {}),
+      });
     const status =
       typeof error === 'object' && error !== null && 'statusCode' in error
         ? error.statusCode

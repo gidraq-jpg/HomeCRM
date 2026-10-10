@@ -30,6 +30,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
+import { fileSummary, filesOf } from '../files/service.ts';
 import { getObject } from '../objects/routes.ts';
 import {
   columnsOf,
@@ -71,13 +72,29 @@ const summaryFields = {
   ownerIsChild: sql<boolean>`app.document_owner_is_child(${documents.ownerAccountId})`,
   contactId: sql<
     string | null
-  >`(SELECT c.id FROM contacts c WHERE c.id=documents.owner_contact_id)`,
+  >`(SELECT c.id FROM contacts c WHERE c.id=documents.owner_contact_id AND c.deleted_at IS NULL)`,
+  objectTitle: sql<
+    string | null
+  >`(SELECT o.title FROM objects o WHERE o.id=documents.owner_object_id AND o.deleted_at IS NULL)`,
+  objectId: sql<
+    string | null
+  >`(SELECT o.id FROM objects o WHERE o.id=documents.owner_object_id AND o.deleted_at IS NULL)`,
+  memberId: sql<
+    string | null
+  >`(SELECT p.account_id FROM member_profiles p WHERE p.account_id=documents.owner_account_id)`,
+  ownerContactTitle: sql<
+    string | null
+  >`(SELECT c.title FROM contacts c WHERE c.id=documents.owner_contact_id AND c.deleted_at IS NULL)`,
   previousId: sql<string | null>`(SELECT p.id FROM documents p WHERE p.id=documents.previous_id)`,
 };
 type SummaryFields = {
   expiryRule: DeadlineRule | null;
   ownerIsChild: boolean;
   contactId: string | null;
+  objectTitle: string | null;
+  objectId: string | null;
+  memberId: string | null;
+  ownerContactTitle: string | null;
   previousId: string | null;
 };
 function visibleDocument(
@@ -97,13 +114,15 @@ function present(row: typeof documents.$inferSelect, fields: SummaryFields) {
     ...publicRecord(row),
     data: row.data,
     expiryRule: fields.expiryRule,
+    objectTitle: fields.objectTitle,
+    ownerContactTitle: fields.ownerContactTitle,
     warnings: row.data.warnings ?? documentWarnings(row.data.type),
     status: row.status,
     previousId: fields.previousId,
-    owner: row.ownerAccountId
-      ? { kind: 'member', id: row.ownerAccountId }
-      : row.ownerObjectId
-        ? { kind: 'object', id: row.ownerObjectId }
+    owner: fields.memberId
+      ? { kind: 'member', id: fields.memberId }
+      : fields.objectId
+        ? { kind: 'object', id: fields.objectId }
         : fields.contactId
           ? { kind: 'contact', id: fields.contactId }
           : null,
@@ -264,9 +283,13 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
       .filter(({ document, ownerIsChild }) => visibleDocument(account, document, ownerIsChild))
       .map(({ document, ...fields }) => present(document, fields));
   });
-  route('GET', '/api/documents/:id', 200, async (tx, account, request) =>
-    summary(tx, await read(tx, account, parse(Id, request.params).id)),
-  );
+  route('GET', '/api/documents/:id', 200, async (tx, account, request) => {
+    const row = await read(tx, account, parse(Id, request.params).id);
+    return {
+      ...(await summary(tx, row)),
+      files: (await filesOf(tx, 'document', row.id)).filter((f) => !f.deletedAt).map(fileSummary),
+    };
+  });
   route('GET', '/api/documents/:id/history', 200, async (tx, account, request) => {
     const row = await read(tx, account, parse(Id, request.params).id);
     return (
@@ -281,6 +304,7 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
         .strictObject({
           title: title.optional(),
           data: DocumentData.optional(),
+          owner: DocumentOwner.nullable().optional(),
           expectedUpdatedAt: z.iso.datetime().optional(),
         })
         .refine((b) => b.title !== undefined || b.data !== undefined),
@@ -290,7 +314,16 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
     requireWrite(account, row, 'document');
     if (row.status !== 'valid') throw new Failure(409, 'DOCUMENT_INVALID');
     version(body.expectedUpdatedAt, row.updatedAt);
-    const { expectedUpdatedAt: _version, ...changes } = body;
+    if (body.owner !== undefined) {
+      const current = (await summary(tx, row)).owner;
+      if (
+        (body.owner === null && current !== null) ||
+        (body.owner !== null &&
+          (body.owner.kind !== current?.kind || body.owner.id !== current?.id))
+      )
+        throw new Failure(400, 'OWNER_IMMUTABLE');
+    }
+    const { expectedUpdatedAt: _version, owner: _owner, ...changes } = body;
     const [updated] = await tx
       .update(documents)
       .set(changes)

@@ -39,6 +39,8 @@ export const PersonData = z.strictObject({
     .default([]),
   address: z.string().trim().max(4000).default(''),
   birthday: ContactBirthday.nullable().default(null),
+  // Отсутствующий флаг при правке означает сохранение текущего напоминания.
+  birthdayEnabled: z.boolean().optional(),
   note: z.string().max(10000).default(''),
 });
 export type PersonData = z.infer<typeof PersonData>;

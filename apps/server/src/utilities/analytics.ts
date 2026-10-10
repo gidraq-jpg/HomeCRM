@@ -107,6 +107,9 @@ export function analyticsRoutes(route: DataRoute) {
     const objects = visible.map((r) => ({
       id: r.id,
       title: r.title,
+      spaceId: r.spaceId,
+      spaceKind: r.spaceKind,
+      audience: r.audience,
       ...money(r),
       accounts: r.accounts.map((a) => {
         const method = a.data.transmission?.method;

@@ -54,8 +54,10 @@ const organization = sql<{
   title: string;
 } | null>`(SELECT jsonb_build_object('id',o.id,'title',o.title) FROM contacts o WHERE o.id=contacts.organization_id AND o.kind='organization' AND o.deleted_at IS NULL)`;
 function present(row: typeof contacts.$inferSelect, org: { id: string; title: string } | null) {
-  const data =
-    row.kind === 'person' ? PersonData.parse(row.data) : OrganizationData.parse(row.data);
+  const person = row.kind === 'person' ? PersonData.parse(row.data) : null;
+  const data = person
+    ? { ...person, birthdayEnabled: person.birthdayEnabled ?? false }
+    : OrganizationData.parse(row.data);
   return {
     ...publicRecord(row),
     kind: row.kind,
@@ -124,7 +126,10 @@ export async function contactRoutes(route: DataRoute) {
         ...columnsOf(place),
         title: body.title,
         kind: body.kind,
-        data: parsed.data,
+        data:
+          parsed.kind === 'person'
+            ? { ...parsed.data, birthdayEnabled: parsed.data.birthdayEnabled ?? false }
+            : parsed.data,
         organizationId: body.organizationId,
         authorId: account.id,
       })
@@ -185,14 +190,32 @@ export async function contactRoutes(route: DataRoute) {
     const row = await getContact(tx, account, parse(Id, request.params).id, true);
     requireWrite(account, row, 'contact');
     version(body.expectedUpdatedAt, row.updatedAt);
+    const parsed =
+      body.data === undefined ? undefined : parse(Create, { kind: row.kind, data: body.data });
     const data =
-      body.data === undefined ? undefined : parse(Create, { kind: row.kind, data: body.data }).data;
-    if (body.organizationId !== undefined)
-      await validateOrganization(tx, account, row.kind, body.organizationId);
-    await tx
-      .update(contacts)
-      .set({ title: body.title, data, organizationId: body.organizationId })
-      .where(eq(contacts.id, row.id));
+      parsed?.kind === 'person'
+        ? {
+            ...parsed.data,
+            // Форма может не знать о настройке напоминания; явный false выключает её.
+            birthdayEnabled:
+              parsed.data.birthdayEnabled ?? PersonData.parse(row.data).birthdayEnabled ?? false,
+          }
+        : parsed?.data;
+    let organizationId = body.organizationId;
+    if (organizationId === null && row.organizationId) {
+      const [visible] = await tx
+        .select({ id: contacts.id })
+        .from(contacts)
+        .where(and(eq(contacts.id, row.organizationId), isNull(contacts.deletedAt)));
+      if (!visible) organizationId = undefined;
+    }
+    if (organizationId !== undefined)
+      await validateOrganization(tx, account, row.kind, organizationId);
+    if (body.title !== undefined || data !== undefined || organizationId !== undefined)
+      await tx
+        .update(contacts)
+        .set({ title: body.title, data, organizationId })
+        .where(eq(contacts.id, row.id));
     return summary(tx, row.id);
   });
   route('GET', '/api/contacts/:id/history', 200, async (tx, account, request) => {
@@ -359,10 +382,22 @@ export async function contactRoutes(route: DataRoute) {
         if (action === 'patch') {
           requireWrite(account, row, 'contact_interaction');
           const body = parse(
-            InteractionData.extend({ expectedUpdatedAt: z.iso.datetime().optional() }),
+            InteractionData.extend({
+              objectId: z.uuid().nullable().optional(),
+              expectedUpdatedAt: z.iso.datetime().optional(),
+            }),
             request.body,
           );
           version(body.expectedUpdatedAt, row.updatedAt);
+          let objectId = body.objectId;
+          if (objectId === null && row.objectId) {
+            const [visible] = await tx
+              .execute<{ id: string }>(
+                sql`SELECT id FROM objects WHERE id=${row.objectId}::uuid AND deleted_at IS NULL`,
+              )
+              .then((result) => result.rows);
+            if (!visible) objectId = undefined;
+          }
           if (body.objectId) {
             const object = await getObject(tx, account, body.objectId);
             if (object.deletedAt) missing();
@@ -375,7 +410,7 @@ export async function contactRoutes(route: DataRoute) {
               occurredOn: body.occurredOn,
               amountCents: body.amountCents,
               callAgain: body.callAgain,
-              objectId: body.objectId,
+              objectId,
             })
             .where(eq(contactInteractions.id, row.id));
         } else {

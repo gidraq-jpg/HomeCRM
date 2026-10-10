@@ -364,7 +364,7 @@ export async function buildArchive(
         await tx.execute<{
           data: Data;
         }>(sql`SELECT jsonb_build_object('account_id',a.id,'display_name',p.display_name,'username',a.username,
-        'email',CASE WHEN a.email LIKE '%.invalid' THEN NULL ELSE a.email END,'birth_date',p.birth_date,'phone',p.phone,'photo_file_id',p.photo_file_id) AS data
+        'email',CASE WHEN a.email LIKE '%.invalid' THEN NULL ELSE a.email END,'birth_date',p.birth_date,'birthday_enabled',p.birthday_enabled,'phone',p.phone,'photo_file_id',p.photo_file_id) AS data
         FROM accounts a JOIN member_profiles p ON p.account_id=a.id WHERE a.id=${account.id}::uuid`)
       ).rows;
       await addJSON(

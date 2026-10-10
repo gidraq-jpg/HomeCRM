@@ -300,6 +300,11 @@ export const householdAccess = pgTable(
       to: ownerRole,
       using: sql.raw("role = 'child' AND current_setting('app.document_owner_lookup',true) = 'on'"),
     }),
+    pgPolicy('household_access_birthday_lookup', {
+      for: 'select',
+      to: ownerRole,
+      using: sql`current_setting('app.birthday_lookup',true)='on'`,
+    }),
     // Владелец функции не получает обход RLS: FORCE действует, прямой доступ запрещён.
     // У runtime-ролей нет DML и EXECUTE функции синхронизации.
     pgPolicy('household_access_sync', {
@@ -321,6 +326,7 @@ export const memberProfiles = pgTable(
     displayName: text('display_name').notNull(),
     photoFileId: uuid('photo_file_id'),
     birthDate: date('birth_date'),
+    birthdayEnabled: boolean('birthday_enabled').notNull().default(false),
     phone: text('phone'),
   },
   () => [
@@ -328,6 +334,11 @@ export const memberProfiles = pgTable(
       for: 'select',
       to: appRole,
       using: sql.raw(PROFILES_SELECT_SQL),
+    }),
+    pgPolicy('member_profiles_birthday_lookup', {
+      for: 'select',
+      to: ownerRole,
+      using: sql`account_id=nullif(current_setting('app.birthday_profile',true),'')::uuid AND current_setting('app.birthday_lookup',true)='on'`,
     }),
     pgPolicy('member_profiles_update', {
       for: 'update',

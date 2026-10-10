@@ -96,6 +96,9 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
               contacts_01_kind: 'contact_guard',
               contacts_placement: 'cascade_contact_placement',
               contacts_passport: 'refresh_passport_birthday',
+              contacts_birthday: 'birthday_deadline',
+              contacts_source_metadata: 'sync_source_deadlines',
+              contacts_import: 'contact_import_history',
             }
           : {}),
         ...(name === 'contact_interactions'
@@ -188,6 +191,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ...(name === 'utility_accounts'
             ? ['utility_accounts.utility_accounts_charges_worker:SELECT']
             : []),
+          ...(name === 'contacts' ? ['contacts.contacts_birthday_lookup:SELECT'] : []),
           ...(name === 'documents'
             ? [
                 'documents.documents_object_cascade:UPDATE',
@@ -258,6 +262,7 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'api_operations', // birthdays-matrix.test.ts: собственные неизменяемые ключи.
       'template_applications', // charges-matrix.test.ts: собственные неизменяемые квитанции.
       'export_events', // export-matrix.test.ts: область экспорта, чтение и неизменяемость журнала.
       'push_subscriptions',

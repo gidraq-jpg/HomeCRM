@@ -148,3 +148,34 @@ it('UTIL-9/10: 500 частично оплаченных начислений з
   expect(p95).toBeLessThan(300);
   expect((await admin.get(url)).json<{ items: unknown[] }>().items).toEqual([]);
 }, 120_000);
+
+it('CONT-7: радар 1000 дней рождения, имена только под RLS, p95 до 300 мс', async () => {
+  await world.database.admin.query('DELETE FROM deadlines');
+  await world.database.admin.query(
+    `INSERT INTO contacts(space_id,space_kind,author_id,title,kind,data)
+    SELECT $1,'personal',$2,'Вымышленный день рождения замера '||i,'person','{"birthday":"--10-10","birthdayEnabled":true}' FROM generate_series(1,1000) i`,
+    [world.boris.personalSpaceId, world.boris.id],
+  );
+  await world.database.worker.query(`INSERT INTO deadline_occurrences(deadline_id,date,starts_at,ends_at,time_zone,warnings_at,space_id,space_kind,author_id,assignee_id)
+    SELECT id,'2026-10-10','2026-10-09T19:00:00Z','2026-10-10T18:59:59Z','Asia/Yekaterinburg','["2026-10-09T04:00:00.000Z"]',space_id,space_kind,author_id,assignee_id FROM deadlines WHERE source_kind='birthday'`);
+  await world.database.worker.query('UPDATE deadlines SET needs_refresh=false');
+  const url = '/api/deadlines?from=2026-10-09&to=2027-10-10';
+  for (let i = 0; i < 3; i++) await adult.get(url);
+  const timings: number[] = [];
+  for (let i = 0; i < 20; i++) {
+    const start = performance.now(),
+      response = await adult.get(url);
+    timings.push(performance.now() - start);
+    expect(response.status, response.text).toBe(200);
+    const items = response.json<{ items: { sourceKind: string; contactId: string; age: null }[] }>()
+      .items;
+    expect(items).toHaveLength(1000);
+    expect(items.every((x) => x.sourceKind === 'birthday' && x.contactId && x.age === null)).toBe(
+      true,
+    );
+  }
+  const p95 = percentile(timings, 0.95);
+  console.info(`Birthday radar 1000 contacts: p95=${p95.toFixed(1)} ms`);
+  expect(p95).toBeLessThan(300);
+  expect((await admin.get(url)).json<{ items: unknown[] }>().items).toEqual([]);
+}, 120_000);

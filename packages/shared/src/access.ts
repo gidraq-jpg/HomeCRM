@@ -105,6 +105,19 @@ export function canViewDocument(
 export function canViewDeadline(viewer: Viewer, source: RecordFacts): boolean {
   return canView(viewer, source.placement);
 }
+/** CONT-7: производный срок не открывает дату рождения шире её источника. */
+export function canViewBirthday(
+  viewer: Viewer,
+  source: { contact?: RecordFacts; accountId?: string; houseIds?: readonly string[] },
+): boolean {
+  return source.contact
+    ? !source.contact.trashed && canView(viewer, source.contact.placement)
+    : canViewProfile(viewer, source.accountId ?? '', source.houseIds ?? []);
+}
+/** Технические ключи повтора принадлежат только создавшему их участнику. */
+export function canViewApiOperation(viewer: Viewer, accountId: string): boolean {
+  return viewer.accountId === accountId;
+}
 export function canWriteDeadline(viewer: Viewer, source: RecordFacts): boolean {
   return canWrite(viewer, source);
 }

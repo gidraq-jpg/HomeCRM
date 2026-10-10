@@ -20,6 +20,7 @@ export const ChargeInput = z
     lines: z.array(ChargeLine).max(100).default([]),
     dueOn: CalendarDate.optional(),
     receiptId: z.uuid().nullable().default(null),
+    idempotencyKey: z.uuid().optional(),
   })
   .refine(
     (v) =>
@@ -37,6 +38,7 @@ export const PaymentInput = z.strictObject({
   ]),
   method: z.enum(PAYMENT_METHODS),
   receiptId: z.uuid().nullable().default(null),
+  idempotencyKey: z.uuid().optional(),
 });
 export type PaymentInput = z.infer<typeof PaymentInput>;
 export const CancellationInput = z.strictObject({ reason: z.string().trim().min(1).max(2000) });
