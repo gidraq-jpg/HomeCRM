@@ -5,7 +5,6 @@ import {
   type DocumentCard,
   type DocumentFilters,
   fetchDocument,
-  fetchDocumentFiles,
   fetchDocuments,
   fetchObjectDocuments,
   fetchVersions,
@@ -42,14 +41,6 @@ export function useVersions(id: string, enabled = true) {
     queryKey: [DOCUMENTS, 'versions', id],
     queryFn: ({ signal }) => fetchVersions(id, signal),
     enabled,
-  });
-}
-
-/** Страницы документа (живые файлы). */
-export function useDocumentFiles(id: string) {
-  return useQuery({
-    queryKey: [DOCUMENTS, 'files', id],
-    queryFn: ({ signal }) => fetchDocumentFiles(id, signal),
   });
 }
 

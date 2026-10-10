@@ -11,7 +11,6 @@ import { RESOURCE_UNITS, zoneLabel } from '../meters/labels.ts';
 import { useMeters } from '../meters/queries.ts';
 import { viewerOf } from '../notes/abilities.ts';
 import { KIND_LABELS } from '../people/labels.ts';
-import { useContact } from '../people/queries.ts';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
 import { useToast } from '../ui/Toast.tsx';
@@ -272,7 +271,6 @@ function ReadingItem({ item, meters }: { item: ReadingEvent; meters: readonly Me
 /** Взаимодействие контакта с объектом (CONT-4): вид, кто, что было и сколько стоило. */
 function InteractionItem({ item }: { item: InteractionEvent }) {
   const { me } = useHousehold();
-  const contact = useContact(item.contactId);
   return (
     <li className="timeline__item">
       <div className="timeline__head">
@@ -286,7 +284,7 @@ function InteractionItem({ item }: { item: InteractionEvent }) {
         <span>
           Контакт:{' '}
           <Link className="text-button" to={`/people/contacts/${item.contactId}`}>
-            {contact.data?.title ?? 'открыть'}
+            {item.contactTitle ?? 'открыть'}
           </Link>
         </span>
         {item.amountCents === null ? null : (

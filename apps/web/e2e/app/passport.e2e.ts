@@ -238,7 +238,7 @@ test('владелец документа: человек из контакто�
   await form.getByLabel('Чей документ').selectOption({ label: 'Вымышленный Владелец Олег' });
   await form.getByRole('button', { name: 'Сохранить' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Паспорт Олега' })).toBeVisible();
-  await page.getByRole('link', { name: 'Контакт: открыть' }).click();
+  await page.getByRole('link', { name: 'Вымышленный Владелец Олег', exact: true }).click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Вымышленный Владелец Олег', exact: true }),
   ).toBeVisible();

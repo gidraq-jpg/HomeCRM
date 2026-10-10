@@ -63,7 +63,11 @@ function InteractionItem({
 
   function saveEdited(values: InteractionInput) {
     void save.run(async () => {
-      await patchInteraction(contactId, item.id, { ...values, expectedUpdatedAt: item.updatedAt });
+      await patchInteraction(contactId, item.id, {
+        ...values,
+        ...(item.objectId === null && values.objectId === null ? { objectId: undefined } : {}),
+        expectedUpdatedAt: item.updatedAt,
+      });
       await refresh();
       onClose();
       toast.show({ message: 'Запись сохранена' });

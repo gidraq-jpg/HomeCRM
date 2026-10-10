@@ -34,6 +34,7 @@ import { ObjectTimeline } from './objects/ObjectTimeline.tsx';
 import { NewOrganizationScreen } from './organizations/NewOrganizationScreen.tsx';
 import { OrganizationScreen } from './organizations/OrganizationScreen.tsx';
 import { OrganizationsScreen } from './organizations/OrganizationsScreen.tsx';
+import { ImportScreen } from './people/ImportScreen.tsx';
 import { NewPersonScreen } from './people/NewPersonScreen.tsx';
 import { ContactScreen } from './people/PersonScreen.tsx';
 import { TodayScreen } from './screens/EmptySections.tsx';
@@ -96,6 +97,7 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="documents/new" element={<NewDocumentScreen />} />
         <Route path="documents/:documentId" element={<DocumentScreen />} />
         <Route path="people" element={<PeopleScreen />} />
+        <Route path="people/import" element={<ImportScreen />} />
         <Route path="people/contacts/new" element={<NewPersonScreen />} />
         <Route path="people/contacts/:contactId" element={<ContactScreen />} />
         <Route path="people/invite" element={<InviteScreen />} />

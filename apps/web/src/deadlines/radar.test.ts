@@ -17,6 +17,33 @@ const ZONE = 'Europe/Moscow';
 const NOW = new Date('2026-10-07T09:00:00Z');
 const ME = 'fictional-boris';
 
+it('день рождения ведёт к источнику, возраст появляется только при известном годе', () => {
+  const result = rows([
+    item('birthday-1', {
+      sourceKind: 'birthday',
+      contactId: 'person-1',
+      title: 'Вымышленный друг',
+      age: 40,
+    }),
+    item('birthday-2', {
+      sourceKind: 'birthday',
+      profileAccountId: 'member-1',
+      title: 'Вымышленный участник',
+      age: null,
+    }),
+  ]);
+  expect(result[0]).toMatchObject({
+    what: 'День рождения · исполнится 40',
+    to: '/people/contacts/person-1',
+    utility: null,
+  });
+  expect(result[1]).toMatchObject({
+    what: 'День рождения',
+    to: '/people/members/member-1',
+    utility: null,
+  });
+});
+
 function item(id: string, patch: Partial<RadarItem>): RadarItem {
   return {
     id,

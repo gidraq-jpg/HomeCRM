@@ -47,7 +47,12 @@ describe('срок документа словами (PRD 13)', () => {
 
 describe('срок паспорта РФ по возрасту (DOC-4)', () => {
   const passport = { ...base, type: 'russian_passport' as const, issuedOn: '2020-01-01' };
-  const window = { kind: 'window', date: '2026-12-01', durationDays: 90 };
+  const window = {
+    kind: 'window',
+    date: '2026-12-01',
+    durationDays: 90,
+    passportYears: 20 as const,
+  };
 
   it('окно замены даёт срок до конца окна и подсказку про 20 лет', () => {
     expect(expirySource(passport, window)).toEqual({
@@ -63,12 +68,17 @@ describe('срок паспорта РФ по возрасту (DOC-4)', () => {
     });
   });
 
-  it('45 лет видно по дате выдачи, при неясной дате год не называется', () => {
+  it('граница берётся из API независимо от даты выдачи; без границы возраст не угадывается', () => {
     const late = { ...passport, issuedOn: '2002-01-01' };
-    expect(expirySource(late, { ...window, date: '2031-05-14' })).toMatchObject({ years: 45 });
+    expect(expirySource(late, { ...window, passportYears: 45, date: '2031-05-14' })).toMatchObject({
+      years: 45,
+    });
     const unclear = { ...passport, issuedOn: '2016-01-01' };
-    expect(expirySource(unclear, window)).toMatchObject({ years: null });
-    expect(expirySource({ ...passport, issuedOn: null }, window)).toMatchObject({ years: null });
+    expect(expirySource(unclear, window)).toMatchObject({ years: 20 });
+    expect(expirySource({ ...passport, issuedOn: null }, window)).toMatchObject({ years: 20 });
+    expect(
+      expirySource(passport, { kind: 'window', date: window.date, durationDays: 90 }),
+    ).toMatchObject({ years: null });
   });
 
   it('явный срок и бессрочность важнее вычисленного', () => {

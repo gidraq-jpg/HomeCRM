@@ -85,11 +85,15 @@ describe('форма человека (CONT-1)', () => {
         messengers: [],
         address: '',
         birthday: '--02-29',
+        birthdayEnabled: true,
         note: '',
       },
     });
     expect(back.birthdayNoYear).toBe(true);
     expect(back.birthday).toBe('2000-02-29');
+    expect(back.birthdayEnabled).toBe(true);
+    const edited = toPersonInput(back);
+    expect(edited.ok && edited.value.data.birthdayEnabled).toBe(true);
   });
 
   it('категории идут в порядке справочника', () => {

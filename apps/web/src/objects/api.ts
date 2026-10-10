@@ -209,6 +209,7 @@ export const InteractionEvent = z.object({
   source: z.literal('interaction'),
   interactionId: z.string(),
   contactId: z.string(),
+  contactTitle: z.string().nullable(),
   kind: z.enum(INTERACTION_KINDS),
   /** Календарная дата YYYY-MM-DD: без часового пояса. */
   occurredOn: z.string(),

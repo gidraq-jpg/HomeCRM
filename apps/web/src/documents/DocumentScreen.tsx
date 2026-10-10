@@ -35,7 +35,7 @@ import { DocumentVersions, InvalidNotice } from './DocumentVersions.tsx';
 import { ExpiryNote } from './ExpiryNote.tsx';
 import { draftFrom, renewalDraft } from './form.ts';
 import { DOCUMENT_LABELS, dateLabel, expiryInfo, expirySource, seriesAndNumber } from './labels.ts';
-import { useDocument, useDocumentFiles, useRefreshDocuments } from './queries.ts';
+import { useDocument, useRefreshDocuments } from './queries.ts';
 import { SecretNumber } from './SecretNumber.tsx';
 import { WarningsEditor } from './WarningsEditor.tsx';
 
@@ -75,8 +75,11 @@ function OwnerFact({ card }: { card: DocumentCard }) {
   const { owner } = card;
   if (owner === null) return <>Не указан</>;
   if (owner.kind === 'member') return <>{nameOf(owner.id)}</>;
-  if (owner.kind === 'object') return <Link to={`/home/${owner.id}`}>Объект: открыть</Link>;
-  return <Link to={`/people/contacts/${owner.id}`}>Контакт: открыть</Link>;
+  if (owner.kind === 'object')
+    return <Link to={`/home/${owner.id}`}>{card.objectTitle ?? 'Объект: открыть'}</Link>;
+  return (
+    <Link to={`/people/contacts/${owner.id}`}>{card.ownerContactTitle ?? 'Контакт: открыть'}</Link>
+  );
 }
 
 function DocumentView({ card }: { card: DocumentCard }) {
@@ -86,7 +89,6 @@ function DocumentView({ card }: { card: DocumentCard }) {
   const refresh = useRefreshDocuments();
   const members = useMembers();
   const nameOf = usePersonName();
-  const files = useDocumentFiles(card.id);
   const quick = useAction();
   const save = useAction();
   const [mode, setMode] = useState<'view' | 'edit' | 'renew'>('view');
@@ -336,24 +338,13 @@ function DocumentView({ card }: { card: DocumentCard }) {
         </section>
       )}
 
-      {files.isPending ? <Notice>Загружаем страницы…</Notice> : null}
-      {files.isError ? (
-        <>
-          <DocumentError error={files.error} action="load" />
-          <button className="text-button" type="button" onClick={() => void files.refetch()}>
-            Повторить загрузку страниц
-          </button>
-        </>
-      ) : null}
-      {files.data ? (
-        <FilesSection
-          parent={{ kind: 'document', id: card.id }}
-          card={{ ...card, files: files.data }}
-          canAdd={canChange}
-          refresh={refresh}
-          fullScreenViewer
-        />
-      ) : null}
+      <FilesSection
+        parent={{ kind: 'document', id: card.id }}
+        card={card}
+        canAdd={canChange}
+        refresh={refresh}
+        fullScreenViewer
+      />
 
       <DocumentVersions card={card} />
 

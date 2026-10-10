@@ -25,6 +25,9 @@ export type MonthAccount = z.infer<typeof MonthAccount>;
 const Money = z.object({ chargedCents: Cents, paidCents: Cents, remainingCents: Cents });
 
 export const MonthObject = Money.extend({
+  spaceId: z.string(),
+  spaceKind: z.enum(['personal', 'household']),
+  audience: z.enum(['household', 'adults']).nullable(),
   id: z.string(),
   title: z.string(),
   accounts: z.array(MonthAccount),

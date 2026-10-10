@@ -23,6 +23,7 @@ import { birthdayLabel, categoriesLabel } from './labels.ts';
 import { PersonForm } from './PersonForm.tsx';
 import { useContact, useRefreshContacts } from './queries.ts';
 import type { PersonCard } from './schema.ts';
+import { TrashInteractions } from './TrashPeople.tsx';
 
 export const PEOPLE_BACK = { to: '/people', label: 'Люди' } as const;
 /** Название вкладки одинаковое для всех контактов: ФИО в историю браузера не попадает. */
@@ -143,7 +144,13 @@ function PersonView({ card }: { card: PersonCard }) {
           }}
           onSubmit={(values) =>
             void save.run(async () => {
-              await patchPerson(card.id, { ...values, expectedUpdatedAt: card.updatedAt });
+              await patchPerson(card.id, {
+                ...values,
+                ...(card.organizationId === null && values.organizationId === null
+                  ? { organizationId: undefined }
+                  : {}),
+                expectedUpdatedAt: card.updatedAt,
+              });
               await refresh();
               setEditing(false);
               toast.show({ message: 'Контакт сохранён' });
@@ -239,7 +246,10 @@ function PersonView({ card }: { card: PersonCard }) {
         {data.birthday === null ? null : (
           <div className="facts__item">
             <dt>День рождения</dt>
-            <dd>{birthdayLabel(data.birthday)}</dd>
+            <dd>
+              {birthdayLabel(data.birthday)}
+              {data.birthdayEnabled ? ' · Напоминание включено' : ''}
+            </dd>
           </div>
         )}
         {data.note === '' ? null : (
@@ -261,6 +271,7 @@ function PersonView({ card }: { card: PersonCard }) {
       <ContactObjects contactId={card.id} contactFacts={facts} canLink={!trashed} />
 
       <InteractionsSection contactId={card.id} canAdd={abilities.edit && !trashed} />
+      {!trashed ? <TrashInteractions contactId={card.id} /> : null}
 
       <ObjectError error={quick.error} action="person" />
       {!trashed ? (
