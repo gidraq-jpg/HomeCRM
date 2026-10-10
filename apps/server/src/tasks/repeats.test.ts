@@ -511,3 +511,24 @@ it('TASK-3: разовая дата, исполнитель и политика 
     overduePolicy: 'not_done',
   });
 });
+
+it('TASK-4: фильтр дома сохраняет личный радар выбранного дома', async () => {
+  const date = localDate(new Date(), 'Asia/Yekaterinburg');
+  const note = await adult.post('/api/notes', { title: 'Личный вымышленный радар дома' });
+  expect(note.status, note.text).toBe(201);
+  const noteId = note.json<{ id: string }>().id;
+  const deadline = await adult.post(`/api/notes/${noteId}/deadlines`, {
+    rule: { kind: 'date', date, time: '00:00' },
+    householdId: world.houseId,
+  });
+  expect(deadline.status, deadline.text).toBe(201);
+  await refreshDeadlines(createWorkerDatabase(world.database.worker), new Date(), true);
+  const feed = await adult.get(`/api/tasks/today?householdId=${world.houseId}&scope=personal`);
+  expect(feed.status, feed.text).toBe(200);
+  expect(feed.json<{ radar: { noteId: string; householdId: string }[] }>().radar).toEqual(
+    expect.arrayContaining([expect.objectContaining({ noteId, householdId: world.houseId })]),
+  );
+  expect((await child.get(`/api/tasks/today?householdId=${world.houseId}`)).text).not.toContain(
+    noteId,
+  );
+});

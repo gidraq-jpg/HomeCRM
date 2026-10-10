@@ -62,9 +62,7 @@ export function taskFeeds(route: DataRoute) {
         radar: radar.items.filter(
           (i) =>
             ['now', 'overdue'].includes(i.group ?? '') &&
-            (q.householdId === undefined ||
-              rows.some((t) => t.householdId === q.householdId && t.id === i.taskId) ||
-              i.spaceId === q.householdId) &&
+            (q.householdId === undefined || i.householdId === q.householdId) &&
             (q.scope === 'all' || i.spaceKind === q.scope),
         ),
         recalculating: radar.recalculating,

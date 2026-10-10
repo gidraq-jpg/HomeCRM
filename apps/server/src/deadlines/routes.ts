@@ -354,6 +354,7 @@ export async function readRadar(tx: Transaction, from: string, to: string) {
     sql`SELECT set_config('jit','off',true),set_config('enable_nestloop','off',true)`,
   );
   type RadarRow = typeof deadlineOccurrencesTable.$inferSelect & {
+    householdId: string;
     documentId: string | null;
     contactId: string | null;
     profileAccountId: string | null;
@@ -399,7 +400,7 @@ export async function readRadar(tx: Transaction, from: string, to: string) {
            o.author_id AS "authorId",o.assignee_id AS "assigneeId",o.deleted_at AS "deletedAt",
            d.document_id AS "documentId",d.contact_id AS "contactId",d.profile_account_id AS "profileAccountId",coalesce(bc.data->>'birthday',bp.birth_date::text) AS birthday,
            c.total_cents::text AS "totalCents",c.paid::text AS "paidCents",c.remaining::text AS "remainingCents",
-           d.task_id AS "taskId",d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(d.label,n.title,p.title,doc.title,bc.title,bp.display_name,t.title) AS title,d.charge_id AS "chargeId",
+           d.household_id AS "householdId",d.task_id AS "taskId",d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(d.label,n.title,p.title,doc.title,bc.title,bp.display_name,t.title) AS title,d.charge_id AS "chargeId",
            CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'title',p.title,'status',p.type_data->>'status') END AS object,
            CASE WHEN a.id IS NOT NULL THEN jsonb_build_object('id',a.id,'title',a.title,'number',a.data->>'number','transmission',a.data->'transmission') END AS "utilityAccount",
            (d.source_kind='readings' AND NOT EXISTS (SELECT 1 FROM visible_meters vm WHERE vm.utility_account_id=d.utility_account_id AND vm.is_active AND vm.deleted_at IS NULL)) AS "needsMeters",
