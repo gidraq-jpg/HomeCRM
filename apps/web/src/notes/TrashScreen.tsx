@@ -51,6 +51,8 @@ import { type ContactCard, restoreOrganization } from '../organizations/api.ts';
 import { ORGANIZATION_TYPE_LABELS } from '../organizations/form.ts';
 import { organizationCount } from '../organizations/OrganizationsScreen.tsx';
 import { useOrganizationsList, useRefreshOrganizations } from '../organizations/queries.ts';
+import { useContactsList } from '../people/queries.ts';
+import { TrashPeople } from '../people/TrashPeople.tsx';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
@@ -482,6 +484,7 @@ export function TrashScreen() {
   const organizationsQuery = useOrganizationsList(true, null);
   const accountsQuery = useTrashedAccounts();
   const documentsQuery = useDocumentsList({ ...NO_FILTERS, status: 'all' }, true);
+  const peopleQuery = useContactsList({ kind: 'person', category: null, query: '' }, true);
   const { scope, setScope } = useScope();
 
   if (notesQuery.isPending || objectsQuery.isPending || filesQuery.isPending) {
@@ -526,7 +529,8 @@ export function TrashScreen() {
     deadlines.length +
     organizations.length +
     accounts.length +
-    documents.length;
+    documents.length +
+    (peopleQuery.data?.pages.flat().length ?? 0);
   const failed =
     notesQuery.data === undefined ||
     objectsQuery.data === undefined ||
@@ -538,10 +542,13 @@ export function TrashScreen() {
     accountsQuery.isError ||
     accountsQuery.isPending ||
     documentsQuery.isError ||
-    documentsQuery.isPending;
+    documentsQuery.isPending ||
+    peopleQuery.isPending ||
+    peopleQuery.isError;
 
   return (
     <Page title="Корзина" back={BACK} {...(total > 0 ? { eyebrow: recordCount(total) } : {})}>
+      <TrashPeople query={peopleQuery} />
       {deadlinesQuery.isPending ? <Notice>Загружаем удалённые сроки…</Notice> : null}
       {deadlinesQuery.isError ? (
         <>

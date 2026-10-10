@@ -16,6 +16,11 @@ export const Member = z.object({
   photoFileId: z.string().nullable(),
   /** `YYYY-MM-DD` или `null`. */
   birthDate: z.string().nullable(),
+  // У бывшего участника профиль скрыт RLS: LEFT JOIN возвращает null.
+  birthdayEnabled: z
+    .boolean()
+    .nullish()
+    .transform((value) => value ?? false),
   phone: z.string().nullable(),
 });
 export type Member = z.infer<typeof Member>;
@@ -24,6 +29,7 @@ export const Profile = z.object({
   displayName: z.string(),
   photoFileId: z.string().nullable(),
   birthDate: z.string().nullable(),
+  birthdayEnabled: z.boolean().default(false),
   phone: z.string().nullable(),
 });
 export type Profile = z.infer<typeof Profile>;
@@ -31,6 +37,7 @@ export type Profile = z.infer<typeof Profile>;
 export interface ProfileChange {
   displayName?: string;
   birthDate?: string | null;
+  birthdayEnabled?: boolean;
   phone?: string | null;
 }
 

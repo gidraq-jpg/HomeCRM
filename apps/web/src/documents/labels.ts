@@ -69,6 +69,7 @@ export interface ExpiryRuleLike {
   date?: string | undefined;
   durationDays?: number | undefined;
   eventDate?: string | null | undefined;
+  passportYears?: 20 | 45 | undefined;
 }
 
 /** Поля документа, от которых зависит срок. */
@@ -88,19 +89,11 @@ export type ExpirySource =
       /** Начало окна замены (день рождения, на который приходится граница) и его конец. */
       start: DateOnly;
       until: DateOnly;
-      /** 20 или 45, если это видно по дате выдачи; иначе неизвестно. */
+      /** 20 или 45 из правила сервера; иначе неизвестно. */
       years: 20 | 45 | null;
     }
   | { kind: 'pending' }
   | { kind: 'none' };
-
-/** Сколько лет, по дате выдачи, остаётся до границы: до 7 лет — первая замена (20), от 20 — вторая (45). */
-function passportYears(issuedOn: string | null, start: DateOnly): 20 | 45 | null {
-  if (issuedOn === null) return null;
-  const years = daysBetween(issuedOn as DateOnly, start) / 365.25;
-  if (years <= 7) return 20;
-  return years >= 20 ? 45 : null;
-}
 
 /**
  * Откуда взят срок. Паспорт РФ без явной даты получает от сервера окно замены по возрасту (`window`)
@@ -119,7 +112,7 @@ export function expirySource(
         kind: 'age',
         start,
         until: addDays(start, rule.durationDays ?? 0),
-        years: passportYears(data.issuedOn ?? null, start),
+        years: rule.passportYears ?? null,
       };
     }
     if (rule.kind === 'after' && (rule.eventDate === null || rule.eventDate === undefined)) {

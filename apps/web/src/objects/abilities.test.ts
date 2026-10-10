@@ -44,6 +44,7 @@ const member = (accountId: string, role: Member['role'], formerMember = false): 
   leftAt: null,
   photoFileId: null,
   birthDate: null,
+  birthdayEnabled: false,
   phone: null,
 });
 

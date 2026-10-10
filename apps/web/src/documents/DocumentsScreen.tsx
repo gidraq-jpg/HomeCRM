@@ -64,9 +64,9 @@ export function DocumentRows({
           document.owner?.kind === 'member'
             ? nameOf(document.owner.id)
             : document.owner?.kind === 'object'
-              ? 'Объект'
+              ? (document.objectTitle ?? 'Объект')
               : document.owner?.kind === 'contact'
-                ? 'Контакт'
+                ? (document.ownerContactTitle ?? 'Контакт')
                 : null;
         return (
           <Row

@@ -38,6 +38,7 @@ export interface PersonDraft {
   birthday: string;
   /** Год неизвестен: сохраняется `--MM-DD`. */
   birthdayNoYear: boolean;
+  birthdayEnabled: boolean;
   organizationId: string;
   note: string;
 }
@@ -58,6 +59,7 @@ export function emptyPersonDraft(categories: PersonCategory[] = []): PersonDraft
     address: '',
     birthday: '',
     birthdayNoYear: false,
+    birthdayEnabled: false,
     organizationId: '',
     note: '',
   };
@@ -79,6 +81,7 @@ export function personDraft(
     birthday:
       data.birthday === null ? '' : noYear ? `2000${data.birthday.slice(1)}` : data.birthday,
     birthdayNoYear: noYear,
+    birthdayEnabled: data.birthdayEnabled ?? false,
     organizationId: card.organizationId ?? '',
     note: data.note,
   };
@@ -181,6 +184,7 @@ export function toPersonInput(draft: PersonDraft): PersonResult {
     messengers,
     address,
     birthday,
+    birthdayEnabled: draft.birthdayEnabled,
     note: draft.note,
   });
   if (!parsed.success) {

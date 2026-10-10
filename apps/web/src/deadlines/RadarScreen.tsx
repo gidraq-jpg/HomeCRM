@@ -8,7 +8,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
-import { countWord } from '../ui/format.ts';
+import { countWord, formatRub } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { Row, RowContent, RowList } from '../ui/Row.tsx';
 import { DeadlineError, RecalculatingNotice } from './components.tsx';
@@ -66,6 +66,9 @@ function UtilityRadarItem({ row }: { row: RadarRow }) {
             <>
               <span className="radar-line">
                 {row.what} · {utility.source}
+                {utility.remainingCents == null
+                  ? null
+                  : ` · осталось ${formatRub(utility.remainingCents)}`}
               </span>
               <span className="radar-line">
                 {row.when} · {row.relative}

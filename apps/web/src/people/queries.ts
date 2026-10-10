@@ -22,16 +22,15 @@ import type { AnyContact } from './schema.ts';
 const CONTACTS = 'contacts';
 
 /** Список людей и организаций под фильтры и режим «Всё · Общее · Личное»; постранично. */
-export function useContactsList(filters: Omit<ContactFilters, 'scope'>) {
+export function useContactsList(filters: Omit<ContactFilters, 'scope'>, trash = false) {
   const { scope } = useScope();
   const full: ContactFilters = { ...filters, scope: listScopeOf(scope) };
   return useInfiniteQuery({
-    queryKey: [CONTACTS, 'list', full],
+    queryKey: [CONTACTS, 'list', full, trash],
     initialPageParam: 0,
     // Набор в поиске не заменяет экран на «Загружаем…»: прежний список виден, фокус на месте.
     placeholderData: keepPreviousData,
-    queryFn: ({ pageParam, signal }) =>
-      fetchContacts(full, { trash: false, offset: pageParam }, signal),
+    queryFn: ({ pageParam, signal }) => fetchContacts(full, { trash, offset: pageParam }, signal),
     getNextPageParam: (last: AnyContact[], pages) =>
       last.length < PAGE_SIZE ? undefined : pages.length * PAGE_SIZE,
   });
@@ -55,11 +54,12 @@ export function usePeopleOptions(enabled = true) {
 }
 
 /** Лента взаимодействий контакта: страницами, новые сверху. */
-export function useInteractions(contactId: string) {
+export function useInteractions(contactId: string, trash = false, enabled = true) {
   return useInfiniteQuery({
-    queryKey: [CONTACTS, 'interactions', contactId],
+    queryKey: [CONTACTS, 'interactions', contactId, trash],
+    enabled,
     initialPageParam: 0,
-    queryFn: ({ pageParam, signal }) => fetchInteractions(contactId, pageParam, signal),
+    queryFn: ({ pageParam, signal }) => fetchInteractions(contactId, pageParam, signal, trash),
     getNextPageParam: (last: Interaction[], pages) =>
       last.length < PAGE_SIZE ? undefined : pages.length * PAGE_SIZE,
   });

@@ -4,11 +4,13 @@ import { type FormEvent, useId, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
+import { useRefreshDeadlines } from '../deadlines/queries.ts';
 import { leaveHousehold, type Profile, type ProfileChange, saveProfile } from '../household/api.ts';
 import { ActionError, Avatar } from '../household/components.tsx';
 import { isResponsibilityPending } from '../household/errors.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMyProfile, useRefresh } from '../household/queries.ts';
+import { CheckLine } from '../ui/CheckLine.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { type DateOnly, formatFullDate, toTelHref } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
@@ -33,6 +35,8 @@ function ProfileForm({
 }) {
   const { reloadMe } = useHousehold();
   const refresh = useRefresh();
+  const refreshDeadlines = useRefreshDeadlines();
+  const [birthdayEnabled, setBirthdayEnabled] = useState(profile.birthdayEnabled);
   const toast = useToast();
   const state = useAction();
   const ids = { name: useId(), birth: useId(), phone: useId() };
@@ -42,6 +46,7 @@ function ProfileForm({
     const data = new FormData(event.currentTarget);
     const text = (key: string) => String(data.get(key) ?? '').trim();
     const change: ProfileChange = {};
+    if (birthdayEnabled !== profile.birthdayEnabled) change.birthdayEnabled = birthdayEnabled;
     if (text('displayName') !== profile.displayName) change.displayName = text('displayName');
     if ((text('birthDate') || null) !== profile.birthDate)
       change.birthDate = text('birthDate') || null;
@@ -49,7 +54,7 @@ function ProfileForm({
     void state.run(async () => {
       if (Object.keys(change).length > 0) {
         await saveProfile(change);
-        await Promise.all([refresh.profile(), refresh.members(), reloadMe()]);
+        await Promise.all([refresh.profile(), refresh.members(), reloadMe(), refreshDeadlines()]);
         toast.show({ message: 'Профиль сохранён' });
       }
       onSaved();
@@ -94,6 +99,9 @@ function ProfileForm({
           autoComplete="tel"
         />
       </label>
+      <CheckLine checked={birthdayEnabled} onChange={setBirthdayEnabled}>
+        Напоминать о дне рождения
+      </CheckLine>
       <ActionError error={state.error} action="profile" />
       <div className="btn-row">
         <button type="submit" className="btn btn--primary" disabled={state.disabled}>
@@ -208,6 +216,7 @@ export function ProfileScreen() {
     displayName: me.displayName,
     photoFileId: null,
     birthDate: null,
+    birthdayEnabled: false,
     phone: null,
   };
   const birth = birthDateText(profile.birthDate);

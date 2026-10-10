@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useId, useState } from 'react';
 import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
-import { cancelPayment, fetchPayments } from '../charges/api.ts';
+import { cancelPayment } from '../charges/api.ts';
 import { useRefreshCharges } from '../charges/queries.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { computedNextVerification } from '../meters/form.ts';
@@ -12,7 +12,6 @@ import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { completePayment, completeReadings, fetchMeterCard, verifyMeter } from './api.ts';
 import { DeadlineError } from './components.tsx';
-import { liveIds, type MarkOutcome, markOutcome } from './markPayment.ts';
 import { useRefreshDeadlines } from './queries.ts';
 import type { UtilityRow } from './radar.ts';
 
@@ -76,32 +75,13 @@ export function MarkReadingsButton({
 /** Причина отмены оплаты, созданной отметкой в радаре, если её сняли сразу: деньги не удаляются. */
 export const UNDO_MARK_REASON = 'Отметка снята сразу после создания';
 
-function MarkPaymentButton({
-  occurrenceId,
-  chargeId,
-  label,
-}: {
-  occurrenceId: string;
-  /** Начисление срока, если радар его знает: тогда до отметки снимается слепок оплат. */
-  chargeId: string | null;
-  label: string;
-}) {
-  const { me } = useHousehold();
+function MarkPaymentButton({ occurrenceId, label }: { occurrenceId: string; label: string }) {
   const refresh = useRefreshDeadlines();
   const refreshCharges = useRefreshCharges();
   const toast = useToast();
   const state = useAction();
 
   async function mark() {
-    // Слепок живых оплат «до»: без него нельзя узнать, какая оплата создана отметкой.
-    let before: ReadonlySet<string> | null = null;
-    if (chargeId !== null) {
-      try {
-        before = liveIds(await fetchPayments(chargeId));
-      } catch {
-        before = null;
-      }
-    }
     const marked = await completePayment(occurrenceId, true);
     const markedCharge = marked.chargeId ?? null;
     if (markedCharge === null) {
@@ -121,19 +101,11 @@ function MarkPaymentButton({
       });
       return;
     }
-    let outcome: MarkOutcome = { kind: 'unknown' };
-    if (before !== null && markedCharge === chargeId) {
-      try {
-        outcome = markOutcome(before, await fetchPayments(markedCharge), me.id);
-      } catch {
-        outcome = { kind: 'unknown' };
-      }
-    }
     await Promise.all([refresh(), refreshCharges()]);
-    if (outcome.kind === 'already-paid') {
+    if (marked.paymentId === null) {
       toast.show({ message: 'Начисление уже оплачено', detail: 'Новая оплата не создана.' });
-    } else if (outcome.kind === 'created') {
-      const { paymentId } = outcome;
+    } else {
+      const paymentId = marked.paymentId;
       toast.show({
         message: 'Оплата отмечена',
         detail: 'Оплата на остаток записана в начислении.',
@@ -147,11 +119,6 @@ function MarkPaymentButton({
               .catch(() => toast.show({ message: 'Не удалось снять отметку' }));
           },
         },
-      });
-    } else {
-      toast.show({
-        message: 'Оплата отмечена',
-        detail: 'Отменить её можно в начислении.',
       });
     }
   }
@@ -325,7 +292,6 @@ export function UtilityActions({
     primary = (
       <MarkPaymentButton
         occurrenceId={action.occurrenceId}
-        chargeId={utility.chargeId}
         label={action.label || FALLBACK.mark_payment}
       />
     );

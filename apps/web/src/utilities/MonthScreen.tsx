@@ -1,8 +1,11 @@
 import { CalendarBlank, CaretLeft, CaretRight, Gauge, Plus, Receipt } from '@phosphor-icons/react';
 import { Link, useSearchParams } from 'react-router';
+import { useScope } from '../access/ScopeContext.tsx';
+import { matchesScope } from '../access/scope.ts';
 import { ApiError } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { visibilityOf } from '../notes/abilities.ts';
 import { todayIn } from '../objects/dates.ts';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { countWord, formatRub } from '../ui/format.ts';
@@ -96,6 +99,7 @@ function ObjectMonth({ object }: { object: MonthObject }) {
  */
 export function MonthScreen() {
   const { me } = useHousehold();
+  const { scope } = useScope();
   const [params, setParams] = useSearchParams();
   const current = monthOf(todayIn(me.timeZone));
   const requested = params.get('month');
@@ -162,7 +166,15 @@ export function MonthScreen() {
     );
   }
 
-  const { objects, totals } = query.data;
+  const objects = query.data.objects.filter((object) => matchesScope(visibilityOf(object), scope));
+  const totals = objects.reduce(
+    (sum, object) => ({
+      chargedCents: sum.chargedCents + object.chargedCents,
+      paidCents: sum.paidCents + object.paidCents,
+      remainingCents: sum.remainingCents + object.remainingCents,
+    }),
+    { chargedCents: 0, paidCents: 0, remainingCents: 0 },
+  );
   const nothing = totals.chargedCents === 0 && totals.paidCents === 0;
   const first = objects.find((object) => object.accounts.length > 0);
   const firstAccount = first?.accounts[0];

@@ -390,6 +390,12 @@ export function PersonForm({
         />
         <FieldError id={id('birthday-error')} text={errors?.birthday} />
         <CheckLine
+          checked={values.birthdayEnabled}
+          onChange={(checked) => set({ birthdayEnabled: checked })}
+        >
+          Напоминать о дне рождения
+        </CheckLine>
+        <CheckLine
           checked={values.birthdayNoYear}
           onChange={(checked) => set({ birthdayNoYear: checked })}
         >

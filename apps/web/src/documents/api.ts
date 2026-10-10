@@ -35,6 +35,7 @@ export const ExpiryRule = z.object({
   date: z.string().optional(),
   durationDays: z.number().optional(),
   eventDate: z.string().nullable().optional(),
+  passportYears: z.union([z.literal(20), z.literal(45)]).optional(),
 });
 export type ExpiryRule = z.infer<typeof ExpiryRule>;
 
@@ -55,6 +56,9 @@ export const DocumentCard = z.object({
   previousId: z.string().nullable(),
   /** Скрытый владелец-контакт приходит как `null`, как и отсутствующий. */
   owner: DocumentOwnerRef.nullable(),
+  objectTitle: z.string().nullable().default(null),
+  ownerContactTitle: z.string().nullable().default(null),
+  files: z.array(FileMeta).default([]),
   /** Эффективные предупреждения: свои из `data.warnings` или значения типа (приложение Б). */
   warnings: z.array(z.number()).optional(),
   /** Производное правило срока; `null` у бессрочных и документов без срока. */
@@ -176,9 +180,4 @@ export function shareDocument(id: string, spaceId: string) {
 
 export function changeAssignee(id: string, assigneeId: string) {
   return apiRequest('POST', `documents/${id}/assignee`, DocumentCard, { assigneeId });
-}
-
-/** Страницы документа (живые файлы): в карточке документа их нет, они приходят отдельным запросом. */
-export function fetchDocumentFiles(id: string, signal?: AbortSignal) {
-  return apiRequest('GET', `documents/${id}/files`, z.array(FileMeta), undefined, signal);
 }

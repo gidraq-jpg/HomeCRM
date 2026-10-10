@@ -105,6 +105,11 @@ export function ContactsList() {
           Добавить человека
         </Link>
       ) : null}
+      {canCreatePerson ? (
+        <Link className="btn btn--secondary" to="/people/import">
+          Импорт из файла
+        </Link>
+      ) : null}
       {canCreateOrganization ? (
         <Link className="btn btn--secondary" to={NEW_ORGANIZATION_FROM_PEOPLE}>
           <Plus size={20} weight="bold" aria-hidden />

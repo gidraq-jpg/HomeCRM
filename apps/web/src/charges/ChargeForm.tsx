@@ -5,6 +5,7 @@ import type { useAction } from '../auth/components.tsx';
 import type { ObjectCard } from '../objects/api.ts';
 import type { DateOnly } from '../ui/format.ts';
 import { formatRub, formatShortDate } from '../ui/format.ts';
+import { useOperationKey } from '../ui/useOperationKey.ts';
 import type { ChargeInput } from './api.ts';
 import { ChargeError } from './components.tsx';
 import {
@@ -56,6 +57,7 @@ export function ChargeForm({
   const [errors, setErrors] = useState<ChargeErrors | null>(null);
   const [nextKey, setNextKey] = useState(1);
   const base = useId();
+  const keyOf = useOperationKey();
   const id = (name: string) => `${base}-${name}`;
   const set = (change: Partial<ChargeDraft>) =>
     setDraft((previous) => ({ ...previous, ...change }));
@@ -90,7 +92,7 @@ export function ChargeForm({
       return;
     }
     setErrors(null);
-    onSubmit(result.input);
+    onSubmit({ ...result.input, idempotencyKey: keyOf(result.input) });
   }
 
   return (

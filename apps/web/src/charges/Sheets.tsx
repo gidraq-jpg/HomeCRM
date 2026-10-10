@@ -4,6 +4,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
 import type { ObjectCard } from '../objects/api.ts';
 import { Sheet } from '../ui/Sheet.tsx';
+import { useOperationKey } from '../ui/useOperationKey.ts';
 import type { PaymentInput, PaymentMethod } from './api.ts';
 import { ChargeError } from './components.tsx';
 import {
@@ -50,6 +51,7 @@ export function PaymentSheet({
   const [methodTouched, setMethodTouched] = useState(false);
   const [errors, setErrors] = useState<PaymentErrors | null>(null);
   const base = useId();
+  const keyOf = useOperationKey();
   const id = (name: string) => `${base}-${name}`;
   const set = (change: Partial<PaymentDraft>) =>
     setDraft((previous) => ({ ...previous, ...change }));
@@ -72,7 +74,7 @@ export function PaymentSheet({
     }
     setErrors(null);
     void state.run(async () => {
-      await onSubmit(result.input);
+      await onSubmit({ ...result.input, idempotencyKey: keyOf(result.input) });
     });
   }
 

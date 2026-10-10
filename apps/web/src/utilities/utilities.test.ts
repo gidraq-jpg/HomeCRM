@@ -37,6 +37,9 @@ describe('ответы месяца и аналитики', () => {
         {
           id: 'a',
           title: 'Квартира',
+          spaceId: 'house',
+          spaceKind: 'household',
+          audience: 'adults',
           chargedCents: 10000,
           paidCents: 4000,
           remainingCents: 6000,

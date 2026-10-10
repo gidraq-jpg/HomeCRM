@@ -64,6 +64,7 @@ export const Payment = z.object({
 export type Payment = z.infer<typeof Payment>;
 
 export interface ChargeInput {
+  idempotencyKey?: string;
   period: string;
   totalCents: number;
   lines?: ChargeLine[];
@@ -72,6 +73,7 @@ export interface ChargeInput {
 }
 
 export interface PaymentInput {
+  idempotencyKey?: string;
   paidOn: string;
   amountCents: number;
   payer: Payer;

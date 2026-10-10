@@ -80,6 +80,7 @@ export interface UtilityRow {
   action: PrimaryAction | null;
   /** Окно без активных счётчиков: вместо показаний — подсказка и «Передано». */
   needsMeters: boolean;
+  remainingCents?: number | null;
   startDate: DateOnly;
   endDate: DateOnly;
   /** Управляемый срок не правится в радаре: вместо этого ссылка на счёт или счётчик. */
@@ -129,7 +130,13 @@ export function cardPath(kind: SourceKind, id: string): string {
 
 /** Коммунальный срок из пункта радара; прежние сроки и пункты без объекта дают `null`. */
 export function utilityOf(item: RadarItem, endsAt: Date): UtilityRow | null {
-  if (item.sourceKind === 'record' || item.sourceKind === 'document' || !item.object) return null;
+  if (
+    item.sourceKind === 'record' ||
+    item.sourceKind === 'document' ||
+    item.sourceKind === 'birthday' ||
+    !item.object
+  )
+    return null;
   const objectId = item.object.id;
   const account = item.utilityAccount ?? null;
   const meter = item.meter ?? null;
@@ -146,6 +153,7 @@ export function utilityOf(item: RadarItem, endsAt: Date): UtilityRow | null {
     meterId: meter?.id ?? null,
     action: item.primaryAction ?? null,
     needsMeters: item.needsMeters,
+    remainingCents: item.remainingCents ?? null,
     startDate: item.date as DateOnly,
     endDate: todayIn(item.timeZone, endsAt),
     openLabel: isMeterSource ? 'Открыть счётчик' : 'Открыть счёт',
@@ -177,6 +185,25 @@ export function buildRows(items: readonly RadarItem[], context: RowContext): Rad
         startsAt: timing.startsAt.getTime(),
         to: utility.openTo,
         utility,
+      };
+    }
+    if (item.sourceKind === 'birthday') {
+      return {
+        id: item.id,
+        group: item.group,
+        title: item.title ?? null,
+        what: item.age == null ? 'День рождения' : `День рождения · исполнится ${item.age}`,
+        when: occurrenceWhen(timing, item.timeZone, context.now),
+        relative: occurrenceRelative(timing, item.timeZone, context.now),
+        visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
+        assigneeId: item.assigneeId,
+        startsAt: timing.startsAt.getTime(),
+        to: item.contactId
+          ? `/people/contacts/${item.contactId}`
+          : item.profileAccountId
+            ? `/people/members/${item.profileAccountId}`
+            : null,
+        utility: null,
       };
     }
     // Срок документа (DOC-3): название приходит с сервером, переход — в карточку документа.

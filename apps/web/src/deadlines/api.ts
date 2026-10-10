@@ -61,8 +61,18 @@ export function fetchTrashedDeadlines(signal?: AbortSignal) {
 }
 
 /** Вид источника срока (ADR-0033): прежний срок записи или управляемый срок счёта или счётчика. */
-export const SOURCE_KINDS = ['record', 'readings', 'payment', 'verification', 'document'] as const;
-export type UtilitySourceKind = Exclude<(typeof SOURCE_KINDS)[number], 'record' | 'document'>;
+export const SOURCE_KINDS = [
+  'record',
+  'readings',
+  'payment',
+  'verification',
+  'document',
+  'birthday',
+] as const;
+export type UtilitySourceKind = Exclude<
+  (typeof SOURCE_KINDS)[number],
+  'record' | 'document' | 'birthday'
+>;
 
 /** Основное действие пункта радара (docs/utility-deadlines-api.md). Подписи приходят с сервера. */
 export const PrimaryAction = z.object({
@@ -113,6 +123,13 @@ export const RadarItem = z.object({
   needsMeters: z.boolean().default(false),
   /** Начисление, к которому относится срок оплаты (R1a.7–8); у прежних сроков пусто. */
   chargeId: z.string().nullish(),
+  contactId: z.string().nullish(),
+  profileAccountId: z.string().nullish(),
+  birthday: z.string().nullish(),
+  age: z.number().int().nullish(),
+  totalCents: z.number().int().nullish(),
+  paidCents: z.number().int().nullish(),
+  remainingCents: z.number().int().nullish(),
   primaryAction: PrimaryAction.nullish(),
 });
 export type RadarItem = z.infer<typeof RadarItem>;
@@ -138,6 +155,7 @@ export function saveTimeZone(householdId: string, timeZone: string) {
 }
 
 const Marked = z.object({
+  paymentId: z.string().nullable().default(null),
   id: z.string(),
   completedAt: z.string().nullable(),
   /** Начисление, по которому создана оплата на остаток; у прежней отметки поля нет. */

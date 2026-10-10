@@ -119,10 +119,21 @@ export interface InteractionInput {
   objectId: string | null;
 }
 
-export type InteractionChange = InteractionInput & { expectedUpdatedAt?: string };
+export type InteractionChange = Omit<InteractionInput, 'objectId'> & {
+  objectId?: string | null;
+} & { expectedUpdatedAt?: string };
 
-export function fetchInteractions(contactId: string, offset: number, signal?: AbortSignal) {
-  const query = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
+export function fetchInteractions(
+  contactId: string,
+  offset: number,
+  signal?: AbortSignal,
+  trash = false,
+) {
+  const query = new URLSearchParams({
+    trash: String(trash),
+    limit: String(PAGE_SIZE),
+    offset: String(offset),
+  });
   return apiRequest(
     'GET',
     `contacts/${contactId}/interactions?${query}`,
