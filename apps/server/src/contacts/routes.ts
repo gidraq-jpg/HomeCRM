@@ -54,8 +54,10 @@ const organization = sql<{
   title: string;
 } | null>`(SELECT jsonb_build_object('id',o.id,'title',o.title) FROM contacts o WHERE o.id=contacts.organization_id AND o.kind='organization' AND o.deleted_at IS NULL)`;
 function present(row: typeof contacts.$inferSelect, org: { id: string; title: string } | null) {
-  const data =
-    row.kind === 'person' ? PersonData.parse(row.data) : OrganizationData.parse(row.data);
+  const person = row.kind === 'person' ? PersonData.parse(row.data) : null;
+  const data = person
+    ? { ...person, birthdayEnabled: person.birthdayEnabled ?? false }
+    : OrganizationData.parse(row.data);
   return {
     ...publicRecord(row),
     kind: row.kind,
@@ -124,7 +126,10 @@ export async function contactRoutes(route: DataRoute) {
         ...columnsOf(place),
         title: body.title,
         kind: body.kind,
-        data: parsed.data,
+        data:
+          parsed.kind === 'person'
+            ? { ...parsed.data, birthdayEnabled: parsed.data.birthdayEnabled ?? false }
+            : parsed.data,
         organizationId: body.organizationId,
         authorId: account.id,
       })
@@ -185,8 +190,17 @@ export async function contactRoutes(route: DataRoute) {
     const row = await getContact(tx, account, parse(Id, request.params).id, true);
     requireWrite(account, row, 'contact');
     version(body.expectedUpdatedAt, row.updatedAt);
+    const parsed =
+      body.data === undefined ? undefined : parse(Create, { kind: row.kind, data: body.data });
     const data =
-      body.data === undefined ? undefined : parse(Create, { kind: row.kind, data: body.data }).data;
+      parsed?.kind === 'person'
+        ? {
+            ...parsed.data,
+            // Форма может не знать о настройке напоминания; явный false выключает её.
+            birthdayEnabled:
+              parsed.data.birthdayEnabled ?? PersonData.parse(row.data).birthdayEnabled ?? false,
+          }
+        : parsed?.data;
     let organizationId = body.organizationId;
     if (organizationId === null && row.organizationId) {
       const [visible] = await tx

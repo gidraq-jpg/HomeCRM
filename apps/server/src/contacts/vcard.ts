@@ -100,6 +100,7 @@ export function parseVCard(content: string): ImportedPerson[] {
         emails: (fields.get('EMAIL') ?? []).map(decodeText),
         address: split(first('ADR'), ';').map(decodeText).filter(Boolean).join(', '),
         birthday: birth?.success ? birth.data : null,
+        birthdayEnabled: false,
         note: decodeText(first('NOTE')),
       });
       if (!title || title.length > 200 || !data.success) invalid();
@@ -142,6 +143,7 @@ export function mergePerson(existing: PersonData, incoming: PersonData): PersonD
     if (!emails.some((e) => e.toLowerCase() === email.toLowerCase())) emails.push(email);
   const parsed = PersonData.safeParse({
     ...existing,
+    birthdayEnabled: existing.birthdayEnabled ?? false,
     phones,
     emails,
     address: existing.address || incoming.address,

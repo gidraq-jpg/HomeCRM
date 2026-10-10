@@ -39,8 +39,8 @@ export const PersonData = z.strictObject({
     .default([]),
   address: z.string().trim().max(4000).default(''),
   birthday: ContactBirthday.nullable().default(null),
-  // Старые карточки могут не содержать флаг; Zod 4 применяет default и внутри optional.
-  birthdayEnabled: z.boolean().default(false).optional(),
+  // Отсутствующий флаг при правке означает сохранение текущего напоминания.
+  birthdayEnabled: z.boolean().optional(),
   note: z.string().max(10000).default(''),
 });
 export type PersonData = z.infer<typeof PersonData>;

@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createWorkerDatabase, sql } from '@homecrm/db';
+import { PersonData } from '@homecrm/shared';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import webpush from 'web-push';
 import {
@@ -179,6 +180,50 @@ it('CONT-6: общий импорт фиксируется в истории; UR
   );
   expect(world.requestLog.join('')).not.toContain('import@example.test');
   expect(world.requestLog.join('')).not.toContain('Заметка импорта');
+});
+it('CONT-7: правка контакта без поля напоминания сохраняет его', async () => {
+  const created = await person({ birthday: '--10-10' });
+  expect(created.data.birthdayEnabled).toBe(false);
+  const url = `/api/contacts/${created.id}`;
+  const enabled = await adult.request('PATCH', url, {
+    json: { data: { ...created.data, birthdayEnabled: true } },
+  });
+  expect(enabled.status, enabled.text).toBe(200);
+  const db = createWorkerDatabase(world.database.worker);
+  await refreshDeadlines(db, new Date('2026-10-09T05:00:00Z'), true);
+  const radarUrl = '/api/deadlines?from=2026-10-01&to=2027-10-02';
+  const deadline = (await adult.get(radarUrl))
+    .json<{
+      items: { id: string; contactId: string }[];
+    }>()
+    .items.find((i) => i.contactId === created.id);
+  expect(deadline).toBeDefined();
+
+  // Текущая форма передаёт все поля data, кроме birthdayEnabled, через общую схему.
+  const formData = PersonData.parse({ birthday: '--10-10', note: 'Исправленная заметка' });
+  expect(formData.birthdayEnabled).toBeUndefined();
+  const edited = await adult.request('PATCH', url, {
+    json: { title: 'Исправленное имя', data: formData, organizationId: null },
+  });
+  expect(edited.status, edited.text).toBe(200);
+  expect(edited.json<Contact>().data).toMatchObject({
+    birthdayEnabled: true,
+    birthday: '--10-10',
+    note: 'Исправленная заметка',
+  });
+  expect((await adult.get(url)).json<Contact>().data.birthdayEnabled).toBe(true);
+  expect(
+    (await adult.get(radarUrl))
+      .json<{ items: { id: string; contactId: string }[] }>()
+      .items.find((i) => i.contactId === created.id)?.id,
+  ).toBe(deadline?.id);
+
+  const disabled = await adult.request('PATCH', url, {
+    json: { data: { ...formData, birthdayEnabled: false } },
+  });
+  expect(disabled.status, disabled.text).toBe(200);
+  expect(disabled.json<Contact>().data.birthdayEnabled).toBe(false);
+  expect((await adult.get(radarUrl)).text).not.toContain(created.id);
 });
 it('CONT-7: ежегодный срок без возраста, предупреждения 7/1; взрослый контакт скрыт ребёнку, выключение немедленное', async () => {
   const row = await person({ birthday: '--10-10', birthdayEnabled: true }, 'adults');
