@@ -13,6 +13,8 @@ interface VisibilityPickerProps {
   /** Какие значения предложить: при «Поделиться…» личное не предлагается. */
   options?: readonly Visibility[];
   legend?: string;
+  /** Особое пояснение, когда действие сохраняет доступ существующей записи. */
+  hint?: string;
 }
 
 /**
@@ -24,6 +26,7 @@ export function VisibilityPicker({
   onChange,
   options = VISIBILITIES,
   legend = 'Кто видит',
+  hint,
 }: VisibilityPickerProps) {
   const name = useId();
   return (
@@ -49,7 +52,7 @@ export function VisibilityPicker({
           );
         })}
       </div>
-      <p className="visibility__hint">{VISIBILITY_HINTS[value]}</p>
+      <p className="visibility__hint">{hint ?? VISIBILITY_HINTS[value]}</p>
     </fieldset>
   );
 }

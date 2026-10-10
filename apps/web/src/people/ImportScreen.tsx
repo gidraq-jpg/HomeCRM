@@ -1,18 +1,20 @@
 import { useId, useRef, useState } from 'react';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
-import type { Visibility } from '../access/visibility.ts';
+import { VISIBILITIES, VISIBILITY_LABELS, type Visibility } from '../access/visibility.ts';
 import { ApiError } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { viewerOf } from '../notes/abilities.ts';
+import { viewerOf, visibilityOf } from '../notes/abilities.ts';
 import {
   creatableOrganizationVisibilities,
   organizationPlacement,
 } from '../organizations/abilities.ts';
+import { CheckLine } from '../ui/CheckLine.tsx';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
 import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
+import { fetchContact } from './api.ts';
 import {
   applyImport,
   type ImportChoice,
@@ -22,6 +24,12 @@ import {
 } from './import-api.ts';
 import { PEOPLE_BACK } from './PersonScreen.tsx';
 import { useRefreshContacts } from './queries.ts';
+
+function widerThan(target: Visibility | undefined, selected: Visibility): boolean {
+  return target !== undefined && VISIBILITIES.indexOf(target) > VISIBILITIES.indexOf(selected);
+}
+
+const audienceLabel = (value: Visibility) => VISIBILITY_LABELS[value].toLocaleLowerCase('ru');
 
 function importError(error: unknown): string {
   if (error instanceof ApiError) {
@@ -47,6 +55,8 @@ export function ImportScreen() {
   const [file, setFile] = useState<{ fileName: string; content: string } | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [choices, setChoices] = useState<Record<number, string>>({});
+  const [targets, setTargets] = useState<Record<string, Visibility>>({});
+  const [confirmed, setConfirmed] = useState<Record<number, boolean>>({});
   const [fileError, setFileError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const state = useAction();
@@ -58,9 +68,35 @@ export function ImportScreen() {
 
   async function loadPreview(source = file) {
     if (!source) return;
-    const next = await previewImport({ ...source, placement });
-    setPreview(next);
+    setPreview(null);
     setChoices({});
+    setConfirmed({});
+    setTargets({});
+    const next = await previewImport({ ...source, placement });
+    const ids = [...new Set(next.items.flatMap((item) => item.matches.map((match) => match.id)))];
+    const contacts = await Promise.all(ids.map((contactId) => fetchContact(contactId)));
+    const access = Object.fromEntries(
+      contacts.map((contact) => [contact.id, visibilityOf(contact)]),
+    );
+    // Аудитория должна принадлежать той же редакции, которую подтвердит применение импорта.
+    if (
+      next.items.some((item) =>
+        item.matches.some(
+          (match) =>
+            contacts.find((contact) => contact.id === match.id)?.updatedAt !== match.updatedAt,
+        ),
+      )
+    )
+      throw new ApiError(409, 'IMPORT_PREVIEW_STALE');
+    setTargets(access);
+    setChoices(
+      Object.fromEntries(
+        next.items
+          .filter((item) => item.matches.some((match) => widerThan(access[match.id], visibility)))
+          .map((item) => [item.index, 'create']),
+      ),
+    );
+    setPreview(next);
   }
 
   async function selectFile(selected: File | undefined) {
@@ -87,7 +123,7 @@ export function ImportScreen() {
   }
 
   function apply() {
-    if (!file || !preview) return;
+    if (!file || !preview || unresolved || unconfirmed || state.disabled) return;
     const selections: ImportChoice[] = preview.items.map((item) => {
       const match = item.matches.find(
         (candidate) => candidate.id === choices[item.index] && candidate.canMerge,
@@ -113,6 +149,15 @@ export function ImportScreen() {
 
   const unresolved =
     preview?.items.some((item) => item.matches.length > 0 && !choices[item.index]) ?? false;
+  const broaderMerges =
+    preview?.items.flatMap((item) => {
+      const match = item.matches.find(
+        (candidate) => candidate.id === choices[item.index] && candidate.canMerge,
+      );
+      const audience = match ? targets[match.id] : undefined;
+      return audience && widerThan(audience, visibility) ? [{ index: item.index, audience }] : [];
+    }) ?? [];
+  const unconfirmed = broaderMerges.some((item) => !confirmed[item.index]);
   return (
     <Page title="Импорт из файла" back={PEOPLE_BACK}>
       <p className="muted">
@@ -148,46 +193,79 @@ export function ImportScreen() {
         {preview ? (
           <Section title="Предпросмотр">
             <ul className="card-list" aria-label="Контакты из файла">
-              {preview.items.map((item) => (
-                <li className="card" key={item.index}>
-                  <h3 className="card__title">{item.title}</h3>
-                  <p className="muted">
-                    {item.matches.length === 0 ? 'Новый контакт' : 'Совпадение по телефону'}
-                  </p>
-                  <p className="muted">
-                    {item.data.phones.map((phone) => phone.number).join(' · ')}
-                  </p>
-                  {item.matches.length > 0 ? (
-                    <ChipGroup
-                      legend={`Что сделать: ${item.title}`}
-                      value={choices[item.index] ?? ''}
-                      options={[
-                        { value: 'create', label: 'Создать отдельно' },
-                        ...item.matches
-                          .filter((match) => match.canMerge)
-                          .map((match) => ({
-                            value: match.id,
-                            label: `Объединить: ${match.title}`,
-                          })),
-                      ]}
-                      onChange={(value) =>
-                        setChoices((previous) => ({ ...previous, [item.index]: value }))
-                      }
-                    />
-                  ) : null}
-                  {item.matches.some((match) => !match.canMerge) ? (
+              {preview.items.map((item) => {
+                const broaderMerge = broaderMerges.find((entry) => entry.index === item.index);
+                return (
+                  <li className="card" key={item.index}>
+                    <h3 className="card__title">{item.title}</h3>
                     <p className="muted">
-                      Для части совпадений нет права объединения. Можно создать контакт отдельно.
+                      {item.matches.length === 0 ? 'Новый контакт' : 'Совпадение по телефону'}
                     </p>
-                  ) : null}
-                </li>
-              ))}
+                    <p className="muted">
+                      {item.data.phones.map((phone) => phone.number).join(' · ')}
+                    </p>
+                    {item.matches.map((match) => {
+                      const audience = targets[match.id];
+                      return audience && widerThan(audience, visibility) ? (
+                        <p className="muted" key={match.id}>
+                          {match.title} · Видят: {audienceLabel(audience)}
+                        </p>
+                      ) : null;
+                    })}
+                    {item.matches.length > 0 ? (
+                      <ChipGroup
+                        legend={`Что сделать: ${item.title}`}
+                        value={choices[item.index] ?? ''}
+                        options={[
+                          { value: 'create', label: 'Создать отдельно' },
+                          ...item.matches
+                            .filter((match) => match.canMerge)
+                            .map((match) => ({
+                              value: match.id,
+                              label: `Объединить: ${match.title}`,
+                            })),
+                        ]}
+                        onChange={(value) => {
+                          setChoices((previous) => ({ ...previous, [item.index]: value }));
+                          setConfirmed((previous) => ({ ...previous, [item.index]: false }));
+                        }}
+                      />
+                    ) : null}
+                    {broaderMerge ? (
+                      <>
+                        <p>
+                          Добавленные телефоны, дата рождения и заметка станут видны:{' '}
+                          {audienceLabel(broaderMerge.audience)}.
+                        </p>
+                        <CheckLine
+                          checked={confirmed[item.index] ?? false}
+                          onChange={(checked) =>
+                            setConfirmed((previous) => ({ ...previous, [item.index]: checked }))
+                          }
+                        >
+                          Подтверждаю доступ: {audienceLabel(broaderMerge.audience)}
+                        </CheckLine>
+                      </>
+                    ) : null}
+                    {item.matches.some((match) => !match.canMerge) ? (
+                      <p className="muted">
+                        Для части совпадений нет права объединения. Можно создать контакт отдельно.
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           </Section>
         ) : null}
         <VisibilityPicker
           value={visibility}
           options={options}
+          hint={
+            broaderMerges.length > 0
+              ? 'Выбранный доступ применяется к новым отдельным контактам. При объединении действует доступ контакта-цели, указанный в предпросмотре.'
+              : undefined
+          }
           onChange={(value) => {
             setVisibility(value);
             setPreview(null);
@@ -200,7 +278,7 @@ export function ImportScreen() {
           <button
             className="btn btn--primary btn--block"
             type="button"
-            disabled={unresolved || preview.items.length === 0}
+            disabled={unresolved || unconfirmed || preview.items.length === 0}
             onClick={apply}
           >
             Импортировать

@@ -23,6 +23,112 @@ const content = cards
   .map(([name, phone]) => `BEGIN:VCARD\r\nVERSION:3.0\r\nFN:${name}\r\nTEL:${phone}\r\nEND:VCARD`)
   .join('\r\n');
 
+for (const merge of [false, true]) {
+  test(`vCard: общая цель при «Только я» — ${merge ? 'объединение только с подтверждением' : 'личная копия по умолчанию, без раскрытия ребёнку'}`, async ({
+    page,
+    family,
+    browser,
+  }, info) => {
+    const api = await apiAs(family, 'adult');
+    const target = await seedPerson(api, {
+      title: 'Вымышленный Общий Друг',
+      placement: { spaceId: family.houseId, audience: 'household' },
+      data: { phones: [{ number: '+7 900 123-00-01', label: 'Общий' }] },
+    });
+    const privatePhone = '+7 900 123-00-99';
+    const birthDate = '1986-02-03';
+    const note = 'Вымышленная личная заметка';
+    const source = `BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Вымышленный Общий Друг\r\nTEL:+7 900 123-00-01\r\nTEL:${privatePhone}\r\nBDAY:${birthDate}\r\nNOTE:${note}\r\nEND:VCARD`;
+    const applies: unknown[] = [];
+    page.on('request', (request) => {
+      if (
+        request.url().endsWith('/api/contacts/import') &&
+        request.postDataJSON()?.mode === 'apply'
+      )
+        applies.push(request.postDataJSON());
+    });
+    await signInAs(page, family, 'adult');
+    await page.goto('#/people/import');
+    await page.getByLabel('Файл контактов').setInputFiles({
+      name: 'fictional-private.vcf',
+      mimeType: 'text/vcard',
+      buffer: Buffer.from(source),
+    });
+    await expect(page.getByText(/Видят: вся семья/)).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Только я', exact: true })).toBeChecked();
+    await expect(page.getByRole('radio', { name: 'Создать отдельно', exact: true })).toBeChecked();
+    const apply = page.getByRole('button', { name: 'Импортировать', exact: true });
+    await expect(apply).toBeEnabled();
+    await checkApp(page, info, 'r1b4b-import-private-default');
+    if (merge) {
+      const mergeChoice = page.getByRole('radio', { name: 'Объединить: Вымышленный Общий Друг' });
+      const confirmation = page.getByRole('checkbox', { name: 'Подтверждаю доступ: вся семья' });
+      await mergeChoice.check();
+      await expect(
+        page.getByText('Добавленные телефоны, дата рождения и заметка станут видны: вся семья.'),
+      ).toBeVisible();
+      await expect(page.getByText(/Администратор и другие участники дома не увидят/)).toHaveCount(
+        0,
+      );
+      await expect(confirmation).not.toBeChecked();
+      await expect(apply).toBeDisabled();
+      expect(applies).toHaveLength(0);
+      await checkApp(page, info, 'r1b4b-import-merge-warning');
+      await confirmation.check();
+      await expect(apply).toBeEnabled();
+      // Подтверждение не переходит на новую выборку совпадений и не сохраняется при смене решения.
+      await page.getByRole('radio', { name: 'Создать отдельно', exact: true }).check();
+      await mergeChoice.check();
+      await expect(confirmation).not.toBeChecked();
+      await confirmation.check();
+      await page.getByRole('button', { name: 'Обновить предпросмотр', exact: true }).click();
+      await expect(
+        page.getByRole('radio', { name: 'Создать отдельно', exact: true }),
+      ).toBeChecked();
+      await mergeChoice.check();
+      await expect(confirmation).not.toBeChecked();
+      await expect(apply).toBeDisabled();
+      expect(applies).toHaveLength(0);
+      await confirmation.check();
+      await checkApp(page, info, 'r1b4b-import-merge-confirmed');
+    }
+    await apply.click();
+    await expect(
+      page.getByText(
+        merge ? 'Добавлено 0 контактов, объединено 1' : 'Добавлено 1 контакт, объединено 0',
+      ),
+    ).toBeVisible();
+    expect(applies).toHaveLength(1);
+    const people = (await api.get('contacts')).body as { id: string; spaceKind: string }[];
+    expect(people).toHaveLength(merge ? 1 : 2);
+    if (!merge) {
+      const personal = people.find((person) => person.id !== target.id);
+      expect(personal?.spaceKind).toBe('personal');
+      expect((await (await apiAs(family, 'child')).get(`contacts/${personal?.id}`)).status).toBe(
+        404,
+      );
+    }
+    const child = await openAs(browser, family, info, 'child');
+    try {
+      await openContact(child.page, target.id, target.title);
+      const visible = await (await apiAs(family, 'child')).get(`contacts/${target.id}`);
+      expect(visible.status).toBe(200);
+      if (merge) {
+        expect(JSON.stringify(visible.body)).toContain(privatePhone);
+        expect(JSON.stringify(visible.body)).toContain(birthDate);
+        await expect(child.page.getByText(note, { exact: true })).toBeVisible();
+      } else {
+        for (const value of [privatePhone, birthDate, note])
+          expect(JSON.stringify(visible.body)).not.toContain(value);
+        await expect(child.page.getByText(note, { exact: true })).toHaveCount(0);
+        await checkApp(child.page, info, 'r1b4b-import-private-child');
+      }
+    } finally {
+      await child.close();
+    }
+  });
+}
+
 test('vCard: три карточки, совпадение, повтор после потерянного ответа, поиск и корзина', async ({
   page,
   family,
