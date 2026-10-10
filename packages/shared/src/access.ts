@@ -167,7 +167,7 @@ export function canWrite(viewer: Viewer, record: RecordFacts): boolean {
   if (placement.kind === 'personal') return true;
   if (roleIn(viewer, placement.spaceId) !== 'child') return true;
   if (record.type === 'shopping_item') return true;
-  return record.type === 'task' && record.assigneeId === viewer.accountId;
+  return ['task', 'task_file'].includes(record.type) && record.assigneeId === viewer.accountId;
 }
 
 /**

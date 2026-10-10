@@ -13,6 +13,7 @@ const Query = z.object({
 });
 const labels = {
   note: 'Заметки',
+  task: 'Дела',
   object: 'Объекты',
   object_event: 'События',
   document: 'Документы',
@@ -20,6 +21,7 @@ const labels = {
 } as const;
 interface Hit extends Record<string, unknown> {
   source_type:
+    | 'task'
     | 'note'
     | 'note_item'
     | 'object'

@@ -179,3 +179,33 @@ it('CONT-7: радар 1000 дней рождения, имена только �
   expect(p95).toBeLessThan(300);
   expect((await admin.get(url)).json<{ items: unknown[] }>().items).toEqual([]);
 }, 120_000);
+
+it('TASK-1/8: радар 1000 дел с производными сроками, названия под RLS, p95 до 300 мс', async () => {
+  await world.database.admin.query('DELETE FROM deadlines');
+  await world.database.admin.query(
+    `INSERT INTO tasks(space_id,space_kind,author_id,title,household_id,status,waiting_account_id,check_on)
+    SELECT $1,'personal',$2,'Вымышленное ожидание замера '||i,$3,'waiting',$2,'2026-10-10' FROM generate_series(1,1000) i`,
+    [world.boris.personalSpaceId, world.boris.id, world.houseId],
+  );
+  await world.database.worker.query(`INSERT INTO deadline_occurrences(deadline_id,date,starts_at,ends_at,time_zone,warnings_at,space_id,space_kind,author_id,assignee_id)
+    SELECT id,'2026-10-10','2026-10-09T19:00:00Z','2026-10-10T18:59:59Z','Asia/Yekaterinburg','["2026-10-10T04:00:00.000Z"]',space_id,space_kind,author_id,assignee_id FROM deadlines WHERE source_kind='task_waiting'`);
+  await world.database.worker.query('UPDATE deadlines SET needs_refresh=false');
+  const url = '/api/deadlines?from=2026-10-09&to=2027-10-10';
+  for (let i = 0; i < 3; i++) await adult.get(url);
+  const timings: number[] = [];
+  for (let i = 0; i < 20; i++) {
+    const start = performance.now(),
+      response = await adult.get(url);
+    timings.push(performance.now() - start);
+    expect(response.status, response.text).toBe(200);
+    const items = response.json<{
+      items: { sourceKind: string; taskId: string; title: string }[];
+    }>().items;
+    expect(items).toHaveLength(1000);
+    expect(items.every((x) => x.sourceKind === 'task_waiting' && x.taskId && x.title)).toBe(true);
+  }
+  const p95 = percentile(timings, 0.95);
+  console.info(`Task radar 1000 tasks: p95=${p95.toFixed(1)} ms`);
+  expect(p95).toBeLessThan(300);
+  expect((await admin.get(url)).json<{ items: unknown[] }>().items).toEqual([]);
+}, 120_000);

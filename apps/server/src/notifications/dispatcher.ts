@@ -18,8 +18,17 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
     warning_at: Date;
     time_zone: string;
     record_id: string;
-    source_type: 'note' | 'object' | 'document' | 'contact' | 'profile';
-    source_kind: 'record' | 'readings' | 'payment' | 'verification' | 'document' | 'birthday';
+    source_type: 'note' | 'object' | 'document' | 'contact' | 'profile' | 'task';
+    source_kind:
+      | 'record'
+      | 'readings'
+      | 'payment'
+      | 'verification'
+      | 'document'
+      | 'birthday'
+      | 'task_plan'
+      | 'task_due'
+      | 'task_waiting';
     contact_id: string | null;
     profile_account_id: string | null;
     starts_at: Date;
@@ -30,8 +39,8 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
     has_meters: boolean;
   }>(
     `SELECT n.recipient_id,n.warning_at,n.notification_kind,d.rule,o.date::text,
-      EXISTS (SELECT 1 FROM meters m WHERE m.utility_account_id=d.utility_account_id AND m.deleted_at IS NULL AND m.is_active) AS has_meters,s.time_zone,coalesce(d.note_id,d.object_id,d.document_id,d.contact_id,d.profile_account_id) AS record_id,d.source_kind,o.starts_at,o.ends_at,d.contact_id,d.profile_account_id,
-      CASE WHEN d.note_id IS NOT NULL THEN 'note' WHEN d.document_id IS NOT NULL THEN 'document' WHEN d.contact_id IS NOT NULL THEN 'contact' WHEN d.profile_account_id IS NOT NULL THEN 'profile' ELSE 'object' END AS source_type
+      EXISTS (SELECT 1 FROM meters m WHERE m.utility_account_id=d.utility_account_id AND m.deleted_at IS NULL AND m.is_active) AS has_meters,s.time_zone,coalesce(d.note_id,d.object_id,d.document_id,d.contact_id,d.profile_account_id,d.task_id) AS record_id,d.source_kind,o.starts_at,o.ends_at,d.contact_id,d.profile_account_id,
+      CASE WHEN d.task_id IS NOT NULL THEN 'task' WHEN d.note_id IS NOT NULL THEN 'note' WHEN d.document_id IS NOT NULL THEN 'document' WHEN d.contact_id IS NOT NULL THEN 'contact' WHEN d.profile_account_id IS NOT NULL THEN 'profile' ELSE 'object' END AS source_type
     FROM deadline_notifications n JOIN deadline_occurrences o ON o.id=n.occurrence_id
     JOIN deadlines d ON d.id=o.deadline_id JOIN spaces s ON s.id=d.household_id
     JOIN space_members m ON m.space_id=d.household_id AND m.account_id=n.recipient_id AND m.left_at IS NULL
@@ -47,7 +56,13 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
   if (!row) return null;
   // Читаем текущий источник: поля наступления могли устареть после переноса или смены аудитории.
   const sourceTable =
-    row.source_type === 'note' ? 'notes' : row.source_type === 'document' ? 'documents' : 'objects';
+    row.source_type === 'task'
+      ? 'tasks'
+      : row.source_type === 'note'
+        ? 'notes'
+        : row.source_type === 'document'
+          ? 'documents'
+          : 'objects';
   const { rows: sources } =
     row.source_kind === 'birthday'
       ? { rows: [] }
@@ -234,7 +249,9 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
             device,
             {
               kind: 'deadline',
-              ...(source.source_kind === 'record' || source.source_kind === 'document'
+              ...(source.source_kind === 'record' ||
+              source.source_kind === 'document' ||
+              source.source_type === 'task'
                 ? {}
                 : { notificationKind: source.notificationKind }),
               recordId: source.record_id,

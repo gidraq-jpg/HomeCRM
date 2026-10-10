@@ -146,6 +146,7 @@ export function dataRoutes(app: FastifyInstance, module: AuthModule): DataRoute 
     if (error instanceof Failure)
       return reply.code(error.status).send({
         code: error.code,
+        ...(error.code === 'ASSIGNEE_NOT_VISIBLE' ? { requiresAudienceExpansion: true } : {}),
         ...(error.publicMessage ? { message: error.publicMessage } : {}),
       });
     const status =

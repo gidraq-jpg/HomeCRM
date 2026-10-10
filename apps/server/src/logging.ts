@@ -16,12 +16,15 @@ export const REDACTED = '[redacted]';
 export function redactUrl(url: string): string {
   if (/^\/api\/search(?:\/|[?#]|$)/.test(url)) return '/api/search';
   if (
-    /^\/api\/(notes|objects|links|records|contacts|accounts|meters|readings|documents)(?:\/|[?#]|$)/.test(
+    /^\/api\/(notes|objects|links|records|contacts|accounts|meters|readings|documents|tasks)(?:\/|[?#]|$)/.test(
       url,
     )
   ) {
     const allowed = new Set([
       'documents',
+      'tasks',
+      'status',
+      'task_file',
       'versions',
       'history',
       'files',

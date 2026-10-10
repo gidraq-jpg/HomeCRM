@@ -28,13 +28,13 @@ import {
   spaces,
   workerRole,
 } from './core.ts';
-import { contacts, documents, meters, utilityAccounts, utilityCharges } from './schema.ts';
+import { contacts, documents, meters, tasks, utilityAccounts, utilityCharges } from './schema.ts';
 
 // Явная проверка пространства плюс чтение источника под его RLS. Подзапросы могут
 // строиться один раз для списка; построчная PL/pgSQL-проверка здесь не нужна.
-export const deadlineVisibleSql = `((${canViewSql()}) AND (EXISTS (SELECT 1 FROM notes n WHERE n.id=note_id) OR EXISTS (SELECT 1 FROM objects o WHERE o.id=object_id) OR EXISTS (SELECT 1 FROM documents doc WHERE doc.id=document_id) OR EXISTS (SELECT 1 FROM contacts c WHERE c.id=contact_id AND c.kind='person' AND c.deleted_at IS NULL AND c.data->>'birthdayEnabled'='true'))) OR EXISTS (SELECT 1 FROM member_profiles p WHERE p.account_id=profile_account_id AND p.birthday_enabled AND p.birth_date IS NOT NULL)`;
+export const deadlineVisibleSql = `((${canViewSql()}) AND (EXISTS (SELECT 1 FROM notes n WHERE n.id=note_id) OR EXISTS (SELECT 1 FROM objects o WHERE o.id=object_id) OR EXISTS (SELECT 1 FROM tasks t WHERE t.id=task_id) OR EXISTS (SELECT 1 FROM documents doc WHERE doc.id=document_id) OR EXISTS (SELECT 1 FROM contacts c WHERE c.id=contact_id AND c.kind='person' AND c.deleted_at IS NULL AND c.data->>'birthdayEnabled'='true'))) OR EXISTS (SELECT 1 FROM member_profiles p WHERE p.account_id=profile_account_id AND p.birthday_enabled AND p.birth_date IS NOT NULL)`;
 export const deadlineWritableSql = `app.deadline_source_allowed(note_id, object_id, true)`;
-export const deadlineCascadeSql = `pg_trigger_depth() > 0 AND coalesce(note_id,object_id,document_id,contact_id,profile_account_id) = nullif(current_setting('app.deadline_source_id',true),'')::uuid`;
+export const deadlineCascadeSql = `pg_trigger_depth() > 0 AND coalesce(note_id,object_id,document_id,contact_id,profile_account_id,task_id) = nullif(current_setting('app.deadline_source_id',true),'')::uuid`;
 const ownerRole = pgRole('homecrm_owner').existing();
 export const deadlineRestoreSql = `deleted_at IS NOT NULL AND app.deadline_source_allowed(note_id, object_id, true) AND (space_kind='personal' OR EXISTS (SELECT 1 FROM space_members m WHERE m.space_id=deadlines.space_id AND m.account_id=app.current_account_id() AND m.left_at IS NULL AND (m.role='admin' OR (m.role='adult' AND deadlines.author_id=app.current_account_id()))))`;
 const accessColumns = () => ({
@@ -54,6 +54,7 @@ export const deadlines = pgTable(
   'deadlines',
   {
     id: id(),
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }),
     noteId: uuid('note_id'),
     objectId: uuid('object_id'),
     contactId: uuid('contact_id')
@@ -66,7 +67,17 @@ export const deadlines = pgTable(
       .references(() => documents.id, { onDelete: 'cascade' })
       .unique(),
     sourceKind: text('source_kind')
-      .$type<'record' | 'readings' | 'payment' | 'verification' | 'document' | 'birthday'>()
+      .$type<
+        | 'record'
+        | 'readings'
+        | 'payment'
+        | 'verification'
+        | 'document'
+        | 'birthday'
+        | 'task_plan'
+        | 'task_due'
+        | 'task_waiting'
+      >()
       .notNull()
       .default('record'),
     utilityAccountId: uuid('utility_account_id').references(() => utilityAccounts.id, {
@@ -89,16 +100,17 @@ export const deadlines = pgTable(
   (t) => [
     check(
       'deadlines_one_source',
-      sql`num_nonnulls(note_id,object_id,document_id,contact_id,profile_account_id)=1`,
+      sql`num_nonnulls(note_id,object_id,document_id,contact_id,profile_account_id,task_id)=1`,
     ),
     check(
       'deadlines_utility_source',
-      sql`(source_kind='birthday' AND num_nonnulls(contact_id,profile_account_id)=1 AND num_nonnulls(note_id,object_id,document_id,utility_account_id,meter_id,charge_id)=0) OR (contact_id IS NULL AND profile_account_id IS NULL AND ((source_kind='document' AND document_id IS NOT NULL AND utility_account_id IS NULL AND meter_id IS NULL AND charge_id IS NULL) OR (document_id IS NULL AND ((source_kind='record' AND utility_account_id IS NULL AND meter_id IS NULL AND charge_id IS NULL) OR (object_id IS NOT NULL AND note_id IS NULL AND ((source_kind IN ('readings','payment') AND utility_account_id IS NOT NULL AND meter_id IS NULL AND (charge_id IS NULL OR source_kind='payment')) OR (source_kind='verification' AND meter_id IS NOT NULL AND utility_account_id IS NULL AND charge_id IS NULL)))))))`,
+      sql`(task_id IS NOT NULL AND source_kind IN ('task_plan','task_due','task_waiting') AND num_nonnulls(note_id,object_id,document_id,contact_id,profile_account_id,utility_account_id,meter_id,charge_id)=0) OR (task_id IS NULL AND ((source_kind='birthday' AND num_nonnulls(contact_id,profile_account_id)=1 AND num_nonnulls(note_id,object_id,document_id,utility_account_id,meter_id,charge_id)=0) OR (contact_id IS NULL AND profile_account_id IS NULL AND ((source_kind='document' AND document_id IS NOT NULL AND utility_account_id IS NULL AND meter_id IS NULL AND charge_id IS NULL) OR (document_id IS NULL AND ((source_kind='record' AND utility_account_id IS NULL AND meter_id IS NULL AND charge_id IS NULL) OR (object_id IS NOT NULL AND note_id IS NULL AND ((source_kind IN ('readings','payment') AND utility_account_id IS NOT NULL AND meter_id IS NULL AND (charge_id IS NULL OR source_kind='payment')) OR (source_kind='verification' AND meter_id IS NOT NULL AND utility_account_id IS NULL AND charge_id IS NULL)))))))))`,
     ),
     uniqueIndex('deadlines_account_kind_key')
       .on(t.utilityAccountId, t.sourceKind)
       .where(sql`charge_id IS NULL`),
     unique('deadlines_meter_kind_key').on(t.meterId, t.sourceKind),
+    unique('deadlines_task_kind_key').on(t.taskId, t.sourceKind),
     index('deadlines_note_idx').on(t.noteId),
     index('deadlines_object_idx').on(t.objectId),
     foreignKey({ columns: [t.spaceId, t.spaceKind], foreignColumns: [spaces.id, spaces.kind] }),
@@ -114,6 +126,18 @@ export const deadlines = pgTable(
         `${deadlineWritableSql} AND author_id = app.current_account_id() AND deleted_at IS NULL`,
       ),
     }),
+    ...(['insert', 'update'] as const).map((op) =>
+      pgPolicy(`deadlines_task_${op}`, {
+        for: op,
+        to: appRole,
+        ...(op === 'update'
+          ? {
+              using: sql`pg_trigger_depth()>0 AND task_id=nullif(current_setting('app.task_source_id',true),'')::uuid`,
+            }
+          : {}),
+        withCheck: sql`pg_trigger_depth()>0 AND task_id=nullif(current_setting('app.task_source_id',true),'')::uuid`,
+      }),
+    ),
     pgPolicy('deadlines_birthday_insert', {
       for: 'insert',
       to: appRole,

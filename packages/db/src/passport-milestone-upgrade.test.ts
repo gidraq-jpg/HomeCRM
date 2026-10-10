@@ -2,10 +2,12 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DocumentData } from '@homecrm/shared';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { afterAll, beforeAll, expect, inject, it } from 'vitest';
 import { createAppDatabase } from './client.ts';
 import { sql } from './index.ts';
-import { MIGRATIONS_DIR, runMigrations } from './migrate.ts';
+import { MIGRATIONS_DIR } from './migrate.ts';
 import { createTestDatabase, type TestDatabase } from './testing/database.ts';
 import { buildFamily, seedPeople } from './testing/family.ts';
 
@@ -63,7 +65,13 @@ it('0052 → 0053: дополняется лишь граница прежнег
   const guard = (
     await db.admin.query("SELECT pg_get_functiondef('app.deadline_guard()'::regprocedure) AS body")
   ).rows[0].body;
-  await runMigrations(db.owner);
+  // Этот тест проверяет именно 0053, новые миграции проверяются отдельно.
+  const target = JSON.parse(await readFile(join(MIGRATIONS_DIR, 'meta/_journal.json'), 'utf8'));
+  target.entries = target.entries.filter((entry: { idx: number }) => entry.idx <= 53);
+  await writeFile(join(folder, 'meta/_journal.json'), JSON.stringify(target));
+  for (const entry of target.entries)
+    await copyFile(join(MIGRATIONS_DIR, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`));
+  await migrate(drizzle({ client: db.owner }), { migrationsFolder: folder });
   expect(await snapshot()).toEqual(before);
   const after = (await db.admin.query('SELECT id,rule FROM deadlines ORDER BY id')).rows;
   expect(
@@ -89,6 +97,6 @@ it('0052 → 0053: дополняется лишь граница прежнег
     (await db.admin.query("SELECT policyname FROM pg_policies WHERE policyname LIKE 'milestone_%'"))
       .rows,
   ).toEqual([]);
-  await runMigrations(db.owner);
+  await migrate(drizzle({ client: db.owner }), { migrationsFolder: folder });
   expect((await db.admin.query('SELECT id,rule FROM deadlines ORDER BY id')).rows).toEqual(after);
 });

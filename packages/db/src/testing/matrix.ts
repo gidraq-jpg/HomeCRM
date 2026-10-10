@@ -179,6 +179,8 @@ function attemptsFor(
               'document',
               'contact',
               'contact_interaction',
+              'task',
+              'task_file',
             ].includes(record.type)) &&
           canView(viewer.viewer, record.facts.placement),
         run: async (tx) => {
@@ -321,6 +323,7 @@ function attemptsFor(
               'note_file',
               'object_file',
               'document_file',
+              'task_file',
               'contact_interaction',
               'utility_account',
               'meter',
@@ -338,7 +341,20 @@ function attemptsFor(
                 ...fileFixture(type),
                 ...placementColumns(placement),
                 ...values,
-                ...(parentId === undefined ? {} : { parentId }),
+                ...(parentId === undefined
+                  ? {}
+                  : {
+                      parentId:
+                        type === 'task_file'
+                          ? (family.records.find(
+                              (r) =>
+                                r.type === 'task' &&
+                                !r.trashed &&
+                                samePlacement(r.facts.placement, placement) &&
+                                r.facts.assigneeId === (values.assigneeId ?? values.authorId),
+                            )?.id ?? parentId)
+                          : parentId,
+                    }),
                 title: 'новая запись',
               } as never);
             const own = family.assigneeInputs(placement).map((assigneeId) => {
@@ -447,6 +463,8 @@ async function listMismatches(
               'document',
               'contact',
               'contact_interaction',
+              'task',
+              'task_file',
             ].includes(record.type));
         checks++;
         if (expectedHistory) allowedByReference++;

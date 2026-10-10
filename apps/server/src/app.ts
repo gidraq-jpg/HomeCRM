@@ -18,6 +18,7 @@ import { notificationRoutes } from './notifications/routes.ts';
 import { objectsRoutes } from './objects/routes.ts';
 import { searchRoutes } from './search/routes.ts';
 import { createStaticHandler } from './static.ts';
+import { taskRoutes } from './tasks/routes.ts';
 import { utilityRoutes } from './utilities/routes.ts';
 
 export interface AppDependencies {
@@ -162,6 +163,7 @@ export function buildApp(
     });
     void app.register(deadlinesRoutes, auth);
     void app.register(documentRoutes, auth);
+    void app.register(taskRoutes, auth);
     void app.register(contactImportRoutes, auth);
     void app.register(notificationRoutes, {
       ...auth,

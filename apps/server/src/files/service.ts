@@ -9,15 +9,22 @@ import {
   profileFiles,
   sql,
   type Transaction,
+  taskFiles,
 } from '@homecrm/db';
 import type { Account } from '../auth/account.ts';
 import { columnsOf, deny, placementOf, type Row } from '../objects/support.ts';
 import type { FileCipher } from './crypto.ts';
 import type { FileStorage } from './storage.ts';
 
-export type ParentType = 'note' | 'object' | 'document';
+export type ParentType = 'note' | 'object' | 'document' | 'task';
 export const fileTable = (type: ParentType) =>
-  type === 'note' ? noteFiles : type === 'document' ? documentFiles : objectFiles;
+  type === 'task'
+    ? taskFiles
+    : type === 'note'
+      ? noteFiles
+      : type === 'document'
+        ? documentFiles
+        : objectFiles;
 export type FileRow = typeof noteFiles.$inferSelect;
 export interface FileServices {
   storage: FileStorage;
@@ -101,6 +108,7 @@ export async function insertPreparedFile(
     .values({
       ...columnsOf(placementOf(parent)),
       parentId: parent.id,
+      ...(type === 'task' ? { assigneeId: parent.assigneeId } : {}),
       authorId: account.id,
       title: input.name,
       mimeType: input.mimeType,

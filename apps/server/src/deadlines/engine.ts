@@ -11,6 +11,7 @@ import {
   deadlineOccurrencesTable as occurrences,
   spaces,
   sql,
+  tasks,
 } from '@homecrm/db';
 import {
   CalendarDate,
@@ -50,6 +51,7 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
           documentId: deadlines.documentId,
           contactId: deadlines.contactId,
           profileAccountId: deadlines.profileAccountId,
+          taskId: deadlines.taskId,
           noteId: deadlines.noteId,
           objectId: deadlines.objectId,
           sourceKind: deadlines.sourceKind,
@@ -74,7 +76,13 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
       if (!house?.timeZone) throw new Error('House time zone is not initialized');
       const zone = TimeZone.parse(house.timeZone);
       const rule = DeadlineRule.parse(deadline.rule);
-      const sourceTable = deadline.noteId ? notes : deadline.documentId ? documents : objects;
+      const sourceTable = deadline.taskId
+        ? tasks
+        : deadline.noteId
+          ? notes
+          : deadline.documentId
+            ? documents
+            : objects;
       const [recordSource] =
         deadline.sourceKind === 'birthday'
           ? []
@@ -84,7 +92,11 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
               .where(
                 eq(
                   sourceTable.id,
-                  deadline.noteId ?? deadline.objectId ?? deadline.documentId ?? '',
+                  deadline.taskId ??
+                    deadline.noteId ??
+                    deadline.objectId ??
+                    deadline.documentId ??
+                    '',
                 ),
               );
       const source =
@@ -98,8 +110,9 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
         return;
       }
       const utility =
-        !['record', 'document', 'birthday'].includes(deadline.sourceKind) &&
-        deadline.chargeId === null;
+        !['record', 'document', 'birthday', 'task_plan', 'task_due', 'task_waiting'].includes(
+          deadline.sourceKind,
+        ) && deadline.chargeId === null;
       const baseline = utility
         ? deadline.createdAt
         : ['document', 'birthday'].includes(deadline.sourceKind)
@@ -208,6 +221,7 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
           documentId: deadlines.documentId,
           contactId: deadlines.contactId,
           profileAccountId: deadlines.profileAccountId,
+          taskId: deadlines.taskId,
           noteId: deadlines.noteId,
           objectId: deadlines.objectId,
           deletedAt: deadlines.deletedAt,
@@ -220,14 +234,25 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
         .from(deadlines)
         .where(eq(deadlines.id, row.deadlineId));
       if (!rule || rule.deletedAt !== null || rule.dirty) continue;
-      const sourceTable = rule.noteId ? notes : rule.documentId ? documents : objects;
+      const sourceTable = rule.taskId
+        ? tasks
+        : rule.noteId
+          ? notes
+          : rule.documentId
+            ? documents
+            : objects;
       const [recordSource] =
         rule.sourceKind === 'birthday'
           ? []
           : await tx
               .select({ assigneeId: sourceTable.assigneeId, deletedAt: sourceTable.deletedAt })
               .from(sourceTable)
-              .where(eq(sourceTable.id, rule.noteId ?? rule.objectId ?? rule.documentId ?? ''));
+              .where(
+                eq(
+                  sourceTable.id,
+                  rule.taskId ?? rule.noteId ?? rule.objectId ?? rule.documentId ?? '',
+                ),
+              );
       const source =
         rule.sourceKind === 'birthday'
           ? { assigneeId: row.assigneeId, deletedAt: row.deletedAt }

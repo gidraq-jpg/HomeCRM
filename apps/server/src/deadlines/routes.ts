@@ -223,11 +223,21 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
         totalCents: string | null;
         paidCents: string | null;
         remainingCents: string | null;
+        taskId: string | null;
         noteId: string | null;
         objectId: string | null;
         title: string;
         rule: typeof DeadlineRule._output;
-        sourceKind: 'record' | 'readings' | 'payment' | 'verification' | 'document' | 'birthday';
+        sourceKind:
+          | 'record'
+          | 'readings'
+          | 'payment'
+          | 'verification'
+          | 'document'
+          | 'birthday'
+          | 'task_plan'
+          | 'task_due'
+          | 'task_waiting';
         object: { id: string; title: string; status: string | null } | null;
         utilityAccount: { id: string; title: string; number: string; transmission: unknown } | null;
         meter: { id: string; title: string } | null;
@@ -251,17 +261,18 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
            o.author_id AS "authorId",o.assignee_id AS "assigneeId",o.deleted_at AS "deletedAt",
            d.document_id AS "documentId",d.contact_id AS "contactId",d.profile_account_id AS "profileAccountId",coalesce(bc.data->>'birthday',bp.birth_date::text) AS birthday,
            c.total_cents::text AS "totalCents",c.paid::text AS "paidCents",c.remaining::text AS "remainingCents",
-           d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(d.label,n.title,p.title,doc.title,bc.title,bp.display_name) AS title,d.charge_id AS "chargeId",
+           d.task_id AS "taskId",d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(d.label,n.title,p.title,doc.title,bc.title,bp.display_name,t.title) AS title,d.charge_id AS "chargeId",
            CASE WHEN p.id IS NOT NULL THEN jsonb_build_object('id',p.id,'title',p.title,'status',p.type_data->>'status') END AS object,
            CASE WHEN a.id IS NOT NULL THEN jsonb_build_object('id',a.id,'title',a.title,'number',a.data->>'number','transmission',a.data->'transmission') END AS "utilityAccount",
            (d.source_kind='readings' AND NOT EXISTS (SELECT 1 FROM visible_meters vm WHERE vm.utility_account_id=d.utility_account_id AND vm.is_active AND vm.deleted_at IS NULL)) AS "needsMeters",
            CASE WHEN m.id IS NOT NULL THEN jsonb_build_object('id',m.id,'title',m.title) END AS meter
           FROM visible_occurrences o JOIN visible_deadlines d ON d.id=o.deadline_id
           LEFT JOIN documents doc ON doc.id=d.document_id LEFT JOIN notes n ON n.id=d.note_id LEFT JOIN objects p ON p.id=d.object_id
+          LEFT JOIN tasks t ON t.id=d.task_id
           LEFT JOIN contacts bc ON bc.id=d.contact_id LEFT JOIN member_profiles bp ON bp.account_id=d.profile_account_id
           LEFT JOIN visible_charges c ON c.id=d.charge_id
           LEFT JOIN utility_accounts a ON a.id=d.utility_account_id LEFT JOIN meters m ON m.id=d.meter_id
-          WHERE o.date<=${to} AND o.date<=(CURRENT_TIMESTAMP AT TIME ZONE o.time_zone)::date+CASE WHEN d.source_kind IN ('document','birthday') THEN 365 ELSE 90 END AND d.deleted_at IS NULL AND n.deleted_at IS NULL AND p.deleted_at IS NULL AND doc.deleted_at IS NULL AND (d.document_id IS NULL OR (doc.id IS NOT NULL AND doc.status='valid'))
+          WHERE o.date<=${to} AND o.date<=(CURRENT_TIMESTAMP AT TIME ZONE o.time_zone)::date+CASE WHEN d.source_kind IN ('document','birthday') THEN 365 ELSE 90 END AND d.deleted_at IS NULL AND (d.task_id IS NULL OR (t.id IS NOT NULL AND t.deleted_at IS NULL AND t.status IN ('open','waiting'))) AND n.deleted_at IS NULL AND p.deleted_at IS NULL AND doc.deleted_at IS NULL AND (d.document_id IS NULL OR (doc.id IS NOT NULL AND doc.status='valid'))
            AND (d.source_kind<>'payment' OR CASE WHEN d.charge_id IS NOT NULL THEN EXISTS (SELECT 1 FROM visible_charges c WHERE c.id=d.charge_id AND c.deleted_at IS NULL AND c.cancelled_at IS NULL AND NOT c.is_paid) ELSE NOT EXISTS (SELECT 1 FROM visible_charges c WHERE c.parent_id=d.utility_account_id AND c.deleted_at IS NULL AND c.cancelled_at IS NULL AND c.period=to_char(o.date-interval '1 month','YYYY-MM')) END)
            AND (d.source_kind<>'readings' OR (
             (o.ends_at>=CURRENT_TIMESTAMP AND o.completed_at IS NULL AND NOT EXISTS (SELECT 1 FROM visible_meters m WHERE m.utility_account_id=d.utility_account_id AND m.is_active AND m.deleted_at IS NULL))

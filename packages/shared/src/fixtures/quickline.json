@@ -1,0 +1,1022 @@
+[
+  {
+    "input": "Позвонить мастеру сегодня",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-10",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока сегодня",
+    "title": "Купить молока",
+    "planOn": "2026-10-10",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу сегодня",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-10",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру завтра",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока завтра",
+    "title": "Купить молока",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу завтра",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру послезавтра",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-12",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока послезавтра",
+    "title": "Купить молока",
+    "planOn": "2026-10-12",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу послезавтра",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-12",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в понедельник",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-12",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в понедельник",
+    "title": "Купить молока",
+    "planOn": "2026-10-12",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в понедельник",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-12",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в пн",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-12",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в пн",
+    "title": "Купить молока",
+    "planOn": "2026-10-12",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в пн",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-12",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в вторник",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-13",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в вторник",
+    "title": "Купить молока",
+    "planOn": "2026-10-13",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в вторник",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-13",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в вт",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-13",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в вт",
+    "title": "Купить молока",
+    "planOn": "2026-10-13",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в вт",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-13",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в среду",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-14",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в среду",
+    "title": "Купить молока",
+    "planOn": "2026-10-14",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в среду",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-14",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в ср",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-14",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в ср",
+    "title": "Купить молока",
+    "planOn": "2026-10-14",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в ср",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-14",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в четверг",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в четверг",
+    "title": "Купить молока",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в четверг",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в чт",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в чт",
+    "title": "Купить молока",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в чт",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в пятницу",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-16",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в пятницу",
+    "title": "Купить молока",
+    "planOn": "2026-10-16",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в пятницу",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-16",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в пт",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-16",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в пт",
+    "title": "Купить молока",
+    "planOn": "2026-10-16",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в пт",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-16",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в субботу",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-17",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в субботу",
+    "title": "Купить молока",
+    "planOn": "2026-10-17",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в субботу",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-17",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в сб",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-17",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в сб",
+    "title": "Купить молока",
+    "planOn": "2026-10-17",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в сб",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-17",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в воскресенье",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в воскресенье",
+    "title": "Купить молока",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в воскресенье",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру в вс",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока в вс",
+    "title": "Купить молока",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу в вс",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 15 октября",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 15 октября",
+    "title": "Купить молока",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 15 октября",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 15.10",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 15.10",
+    "title": "Купить молока",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 15.10",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру через неделю",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-17",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока через неделю",
+    "title": "Купить молока",
+    "planOn": "2026-10-17",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу через неделю",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-17",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру через 3 дня",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-13",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока через 3 дня",
+    "title": "Купить молока",
+    "planOn": "2026-10-13",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу через 3 дня",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-13",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру через 1 день",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока через 1 день",
+    "title": "Купить молока",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу через 1 день",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру через 5 дней",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока через 5 дней",
+    "title": "Купить молока",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу через 5 дней",
+    "title": "Записаться к врачу",
+    "planOn": "2026-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 1 января",
+    "title": "Позвонить мастеру",
+    "planOn": "2027-01-01",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 1 января",
+    "title": "Купить молока",
+    "planOn": "2027-01-01",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 1 января",
+    "title": "Записаться к врачу",
+    "planOn": "2027-01-01",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 2 февраля",
+    "title": "Позвонить мастеру",
+    "planOn": "2027-02-02",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 2 февраля",
+    "title": "Купить молока",
+    "planOn": "2027-02-02",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 2 февраля",
+    "title": "Записаться к врачу",
+    "planOn": "2027-02-02",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 3 марта",
+    "title": "Позвонить мастеру",
+    "planOn": "2027-03-03",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 3 марта",
+    "title": "Купить молока",
+    "planOn": "2027-03-03",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 3 марта",
+    "title": "Записаться к врачу",
+    "planOn": "2027-03-03",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 4 апреля",
+    "title": "Позвонить мастеру",
+    "planOn": "2027-04-04",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 4 апреля",
+    "title": "Купить молока",
+    "planOn": "2027-04-04",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 4 апреля",
+    "title": "Записаться к врачу",
+    "planOn": "2027-04-04",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 5 мая",
+    "title": "Позвонить мастеру",
+    "planOn": "2027-05-05",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 5 мая",
+    "title": "Купить молока",
+    "planOn": "2027-05-05",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 5 мая",
+    "title": "Записаться к врачу",
+    "planOn": "2027-05-05",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 6 июня",
+    "title": "Позвонить мастеру",
+    "planOn": "2027-06-06",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 6 июня",
+    "title": "Купить молока",
+    "planOn": "2027-06-06",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 6 июня",
+    "title": "Записаться к врачу",
+    "planOn": "2027-06-06",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 7 июля",
+    "title": "Позвонить мастеру",
+    "planOn": "2027-07-07",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 7 июля",
+    "title": "Купить молока",
+    "planOn": "2027-07-07",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 7 июля",
+    "title": "Записаться к врачу",
+    "planOn": "2027-07-07",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 8 августа",
+    "title": "Позвонить мастеру",
+    "planOn": "2027-08-08",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 8 августа",
+    "title": "Купить молока",
+    "planOn": "2027-08-08",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 8 августа",
+    "title": "Записаться к врачу",
+    "planOn": "2027-08-08",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 9 сентября",
+    "title": "Позвонить мастеру",
+    "planOn": "2027-09-09",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 9 сентября",
+    "title": "Купить молока",
+    "planOn": "2027-09-09",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 9 сентября",
+    "title": "Записаться к врачу",
+    "planOn": "2027-09-09",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 10 ноября",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-11-10",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 10 ноября",
+    "title": "Купить молока",
+    "planOn": "2026-11-10",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 10 ноября",
+    "title": "Записаться к врачу",
+    "planOn": "2026-11-10",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 11 декабря",
+    "title": "Позвонить мастеру",
+    "planOn": "2026-12-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 11 декабря",
+    "title": "Купить молока",
+    "planOn": "2026-12-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 11 декабря",
+    "title": "Записаться к врачу",
+    "planOn": "2026-12-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 15.10.2028",
+    "title": "Позвонить мастеру",
+    "planOn": "2028-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 15.10.2028",
+    "title": "Купить молока",
+    "planOn": "2028-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 15.10.2028",
+    "title": "Записаться к врачу",
+    "planOn": "2028-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Позвонить мастеру 15 октября 2028",
+    "title": "Позвонить мастеру",
+    "planOn": "2028-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока 15 октября 2028",
+    "title": "Купить молока",
+    "planOn": "2028-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Записаться к врачу 15 октября 2028",
+    "title": "Записаться к врачу",
+    "planOn": "2028-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Забрать посылку в 18:00",
+    "title": "Забрать посылку",
+    "planOn": null,
+    "planTime": "18:00",
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Сходить в 9",
+    "title": "Сходить",
+    "planOn": null,
+    "planTime": "09:00",
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Проверить в 5",
+    "title": "Проверить",
+    "planOn": null,
+    "planTime": "05:00",
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Сделать в 23:59",
+    "title": "Сделать",
+    "planOn": null,
+    "planTime": "23:59",
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Сделать в 0",
+    "title": "Сделать",
+    "planOn": null,
+    "planTime": "00:00",
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Сделать в 24:00",
+    "title": "Сделать в 24:00",
+    "planOn": null,
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Сделать 31.02",
+    "title": "Сделать 31.02",
+    "planOn": null,
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить сегодня в 18 : 00",
+    "title": "Купить",
+    "planOn": "2026-10-10",
+    "planTime": "18:00",
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить  завтра   в  9",
+    "title": "Купить",
+    "planOn": "2026-10-11",
+    "planTime": "09:00",
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Прочитать послезавтрашний план",
+    "title": "Прочитать послезавтрашний план",
+    "planOn": null,
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Проверить 15.10.2026x",
+    "title": "Проверить 15.10.2026x",
+    "planOn": null,
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Дело через 0 дней",
+    "title": "Дело",
+    "planOn": "2026-10-10",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить завтра послезавтра",
+    "title": "Купить послезавтра",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Купить молока завтра @Борис #Ленина в 18:00",
+    "title": "Купить молока",
+    "planOn": "2026-10-11",
+    "planTime": "18:00",
+    "assigneeId": "boris",
+    "objectId": "lenina"
+  },
+  {
+    "input": "Позвонить @Анна Иванова #Квартира в пятницу",
+    "title": "Позвонить",
+    "planOn": "2026-10-16",
+    "planTime": null,
+    "assigneeId": "anna",
+    "objectId": "flat"
+  },
+  {
+    "input": "@Неизвестный Купить #Нет",
+    "title": "@Неизвестный Купить #Нет",
+    "planOn": null,
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null
+  },
+  {
+    "input": "Сделать 15.10",
+    "title": "Сделать",
+    "planOn": "2027-10-15",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null,
+    "now": "2026-12-20T10:00:00Z"
+  },
+  {
+    "input": "Сделать завтра",
+    "title": "Сделать",
+    "planOn": "2026-10-11",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null,
+    "now": "2026-10-09T22:30:00Z"
+  },
+  {
+    "input": "Сделать завтра",
+    "title": "Сделать",
+    "planOn": "2026-10-10",
+    "planTime": null,
+    "assigneeId": null,
+    "objectId": null,
+    "now": "2026-10-09T22:30:00Z",
+    "timeZone": "UTC"
+  }
+]

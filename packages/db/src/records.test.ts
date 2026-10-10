@@ -73,6 +73,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
       expect(Object.fromEntries(rows.map((row) => [row.name, row.fn]))).toEqual({
         ...([
           'notes',
+          'tasks',
           'note_items',
           'objects',
           'object_fields',
@@ -89,6 +90,13 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         [`${name}_history`]: 'record_history',
         ...(['notes', 'objects'].includes(name)
           ? { [`${name}_deadlines`]: 'sync_source_deadlines' }
+          : {}),
+        ...(name === 'tasks'
+          ? {
+              tasks_deadlines: 'task_deadlines',
+              tasks_source_metadata: 'sync_source_deadlines',
+              tasks_files_placement: 'cascade_task_files',
+            }
           : {}),
         ...(name === 'notes' ? { notes_placement: 'cascade_note_placement' } : {}),
         ...(name === 'contacts'
@@ -112,7 +120,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         ...(['notes', 'objects'].includes(name)
           ? { [`${name}_files_placement`]: 'cascade_file_placement' }
           : {}),
-        ...(['note_files', 'object_files'].includes(name)
+        ...(['note_files', 'object_files', 'task_files'].includes(name)
           ? { [`${name}_00_lifecycle`]: 'file_lifecycle' }
           : {}),
         ...(name === 'objects' ? { objects_placement: 'cascade_object_placement' } : {}),
@@ -185,6 +193,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
             'meter_readings',
             'utility_charges',
             'documents',
+            'tasks',
           ].includes(name)
             ? [`${name}.${name}_deadline_worker_select:SELECT`]
             : []),
