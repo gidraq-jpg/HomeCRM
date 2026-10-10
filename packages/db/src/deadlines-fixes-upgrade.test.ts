@@ -63,6 +63,16 @@ it('обновление с R0.7 сохраняет источники, прав
   for (const row of after[3] ?? []) {
     delete row.value.cancellation_reason;
     delete row.value.notification_kind;
+    for (const key of [
+      'event_key',
+      'record_table',
+      'record_id',
+      'event_kind',
+      'event_household_id',
+    ]) {
+      expect(row.value[key]).toBeNull();
+      delete row.value[key];
+    }
   }
   // Прежние сроки остаются обычными записями без коммунальных ссылок.
   for (const row of after[1] ?? []) {
@@ -86,6 +96,8 @@ it('обновление с R0.7 сохраняет источники, прав
     delete row.value.profile_account_id;
     expect(row.value.task_id).toBeNull();
     delete row.value.task_id;
+    expect(row.value.assignee_override_id).toBeNull();
+    delete row.value.assignee_override_id;
   }
   expect(after).toEqual(before);
   await runMigrations(db.owner);

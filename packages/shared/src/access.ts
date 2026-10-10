@@ -393,3 +393,20 @@ export function canViewAccountJournal(viewer: Viewer, ownerAccountId: string): b
 export function canManageNotifications(viewer: Viewer, ownerAccountId: string): boolean {
   return viewer.accountId === ownerAccountId;
 }
+
+/** TASK-3: серия видна через доступный экземпляр; общий UUID не открывает скрытые экземпляры. */
+export function canViewTaskSeries(viewer: Viewer, instance: RecordFacts): boolean {
+  return canView(viewer, instance.placement);
+}
+/** TASK-11: события не открывают запись адресату, который перестал её видеть. */
+export function canReceiveRecordNotification(
+  viewer: Viewer,
+  record: RecordFacts,
+  kind: 'assignment' | 'task_done',
+): boolean {
+  return (
+    !record.trashed &&
+    canView(viewer, record.placement) &&
+    viewer.accountId === (kind === 'assignment' ? record.assigneeId : record.authorId)
+  );
+}

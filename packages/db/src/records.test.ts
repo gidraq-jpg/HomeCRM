@@ -85,6 +85,9 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ? { [`${name}_search`]: 'sync_search_entry' }
           : {}),
         [`${name}_defaults`]: 'record_defaults',
+        ...(['tasks', 'objects', 'documents'].includes(name)
+          ? { [`${name}_assignment_push`]: 'record_assignment_notification' }
+          : {}),
         [`${name}_guard`]: 'record_guard',
         [`${name}_trash_time`]: 'guard_trash_time',
         [`${name}_history`]: 'record_history',
@@ -94,6 +97,9 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         ...(name === 'tasks'
           ? {
               tasks_deadlines: 'task_deadlines',
+              tasks_01_undo: 'task_undo_next',
+              tasks_repeat_defaults: 'task_repeat_defaults',
+              tasks_repeat_next: 'task_repeat_next',
               tasks_source_metadata: 'sync_source_deadlines',
               tasks_files_placement: 'cascade_task_files',
             }
@@ -180,6 +186,12 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
       expect(rows.map((row) => `${row.tablename}.${row.policyname}:${row.cmd}`).sort()).toEqual(
         [
           `${name}.${name}_select:SELECT`,
+          ...(['tasks', 'objects', 'documents', 'notes'].includes(name)
+            ? [`${name}.${name}_notification_owner:SELECT`]
+            : []),
+          ...(name === 'tasks'
+            ? ['tasks.tasks_repeat_owner:ALL', 'tasks_history.tasks_history_repeat_owner:INSERT']
+            : []),
           `${name}.${name}_insert:INSERT`,
           `${name}.${name}_update:UPDATE`,
           `${name}.${name}_purge_select:SELECT`,

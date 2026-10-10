@@ -24,7 +24,7 @@ const snapshot = async (history = false) =>
       `SELECT * FROM (${tables
         .map((name) => {
           const table = history ? `${name}_history` : name;
-          return `SELECT '${table}' AS source, to_jsonb(r) - ARRAY['has_other_contributions', 'pinned', 'search_text', 'position','description','plan_on','plan_time','due_on','due_time','status','checklist','waiting_contact_id','waiting_account_id','check_on','household_id'] AS record FROM ${table} r`;
+          return `SELECT '${table}' AS source, to_jsonb(r) - ARRAY['has_other_contributions', 'pinned', 'search_text', 'position','description','plan_on','plan_time','due_on','due_time','status','checklist','waiting_contact_id','waiting_account_id','check_on','household_id','repeat_rule','overdue_policy','series_id','series_trash_key','repeat_template','repeat_processed_on','predecessor_id','completion_event_id','repeat_next_event_id','completion_previous_status','completion_undone_at','is_main','radar_occurrence_id'] AS record FROM ${table} r`;
         })
         .join(' UNION ALL ')}) records ORDER BY source, record::text`,
     )

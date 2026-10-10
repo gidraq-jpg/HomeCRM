@@ -145,6 +145,16 @@ export const spaces = pgTable(
       sql.raw(`(kind = 'personal') = (owner_account_id IS NOT NULL)`),
     ),
     pgPolicy('spaces_select', { for: 'select', to: appRole, using: sql.raw(SPACES_SELECT_SQL) }),
+    pgPolicy('spaces_notification_owner', {
+      for: 'select',
+      to: ownerRole,
+      using: sql`current_setting('app.notification_lookup',true)='on' AND id=nullif(current_setting('app.notification_space',true),'')::uuid`,
+    }),
+    pgPolicy('spaces_repeat_owner', {
+      for: 'select',
+      to: ownerRole,
+      using: sql`(pg_trigger_depth()>0 AND id IN (nullif(current_setting('app.task_repeat_house',true),'')::uuid,nullif(current_setting('app.task_repeat_space',true),'')::uuid)) OR (session_user='homecrm_worker' AND current_setting('app.task_overdue_run',true)='on')`,
+    }),
     pgPolicy('spaces_passport_timezone', {
       for: 'select',
       to: ownerRole,
@@ -267,6 +277,16 @@ export const spaceMembers = pgTable(
       withCheck: sql.raw(MEMBER_LEAVE_CHECK_SQL),
     }),
     // Обработчик передаёт записи ушедшего администратору и ищет его по составу дома.
+    pgPolicy('space_members_notification_owner', {
+      for: 'select',
+      to: ownerRole,
+      using: sql`current_setting('app.notification_lookup',true)='on' AND space_id=nullif(current_setting('app.notification_space',true),'')::uuid`,
+    }),
+    pgPolicy('space_members_repeat_owner', {
+      for: 'select',
+      to: ownerRole,
+      using: sql`pg_trigger_depth()>0 AND space_id=nullif(current_setting('app.task_repeat_house',true),'')::uuid`,
+    }),
     pgPolicy('space_members_worker_select', {
       for: 'select',
       to: workerRole,

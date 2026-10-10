@@ -65,6 +65,8 @@ beforeEach(async () => {
   send.mockReset();
   send.mockResolvedValue(undefined);
   await world.clearRateLimits();
+  // События назначения не привязаны внешним ключом к наступлению срока.
+  await world.database.admin.query('DELETE FROM deadline_notifications');
   await world.database.admin.query('DELETE FROM deadlines');
   await world.database.admin.query('DELETE FROM push_subscriptions');
   await world.database.admin.query('DELETE FROM push_attempts');

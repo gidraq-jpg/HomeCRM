@@ -91,6 +91,7 @@ export const deadlines = pgTable(
     householdId: uuid('household_id')
       .notNull()
       .references(() => spaces.id),
+    assigneeOverrideId: uuid('assignee_override_id').references(() => accounts.id),
     rule: jsonb('rule').$type<DeadlineRule>().notNull(),
     needsRefresh: boolean('needs_refresh').notNull().default(true),
     ...accessColumns(),
@@ -98,6 +99,7 @@ export const deadlines = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check('deadlines_assignee_override', sql`assignee_override_id IS NULL OR source_kind='record'`),
     check(
       'deadlines_one_source',
       sql`num_nonnulls(note_id,object_id,document_id,contact_id,profile_account_id,task_id)=1`,
@@ -168,10 +170,20 @@ export const deadlines = pgTable(
       ),
       withCheck: sql.raw(`(${deadlineWritableSql}) OR (${deadlineCascadeSql})`),
     }),
+    pgPolicy('deadlines_task_owner_insert', {
+      for: 'insert',
+      to: ownerRole,
+      withCheck: sql`pg_trigger_depth()>0 AND task_id=nullif(current_setting('app.deadline_source_id',true),'')::uuid`,
+    }),
+    pgPolicy('deadlines_notification_owner', {
+      for: 'select',
+      to: ownerRole,
+      using: sql`current_setting('app.notification_lookup',true)='on' AND id=nullif(current_setting('app.notification_record',true),'')::uuid`,
+    }),
     ...(['select', 'update'] as const).map((op) =>
       pgPolicy(`deadlines_owner_${op}`, {
         for: op,
-        to: ownerRole,
+        to: pgRole('homecrm_owner').existing(),
         using: sql.raw(deadlineCascadeSql),
         ...(op === 'update' ? { withCheck: sql.raw(deadlineCascadeSql) } : {}),
       }),
@@ -232,7 +244,7 @@ export const deadlineOccurrencesTable = pgTable(
     ...(['select', 'update'] as const).map((op) =>
       pgPolicy(`deadline_occurrences_owner_${op}`, {
         for: op,
-        to: ownerRole,
+        to: pgRole('homecrm_owner').existing(),
         using: sql`pg_trigger_depth() > 0 AND deadline_id = nullif(current_setting('app.deadline_cascade_id',true),'')::uuid`,
         ...(op === 'update'
           ? {
@@ -256,9 +268,14 @@ export const deadlineNotifications = pgTable(
   'deadline_notifications',
   {
     id: id(),
-    occurrenceId: uuid('occurrence_id')
-      .notNull()
-      .references(() => deadlineOccurrencesTable.id, { onDelete: 'cascade' }),
+    occurrenceId: uuid('occurrence_id').references(() => deadlineOccurrencesTable.id, {
+      onDelete: 'cascade',
+    }),
+    eventKey: text('event_key'),
+    recordTable: text('record_table'),
+    recordId: uuid('record_id'),
+    eventKind: text('event_kind'),
+    householdId: uuid('event_household_id'),
     recipientId: uuid('recipient_id')
       .notNull()
       .references(() => accounts.id),
@@ -280,6 +297,21 @@ export const deadlineNotifications = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
+    uniqueIndex('deadline_notifications_event_once').on(t.eventKey),
+    check(
+      'deadline_notifications_source',
+      sql`(occurrence_id IS NOT NULL AND event_key IS NULL AND record_id IS NULL AND record_table IS NULL AND event_kind IS NULL AND event_household_id IS NULL) OR (occurrence_id IS NULL AND event_key IS NOT NULL AND record_id IS NOT NULL AND record_table IN ('tasks','objects','documents','deadlines') AND event_kind IN ('assignment','task_done') AND event_household_id IS NOT NULL)`,
+    ),
+    pgPolicy('deadline_notifications_event_owner', {
+      for: 'insert',
+      to: pgRole('homecrm_owner').existing(),
+      withCheck: sql`pg_trigger_depth()>0 AND record_id=nullif(current_setting('app.notification_record',true),'')::uuid`,
+    }),
+    pgPolicy('deadline_notifications_event_read', {
+      for: 'select',
+      to: appRole,
+      using: sql`recipient_id=app.current_account_id() AND record_id IS NOT NULL AND app.record_notification_visible(record_table,record_id,recipient_id)`,
+    }),
     uniqueIndex('deadline_notifications_once')
       .on(t.occurrenceId, t.recipientId, t.warningAt, t.notificationKind)
       .where(sql`status <> 'cancelled' OR cancellation_reason IS NOT NULL`),

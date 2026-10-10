@@ -13,8 +13,66 @@ interface Due {
 }
 /** Читает только актуальные служебные поля источника; названия worker не получает. */
 async function currentSource(client: PoolClient, notificationId: string, now: Date) {
+  const event = (
+    await client.query<{
+      recipient_id: string;
+      warning_at: Date;
+      record_id: string;
+      record_table: string;
+      event_kind: 'assignment' | 'task_done';
+      event_key: string;
+      time_zone: string;
+    }>(
+      `SELECT n.recipient_id,n.warning_at,n.record_id,n.record_table,n.event_kind,n.event_key,coalesce(s.time_zone,'UTC') AS time_zone FROM deadline_notifications n JOIN spaces s ON s.id=n.event_household_id WHERE n.id=$1 AND n.status='pending' AND n.record_id IS NOT NULL`,
+      [notificationId],
+    )
+  ).rows[0];
+  if (event) {
+    const current = (
+      await client.query<{ valid: boolean }>(
+        'SELECT app.record_notification_current($1,$2,$3,$4,$5) AS valid',
+        [
+          event.record_table,
+          event.record_id,
+          event.recipient_id,
+          event.event_kind,
+          event.event_key,
+        ],
+      )
+    ).rows[0]?.valid;
+    if (!current) return null;
+    const parent =
+      event.record_table === 'deadlines'
+        ? (
+            await client.query<{ note_id: string | null; object_id: string | null }>(
+              'SELECT note_id,object_id FROM deadlines WHERE id=$1 AND deleted_at IS NULL',
+              [event.record_id],
+            )
+          ).rows[0]
+        : undefined;
+    if (event.record_table === 'deadlines' && !parent) return null;
+    return {
+      ...event,
+      record_id: parent?.note_id ?? parent?.object_id ?? event.record_id,
+      source_kind: 'record' as const,
+      source_type: parent?.note_id
+        ? ('note' as const)
+        : event.record_table === 'tasks'
+          ? ('task' as const)
+          : event.record_table === 'documents'
+            ? ('document' as const)
+            : ('object' as const),
+      notificationKind: 'deadline' as const,
+      untilStart: 0,
+      untilEnd: 0,
+      contact_id: null,
+      profile_account_id: null,
+      has_meters: true,
+    };
+  }
   const { rows } = await client.query<{
     recipient_id: string;
+    assignee_override_id: string | null;
     warning_at: Date;
     time_zone: string;
     record_id: string;
@@ -38,7 +96,7 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
     notification_kind: NotificationSettings['enabledKinds'][number];
     has_meters: boolean;
   }>(
-    `SELECT n.recipient_id,n.warning_at,n.notification_kind,d.rule,o.date::text,
+    `SELECT n.recipient_id,d.assignee_override_id,n.warning_at,n.notification_kind,d.rule,o.date::text,
       EXISTS (SELECT 1 FROM meters m WHERE m.utility_account_id=d.utility_account_id AND m.deleted_at IS NULL AND m.is_active) AS has_meters,s.time_zone,coalesce(d.note_id,d.object_id,d.document_id,d.contact_id,d.profile_account_id,d.task_id) AS record_id,d.source_kind,o.starts_at,o.ends_at,d.contact_id,d.profile_account_id,
       CASE WHEN d.task_id IS NOT NULL THEN 'task' WHEN d.note_id IS NOT NULL THEN 'note' WHEN d.document_id IS NOT NULL THEN 'document' WHEN d.contact_id IS NOT NULL THEN 'contact' WHEN d.profile_account_id IS NOT NULL THEN 'profile' ELSE 'object' END AS source_type
     FROM deadline_notifications n JOIN deadline_occurrences o ON o.id=n.occurrence_id
@@ -83,7 +141,8 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
       [row.contact_id, row.profile_account_id, row.recipient_id],
     );
     if (!allowed.rows[0]?.visible || row.ends_at < now) return null;
-  } else if (!source || source.assignee_id !== row.recipient_id) return null;
+  } else if (!source || (row.assignee_override_id ?? source.assignee_id) !== row.recipient_id)
+    return null;
   if (
     row.source_type === 'document' &&
     (
@@ -120,7 +179,7 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
     (Date.parse(localDate(row.starts_at, row.time_zone)) - Date.parse(date)) / 86_400_000;
   const untilEnd =
     (Date.parse(localDate(row.ends_at, row.time_zone)) - Date.parse(date)) / 86_400_000;
-  return { ...row, notificationKind, untilStart, untilEnd };
+  return { ...row, event_kind: null, notificationKind, untilStart, untilEnd };
 }
 
 async function transaction<T>(client: PoolClient, fn: () => Promise<T>): Promise<T> {
@@ -258,27 +317,33 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
               text:
                 (settings?.hide_text ?? true)
                   ? 'В HomeCRM есть новое'
-                  : source.source_kind === 'birthday'
-                    ? `День рождения: ${birthdayName ?? 'участник'}`
-                    : {
-                        deadline: 'Подходит срок записи в HomeCRM',
-                        readings_open:
-                          source.untilStart > 0
-                            ? 'Скоро откроется окно показаний'
-                            : 'Открылось окно показаний',
-                        readings_closing:
-                          source.untilEnd === 1
-                            ? 'Окно закрывается завтра'
-                            : 'Подходит конец окна показаний',
-                        readings_last_day: 'Последний день передачи показаний',
-                        payment_upcoming:
-                          source.untilStart === 3 ? 'Оплата через 3 дня' : 'Подходит срок оплаты',
-                        payment_due: 'Оплата сегодня',
-                        verification: 'Подходит срок поверки',
-                      }[source.notificationKind] +
-                      (source.source_kind === 'readings' && !source.has_meters
-                        ? '. Добавьте счётчики'
-                        : ''),
+                  : source.event_kind === 'assignment'
+                    ? 'Вам назначена запись в HomeCRM'
+                    : source.event_kind === 'task_done'
+                      ? 'Назначенное вами дело выполнено'
+                      : source.source_kind === 'birthday'
+                        ? `День рождения: ${birthdayName ?? 'участник'}`
+                        : {
+                            deadline: 'Подходит срок записи в HomeCRM',
+                            readings_open:
+                              source.untilStart > 0
+                                ? 'Скоро откроется окно показаний'
+                                : 'Открылось окно показаний',
+                            readings_closing:
+                              source.untilEnd === 1
+                                ? 'Окно закрывается завтра'
+                                : 'Подходит конец окна показаний',
+                            readings_last_day: 'Последний день передачи показаний',
+                            payment_upcoming:
+                              source.untilStart === 3
+                                ? 'Оплата через 3 дня'
+                                : 'Подходит срок оплаты',
+                            payment_due: 'Оплата сегодня',
+                            verification: 'Подходит срок поверки',
+                          }[source.notificationKind] +
+                          (source.source_kind === 'readings' && !source.has_meters
+                            ? '. Добавьте счётчики'
+                            : ''),
             },
             delivery.id,
           );

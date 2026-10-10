@@ -62,6 +62,7 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
           audience: deadlines.audience,
           authorId: deadlines.authorId,
           assigneeId: deadlines.assigneeId,
+          assigneeOverrideId: deadlines.assigneeOverrideId,
           deletedAt: deadlines.deletedAt,
           needsRefresh: deadlines.needsRefresh,
         })
@@ -103,6 +104,7 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
         deadline.sourceKind === 'birthday'
           ? { assigneeId: deadline.assigneeId, deletedAt: deadline.deletedAt }
           : recordSource;
+      if (source && deadline.assigneeOverrideId) source.assigneeId = deadline.assigneeOverrideId;
       const active = deadline.deletedAt === null && source?.deletedAt === null;
       if (!active) {
         if (deadline.needsRefresh)
@@ -194,6 +196,10 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
 /** Проверка предупреждений раз в пять минут. Названия и тексты worker не читает. */
 export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
   await db.transaction(async (tx) => {
+    // Отменяем утратившие актуальность события даже без подписанного устройства.
+    await tx.execute(
+      sql`UPDATE deadline_notifications n SET status='cancelled' WHERE n.record_id IS NOT NULL AND n.status='pending' AND NOT app.record_notification_current(n.record_table,n.record_id,n.recipient_id,n.event_kind,n.event_key)`,
+    );
     await tx.execute(sql`UPDATE deadline_notifications n SET status='cancelled'
       FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id
       WHERE n.occurrence_id=o.id AND n.status='pending' AND
@@ -226,6 +232,7 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
           objectId: deadlines.objectId,
           deletedAt: deadlines.deletedAt,
           dirty: deadlines.needsRefresh,
+          assigneeOverrideId: deadlines.assigneeOverrideId,
           householdId: deadlines.householdId,
           sourceKind: deadlines.sourceKind,
           rule: deadlines.rule,
@@ -257,6 +264,7 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
         rule.sourceKind === 'birthday'
           ? { assigneeId: row.assigneeId, deletedAt: row.deletedAt }
           : recordSource;
+      if (source && rule.assigneeOverrideId) source.assigneeId = rule.assigneeOverrideId;
       if (!source?.assigneeId || source.deletedAt !== null) continue;
       const recipient = source.assigneeId;
       const visible =

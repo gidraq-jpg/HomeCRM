@@ -30,7 +30,7 @@ vi.mock('./engine.ts', () => ({
 }));
 beforeEach(() => vi.resetAllMocks());
 
-const pool = { connect: async () => mocks.listener } as unknown as Pool;
+const pool = { query: vi.fn(), connect: async () => mocks.listener } as unknown as Pool;
 
 it('передаёт исходную ошибку в журнал, а pg-boss получает только безопасное сообщение', async () => {
   const report = vi.fn();
@@ -39,6 +39,9 @@ it('передаёт исходную ошибку в журнал, а pg-boss �
   const stop = await startDeadlineJobs(pool, 'Europe/Moscow', report);
   const handle = mocks.boss.work.mock.calls[0]?.[1];
   await expect(handle([{ data: { full: true } }])).rejects.toThrow('Deadline job failed');
+  expect(pool.query).toHaveBeenCalledWith('SELECT app.process_task_overdue($1)', [
+    expect.any(Date),
+  ]);
   expect(report).toHaveBeenCalledExactlyOnceWith(failure);
   await stop();
 });

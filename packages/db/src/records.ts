@@ -20,6 +20,7 @@ import {
   jsonb,
   pgEnum,
   pgPolicy,
+  pgRole,
   pgTable,
   text,
   timestamp,
@@ -208,6 +209,7 @@ export interface RecordTableOptions {
   extraPolicies?: ReturnType<typeof pgPolicy>[];
   /** Ограничения собственных полей записи. */
   extraChecks?: ReturnType<typeof check>[];
+  extraIndexes?: ReturnType<ReturnType<typeof index>['on']>[];
 }
 
 export interface RecordDefinition {
@@ -241,6 +243,7 @@ export function recordTable<
     ),
     ...(options.extraPolicies ?? []),
     ...(options.extraChecks ?? []),
+    ...(options.extraIndexes ?? []),
   ]);
   const history = historyTable(name, table);
   return { table, history };
@@ -276,6 +279,15 @@ function historyTable(name: string, table: { id: AnyPgColumn }) {
       changes: jsonb('changes').notNull(),
     },
     (t) => [
+      ...(name === 'tasks'
+        ? [
+            pgPolicy('tasks_history_repeat_owner', {
+              for: 'insert',
+              to: pgRole('homecrm_owner').existing(),
+              withCheck: sql`pg_trigger_depth()>0 AND (record_id=nullif(current_setting('app.task_repeat_source',true),'')::uuid OR EXISTS (SELECT 1 FROM tasks t WHERE t.id=record_id AND t.predecessor_id=nullif(current_setting('app.task_repeat_source',true),'')::uuid))`,
+            }),
+          ]
+        : []),
       // Только на запись: место события свободное, внешний ключ не переносит его вместе с записью.
       foreignKey({
         name: `${historyName}_record_fk`,
