@@ -23,6 +23,7 @@ export class Failure extends Error {
   status: number;
   code: string;
   publicMessage?: string;
+  details?: Record<string, unknown>;
   constructor(status: number, code: string, publicMessage?: string) {
     super(code);
     this.status = status;
@@ -146,6 +147,7 @@ export function dataRoutes(app: FastifyInstance, module: AuthModule): DataRoute 
     if (error instanceof Failure)
       return reply.code(error.status).send({
         code: error.code,
+        ...error.details,
         ...(error.code === 'ASSIGNEE_NOT_VISIBLE' ? { requiresAudienceExpansion: true } : {}),
         ...(error.publicMessage ? { message: error.publicMessage } : {}),
       });

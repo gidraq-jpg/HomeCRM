@@ -6,6 +6,7 @@ import {
   spaceMembers,
   sql,
   type Transaction,
+  taskFiles,
   tasks,
 } from '@homecrm/db';
 import {
@@ -27,7 +28,7 @@ import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import { getContact } from '../contacts/routes.ts';
-import { fileSummary, filesOf } from '../files/service.ts';
+import { fileSummary } from '../files/service.ts';
 import { beginOperation, fingerprint, finishOperation } from '../idempotency.ts';
 import { getObject } from '../objects/routes.ts';
 import {
@@ -46,6 +47,9 @@ import {
   version,
 } from '../objects/support.ts';
 import { publicRecord } from '../utilities/service.ts';
+import { taskActions } from './actions.ts';
+import { taskFeeds } from './feeds.ts';
+import { assignmentPlacement, repeatTemplate } from './service.ts';
 
 const Id = z.strictObject({ id: z.uuid() });
 const Place = z.strictObject({
@@ -57,51 +61,86 @@ const Link = z.strictObject({
   id: z.uuid(),
   role: z.string().trim().max(200).default(''),
 });
-type Task = typeof tasks.$inferSelect;
-async function getTask(tx: Transaction, account: Account, id: string, lock = false) {
+export type Task = typeof tasks.$inferSelect;
+export async function getTask(tx: Transaction, account: Account, id: string, lock = false) {
   const [row] = await tx.select().from(tasks).where(eq(tasks.id, id));
   if (!row || !canView(account.viewer, placementOf(row))) missing();
   if (!lock) return row;
   if (!row.deletedAt) requireWrite(account, row, 'task');
+  if (row.seriesId)
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${row.seriesId}::text,0))`);
   const [locked] = await tx.select().from(tasks).where(eq(tasks.id, id)).for('update');
   if (!locked) deny();
   return locked;
 }
-async function summary(tx: Transaction, row: Task) {
-  const contact = row.waitingContactId
-    ? (
-        await tx.execute<{ id: string; title: string }>(
-          sql`SELECT id,title FROM contacts WHERE id=${row.waitingContactId}::uuid AND deleted_at IS NULL`,
-        )
-      ).rows[0]
-    : null;
-  const member = row.waitingAccountId
-    ? (
-        await tx.execute<{ id: string; title: string }>(
-          sql`SELECT p.account_id AS id,p.display_name AS title FROM member_profiles p WHERE p.account_id=${row.waitingAccountId}::uuid`,
-        )
-      ).rows[0]
-    : null;
-  return {
-    ...publicRecord(row),
-    files: (await filesOf(tx, 'task', row.id))
-      .filter((file) => row.deletedAt !== null || file.deletedAt === null)
-      .map(fileSummary),
-    description: row.description,
-    planOn: row.planOn,
-    planTime: row.planTime,
-    dueOn: row.dueOn,
-    dueTime: row.dueTime,
-    dueAt: row.dueAt,
-    doneAt: row.doneAt,
-    status: row.status,
-    checklist: row.checklist,
-    waitingContactId: contact?.id ?? null,
-    waitingAccountId: member?.id ?? null,
-    waitingFrom: contact ?? member ?? null,
-    checkOn: row.checkOn,
-    householdId: row.householdId,
-  };
+export async function summaries(tx: Transaction, rows: Task[]) {
+  if (!rows.length) return [];
+  const ids = sql`ARRAY[${sql.join(
+    rows.map((r) => sql`${r.id}::uuid`),
+    sql`, `,
+  )}]::uuid[]`;
+  const files = await tx
+    .select()
+    .from(taskFiles)
+    .where(sql`parent_id=ANY(${ids}::uuid[])`)
+    .orderBy(taskFiles.createdAt, taskFiles.id);
+  const contacts = (
+    await tx.execute<{ id: string; title: string }>(
+      sql`SELECT id,title FROM contacts WHERE id=ANY(ARRAY(SELECT waiting_contact_id FROM tasks WHERE id=ANY(${ids}))) AND deleted_at IS NULL`,
+    )
+  ).rows;
+  const members = (
+    await tx.execute<{ id: string; title: string }>(
+      sql`SELECT account_id AS id,display_name AS title FROM member_profiles WHERE account_id=ANY(ARRAY(SELECT waiting_account_id FROM tasks WHERE id=ANY(${ids})))`,
+    )
+  ).rows;
+  const next = (
+    await tx.execute<{ id: string; predecessor_id: string }>(
+      sql`SELECT id,predecessor_id FROM tasks WHERE predecessor_id=ANY(${ids}::uuid[]) AND deleted_at IS NULL`,
+    )
+  ).rows;
+  const radar = (
+    await tx.execute<{ id: string }>(
+      sql`SELECT id FROM deadline_occurrences WHERE id=ANY(ARRAY(SELECT radar_occurrence_id FROM tasks WHERE id=ANY(${ids}))) AND deleted_at IS NULL`,
+    )
+  ).rows;
+  return rows.map((row) => {
+    const contact = contacts.find((c) => c.id === row.waitingContactId),
+      member = members.find((m) => m.id === row.waitingAccountId);
+    return {
+      ...publicRecord(row),
+      files: files
+        .filter((f) => f.parentId === row.id && (row.deletedAt !== null || f.deletedAt === null))
+        .map(fileSummary),
+      description: row.description,
+      planOn: row.planOn,
+      planTime: row.planTime,
+      dueOn: row.dueOn,
+      dueTime: row.dueTime,
+      dueAt: row.dueAt,
+      doneAt: row.doneAt,
+      status: row.status,
+      checklist: row.checklist,
+      waitingContactId: contact?.id ?? null,
+      waitingAccountId: member?.id ?? null,
+      waitingFrom: contact ?? member ?? null,
+      checkOn: row.checkOn,
+      householdId: row.householdId,
+      seriesId: row.seriesId,
+      radarOccurrenceId: radar.some((r) => r.id === row.radarOccurrenceId)
+        ? row.radarOccurrenceId
+        : null,
+      repeatRule: row.repeatRule,
+      overduePolicy: row.overduePolicy,
+      isMain: row.isMain,
+      completionEventId: row.completionEventId,
+      completionUndoneAt: row.completionUndoneAt,
+      nextTaskId: next.find((n) => n.predecessor_id === row.id)?.id ?? null,
+    };
+  });
+}
+export async function summary(tx: Transaction, row: Task) {
+  return (await summaries(tx, [row]))[0];
 }
 async function assignee(tx: Transaction, account: Account, place: Placement, id: string) {
   const memberships = await tx
@@ -153,6 +192,8 @@ async function waiting(
 }
 export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
   const route = dataRoutes(app, module);
+  taskActions(route);
+  taskFeeds(route);
   route('POST', '/api/tasks', 201, async (tx, account, request) => {
     const body = parse(
       TaskFields.extend({
@@ -161,6 +202,7 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
         householdId: z.uuid().optional(),
         objectId: z.uuid().optional(),
         links: z.array(Link).max(100).default([]),
+        expandAudience: z.boolean().default(false),
         idempotencyKey: z.uuid().optional(),
       }),
       request.body,
@@ -170,12 +212,20 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
     if (prior) return summary(tx, await getTask(tx, account, prior[0] ?? ''));
     const object = body.objectId ? await getObject(tx, account, body.objectId) : null;
     if (object?.deletedAt) missing();
-    const place = body.placement
+    let place = body.placement
       ? await placementFrom(tx, account, body.placement.spaceId, body.placement.audience)
       : object
         ? placementOf(object)
         : await placementFrom(tx, account);
     const assigned = body.assigneeId ?? (place.kind === 'personal' ? place.ownerId : account.id);
+    place = await assignmentPlacement(
+      tx,
+      account,
+      place,
+      assigned,
+      body.expandAudience,
+      body.householdId,
+    );
     await assignee(tx, account, place, assigned);
     if (
       !canCreate(account.viewer, {
@@ -187,6 +237,8 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
     )
       deny();
     const data = parse(TaskData, TaskFields.strip().parse(body));
+    if (data.repeatRule && !['open', 'waiting'].includes(data.status))
+      throw new Failure(400, 'INVALID_REPEAT_STATUS');
     await waiting(tx, account, data);
     const house =
       place.kind === 'household'
@@ -195,7 +247,14 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
     if (house && !account.viewer.memberships.has(house)) deny();
     if ((data.planOn || data.dueOn || data.checkOn) && !house)
       throw new Failure(400, 'HOUSE_REQUIRED');
-    const { idempotencyKey: _key, placement: _place, objectId: _object, links, ...fields } = body;
+    const {
+      idempotencyKey: _key,
+      placement: _place,
+      objectId: _object,
+      links,
+      expandAudience: _expand,
+      ...fields
+    } = body;
     const [row] = await tx
       .insert(tasks)
       .values({
@@ -269,14 +328,13 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
       .orderBy(tasks.planOn, tasks.planTime, tasks.id)
       .limit(q.limit)
       .offset(q.offset);
-    return Promise.all(
-      rows
-        .filter((row) => canView(account.viewer, placementOf(row)))
-        .map(async (row) => ({
-          ...(await summary(tx, row)),
-          canRestore: !!row.deletedAt && canRestore(account.viewer, factsOf(row, 'task')),
-        })),
-    );
+    const visible = rows.filter((row) => canView(account.viewer, placementOf(row)));
+    return (await summaries(tx, visible)).map((row, index) => ({
+      ...row,
+      canRestore:
+        !!visible[index]?.deletedAt &&
+        canRestore(account.viewer, factsOf(visible[index] as Task, 'task')),
+    }));
   });
   route('GET', '/api/tasks/:id', 200, async (tx, account, request) =>
     summary(tx, await getTask(tx, account, parse(Id, request.params).id)),
@@ -293,6 +351,10 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
             ? parse(
                 z
                   .strictObject({
+                    repeatRule: TaskFields.shape.repeatRule.unwrap().optional(),
+                    overduePolicy: TaskFields.shape.overduePolicy.unwrap().optional(),
+                    repeatScope: z.enum(['this', 'following']).default('this'),
+                    expandAudience: z.boolean().default(false),
                     title: TaskFields.shape.title.optional(),
                     description: z.string().max(20000).optional(),
                     planOn: TaskFields.shape.planOn.unwrap().optional(),
@@ -312,7 +374,13 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
                   })
                   .refine((b) =>
                     Object.keys(b).some(
-                      (k) => !['expectedUpdatedAt', 'idempotencyKey'].includes(k),
+                      (k) =>
+                        ![
+                          'expectedUpdatedAt',
+                          'idempotencyKey',
+                          'repeatScope',
+                          'expandAudience',
+                        ].includes(k),
                     ),
                   ),
                 request.body,
@@ -367,12 +435,41 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
           'assigneeId' in body && body.assigneeId
             ? body.assigneeId
             : (row.assigneeId ?? account.id);
-        await assignee(tx, account, placementOf(row), assigned);
+        const target = await assignmentPlacement(
+          tx,
+          account,
+          placementOf(row),
+          assigned,
+          'expandAudience' in body && body.expandAudience,
+          row.householdId ?? undefined,
+          row,
+        );
+        await assignee(tx, account, target, assigned);
         const dated = !!(merged.planOn || merged.dueOn || merged.checkOn);
-        const house = row.householdId ?? (dated ? await legacyHouse(tx, account, row) : null);
+        const house =
+          target.kind === 'household'
+            ? target.spaceId
+            : (row.householdId ?? (dated ? await legacyHouse(tx, account, row) : null));
         if (dated && !house) throw new Failure(400, 'HOUSE_REQUIRED');
-        const { expectedUpdatedAt: _version, idempotencyKey: _key, ...fields } = body;
+        const fields = Object.fromEntries(
+          Object.entries(body).filter(
+            ([key]) =>
+              !['expectedUpdatedAt', 'idempotencyKey', 'repeatScope', 'expandAudience'].includes(
+                key,
+              ),
+          ),
+        ) as Partial<z.infer<typeof TaskFields>> & { assigneeId?: string };
+        const following = 'repeatScope' in body && body.repeatScope === 'following';
+        if (following && row.repeatRule && !['open', 'waiting'].includes(row.status))
+          throw new Failure(409, 'NOT_CURRENT_INSTANCE');
+        if (row.repeatRule && 'repeatRule' in body && !following)
+          throw new Failure(400, 'REPEAT_SCOPE_REQUIRED');
         const changed =
+          target.spaceId !== row.spaceId ||
+          (target.kind === 'household' && target.audience !== row.audience) ||
+          (following &&
+            JSON.stringify(repeatTemplate(merged, assigned)) !==
+              JSON.stringify(row.repeatTemplate)) ||
           house !== row.householdId ||
           Object.entries(fields).some(
             ([key, value]) => JSON.stringify(row[key as keyof Task]) !== JSON.stringify(value),
@@ -383,6 +480,14 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
             .update(tasks)
             .set({
               ...fields,
+              ...columnsOf(target),
+              repeatTemplate:
+                following ||
+                target.spaceId !== row.spaceId ||
+                (target.kind === 'household' && target.audience !== row.audience) ||
+                (!row.repeatRule && merged.repeatRule)
+                  ? repeatTemplate(merged, assigned)
+                  : row.repeatTemplate,
               householdId: house,
               doneAt: merged.status === 'done' ? (row.doneAt ?? new Date()) : null,
             })
@@ -423,6 +528,9 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
       .update(tasks)
       .set({
         ...columnsOf(target),
+        repeatTemplate: row.repeatRule
+          ? repeatTemplate(TaskFields.strip().parse(row), assigned)
+          : null,
         assigneeId: assigned,
         householdId: target.kind === 'household' ? target.spaceId : row.householdId,
       })

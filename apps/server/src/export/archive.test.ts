@@ -903,3 +903,62 @@ it('TASK-1/8: архив включает поля дела, чек-лист, ф
   ]);
   await world.database.admin.query('DELETE FROM contacts WHERE id=$1', [privateContact.id]);
 });
+
+it('TASK-3/DATA-2: экспорт сохраняет повтор и ответственность срока, скрывает личного предшественника', async () => {
+  const response = await adult.post('/api/tasks', {
+    title: 'Повтор экспорта',
+    planOn: '2026-10-15',
+    repeatRule: { kind: 'daily' },
+    overduePolicy: 'roll_forward',
+  });
+  expect(response.status, response.text).toBe(201);
+  const first = response.json<{ id: string; seriesId: string }>();
+  const completed = await adult.post(`/api/tasks/${first.id}/status`, { status: 'done' });
+  expect(completed.status, completed.text).toBe(200);
+  const nextId = completed.json<{ nextTaskId: string }>().nextTaskId;
+  const moved = await adult.post(`/api/tasks/${nextId}/move`, {
+    spaceId: world.houseId,
+    audience: 'household',
+    confirmed: true,
+  });
+  expect(moved.status, moved.text).toBe(200);
+  const noteId = ids.get('family')?.note;
+  if (!noteId) throw new Error('Missing export fixture');
+  const deadline = await adult.post(`/api/notes/${noteId}/deadlines`, {
+    rule: { kind: 'date', date: '2026-10-21' },
+  });
+  expect(deadline.status, deadline.text).toBe(201);
+  const deadlineId = deadline.json<{ id: string }>().id;
+  const assigned = await adult.post(`/api/deadlines/${deadlineId}/assignee`, {
+    assigneeId: world.anna.id,
+  });
+  expect(assigned.status, assigned.text).toBe(200);
+  try {
+    const result = await archive(admin, world.anna.password, {
+      kind: 'household',
+      householdId: world.houseId,
+    });
+    expect(result.statusCode, result.body).toBe(200);
+    const entries = await unpack(result.rawPayload);
+    expect(
+      ExportRecords.tasks.parse(
+        json(entries, 'tasks').find((r: { id: string }) => r.id === nextId),
+      ),
+    ).toMatchObject({
+      repeat_rule: { kind: 'daily' },
+      series_id: first.seriesId,
+      overdue_policy: 'roll_forward',
+      predecessor_id: null,
+      repeat_template: { title: 'Повтор экспорта' },
+    });
+    expect(
+      ExportRecords.deadlines.parse(
+        json(entries, 'deadlines').find((r: { id: string }) => r.id === deadlineId),
+      ),
+    ).toMatchObject({ assignee_id: world.anna.id, assignee_override_id: world.anna.id });
+    expect([...entries.values()].map((v) => v.toString()).join('')).not.toContain(first.id);
+  } finally {
+    await world.database.admin.query('DELETE FROM tasks WHERE series_id=$1', [first.seriesId]);
+    await world.database.admin.query('DELETE FROM deadlines WHERE id=$1', [deadlineId]);
+  }
+});

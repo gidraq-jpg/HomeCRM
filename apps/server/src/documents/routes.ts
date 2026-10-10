@@ -455,6 +455,12 @@ export async function documentRoutes(app: FastifyInstance, module: AuthModule) {
     const { assigneeId } = parse(z.strictObject({ assigneeId: z.uuid() }), request.body);
     const row = await read(tx, account, parse(Id, request.params).id, true);
     requireWrite(account, row, 'document');
+    const allowed = (
+      await tx.execute<{ visible: boolean }>(
+        sql`SELECT app.record_notification_visible('documents',${row.id}::uuid,${assigneeId}::uuid) AS visible`,
+      )
+    ).rows[0]?.visible;
+    if (!allowed) throw new Failure(409, 'ASSIGNEE_NOT_VISIBLE');
     const [updated] = await tx
       .update(documents)
       .set({ assigneeId })

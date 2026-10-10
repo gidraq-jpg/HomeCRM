@@ -88,6 +88,11 @@ const notesDefinition = recordTable(
   },
   {
     extraPolicies: [
+      pgPolicy('notes_notification_owner', {
+        for: 'select',
+        to: pgRole('homecrm_owner').existing(),
+        using: sql`current_setting('app.notification_lookup',true)='on' AND id=nullif(current_setting('app.notification_record',true),'')::uuid`,
+      }),
       pgPolicy('notes_deadline_worker_select', {
         for: 'select',
         to: workerRole,
@@ -131,6 +136,21 @@ const tasksDefinition = recordTable(
   'task',
   {
     description: text('description').notNull().default(''),
+    repeatRule: jsonb('repeat_rule').$type<import('@homecrm/shared').TaskRepeatRule>(),
+    overduePolicy: text('overdue_policy')
+      .$type<'roll_forward' | 'not_done' | 'keep'>()
+      .notNull()
+      .default('keep'),
+    seriesId: uuid('series_id'),
+    seriesTrashKey: uuid('series_trash_key'),
+    repeatTemplate: jsonb('repeat_template').$type<Record<string, unknown>>(),
+    repeatProcessedOn: date('repeat_processed_on'),
+    predecessorId: uuid('predecessor_id'),
+    completionEventId: uuid('completion_event_id'),
+    completionPreviousStatus: text('completion_previous_status'),
+    completionUndoneAt: timestamp('completion_undone_at', { withTimezone: true }),
+    isMain: boolean('is_main').notNull().default(false),
+    radarOccurrenceId: uuid('radar_occurrence_id'),
     planOn: date('plan_on'),
     planTime: text('plan_time'),
     dueOn: date('due_on'),
@@ -151,7 +171,23 @@ const tasksDefinition = recordTable(
     householdId: uuid('household_id').references(() => spaces.id),
   },
   {
+    extraIndexes: [
+      index('tasks_series_idx').on(sql`series_id`),
+      uniqueIndex('tasks_predecessor_live').on(sql`predecessor_id`).where(sql`deleted_at IS NULL`),
+      uniqueIndex('tasks_series_current')
+        .on(sql`series_id`)
+        .where(sql`series_id IS NOT NULL AND status IN ('open','waiting') AND deleted_at IS NULL`),
+      uniqueIndex('tasks_main_once')
+        .on(sql`assignee_id`)
+        .where(sql`is_main AND deleted_at IS NULL AND status IN ('open','waiting')`),
+      uniqueIndex('tasks_radar_once').on(sql`radar_occurrence_id`),
+    ],
     extraChecks: [
+      check(
+        'tasks_repeat',
+        sql`repeat_rule IS NULL OR (series_id IS NOT NULL AND plan_on IS NOT NULL AND repeat_template IS NOT NULL AND repeat_rule->>'kind' IN ('daily','weekly','monthly','yearly','every_days','after_done'))`,
+      ),
+      check('tasks_overdue_policy', sql`overdue_policy IN ('roll_forward','not_done','keep')`),
       check('tasks_status', sql`status IN ('open','done','cancelled','not_done','waiting')`),
       check(
         'tasks_clock',
@@ -164,6 +200,17 @@ const tasksDefinition = recordTable(
       check('tasks_checklist', sql`jsonb_typeof(checklist)='array'`),
     ],
     extraPolicies: [
+      pgPolicy('tasks_repeat_owner', {
+        for: 'all',
+        to: pgRole('homecrm_owner').existing(),
+        using: sql`(pg_trigger_depth()>0 AND (id=nullif(current_setting('app.task_repeat_source',true),'')::uuid OR predecessor_id=nullif(current_setting('app.task_repeat_source',true),'')::uuid)) OR (session_user='homecrm_worker' AND current_setting('app.task_overdue_run',true)='on' AND repeat_rule IS NOT NULL AND deleted_at IS NULL)`,
+        withCheck: sql`(pg_trigger_depth()>0 AND (id=nullif(current_setting('app.task_repeat_source',true),'')::uuid OR predecessor_id=nullif(current_setting('app.task_repeat_source',true),'')::uuid)) OR (session_user='homecrm_worker' AND current_setting('app.task_overdue_run',true)='on' AND repeat_rule IS NOT NULL AND deleted_at IS NULL)`,
+      }),
+      pgPolicy('tasks_notification_owner', {
+        for: 'select',
+        to: pgRole('homecrm_owner').existing(),
+        using: sql`current_setting('app.notification_lookup',true)='on' AND id=nullif(current_setting('app.notification_record',true),'')::uuid`,
+      }),
       pgPolicy('tasks_deadline_worker_select', {
         for: 'select',
         to: workerRole,
@@ -189,6 +236,11 @@ const objectsDefinition = recordTable(
   },
   {
     extraPolicies: [
+      pgPolicy('objects_notification_owner', {
+        for: 'select',
+        to: pgRole('homecrm_owner').existing(),
+        using: sql`current_setting('app.notification_lookup',true)='on' AND id=nullif(current_setting('app.notification_record',true),'')::uuid`,
+      }),
       pgPolicy('objects_deadline_worker_select', {
         for: 'select',
         to: workerRole,
@@ -365,6 +417,11 @@ const documentsDefinition = recordTable(
       check('documents_status', sql`status IN ('valid','invalid')`),
     ],
     extraPolicies: [
+      pgPolicy('documents_notification_owner', {
+        for: 'select',
+        to: pgRole('homecrm_owner').existing(),
+        using: sql`current_setting('app.notification_lookup',true)='on' AND id=nullif(current_setting('app.notification_record',true),'')::uuid`,
+      }),
       pgPolicy('documents_passport_refresh', {
         for: 'select',
         to: pgRole('homecrm_owner').existing(),

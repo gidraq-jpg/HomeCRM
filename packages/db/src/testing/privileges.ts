@@ -66,6 +66,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         'assignee_id',
         'household_id',
         'needs_refresh',
+        'assignee_override_id',
       ],
     },
     deadline_occurrences: {
@@ -112,6 +113,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         'deleted_at',
         'needs_refresh',
         'created_at',
+        'assignee_override_id',
       ],
       UPDATE: ['needs_refresh'],
       DELETE: 'all',

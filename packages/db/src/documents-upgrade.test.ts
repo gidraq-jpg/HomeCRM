@@ -29,7 +29,7 @@ async function snapshot() {
       table,
       rows: (
         await db.admin.query(
-          `SELECT to_jsonb(t)-ARRAY['organization_id','document_id','contact_id','profile_account_id','task_id'] AS data FROM ${table} t ORDER BY id`,
+          `SELECT to_jsonb(t)-ARRAY['organization_id','document_id','contact_id','profile_account_id','task_id','assignee_override_id','event_key','record_table','record_id','event_kind','event_household_id'] AS data FROM ${table} t ORDER BY id`,
         )
       ).rows,
     });

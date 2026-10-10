@@ -156,6 +156,24 @@ async function* records(
   for await (const row of rows(tx, table, where, projection)) {
     if (table === 'tasks') {
       if (
+        row.predecessor_id &&
+        !(
+          await tx.execute(
+            sql`SELECT 1 FROM tasks t WHERE id=${String(row.predecessor_id)}::uuid AND ${scopeWhere(scope)}`,
+          )
+        ).rowCount
+      )
+        row.predecessor_id = null;
+      if (
+        row.radar_occurrence_id &&
+        !(
+          await tx.execute(
+            sql`SELECT 1 FROM deadline_occurrences t WHERE id=${String(row.radar_occurrence_id)}::uuid AND ${scopeWhere(scope)}`,
+          )
+        ).rowCount
+      )
+        row.radar_occurrence_id = null;
+      if (
         row.waiting_contact_id &&
         !(
           await tx.execute(
