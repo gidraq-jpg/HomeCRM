@@ -176,7 +176,9 @@ const tasksDefinition = recordTable(
       uniqueIndex('tasks_predecessor_live').on(sql`predecessor_id`).where(sql`deleted_at IS NULL`),
       uniqueIndex('tasks_series_current')
         .on(sql`series_id`)
-        .where(sql`series_id IS NOT NULL AND status IN ('open','waiting') AND deleted_at IS NULL`),
+        .where(
+          sql`series_id IS NOT NULL AND status IN ('open','waiting') AND deleted_at IS NULL AND (completion_event_id IS NULL OR completion_undone_at IS NOT NULL)`,
+        ),
       uniqueIndex('tasks_main_once')
         .on(sql`assignee_id`)
         .where(sql`is_main AND deleted_at IS NULL AND status IN ('open','waiting')`),

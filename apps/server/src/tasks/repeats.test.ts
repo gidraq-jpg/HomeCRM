@@ -102,6 +102,189 @@ it('TASK-7: чужое событие и истёкшие семь секунд 
   ).toBe(409);
   expect((await adult.get(`/api/tasks/${row.id}`)).json<Task>().status).toBe('done');
 });
+for (const series of [false, true])
+  for (const expired of [false, true])
+    for (const path of ['undo', 'status', 'patch'] as const)
+      it(`TASK-7: ${series ? 'серия' : 'обычное дело'}, ${expired ? 'после' : 'до'} семи секунд, ${path}`, async () => {
+        const row = await create({
+          repeatRule: series ? { kind: 'daily' } : null,
+          planOn: localDate(new Date(), 'Asia/Yekaterinburg'),
+        });
+        const completed = await adult.post(`/api/tasks/${row.id}/status`, { status: 'done' });
+        expect(completed.status, completed.text).toBe(200);
+        const done = completed.json<Task>();
+        if (expired)
+          await world.database.admin.query(
+            "UPDATE tasks SET done_at=clock_timestamp()-interval '8 seconds' WHERE id=$1",
+            [row.id],
+          );
+        const response =
+          path === 'patch'
+            ? await adult.request('PATCH', `/api/tasks/${row.id}`, { json: { status: 'open' } })
+            : await adult.post(
+                `/api/tasks/${row.id}/${path}`,
+                path === 'undo' ? { eventId: done.completionEventId } : { status: 'open' },
+              );
+        if (expired && path === 'undo') {
+          expect(response.status, response.text).toBe(409);
+          expect((await adult.get(`/api/tasks/${row.id}`)).json()).toMatchObject({
+            status: 'done',
+            nextTaskId: done.nextTaskId,
+            completionUndoneAt: null,
+          });
+          return;
+        }
+        expect(response.status, response.text).toBe(200);
+        const opened = response.json<Task>();
+        expect(response.json().doneAt).toBeNull();
+        expect(opened.status).toBe('open');
+        expect(opened.nextTaskId).toBe(expired ? done.nextTaskId : null);
+        if (series && expired) {
+          const plan = (await adult.get('/api/tasks/plan')).json<{ days: { tasks: Task[] }[] }>();
+          const instances = plan.days
+            .flatMap((d) => d.tasks)
+            .filter((t) => t.seriesId === row.seriesId);
+          expect(instances.map((t) => t.id)).toEqual([done.nextTaskId]);
+        }
+        expect(opened.completionUndoneAt === null).toBe(expired);
+        expect(
+          (await adult.post(`/api/tasks/${row.id}/undo`, { eventId: done.completionEventId }))
+            .status,
+        ).toBe(expired ? 409 : 200);
+        if (series && expired)
+          expect(
+            (
+              await adult.request('PATCH', `/api/tasks/${row.id}`, {
+                json: { repeatScope: 'following', title: 'Правка прежнего экземпляра' },
+              })
+            ).status,
+          ).toBe(409);
+        if (series) {
+          const next = await adult.get(`/api/tasks/${done.nextTaskId}`);
+          expect(next.json().deletedAt === null).toBe(expired);
+        }
+        const history = (await adult.get(`/api/tasks/${row.id}/history`)).json<
+          {
+            changes: { task_resumed?: { new: boolean } };
+          }[]
+        >();
+        expect(history.some((h) => h.changes.task_resumed?.new)).toBe(expired);
+        const repeated = await adult.post(`/api/tasks/${row.id}/status`, { status: 'open' });
+        expect(repeated.status, repeated.text).toBe(200);
+        expect((await adult.get(`/api/tasks/${row.id}/history`)).json()).toHaveLength(
+          history.length,
+        );
+        const finished = await adult.post(`/api/tasks/${row.id}/status`, { status: 'done' });
+        expect(finished.status, finished.text).toBe(200);
+        if (series) {
+          expect(finished.json<Task>().nextTaskId).toBeTruthy();
+          if (expired) expect(finished.json<Task>().nextTaskId).toBe(done.nextTaskId);
+          else expect(finished.json<Task>().nextTaskId).not.toBe(done.nextTaskId);
+          expect(
+            (
+              await world.database.admin.query(
+                'SELECT id FROM tasks WHERE predecessor_id=$1 AND deleted_at IS NULL',
+                [row.id],
+              )
+            ).rows,
+          ).toHaveLength(1);
+        }
+      });
+for (const expired of [false, true])
+  for (const path of ['undo', 'status', 'patch'] as const)
+    it(`TASK-7: изменённый преемник, ${expired ? 'возобновление' : 'отмена'}, ${path}`, async () => {
+      const row = await create();
+      const done = (
+        await adult.post(`/api/tasks/${row.id}/status`, { status: 'done' })
+      ).json<Task>();
+      expect(
+        (
+          await adult.request('PATCH', `/api/tasks/${done.nextTaskId}`, {
+            json: { title: 'Правка следующего' },
+          })
+        ).status,
+      ).toBe(200);
+      if (expired)
+        await world.database.admin.query(
+          "UPDATE tasks SET done_at=clock_timestamp()-interval '8 seconds' WHERE id=$1",
+          [row.id],
+        );
+      const response =
+        path === 'patch'
+          ? await adult.request('PATCH', `/api/tasks/${row.id}`, { json: { status: 'open' } })
+          : await adult.post(
+              `/api/tasks/${row.id}/${path}`,
+              path === 'undo' ? { eventId: done.completionEventId } : { status: 'open' },
+            );
+      expect(response.status, response.text).toBe(expired && path !== 'undo' ? 200 : 409);
+      const next = (await adult.get(`/api/tasks/${done.nextTaskId}`)).json();
+      expect(next).toMatchObject({ deletedAt: null, title: 'Правка следующего' });
+    });
+for (const path of ['status', 'patch'] as const)
+  it(`TASK-7: ${path} открывает выполненное ожидание и отменяет следующий экземпляр`, async () => {
+    const row = await create({
+      status: 'waiting',
+      waitingAccountId: world.anna.id,
+      checkOn: '2026-10-11',
+    });
+    const done = (await adult.post(`/api/tasks/${row.id}/status`, { status: 'done' })).json<Task>();
+    const response =
+      path === 'patch'
+        ? await adult.request('PATCH', `/api/tasks/${row.id}`, { json: { status: 'open' } })
+        : await adult.post(`/api/tasks/${row.id}/status`, { status: 'open' });
+    expect(response.status, response.text).toBe(200);
+    expect(response.json()).toMatchObject({ status: 'open', doneAt: null, nextTaskId: null });
+    expect((await adult.get(`/api/tasks/${done.nextTaskId}`)).json().deletedAt).not.toBeNull();
+  });
+it('TASK-4: Сегодня включает просроченный крайний срок без плана и с будущим планом в поясе дома', async () => {
+  const today = localDate(new Date(), 'Asia/Yekaterinburg');
+  const rows = [];
+  for (const planOn of [null, shiftTaskDate(today, 3)])
+    rows.push(
+      await create({
+        repeatRule: null,
+        planOn,
+        dueOn: shiftTaskDate(today, -1),
+        householdId: world.houseId,
+      }),
+    );
+  const response = await adult.get(`/api/tasks/today?householdId=${world.houseId}`);
+  expect(response.status, response.text).toBe(200);
+  const ids = response.json<{ tasks: Task[] }>().tasks.map((t) => t.id);
+  for (const row of rows) expect(ids).toContain(row.id);
+});
+for (const recipient of ['child', 'author'] as const)
+  it(`TASK-11: передача ${recipient} с выполнением уведомляет автора, без назначения закрытого дела`, async () => {
+    const row = await create({ repeatRule: null, assigneeId: world.anna.id, expandAudience: true });
+    const response = await admin.request('PATCH', `/api/tasks/${row.id}`, {
+      json: {
+        assigneeId: recipient === 'child' ? world.vera.id : world.boris.id,
+        status: 'done',
+        expandAudience: true,
+      },
+    });
+    expect(response.status, response.text).toBe(200);
+    const events = (
+      await world.database.admin.query(
+        'SELECT recipient_id,event_kind,event_key,warning_at FROM deadline_notifications WHERE record_id=$1 ORDER BY warning_at',
+        [row.id],
+      )
+    ).rows;
+    expect(events.filter((e) => e.event_kind === 'assignment')).toHaveLength(1);
+    expect(events.filter((e) => e.event_kind === 'assignment')[0]?.recipient_id).toBe(
+      world.anna.id,
+    );
+    expect(events.filter((e) => e.event_kind === 'task_done')).toEqual([
+      expect.objectContaining({
+        recipient_id: world.boris.id,
+        event_key: `task_done:${response.json<Task>().completionEventId}`,
+      }),
+    ]);
+    const history = (await adult.get(`/api/tasks/${row.id}/history`)).json<
+      { changes: Record<string, unknown> }[]
+    >();
+    expect(history.some((h) => h.changes.assignee_id && h.changes.status)).toBe(true);
+  });
 it('TASK-3: только этот экземпляр сохраняет шаблон; это и следующие меняют его', async () => {
   const row = await create();
   expect(

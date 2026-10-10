@@ -460,7 +460,12 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
           ),
         ) as Partial<z.infer<typeof TaskFields>> & { assigneeId?: string };
         const following = 'repeatScope' in body && body.repeatScope === 'following';
-        if (following && row.repeatRule && !['open', 'waiting'].includes(row.status))
+        if (
+          following &&
+          row.repeatRule &&
+          (!['open', 'waiting'].includes(row.status) ||
+            (row.completionEventId !== null && row.completionUndoneAt === null))
+        )
           throw new Failure(409, 'NOT_CURRENT_INSTANCE');
         if (row.repeatRule && 'repeatRule' in body && !following)
           throw new Failure(400, 'REPEAT_SCOPE_REQUIRED');

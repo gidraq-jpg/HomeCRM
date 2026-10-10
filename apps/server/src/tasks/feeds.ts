@@ -38,7 +38,7 @@ export function taskFeeds(route: DataRoute) {
         .select()
         .from(tasks)
         .where(
-          sql`deleted_at IS NULL AND (${q.scope}='all' OR space_kind::text=${q.scope}) AND (${q.householdId ?? null}::uuid IS NULL OR household_id=${q.householdId ?? null}::uuid) AND ${view === 'today' ? sql`((status IN ('open','waiting') AND (is_main OR plan_on<=coalesce((SELECT (CURRENT_TIMESTAMP AT TIME ZONE coalesce(s.time_zone,'UTC'))::date FROM spaces s WHERE s.id=tasks.household_id),CURRENT_DATE))) OR (status='done' AND done_at>=(${today}::date::timestamp AT TIME ZONE ${zone})))` : sql`status IN ('open','waiting') AND (plan_on IS NULL OR (plan_on>=${from}::date AND plan_on<${to}::date))`}`,
+          sql`deleted_at IS NULL AND (${q.scope}='all' OR space_kind::text=${q.scope}) AND (${q.householdId ?? null}::uuid IS NULL OR household_id=${q.householdId ?? null}::uuid) AND ${view === 'today' ? sql`((status IN ('open','waiting') AND (is_main OR plan_on<=coalesce((SELECT (CURRENT_TIMESTAMP AT TIME ZONE coalesce(s.time_zone,'UTC'))::date FROM spaces s WHERE s.id=tasks.household_id),CURRENT_DATE) OR due_on<coalesce((SELECT (CURRENT_TIMESTAMP AT TIME ZONE coalesce(s.time_zone,'UTC'))::date FROM spaces s WHERE s.id=tasks.household_id),CURRENT_DATE))) OR (status='done' AND done_at>=(${today}::date::timestamp AT TIME ZONE ${zone})))` : sql`status IN ('open','waiting') AND (repeat_rule IS NULL OR completion_event_id IS NULL OR completion_undone_at IS NOT NULL) AND (plan_on IS NULL OR (plan_on>=${from}::date AND plan_on<${to}::date))`}`,
         )
         .orderBy(tasks.planOn, tasks.planTime, tasks.id);
       const cards = await summaries(tx, rows);
