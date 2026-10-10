@@ -95,7 +95,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ? {
               tasks_deadlines: 'task_deadlines',
               tasks_source_metadata: 'sync_source_deadlines',
-              tasks_files_placement: 'cascade_file_placement',
+              tasks_files_placement: 'cascade_task_files',
             }
           : {}),
         ...(name === 'notes' ? { notes_placement: 'cascade_note_placement' } : {}),

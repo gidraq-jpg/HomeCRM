@@ -118,6 +118,22 @@ async function assignee(tx: Transaction, account: Account, place: Placement, id:
   // Личное другого участника не принимаем даже при переданном UUID.
   if (place.kind === 'personal' && place.ownerId !== account.id) deny();
 }
+async function legacyHouse(tx: Transaction, account: Account, row: Task) {
+  // В общем дом задан пространством. В личном видны все собственные членства автора;
+  // несколько действующих домов не дают оснований выбирать один из них.
+  if (row.spaceKind === 'personal' && row.authorId !== account.id) return null;
+  const memberships = await tx
+    .select({ spaceId: spaceMembers.spaceId })
+    .from(spaceMembers)
+    .where(
+      and(
+        eq(spaceMembers.accountId, row.authorId),
+        isNull(spaceMembers.leftAt),
+        row.spaceKind === 'household' ? eq(spaceMembers.spaceId, row.spaceId) : undefined,
+      ),
+    );
+  return memberships.length === 1 ? (memberships[0]?.spaceId ?? null) : null;
+}
 async function waiting(
   tx: Transaction,
   account: Account,
@@ -352,18 +368,22 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
             ? body.assigneeId
             : (row.assigneeId ?? account.id);
         await assignee(tx, account, placementOf(row), assigned);
-        if ((merged.planOn || merged.dueOn || merged.checkOn) && !row.householdId)
-          throw new Failure(400, 'HOUSE_REQUIRED');
+        const dated = !!(merged.planOn || merged.dueOn || merged.checkOn);
+        const house = row.householdId ?? (dated ? await legacyHouse(tx, account, row) : null);
+        if (dated && !house) throw new Failure(400, 'HOUSE_REQUIRED');
         const { expectedUpdatedAt: _version, idempotencyKey: _key, ...fields } = body;
-        const changed = Object.entries(fields).some(
-          ([key, value]) => JSON.stringify(row[key as keyof Task]) !== JSON.stringify(value),
-        );
+        const changed =
+          house !== row.householdId ||
+          Object.entries(fields).some(
+            ([key, value]) => JSON.stringify(row[key as keyof Task]) !== JSON.stringify(value),
+          );
         let result = row;
         if (changed) {
           const [updated] = await tx
             .update(tasks)
             .set({
               ...fields,
+              householdId: house,
               doneAt: merged.status === 'done' ? (row.doneAt ?? new Date()) : null,
             })
             .where(eq(tasks.id, id))

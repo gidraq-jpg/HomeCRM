@@ -351,6 +351,134 @@ it('TASK-1: файлы зашифрованы, следуют переносу �
   const own = await create({ placement: placement(), assigneeId: world.vera.id });
   const childFile = await upload(own.id, child);
   expect(childFile.statusCode, childFile.body).toBe(201);
+  const childFileId = childFile.json<{ id: string }>().id;
+  const removedFile = await upload(own.id, child);
+  expect(removedFile.statusCode, removedFile.body).toBe(201);
+  const removedFileId = removedFile.json<{ id: string }>().id;
+  expect((await adult.post(`/api/tasks/${own.id}/files/${removedFileId}/trash`, {})).status).toBe(
+    200,
+  );
+  expect((await child.get(`/api/files/${childFileId}`)).status).toBe(200);
+  const reassigned = await patch(own.id, { assigneeId: world.boris.id });
+  expect(reassigned.status, reassigned.text).toBe(200);
+  expect(
+    (
+      await world.database.admin.query('SELECT assignee_id FROM task_files WHERE id=$1', [
+        childFileId,
+      ])
+    ).rows[0]?.assignee_id,
+  ).toBe(world.boris.id);
+  expect(
+    (
+      await world.database.admin.query(
+        'SELECT assignee_id,deleted_at FROM task_files WHERE id=$1',
+        [removedFileId],
+      )
+    ).rows[0],
+  ).toMatchObject({ assignee_id: world.boris.id, deleted_at: expect.any(Date) });
+  const narrowed = await adult.post(`/api/tasks/${own.id}/move`, {
+    spaceId: world.houseId,
+    audience: 'adults',
+    confirmed: true,
+  });
+  expect(narrowed.status, narrowed.text).toBe(200);
+  expect((await child.get(`/api/files/${childFileId}`)).status).toBe(404);
+  expect((await child.get(`/api/tasks/${own.id}/files`)).status).toBe(404);
+  expect((await adult.get(`/api/files/${childFileId}`)).status).toBe(200);
+  expect((await child.get(`/api/files/${removedFileId}`)).status).toBe(404);
+  expect((await admin.post(`/api/tasks/${own.id}/files/${removedFileId}/restore`, {})).status).toBe(
+    200,
+  );
+});
+it('TASK-1/8: старые личные и общие дела получают дом при плане и ожидании; сроки видны в радаре', async () => {
+  const date = new Date().toISOString().slice(0, 10);
+  for (const shared of [false, true]) {
+    for (const action of ['plan', 'patch_waiting', 'status_waiting'] as const) {
+      // Только прежние колонки: так выглядят дела после обновления с 0053.
+      const row = (
+        await world.database.admin.query(
+          `INSERT INTO tasks(space_id,space_kind,audience,author_id,assignee_id,title)
+           VALUES($1,$2,$3,$4,$4,'Старое вымышленное дело') RETURNING id,household_id`,
+          [
+            shared ? world.houseId : world.boris.personalSpaceId,
+            shared ? 'household' : 'personal',
+            shared ? 'household' : null,
+            world.boris.id,
+          ],
+        )
+      ).rows[0];
+      expect(row.household_id).toBeNull();
+      expect((await patch(row.id, { planOn: date }, child)).status).toBe(shared ? 403 : 404);
+      const fields =
+        action === 'plan'
+          ? { planOn: date }
+          : {
+              status: 'waiting',
+              waitingAccountId: world.anna.id,
+              checkOn: date,
+            };
+      // Общее старое дело может датировать другой взрослый, дом остаётся домом записи.
+      const device = shared ? admin : adult;
+      const response =
+        action === 'status_waiting'
+          ? await device.post(`/api/tasks/${row.id}/status`, fields)
+          : await patch(row.id, fields, device);
+      expect(response.status, response.text).toBe(200);
+      expect(response.json()).toMatchObject({ householdId: world.houseId, ...fields });
+      await refreshDeadlines(
+        createWorkerDatabase(world.database.worker),
+        new Date(`${date}T05:00:00Z`),
+        true,
+      );
+      const url = `/api/deadlines?from=${date}&to=${date}`;
+      expect((await adult.get(url)).json<{ items: { taskId: string }[] }>().items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            taskId: row.id,
+            sourceKind: action === 'plan' ? 'task_plan' : 'task_waiting',
+            date,
+          }),
+        ]),
+      );
+      expect((await child.get(url)).text.includes(row.id)).toBe(shared);
+      expect((await admin.get(url)).text.includes(row.id)).toBe(shared);
+    }
+  }
+});
+it('TASK-1: неоднозначное членство не выбирает дом личного старого дела; ушедшее членство не учитывается', async () => {
+  const secondHouse = randomUUID();
+  await world.database.admin.query(
+    "INSERT INTO spaces(id,kind,name) VALUES($1,'household','Другой вымышленный дом')",
+    [secondHouse],
+  );
+  await world.database.admin.query(
+    "INSERT INTO space_members(space_id,account_id,role) VALUES($1,$2,'adult'),($1,$3,'admin')",
+    [secondHouse, world.boris.id, world.anna.id],
+  );
+  const row = (
+    await world.database.admin.query(
+      "INSERT INTO tasks(space_id,space_kind,author_id,title) VALUES($1,'personal',$2,'Старое дело без дома') RETURNING id",
+      [world.boris.personalSpaceId, world.boris.id],
+    )
+  ).rows[0];
+  try {
+    const response = await patch(row.id, { planOn: '2026-10-15' });
+    expect(response.status, response.text).toBe(400);
+    expect(response.json()).toMatchObject({ code: 'HOUSE_REQUIRED' });
+    expect(
+      (
+        await world.database.admin.query('SELECT household_id,plan_on FROM tasks WHERE id=$1', [
+          row.id,
+        ])
+      ).rows[0],
+    ).toMatchObject({ household_id: null, plan_on: null });
+  } finally {
+    await world.database.admin.query(
+      'UPDATE space_members SET left_at=now(),left_by=$2 WHERE space_id=$1 AND account_id=$2',
+      [secondHouse, world.boris.id],
+    );
+  }
+  expect((await patch(row.id, { planOn: '2026-10-15' })).status).toBe(200);
 });
 it('TASK-1: входные даты, время, чек-лист и ожидание проверяются; журнал скрывает фильтры и текст', async () => {
   for (const data of [
@@ -411,4 +539,23 @@ it('TASK-8: push скрывает текст, повтор не дублируе
     tx.execute(sql`SELECT d.task_id FROM deadlines d WHERE d.task_id=${row.id}::uuid`),
   );
   expect(visible.rowCount).toBe(1);
+});
+it('TASK-1: без действующего членства датированная правка старого личного дела не сохраняется', async () => {
+  const row = (
+    await world.database.admin.query(
+      "INSERT INTO tasks(space_id,space_kind,author_id,title) VALUES($1,'personal',$2,'Старое личное дело без членства') RETURNING id",
+      [world.boris.personalSpaceId, world.boris.id],
+    )
+  ).rows[0];
+  await world.database.admin.query(
+    'UPDATE space_members SET left_at=now(),left_by=$1 WHERE account_id=$1 AND left_at IS NULL',
+    [world.boris.id],
+  );
+  const response = await patch(row.id, { dueOn: '2026-10-15' });
+  expect(response.status, response.text).toBe(400);
+  expect(response.json()).toMatchObject({ code: 'HOUSE_REQUIRED' });
+  expect((await adult.get(`/api/tasks/${row.id}`)).json()).toMatchObject({
+    householdId: null,
+    dueOn: null,
+  });
 });
