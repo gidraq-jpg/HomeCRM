@@ -201,6 +201,8 @@ test('быстрая строка: снятие и правка чипа, тра
   await page.getByRole('button', { name: /^Дата:/ }).click();
   await page.getByRole('dialog').getByLabel('Дата', { exact: true }).fill(homeDate(2));
   await page.getByRole('button', { name: 'Готово', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Дата:/ })).toHaveText(/Дата: \d{1,2} [а-я]/);
+  await expect(page.getByRole('button', { name: /^Дата:/ })).not.toHaveText(/\d{4}-\d{2}-\d{2}/);
   await check(page, info, 'quickline-chips');
   const requests: Record<string, unknown>[] = [];
   let lose = true;

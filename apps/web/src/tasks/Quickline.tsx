@@ -9,7 +9,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
-import { TextField } from './fields.tsx';
+import { formatDateOnly, TextField } from './fields.tsx';
 import { createBody } from './NewTaskScreen.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
 import { MemberPicker, RecordPicker, useOptions, useTaskMembers } from './options.tsx';
@@ -132,7 +132,20 @@ export function Quickline({
                   type="button"
                   onClick={() => setEditing(fragment.kind)}
                 >
-                  {labels[fragment.kind]}: {overrides[fragment.kind] ?? fragment.text}
+                  {labels[fragment.kind]}:{' '}
+                  {fragment.kind === 'date'
+                    ? (overrides.date ?? fragment.value)
+                      ? formatDateOnly(overrides.date ?? fragment.value)
+                      : 'Не выбрано'
+                    : fragment.kind === 'assignee' && overrides.assignee !== undefined
+                      ? overrides.assignee === me.id
+                        ? me.displayName
+                        : (members.data?.find((person) => person.accountId === overrides.assignee)
+                            ?.displayName ?? 'Участник недоступен')
+                      : fragment.kind === 'object' && overrides.object !== undefined
+                        ? (options.find((item) => item.id === overrides.object)?.title ??
+                          'Не выбрано')
+                        : (overrides[fragment.kind] ?? fragment.text)}
                 </button>
                 <button
                   className="icon-button"
