@@ -144,7 +144,7 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
  */
 export function App(props: AppProps) {
   return (
-    <ScopeProvider>
+    <ScopeProvider key={props.me.id}>
       <ToastProvider>
         <HouseholdProvider me={props.me} reloadMe={props.reloadMe} signOut={props.signOut}>
           <Workspace {...props} />

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
 import { ApiError, apiRequest } from '../auth/api.ts';
@@ -12,17 +12,22 @@ export function ResponsibleField({
   kind,
   id,
   assigneeId,
+  householdId,
   canEdit,
   sourceTo,
 }: {
   kind: 'objects' | 'documents' | 'deadlines';
   id: string;
   assigneeId: string | null;
+  householdId: string | null;
   canEdit: boolean;
   sourceTo?: string;
 }) {
-  const { me, householdId } = useHousehold();
+  const { me } = useHousehold();
   const [value, setValue] = useState(assigneeId ?? me.id);
+  useEffect(() => {
+    setValue(assigneeId ?? me.id);
+  }, [assigneeId, me.id]);
   const state = useAction();
   const client = useQueryClient();
   return (
@@ -32,7 +37,7 @@ export function ResponsibleField({
           Ответственный задаётся в источнике
         </Link>
       ) : canEdit ? (
-        <>
+        <fieldset className="task-form__fields" disabled={state.pending}>
           <MemberPicker
             label="Ответственный"
             householdId={householdId}
@@ -61,7 +66,7 @@ export function ResponsibleField({
           >
             Сменить ответственного
           </button>
-        </>
+        </fieldset>
       ) : null}
       {state.error ? (
         <Notice error>

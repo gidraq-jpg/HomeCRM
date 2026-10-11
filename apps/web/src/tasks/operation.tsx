@@ -1,9 +1,12 @@
-import { useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import { VISIBILITY_LABELS } from '../access/visibility.ts';
-import { ApiError, type ApiMethod } from '../auth/api.ts';
+import { ApiError, type ApiMethod, type Me } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
+import { ME_KEY } from '../auth/session-cache.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
+import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
 import { mutateTask, TaskError, type TimedTask } from './api.ts';
 import { taskError } from './errors.ts';
@@ -16,6 +19,17 @@ export interface TaskOperation {
   keyed?: boolean;
 }
 export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<void>) {
+  const { me } = useHousehold();
+  const client = useQueryClient();
+  const toast = useToast();
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const sameAccount = () => client.getQueryData<Me | null>([ME_KEY])?.id === me.id;
   const [pending, setPending] = useState(false);
   const locked = useRef(false);
   const key = useOperationKey();
@@ -26,7 +40,7 @@ export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<
     place: NonNullable<TaskError['suggestedPlacement']>;
   } | null>(null);
   async function run(request: TaskOperation) {
-    if (locked.current) return;
+    if (locked.current || !sameAccount()) return;
     locked.current = true;
     setPending(true);
     setError(null);
@@ -35,10 +49,16 @@ export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<
         ? { ...request.body, idempotencyKey: key({ path: request.path, body: request.body }) }
         : request.body;
       const result = await mutateTask(request.path, body, request.method);
+      if (!sameAccount()) return;
+      // Ответ старого GET не должен затереть подтверждённую мутацию или отмену.
+      await client.cancelQueries({ queryKey: ['tasks', me.id] });
+      if (!sameAccount()) return;
       setConfirmation(null);
-      await onSuccess(result);
-      await refresh();
+      if (mounted.current) await onSuccess(result);
+      // Блокировка защищает отправку мутации; актуализация не расходует окно отмены.
+      void refresh();
     } catch (failure) {
+      if (!sameAccount()) return;
       if (
         failure instanceof TaskError &&
         failure.code === 'ASSIGNEE_NOT_VISIBLE' &&
@@ -46,16 +66,9 @@ export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<
       )
         setConfirmation({ request, place: failure.suggestedPlacement });
       else {
-        setError(
-          request.path.endsWith('/undo') && failure instanceof ApiError && failure.status === 409
-            ? new ApiError(409, 'UNDO_CONFLICT')
-            : request.method === 'PATCH' &&
-                failure instanceof ApiError &&
-                failure.code === 'HOUSE_REQUIRED'
-              ? new ApiError(400, 'LEGACY_HOUSE_REQUIRED')
-              : failure,
-        );
-        if (failure instanceof ApiError && failure.status === 409) await refresh();
+        setError(failure);
+        if (request.path.endsWith('/undo')) toast.show({ message: taskError(failure) });
+        if (failure instanceof ApiError && failure.status === 409) void refresh();
       }
     } finally {
       locked.current = false;

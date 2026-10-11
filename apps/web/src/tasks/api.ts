@@ -1,8 +1,10 @@
 import {
   AUDIENCES,
+  CalendarDate,
   TaskFields,
   type TaskOverduePolicy,
   type TaskRepeatRule,
+  TimeZone,
 } from '@homecrm/shared';
 import { z } from 'zod';
 import { ApiError, type ApiMethod, apiRequest } from '../auth/api.ts';
@@ -17,6 +19,7 @@ export const TaskCard = TaskFields.extend({
   authorId: z.string(),
   assigneeId: z.string().nullable(),
   householdId: z.string().nullable(),
+  hasOtherContributions: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
   deletedAt: z.string().nullable(),
@@ -36,7 +39,9 @@ export type TaskCard = z.infer<typeof TaskCard>;
 export type RepeatRule = z.infer<typeof TaskRepeatRule>;
 export type OverduePolicy = z.infer<typeof TaskOverduePolicy>;
 export const Today = z.object({
-  today: z.string(),
+  householdId: z.string().nullable(),
+  timeZone: TimeZone,
+  today: CalendarDate,
   main: TaskCard.nullable(),
   tasks: z.array(TaskCard),
   completed: z.array(TaskCard),
@@ -44,7 +49,9 @@ export const Today = z.object({
   recalculating: z.boolean(),
 });
 export const Plan = z.object({
-  today: z.string(),
+  householdId: z.string().nullable(),
+  timeZone: TimeZone,
+  today: CalendarDate,
   from: z.string(),
   days: z.array(z.object({ date: z.string(), tasks: z.array(TaskCard) })),
   undated: z.array(TaskCard),

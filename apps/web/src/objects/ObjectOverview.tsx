@@ -260,6 +260,8 @@ export function ObjectOverview() {
       {!trashed ? (
         <ResponsibleField
           kind="objects"
+          key={card.id}
+          householdId={card.spaceKind === 'household' ? card.spaceId : null}
           id={card.id}
           assigneeId={card.assigneeId}
           canEdit={abilities.edit}

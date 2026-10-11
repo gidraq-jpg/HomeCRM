@@ -193,6 +193,8 @@ export function DeadlinesSection({ source, card }: DeadlinesSectionProps) {
                   <Upcoming item={item} timeZone={me.timeZone} />
                   <ResponsibleField
                     kind="deadlines"
+                    key={item.id}
+                    householdId={item.spaceKind === 'household' ? item.householdId : null}
                     id={item.id}
                     assigneeId={item.assigneeId}
                     canEdit={canEdit}

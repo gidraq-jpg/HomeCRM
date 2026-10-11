@@ -1,4 +1,4 @@
-import { parseQuickline, TaskFields } from '@homecrm/shared';
+import { type CalendarDate, calendarInstant, parseQuickline, TaskFields } from '@homecrm/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
@@ -43,9 +43,11 @@ export function quickDraft(
 export function Quickline({
   householdId,
   timeZone,
+  today,
 }: {
   householdId: string | null;
   timeZone: string;
+  today: CalendarDate;
 }) {
   const { me } = useHousehold();
   const { scope } = useScope();
@@ -59,7 +61,7 @@ export function Quickline({
   const [editing, setEditing] = useState<Kind | null>(null);
   const [visibility, setVisibility] = useState<Visibility | null>(null);
   const result = parseQuickline(raw, {
-    now: new Date(),
+    now: calendarInstant(today, timeZone),
     timeZone,
     members: (members.data ?? [])
       .filter((member) => !member.formerMember)

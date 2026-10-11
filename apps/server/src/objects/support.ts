@@ -156,7 +156,19 @@ export function dataRoutes(app: FastifyInstance, module: AuthModule): DataRoute 
         ? error.statusCode
         : undefined;
     if (status === 400 || status === 413) return reply.code(status).send({ code: 'INVALID_INPUT' });
-    const { code } = pgError(error);
+    const { code, constraint } = pgError(error);
+    const undoCodes: Record<string, string> = {
+      task_undo_expired: 'UNDO_EXPIRED',
+      task_completion_changed: 'COMPLETION_CHANGED',
+      task_next_task_changed: 'NEXT_TASK_CHANGED',
+    };
+    if (
+      code === '23514' &&
+      constraint &&
+      undoCodes[constraint] &&
+      request.routeOptions.url?.startsWith('/api/tasks/')
+    )
+      return reply.code(409).send({ code: undoCodes[constraint] });
     if (code === '42501') return reply.code(403).send({ code: 'ACCESS_DENIED' });
     if (['23503', '23505', '23514', '40P01', '40001'].includes(code ?? ''))
       return reply.code(409).send({ code: 'CONFLICT' });

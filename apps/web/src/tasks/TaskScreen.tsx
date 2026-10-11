@@ -18,7 +18,7 @@ import { taskError } from './errors.ts';
 import { formatDateOnly, SelectField } from './fields.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
 import { MemberPicker, useTaskMembers } from './options.tsx';
-import { useRefreshTasks, useTask, useTaskHistory } from './queries.ts';
+import { useRefreshTasks, useTask, useTaskHistory, useToday } from './queries.ts';
 import { repeatLabel } from './repeats.tsx';
 import { STATUS_LABELS, TaskForm, taskChange, taskDraft } from './TaskForm.tsx';
 import { TaskLinks } from './TaskLinks.tsx';
@@ -56,6 +56,20 @@ function TaskView({ card }: { card: TimedTask }) {
   const [scope, setScope] = useState('this');
   const [moving, setMoving] = useState(false);
   const [visibility, setVisibility] = useState<Visibility>(visibilityOf(card));
+  const losingMembers = useTaskMembers(
+    card.spaceKind === 'household' ? card.spaceId : null,
+    moving,
+  );
+  const narrowing =
+    card.spaceKind === 'household' &&
+    (visibility === 'personal' || (card.audience === 'household' && visibility === 'adults'));
+  const losing = (losingMembers.data ?? []).filter(
+    (member) =>
+      !member.formerMember &&
+      (visibility === 'personal'
+        ? member.accountId !== me.id && (card.audience === 'household' || member.role !== 'child')
+        : member.role === 'child'),
+  );
   const [seriesPending, setSeriesPending] = useState(false);
   const seriesLocked = useRef(false);
   const [seriesError, setSeriesError] = useState<unknown>(null);
@@ -92,6 +106,14 @@ function TaskView({ card }: { card: TimedTask }) {
     }
   }
   const moveOptions = (['personal', 'adults', 'household'] as const).filter((value) => {
+    if (
+      value === 'adults' &&
+      losingMembers.data?.some(
+        (member) =>
+          member.accountId === card.assigneeId && member.role === 'child' && !member.formerMember,
+      )
+    )
+      return false;
     const target =
       value === 'personal'
         ? { kind: 'personal' as const, ownerId: me.id, spaceId: me.personalSpaceId ?? '' }
@@ -100,7 +122,7 @@ function TaskView({ card }: { card: TimedTask }) {
       (target.kind === 'personal' || !!targetHouse) &&
       (card.spaceId === target.spaceId
         ? canChangeAudience(viewer, facts, target)
-        : canMove(viewer, facts, target))
+        : canMove(viewer, facts, target, card.hasOtherContributions))
     );
   });
   return (
@@ -373,6 +395,18 @@ function TaskView({ card }: { card: TimedTask }) {
               Размещение и аудитория…
             </button>
           ) : null}
+          {active && card.spaceKind === 'household' && moveOptions.includes('personal') ? (
+            <button
+              className="btn btn--secondary list-action"
+              type="button"
+              onClick={() => {
+                setVisibility('personal');
+                setMoving(true);
+              }}
+            >
+              Сделать личной
+            </button>
+          ) : null}
           <FilesSection
             parent={{ kind: 'task', id: card.id }}
             card={card}
@@ -440,13 +474,39 @@ function TaskView({ card }: { card: TimedTask }) {
           description="Подтвердите, кто увидит дело. Файлы и следующие экземпляры серии следуют новому размещению. При чужих правках сервер может запретить перенос в личное."
         >
           <VisibilityPicker value={visibility} options={moveOptions} onChange={setVisibility} />
-          <p>
-            Новый доступ: {VISIBILITY_LABELS[visibility]}. Прежняя аудитория может потерять доступ.
-          </p>
+          <p>Новый доступ: {VISIBILITY_LABELS[visibility]}.</p>
+          {narrowing ? (
+            losingMembers.isSuccess && !losingMembers.isFetching ? (
+              <p>
+                Потеряют доступ:{' '}
+                {losing.map((member) => member.displayName).join(', ') ||
+                  'никто из действующих участников'}
+                .
+              </p>
+            ) : (
+              <Notice error={losingMembers.isError}>
+                Не удалось подтвердить состав участников. Дождитесь загрузки или повторите её.
+                <button
+                  className="text-button"
+                  type="button"
+                  onClick={() => void losingMembers.refetch()}
+                >
+                  Обновить участников
+                </button>
+              </Notice>
+            )
+          ) : null}
+          {card.seriesId ? (
+            <p className="muted">Изменится также доступ следующих экземпляров серии.</p>
+          ) : null}
           <button
             className="btn btn--primary"
             type="button"
-            disabled={operation.pending || !moveOptions.includes(visibility)}
+            disabled={
+              operation.pending ||
+              !moveOptions.includes(visibility) ||
+              (narrowing && (!losingMembers.isSuccess || losingMembers.isFetching))
+            }
             onClick={() =>
               void operation.run({
                 path: `tasks/${card.id}/move`,
@@ -482,6 +542,7 @@ function History({ card }: { card: TaskCard }) {
   const { me, householdId } = useHousehold();
   const members = useTaskMembers(card.householdId ?? householdId);
   const query = useTaskHistory(card.id);
+  const calendar = useToday(card.householdId);
   const name = (id: unknown) =>
     id === me.id
       ? 'вы'
@@ -502,7 +563,9 @@ function History({ card }: { card: TaskCard }) {
           <li key={event.id}>
             <p>
               {event.actor_id ? name(event.actor_id) : 'Фоновая обработка'} ·{' '}
-              {formatMoment(event.created_at, me.timeZone)}
+              {calendar.data
+                ? formatMoment(event.created_at, calendar.data.timeZone)
+                : 'уточняем пояс дома…'}
             </p>
             {Object.entries(event.changes)
               .filter(([key]) =>

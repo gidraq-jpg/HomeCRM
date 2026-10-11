@@ -331,6 +331,8 @@ function DocumentView({ card }: { card: DocumentCard }) {
       {!trashed ? (
         <ResponsibleField
           kind="documents"
+          key={card.id}
+          householdId={card.spaceKind === 'household' ? card.spaceId : null}
           id={card.id}
           assigneeId={card.assigneeId}
           canEdit={abilities.edit}

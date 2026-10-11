@@ -1,10 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { deadlines, eq, objects, sql, tasks } from '@homecrm/db';
-import { canRestore, canTrash } from '@homecrm/shared';
+import { canRestore, canTrash, canWriteDeadline } from '@homecrm/shared';
 import { z } from 'zod';
 import { readRadar } from '../deadlines/routes.ts';
 import { getObject } from '../objects/routes.ts';
-import { type DataRoute, deny, Failure, factsOf, parse, requireWrite } from '../objects/support.ts';
+import {
+  type DataRoute,
+  deny,
+  Failure,
+  factsOf,
+  parse,
+  placementOf,
+  requireWrite,
+} from '../objects/support.ts';
 import { publicRecord } from '../utilities/service.ts';
 import { getTask, summaries, summary } from './routes.ts';
 export function taskActions(route: DataRoute) {
@@ -27,9 +35,21 @@ export function taskActions(route: DataRoute) {
     if (!result) deny();
     return publicRecord(result);
   });
-  route('POST', '/api/deadlines/:id/assignee', 200, async (tx, _account, request) => {
+  route('POST', '/api/deadlines/:id/assignee', 200, async (tx, account, request) => {
     const { id } = parse(z.strictObject({ id: z.uuid() }), request.params),
       { assigneeId } = parse(z.strictObject({ assigneeId: z.uuid() }), request.body);
+    const [visibleRow] = await tx.select().from(deadlines).where(eq(deadlines.id, id));
+    if (!visibleRow || visibleRow.deletedAt) throw new Failure(404, 'NOT_FOUND');
+    if (visibleRow.sourceKind !== 'record') throw new Failure(409, 'EDIT_SOURCE');
+    if (
+      !canWriteDeadline(account.viewer, {
+        type: visibleRow.noteId ? 'note' : 'object',
+        placement: placementOf(visibleRow),
+        authorId: visibleRow.authorId,
+        trashed: false,
+      })
+    )
+      deny();
     const [row] = await tx.select().from(deadlines).where(eq(deadlines.id, id)).for('update');
     if (!row || row.deletedAt) throw new Failure(404, 'NOT_FOUND');
     if (row.sourceKind !== 'record') throw new Failure(409, 'EDIT_SOURCE');

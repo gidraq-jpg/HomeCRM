@@ -55,7 +55,7 @@ async function check(page: Page, info: TestInfo, name: string) {
   if (process.platform === 'linux') {
     const directory = resolve(
       import.meta.dirname,
-      '../../../../docs/screenshots/R1c.4b',
+      '../../../../docs/screenshots/R1c.4c',
       info.project.name,
     );
     await mkdir(directory, { recursive: true });
@@ -352,7 +352,7 @@ test('серия: возобновление после окна и отмена
   );
   expect(
     await api.post(`tasks/${row.id}/undo`, { eventId: first.completionEventId }),
-  ).toMatchObject({ status: 409, body: { code: 'CONFLICT' } });
+  ).toMatchObject({ status: 409, body: { code: 'UNDO_EXPIRED' } });
   await api.patch(`tasks/${first.nextTaskId}`, { title: 'Сохранённый преемник' });
   await signInAs(page, family, 'adult');
   await openTask(page, row.id, row.title);
@@ -687,7 +687,7 @@ test('скрытый адресат ожидания сохраняется пр
   await check(page, info, 'hidden-waiting');
 });
 
-test('API: HOUSE_REQUIRED при правке старого дела не позволяет отправить выбранный дом', async ({
+test('A1: HOUSE_REQUIRED сохраняет черновик старого дела и повтор с выбранным домом успешен', async ({
   page,
   family,
 }, info) => {
@@ -706,19 +706,20 @@ test('API: HOUSE_REQUIRED при правке старого дела не по�
   // Старое личное дело и два действующих дома: выбор сервером неоднозначен.
   const missing = await api.patch(`tasks/${row.id}`, { planOn: homeDate(0) });
   expect(missing).toMatchObject({ status: 400, body: { code: 'HOUSE_REQUIRED' } });
-  const unsupported = await api.patch(`tasks/${row.id}`, {
-    planOn: homeDate(0),
-    householdId: family.houseId,
-  });
-  expect(unsupported).toMatchObject({ status: 400, body: { code: 'INVALID_INPUT' } });
   await signInAs(page, family, 'adult');
   await openTask(page, row.id, row.title);
   await page.getByRole('button', { name: 'Править дело' }).click();
   await page.getByLabel('Дата плана', { exact: true }).fill(homeDate(0));
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText(/не поддерживает выбор дома/);
+  await expect(page.getByRole('alert')).toContainText(/Выберите дом/);
   await expect(page.getByLabel('Дата плана', { exact: true })).toHaveValue(homeDate(0));
   await check(page, info, 'house-required');
+  await page.getByLabel('Дом для дат').selectOption(secondHouse);
+  await saved(page, row.title);
+  expect(await current(api, row.id)).toMatchObject({
+    householdId: secondHouse,
+    planOn: homeDate(0),
+  });
 });
 
 test('производный срок: отдельная смена ответственного запрещена, ссылка ведёт к источнику', async ({
@@ -738,11 +739,9 @@ test('производный срок: отдельная смена ответ�
   );
   const id = stored.rows[0]?.id as string;
   expect(id).toBeTruthy();
-  // Реальный документный срок скрыт политикой UPDATE при SELECT FOR UPDATE:
-  // API возвращает NOT_FOUND до обещанного EDIT_SOURCE. Доказательство — docs/tasks-ui.md.
   expect(
     await api.post(`deadlines/${id}/assignee`, { assigneeId: family.person('adult').id }),
-  ).toMatchObject({ status: 404, body: { code: 'NOT_FOUND' } });
+  ).toMatchObject({ status: 409, body: { code: 'EDIT_SOURCE' } });
   await signInAs(page, family, 'adult');
   await page.goto('#/more/radar');
   const item = page.getByRole('listitem').filter({ hasText: doc.title });

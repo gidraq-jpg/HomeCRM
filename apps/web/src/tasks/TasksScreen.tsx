@@ -64,22 +64,22 @@ export function TasksScreen({ view = 'today' }: { view?: 'today' | 'plan' | 'all
         </Link>
       ) : null}
       {view === 'today' ? (
-        <TodayFeed house={house} />
+        <TodayFeed key={house} house={house} />
       ) : view === 'plan' ? (
-        <PlanFeed house={house} />
+        <PlanFeed key={house} house={house} />
       ) : (
-        <AllFeed house={house} />
+        <AllFeed key={house} house={house} />
       )}
     </Page>
   );
 }
 function TodayFeed({ house }: { house: string | null }) {
-  const { me, householdId } = useHousehold();
+  const { me } = useHousehold();
   const { scope } = useScope();
   const query = useToday(house);
   const now = new Date();
   const rows = buildRows(query.data?.radar ?? [], {
-    timeZone: me.timeZone,
+    timeZone: query.data?.timeZone ?? 'UTC',
     now,
     today: (query.data?.today ?? '2000-01-01') as ReturnType<
       typeof import('../objects/dates.ts').todayIn
@@ -93,14 +93,14 @@ function TodayFeed({ house }: { house: string | null }) {
   return (
     <>
       <FirstRunCard />
-      {house === householdId ? (
-        <Quickline householdId={house} timeZone={me.timeZone} />
-      ) : (
-        <Notice>
-          API пока не возвращает часовой пояс выбранного дома. Для этого дома создайте дело через
-          полную форму с явной датой.
-        </Notice>
-      )}
+      {query.data ? (
+        <Quickline
+          key={house}
+          householdId={query.data.householdId}
+          timeZone={query.data.timeZone}
+          today={query.data.today}
+        />
+      ) : null}
       <QueryNotice query={query} />
       {query.data ? (
         <>

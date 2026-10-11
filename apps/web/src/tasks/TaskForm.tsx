@@ -17,6 +17,7 @@ import type { TaskCard } from './api.ts';
 import { ChecklistEditor } from './ChecklistEditor.tsx';
 import { SelectField, TextField } from './fields.tsx';
 import { MemberPicker, RecordPicker, useOptions, useTaskMembers } from './options.tsx';
+import { useToday } from './queries.ts';
 import { RepeatFields } from './repeats.tsx';
 export const STATUS_LABELS: Record<TaskCard['status'], string> = {
   open: 'Открыто',
@@ -55,6 +56,7 @@ export function taskChange(draft: TaskDraft, base: TaskCard): Record<string, unk
   for (const [key, value] of Object.entries(fields))
     if (JSON.stringify(value) !== JSON.stringify(base[key as keyof TaskCard])) change[key] = value;
   if (draft.assigneeId !== base.assigneeId) change.assigneeId = draft.assigneeId;
+  if (!base.householdId && draft.householdId) change.householdId = draft.householdId;
   return change;
 }
 export function TaskForm({
@@ -75,6 +77,7 @@ export function TaskForm({
   const objects = useOptions('object', !base);
   const [visibilityTouched, setVisibilityTouched] = useState(false);
   const [draft, setDraft] = useState(initial);
+  const calendar = useToday(draft.householdId || null);
   const [invalid, setInvalid] = useState('');
   const descriptionId = useId();
   function update<K extends keyof TaskDraft>(key: K, value: TaskDraft[K]) {
@@ -137,11 +140,15 @@ export function TaskForm({
             onChange={(event) => update('description', event.target.value)}
           />
         </div>
-        {!base ? (
+        {!base?.householdId ? (
           <SelectField
             label="Дом для дат"
             value={draft.householdId}
-            onChange={(value) => update('householdId', value)}
+            onChange={(value) => {
+              update('householdId', value);
+              update('assigneeId', me.id);
+              update('waitingAccountId', null);
+            }}
             options={[
               { value: '', label: 'Выберите дом' },
               ...me.roles.map((role, index) => ({
@@ -151,7 +158,10 @@ export function TaskForm({
             ]}
           />
         ) : null}
-        <p className="muted">Даты и точное время — в часовом поясе дома.</p>
+        <p className="muted">
+          Даты и точное время — в часовом поясе дома
+          {calendar.data ? `: ${calendar.data.timeZone}` : ' (уточняем…)'}.
+        </p>
         <div className="task-fields">
           <TextField
             label={draft.repeatRule ? 'Начальная дата / план' : 'Дата плана'}

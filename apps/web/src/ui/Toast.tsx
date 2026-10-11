@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -37,9 +38,10 @@ const DEFAULT_DURATION_MS = 7000;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ActiveToast | null>(null);
+  const sequence = useRef(0);
 
   const show = useCallback((options: ToastOptions) => {
-    setToast((previous) => ({ ...options, id: (previous?.id ?? 0) + 1 }));
+    setToast({ ...options, id: ++sequence.current });
   }, []);
   const dismiss = useCallback(() => setToast(null), []);
 
@@ -84,8 +86,8 @@ export function ToastRegion() {
               type="button"
               className="toast__action"
               onClick={() => {
-                toast.action?.onClick();
                 dismiss();
+                toast.action?.onClick();
               }}
             >
               {toast.action.label}
