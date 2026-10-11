@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { Notice } from '../auth/components.tsx';
@@ -10,6 +10,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { PushCard } from '../notifications/PushCard.tsx';
 import { FirstRunCard } from '../templates/FirstRunCard.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
+import { type DateOnly, formatLongDate, weekdayName } from '../ui/format.ts';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import type { TaskFilters } from './api.ts';
@@ -26,24 +27,73 @@ const tabs = [
   { to: '/today/plan', label: 'План' },
   { to: '/today/all', label: 'Все дела' },
 ];
-export function TasksScreen({ view = 'today' }: { view?: 'today' | 'plan' | 'all' }) {
-  const { me, householdId, isAdmin } = useHousehold();
-  const { scope } = useScope();
-  const [params, setParams] = useSearchParams();
+type View = 'today' | 'plan' | 'all';
+export function TasksScreen({ view = 'today' }: { view?: View }) {
+  const { me, householdId } = useHousehold();
+  const [params] = useSearchParams();
   const house = me.roles.some((role) => role.householdId === params.get('householdId'))
     ? params.get('householdId')
     : householdId;
+  return view === 'today' ? (
+    <TodayFeed key={house} house={house} />
+  ) : view === 'plan' ? (
+    <PlanFeed key={house} house={house} />
+  ) : (
+    <TasksPage view={view} house={house}>
+      <AllFeed key={house} house={house} />
+    </TasksPage>
+  );
+}
+function TasksPage({
+  view,
+  house,
+  today,
+  eyebrow,
+  children,
+}: {
+  view: View;
+  house: string | null;
+  today?: string;
+  eyebrow?: string;
+  children: ReactNode;
+}) {
+  const { me, householdId, isAdmin } = useHousehold();
+  const { scope } = useScope();
+  const [, setParams] = useSearchParams();
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
-  return (
-    <Page title={view === 'today' ? 'Сегодня' : view === 'plan' ? 'План' : 'Все дела'}>
-      <LinkTabs
-        label="Ленты дел"
-        items={tabs.map((tab) => ({ ...tab, to: `${tab.to}${houseQuery}` }))}
-      />
-      {scope !== 'all' ? <p className="muted">{EMPTY_SCOPE_EXPLANATION[scope]}</p> : null}
-      <Link className="text-button" to="/more/spaces">
-        Как устроены личное и общее
+  const actions = (
+    <div className="task-actions">
+      <Link className="btn btn--secondary" to={`/today/new${houseQuery}`}>
+        Новое дело
       </Link>
+      <div className="task-actions__help">
+        <Link className="text-button" to="/more/spaces">
+          Как устроены личное и общее
+        </Link>
+        {isAdmin ? (
+          <Link className="text-button" to="/people/invite">
+            Пригласить участника
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+  return (
+    <Page
+      title={view === 'today' ? 'Сегодня' : view === 'plan' ? 'План' : 'Все дела'}
+      eyebrow={
+        today
+          ? `${weekdayName(today as DateOnly)}, ${formatLongDate(today as DateOnly)}`
+          : (eyebrow ?? (view === 'all' ? 'Дела дома и ваши личные' : undefined))
+      }
+      tabs={
+        <LinkTabs
+          label="Ленты дел"
+          items={tabs.map((tab) => ({ ...tab, to: `${tab.to}${houseQuery}` }))}
+        />
+      }
+    >
+      {scope !== 'all' ? <p className="muted">{EMPTY_SCOPE_EXPLANATION[scope]}</p> : null}
       {me.roles.length > 1 ? (
         <SelectField
           label="Выбранный дом"
@@ -55,26 +105,14 @@ export function TasksScreen({ view = 'today' }: { view?: 'today' | 'plan' | 'all
           }))}
         />
       ) : null}
-      <Link className="btn btn--primary list-action" to={`/today/new${houseQuery}`}>
-        Новое дело
-      </Link>
-      {isAdmin ? (
-        <Link className="text-button" to="/people/invite">
-          Пригласить участника
-        </Link>
-      ) : null}
-      {view === 'today' ? (
-        <TodayFeed key={house} house={house} />
-      ) : view === 'plan' ? (
-        <PlanFeed key={house} house={house} />
-      ) : (
-        <AllFeed key={house} house={house} />
-      )}
+      {view !== 'today' ? actions : null}
+      {children}
+      {view === 'today' ? actions : null}
     </Page>
   );
 }
 function TodayFeed({ house }: { house: string | null }) {
-  const { me } = useHousehold();
+  const { me, householdId } = useHousehold();
   const { scope } = useScope();
   const query = useToday(house);
   const now = new Date();
@@ -90,18 +128,45 @@ function TodayFeed({ house }: { house: string | null }) {
   const urgent = filterRows(rows, { view: 'mine', scope, meId: me.id }).filter(
     (row) => !isOpenWindow(row),
   );
+  const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
   return (
-    <>
-      <FirstRunCard />
-      {query.data ? (
-        <Quickline
-          key={house}
-          householdId={query.data.householdId}
-          timeZone={query.data.timeZone}
-          today={query.data.today}
-        />
-      ) : null}
+    <TasksPage view="today" house={house} today={query.data?.today}>
       <QueryNotice query={query} />
+      {query.data ? (
+        <>
+          <Section title="Главное на сегодня" eyebrow>
+            {query.data.main ? (
+              <TaskRows label="Главное дело" tasks={[query.data.main]} focus />
+            ) : (
+              <div className="focus task-focus">
+                <h3 className="focus__title">Что сегодня важнее всего?</h3>
+                <p className="focus__meta">
+                  Одно дело, которому вы хотите уделить внимание. Выберите его в карточке дела.
+                </p>
+                <div className="focus__actions">
+                  <Link
+                    className="btn btn--primary"
+                    to={
+                      query.data.tasks.length
+                        ? `/today/all${houseQuery}`
+                        : `/today/new${houseQuery}`
+                    }
+                  >
+                    {query.data.tasks.length ? 'Выбрать главное дело' : 'Добавить дело'}
+                  </Link>
+                </div>
+              </div>
+            )}
+          </Section>
+          <Quickline
+            key={house}
+            householdId={query.data.householdId}
+            timeZone={query.data.timeZone}
+            today={query.data.today}
+          />
+        </>
+      ) : null}
+      <FirstRunCard />
       {query.data ? (
         <>
           <ReadingsWindowsFromRows rows={rows} />
@@ -113,9 +178,6 @@ function TodayFeed({ house }: { house: string | null }) {
               </button>
             </Notice>
           ) : null}
-          <Section title="Главное дело">
-            <TaskRows label="Главное дело" tasks={query.data.main ? [query.data.main] : []} />
-          </Section>
           <Section title="Сегодня и просроченные">
             <TaskRows
               label="Дела на сегодня"
@@ -136,7 +198,7 @@ function TodayFeed({ house }: { house: string | null }) {
         </>
       ) : null}
       <PushCard />
-    </>
+    </TasksPage>
   );
 }
 function PlanFeed({ house }: { house: string | null }) {
@@ -151,8 +213,14 @@ function PlanFeed({ house }: { house: string | null }) {
       for (const task of day.tasks) tasks.set(task.id, task);
       days.set(day.date, tasks);
     }
+  const from = query.data?.pages[0]?.from;
+  const until = query.data?.pages.at(-1)?.days.at(-1)?.date;
   return (
-    <>
+    <TasksPage
+      view="plan"
+      house={house}
+      eyebrow={from && until ? `${formatDateOnly(from)} — ${formatDateOnly(until)}` : undefined}
+    >
       <QueryNotice query={query} />
       {[...days].map(([date, tasks]) =>
         tasks.size ? (
@@ -170,7 +238,7 @@ function PlanFeed({ house }: { house: string | null }) {
         </Section>
       ) : null}
       <LoadMore query={query} label="Показать следующие дни" />
-    </>
+    </TasksPage>
   );
 }
 function AllFeed({ house }: { house: string | null }) {
@@ -178,45 +246,47 @@ function AllFeed({ house }: { house: string | null }) {
   const query = useTaskList(filters, false, house);
   return (
     <>
-      <SelectField
-        label="Фильтр дел"
-        value={filters.filter ?? ''}
-        onChange={(value) =>
-          setFilters((current) => ({
-            ...current,
-            filter: value ? (value as TaskFilters['filter']) : undefined,
-          }))
-        }
-        options={[
-          { value: '', label: 'Все' },
-          { value: 'mine', label: 'Моё' },
-          { value: 'assigned', label: 'Назначил другим' },
-          { value: 'undated', label: 'Без даты' },
-          { value: 'waiting', label: 'Жду' },
-        ]}
-      />
-      <SelectField
-        label="Статус дел"
-        value={filters.status ?? ''}
-        onChange={(value) =>
-          setFilters((current) => ({
-            ...current,
-            status: value ? (value as TaskFilters['status']) : undefined,
-          }))
-        }
-        options={[
-          { value: '', label: 'Все статусы' },
-          ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
-        ]}
-      />
-      <RecordPicker
-        kind="object"
-        label="Фильтр по объекту"
-        value={filters.objectId ?? ''}
-        onChange={(value) =>
-          setFilters((current) => ({ ...current, objectId: value || undefined }))
-        }
-      />
+      <div className="task-filters">
+        <SelectField
+          label="Фильтр дел"
+          value={filters.filter ?? ''}
+          onChange={(value) =>
+            setFilters((current) => ({
+              ...current,
+              filter: value ? (value as TaskFilters['filter']) : undefined,
+            }))
+          }
+          options={[
+            { value: '', label: 'Все' },
+            { value: 'mine', label: 'Моё' },
+            { value: 'assigned', label: 'Назначил другим' },
+            { value: 'undated', label: 'Без даты' },
+            { value: 'waiting', label: 'Жду' },
+          ]}
+        />
+        <SelectField
+          label="Статус дел"
+          value={filters.status ?? ''}
+          onChange={(value) =>
+            setFilters((current) => ({
+              ...current,
+              status: value ? (value as TaskFilters['status']) : undefined,
+            }))
+          }
+          options={[
+            { value: '', label: 'Все статусы' },
+            ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
+          ]}
+        />
+        <RecordPicker
+          kind="object"
+          label="Фильтр по объекту"
+          value={filters.objectId ?? ''}
+          onChange={(value) =>
+            setFilters((current) => ({ ...current, objectId: value || undefined }))
+          }
+        />
+      </div>
       <QueryNotice query={query} />
       <TaskRows
         label="Все дела"
