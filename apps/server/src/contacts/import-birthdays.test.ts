@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createWorkerDatabase, sql } from '@homecrm/db';
 import { PersonData } from '@homecrm/shared';
-import { afterAll, beforeAll, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import webpush from 'web-push';
 import {
   enqueueDeadlineWarnings,
@@ -26,6 +26,7 @@ beforeAll(async () => {
   await initializeHouseTimeZones(createWorkerDatabase(world.database.worker), 'Asia/Yekaterinburg');
 });
 afterAll(async () => world?.close());
+afterEach(() => vi.useRealTimers());
 type Contact = {
   id: string;
   updatedAt: string;
@@ -182,6 +183,9 @@ it('CONT-6: общий импорт фиксируется в истории; UR
   expect(world.requestLog.join('')).not.toContain('Заметка импорта');
 });
 it('CONT-7: правка контакта без поля напоминания сохраняет его', async () => {
+  // Дата расчёта и часы маршрута должны совпадать: прошедшие дни рождения скрыты.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-09T05:00:00Z'));
   const created = await person({ birthday: '--10-10' });
   expect(created.data.birthdayEnabled).toBe(false);
   const url = `/api/contacts/${created.id}`;
@@ -226,6 +230,8 @@ it('CONT-7: правка контакта без поля напоминания
   expect((await adult.get(radarUrl)).text).not.toContain(created.id);
 });
 it('CONT-7: ежегодный срок без возраста, предупреждения 7/1; взрослый контакт скрыт ребёнку, выключение немедленное', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-09T05:00:00Z'));
   const row = await person({ birthday: '--10-10', birthdayEnabled: true }, 'adults');
   await refreshDeadlines(
     createWorkerDatabase(world.database.worker),
@@ -308,6 +314,8 @@ it('CONT-7: 29 февраля → 28 февраля, полный год даё�
   }
 });
 it('CONT-7: сужение аудитории, перенос, корзина и восстановление не оставляют открытой производной даты', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-09T05:00:00Z'));
   const row = await person({ birthday: '--10-10', birthdayEnabled: true }, 'household');
   const db = createWorkerDatabase(world.database.worker),
     now = new Date('2026-10-09T05:00:00Z');

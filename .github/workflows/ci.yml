@@ -49,7 +49,7 @@ jobs:
     name: Вход · 360 и 412 px · axe
     runs-on: ubuntu-latest
     # Полный набор: 225 сценариев; подготовка контейнера тоже входит в этот предел.
-    timeout-minutes: 20
+    timeout-minutes: 25
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     services:

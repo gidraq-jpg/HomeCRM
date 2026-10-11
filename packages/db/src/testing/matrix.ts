@@ -285,6 +285,7 @@ function attemptsFor(
               throw error;
             });
           if (deleted) return true;
+          await lockMatrixParent(tx, record);
           const backdated = await tx
             .update(table)
             .set({ deletedAt: new Date('2000-01-01T00:00:00Z') })
@@ -407,7 +408,25 @@ function attemptsFor(
   }
 }
 
-async function updateRecord(
+/** Как в API: родитель блокируется до пункта/вложения, включая запрещённую попытку UPDATE. */
+async function lockMatrixParent(tx: Transaction, record: SeededRecord): Promise<void> {
+  if (record.parentId === undefined) return;
+  const table =
+    record.type === 'document_file'
+      ? RECORD_TABLES.document
+      : record.type === 'note_item' || record.type === 'note_file'
+        ? RECORD_TABLES.note
+        : record.type === 'object_file'
+          ? RECORD_TABLES.object
+          : record.type === 'task_file'
+            ? RECORD_TABLES.task
+            : undefined;
+  if (table === undefined) return;
+  // Обычная роль приложения и RLS: отсутствие строки не подменяет результат исходной попытки.
+  await tx.select({ id: table.id }).from(table).where(eq(table.id, record.parentId)).for('update');
+}
+
+export async function updateRecord(
   tx: Transaction,
   record: SeededRecord,
   values: Partial<{
@@ -421,6 +440,7 @@ async function updateRecord(
     audience: Audience | null;
   }>,
 ): Promise<boolean> {
+  await lockMatrixParent(tx, record);
   const table = RECORD_TABLES[record.type];
   const result = await tx.update(table).set(values).where(eq(table.id, record.id));
   return result.rowCount === 1;

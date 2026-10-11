@@ -53,6 +53,8 @@ import { organizationCount } from '../organizations/OrganizationsScreen.tsx';
 import { useOrganizationsList, useRefreshOrganizations } from '../organizations/queries.ts';
 import { useContactsList } from '../people/queries.ts';
 import { TrashPeople } from '../people/TrashPeople.tsx';
+import { useTaskList } from '../tasks/queries.ts';
+import { TrashTasks } from '../tasks/TrashTasks.tsx';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
@@ -327,6 +329,7 @@ function AccountTrashRow({ item }: { item: TrashedAccount }) {
 }
 
 const PARENT_LABELS = {
+  task: 'из дела',
   note: 'из заметки',
   object: 'из объекта',
   document: 'из документа',
@@ -349,7 +352,9 @@ function FileTrashRow({ file }: { file: TrashedFile }) {
         ? `/home/${file.parentId}/files`
         : file.parentType === 'document'
           ? `/documents/${file.parentId}`
-          : null;
+          : file.parentType === 'task'
+            ? `/today/tasks/${file.parentId}`
+            : null;
 
   return (
     <li className="trash-item">
@@ -414,7 +419,9 @@ function FileTrashRow({ file }: { file: TrashedFile }) {
               ? 'К заметке'
               : file.parentType === 'document'
                 ? 'К документу'
-                : 'К объекту'}
+                : file.parentType === 'task'
+                  ? 'К делу'
+                  : 'К объекту'}
           </Link>
         )}
       </div>
@@ -478,6 +485,7 @@ function DeadlineTrashRow({ item }: { item: TrashedDeadline }) {
  */
 export function TrashScreen() {
   const notesQuery = useNotesList(true);
+  const tasksQuery = useTaskList({}, true);
   const objectsQuery = useObjectsList(true);
   const filesQuery = useTrashedFiles();
   const deadlinesQuery = useTrashedDeadlines();
@@ -523,6 +531,7 @@ export function TrashScreen() {
   const accounts = accountsQuery.data ?? [];
   const documents = documentsQuery.data?.pages.flat() ?? [];
   const total =
+    (tasksQuery.data?.pages.flat().length ?? 0) +
     notes.length +
     objects.length +
     files.length +
@@ -532,6 +541,8 @@ export function TrashScreen() {
     documents.length +
     (peopleQuery.data?.pages.flat().length ?? 0);
   const failed =
+    tasksQuery.isPending ||
+    tasksQuery.isError ||
     notesQuery.data === undefined ||
     objectsQuery.data === undefined ||
     filesQuery.isError ||
@@ -548,6 +559,7 @@ export function TrashScreen() {
 
   return (
     <Page title="Корзина" back={BACK} {...(total > 0 ? { eyebrow: recordCount(total) } : {})}>
+      <TrashTasks />
       <TrashPeople query={peopleQuery} />
       {deadlinesQuery.isPending ? <Notice>Загружаем удалённые сроки…</Notice> : null}
       {deadlinesQuery.isError ? (

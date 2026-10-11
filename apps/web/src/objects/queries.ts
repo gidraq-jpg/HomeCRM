@@ -86,6 +86,7 @@ export function useRefreshObjects() {
       client.invalidateQueries({ queryKey: [OBJECTS] }),
       client.invalidateQueries({ queryKey: [LINKS] }),
       client.invalidateQueries({ queryKey: ['deadlines'] }),
+      client.invalidateQueries({ queryKey: ['tasks'] }),
       client.invalidateQueries({ queryKey: ['accounts'] }),
       client.invalidateQueries({ queryKey: ['meters'] }),
       client.invalidateQueries({ queryKey: ['transmission'] }),

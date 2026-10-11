@@ -109,6 +109,13 @@ export async function summaries(tx: Transaction, rows: Task[]) {
       member = members.find((m) => m.id === row.waitingAccountId);
     return {
       ...publicRecord(row),
+      hasOtherContributions:
+        row.hasOtherContributions ||
+        files.some(
+          (file) =>
+            file.parentId === row.id &&
+            (file.authorId !== row.authorId || file.hasOtherContributions),
+        ),
       files: files
         .filter((f) => f.parentId === row.id && (row.deletedAt !== null || f.deletedAt === null))
         .map(fileSummary),
@@ -369,6 +376,7 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
                   })
                   .extend({
                     assigneeId: z.uuid().optional(),
+                    householdId: z.uuid().optional(),
                     expectedUpdatedAt: z.iso.datetime().optional(),
                     idempotencyKey: z.uuid().optional(),
                   })
@@ -403,6 +411,15 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
         const row = await getTask(tx, account, id, true);
         requireWrite(account, row, 'task');
         version(body.expectedUpdatedAt, row.updatedAt);
+        const requestedHouse = 'householdId' in body ? body.householdId : undefined;
+        if (requestedHouse !== undefined) {
+          if (!account.viewer.memberships.has(requestedHouse)) missing();
+          if (
+            requestedHouse !== row.householdId &&
+            (row.spaceKind !== 'personal' || row.householdId !== null)
+          )
+            throw new Failure(400, 'HOUSE_ALREADY_BOUND');
+        }
         // Null из формы скрытого контакта не удаляет существующую связь.
         if (body.waitingContactId === null && row.waitingContactId) {
           const visible = (
@@ -441,7 +458,7 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
           placementOf(row),
           assigned,
           'expandAudience' in body && body.expandAudience,
-          row.householdId ?? undefined,
+          row.householdId ?? requestedHouse,
           row,
         );
         await assignee(tx, account, target, assigned);
@@ -449,14 +466,20 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
         const house =
           target.kind === 'household'
             ? target.spaceId
-            : (row.householdId ?? (dated ? await legacyHouse(tx, account, row) : null));
+            : (row.householdId ??
+              requestedHouse ??
+              (dated ? await legacyHouse(tx, account, row) : null));
         if (dated && !house) throw new Failure(400, 'HOUSE_REQUIRED');
         const fields = Object.fromEntries(
           Object.entries(body).filter(
             ([key]) =>
-              !['expectedUpdatedAt', 'idempotencyKey', 'repeatScope', 'expandAudience'].includes(
-                key,
-              ),
+              ![
+                'expectedUpdatedAt',
+                'idempotencyKey',
+                'repeatScope',
+                'expandAudience',
+                'householdId',
+              ].includes(key),
           ),
         ) as Partial<z.infer<typeof TaskFields>> & { assigneeId?: string };
         const following = 'repeatScope' in body && body.repeatScope === 'following';

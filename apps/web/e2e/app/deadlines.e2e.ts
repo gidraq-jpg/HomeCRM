@@ -74,9 +74,18 @@ test('радар: один запрос с названием; ошибка бл
         })
       : route.continue(),
   );
+  await page.route('**/api/tasks/today?*', (route) =>
+    failed
+      ? route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ code: 'INTERNAL_ERROR' }),
+        })
+      : route.continue(),
+  );
   await signInAs(page, family, 'adult');
   await expect(page.getByRole('heading', { level: 1, name: 'Сегодня', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Повторить загрузку срочного' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Повторить загрузку дел' })).toBeVisible();
   await checkApp(page, info, 'today-radar-error');
   await openRadar(page);
   await expect(page.getByRole('button', { name: 'Повторить загрузку радара' })).toBeVisible();
@@ -611,6 +620,9 @@ test('срок скрыт вместе с записью: ребёнок не в
       await anna.page.evaluate(() => globalThis.dispatchEvent(new Event('visibilitychange')));
       expect((await (await changed).json()).roles[0].role).toBe('child');
       await expect(anna.page.getByText('Счета на квартиру')).toHaveCount(0);
+      // B1: локальный режим прежнего участника сбрасывается вместе с интерфейсом.
+      await expect(anna.page.getByRole('radio', { name: 'Моё', exact: true })).toBeChecked();
+      await anna.page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
       await expect(anna.page.getByText('Правила дома')).toBeVisible();
       expect(await radarSummary(anna.page)).toEqual({ '7 дней': 1 });
     } finally {

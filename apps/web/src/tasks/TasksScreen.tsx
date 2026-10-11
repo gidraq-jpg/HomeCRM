@@ -1,0 +1,267 @@
+import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
+import { useScope } from '../access/ScopeContext.tsx';
+import { Notice } from '../auth/components.tsx';
+import { RadarRows } from '../deadlines/RadarScreen.tsx';
+import { ReadingsWindowsFromRows } from '../deadlines/ReadingsWindowCards.tsx';
+import { buildRows, filterRows } from '../deadlines/radar.ts';
+import { isOpenWindow } from '../deadlines/utility.ts';
+import { useHousehold } from '../household/HouseholdContext.tsx';
+import { PushCard } from '../notifications/PushCard.tsx';
+import { FirstRunCard } from '../templates/FirstRunCard.tsx';
+import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
+import { LinkTabs } from '../ui/LinkTabs.tsx';
+import { Page, Section } from '../ui/Page.tsx';
+import type { TaskFilters } from './api.ts';
+import { taskError } from './errors.ts';
+import { formatDateOnly, SelectField } from './fields.tsx';
+import { RecordPicker } from './options.tsx';
+import { Quickline } from './Quickline.tsx';
+import { uniqueTasks, usePlan, useTaskList, useToday } from './queries.ts';
+import { STATUS_LABELS } from './TaskForm.tsx';
+import { TaskRows } from './TaskRows.tsx';
+
+const tabs = [
+  { to: '/today', label: 'Сегодня', end: true },
+  { to: '/today/plan', label: 'План' },
+  { to: '/today/all', label: 'Все дела' },
+];
+export function TasksScreen({ view = 'today' }: { view?: 'today' | 'plan' | 'all' }) {
+  const { me, householdId, isAdmin } = useHousehold();
+  const { scope } = useScope();
+  const [params, setParams] = useSearchParams();
+  const house = me.roles.some((role) => role.householdId === params.get('householdId'))
+    ? params.get('householdId')
+    : householdId;
+  const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
+  return (
+    <Page title={view === 'today' ? 'Сегодня' : view === 'plan' ? 'План' : 'Все дела'}>
+      <LinkTabs
+        label="Ленты дел"
+        items={tabs.map((tab) => ({ ...tab, to: `${tab.to}${houseQuery}` }))}
+      />
+      {scope !== 'all' ? <p className="muted">{EMPTY_SCOPE_EXPLANATION[scope]}</p> : null}
+      <Link className="text-button" to="/more/spaces">
+        Как устроены личное и общее
+      </Link>
+      {me.roles.length > 1 ? (
+        <SelectField
+          label="Выбранный дом"
+          value={house ?? ''}
+          onChange={(value) => setParams({ householdId: value })}
+          options={me.roles.map((role, index) => ({
+            value: role.householdId,
+            label: `Дом ${index + 1}`,
+          }))}
+        />
+      ) : null}
+      <Link className="btn btn--primary list-action" to={`/today/new${houseQuery}`}>
+        Новое дело
+      </Link>
+      {isAdmin ? (
+        <Link className="text-button" to="/people/invite">
+          Пригласить участника
+        </Link>
+      ) : null}
+      {view === 'today' ? (
+        <TodayFeed key={house} house={house} />
+      ) : view === 'plan' ? (
+        <PlanFeed key={house} house={house} />
+      ) : (
+        <AllFeed key={house} house={house} />
+      )}
+    </Page>
+  );
+}
+function TodayFeed({ house }: { house: string | null }) {
+  const { me } = useHousehold();
+  const { scope } = useScope();
+  const query = useToday(house);
+  const now = new Date();
+  const rows = buildRows(query.data?.radar ?? [], {
+    timeZone: query.data?.timeZone ?? 'UTC',
+    now,
+    today: (query.data?.today ?? '2000-01-01') as ReturnType<
+      typeof import('../objects/dates.ts').todayIn
+    >,
+    titleOf: () => undefined,
+    locate: () => undefined,
+  });
+  const urgent = filterRows(rows, { view: 'mine', scope, meId: me.id }).filter(
+    (row) => !isOpenWindow(row),
+  );
+  return (
+    <>
+      <FirstRunCard />
+      {query.data ? (
+        <Quickline
+          key={house}
+          householdId={query.data.householdId}
+          timeZone={query.data.timeZone}
+          today={query.data.today}
+        />
+      ) : null}
+      <QueryNotice query={query} />
+      {query.data ? (
+        <>
+          <ReadingsWindowsFromRows rows={rows} />
+          {query.data.recalculating ? (
+            <Notice>
+              Сроки пересчитываются.{' '}
+              <button className="text-button" type="button" onClick={() => void query.refetch()}>
+                Обновить сегодня
+              </button>
+            </Notice>
+          ) : null}
+          <Section title="Главное дело">
+            <TaskRows label="Главное дело" tasks={query.data.main ? [query.data.main] : []} />
+          </Section>
+          <Section title="Сегодня и просроченные">
+            <TaskRows
+              label="Дела на сегодня"
+              tasks={query.data.tasks.filter((task) => task.id !== query.data.main?.id)}
+            />
+          </Section>
+          <details className="task-completed">
+            <summary>Выполнено сегодня ({query.data.completed.length})</summary>
+            <TaskRows label="Выполненные дела" tasks={query.data.completed} />
+          </details>
+          <Section title="Срочное из радара">
+            {urgent.length === 0 ? <p className="muted">Срочного нет.</p> : null}
+            <RadarRows rows={urgent.slice(0, 5)} label="Срочные сроки" />
+            <Link className="text-button" to="/more/radar">
+              Весь радар
+            </Link>
+          </Section>
+        </>
+      ) : null}
+      <PushCard />
+    </>
+  );
+}
+function PlanFeed({ house }: { house: string | null }) {
+  const query = usePlan(house);
+  const days = new Map<
+    string,
+    Map<string, NonNullable<typeof query.data>['pages'][number]['days'][number]['tasks'][number]>
+  >();
+  for (const page of query.data?.pages ?? [])
+    for (const day of page.days) {
+      const tasks = days.get(day.date) ?? new Map();
+      for (const task of day.tasks) tasks.set(task.id, task);
+      days.set(day.date, tasks);
+    }
+  return (
+    <>
+      <QueryNotice query={query} />
+      {[...days].map(([date, tasks]) =>
+        tasks.size ? (
+          <Section key={date} title={formatDateOnly(date)}>
+            <TaskRows label={`Дела ${date}`} tasks={[...tasks.values()]} />
+          </Section>
+        ) : null,
+      )}
+      {query.data ? (
+        <Section title="Без даты">
+          <TaskRows
+            label="Дела без даты"
+            tasks={uniqueTasks(query.data.pages.flatMap((page) => page.undated))}
+          />
+        </Section>
+      ) : null}
+      <LoadMore query={query} label="Показать следующие дни" />
+    </>
+  );
+}
+function AllFeed({ house }: { house: string | null }) {
+  const [filters, setFilters] = useState<TaskFilters>({});
+  const query = useTaskList(filters, false, house);
+  return (
+    <>
+      <SelectField
+        label="Фильтр дел"
+        value={filters.filter ?? ''}
+        onChange={(value) =>
+          setFilters((current) => ({
+            ...current,
+            filter: value ? (value as TaskFilters['filter']) : undefined,
+          }))
+        }
+        options={[
+          { value: '', label: 'Все' },
+          { value: 'mine', label: 'Моё' },
+          { value: 'assigned', label: 'Назначил другим' },
+          { value: 'undated', label: 'Без даты' },
+          { value: 'waiting', label: 'Жду' },
+        ]}
+      />
+      <SelectField
+        label="Статус дел"
+        value={filters.status ?? ''}
+        onChange={(value) =>
+          setFilters((current) => ({
+            ...current,
+            status: value ? (value as TaskFilters['status']) : undefined,
+          }))
+        }
+        options={[
+          { value: '', label: 'Все статусы' },
+          ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
+        ]}
+      />
+      <RecordPicker
+        kind="object"
+        label="Фильтр по объекту"
+        value={filters.objectId ?? ''}
+        onChange={(value) =>
+          setFilters((current) => ({ ...current, objectId: value || undefined }))
+        }
+      />
+      <QueryNotice query={query} />
+      <TaskRows
+        label="Все дела"
+        tasks={uniqueTasks(query.data?.pages.flat() ?? []).filter(
+          (task) => !house || !task.householdId || task.householdId === house,
+        )}
+      />
+      <LoadMore query={query} label="Показать ещё дела" />
+    </>
+  );
+}
+export function QueryNotice({
+  query,
+}: {
+  query: { isPending: boolean; error: unknown; refetch: () => unknown };
+}) {
+  return (
+    <>
+      {query.isPending ? <Notice>Загружаем дела…</Notice> : null}
+      {query.error ? (
+        <Notice error>
+          {taskError(query.error)}{' '}
+          <button type="button" className="text-button" onClick={() => void query.refetch()}>
+            Повторить загрузку дел
+          </button>
+        </Notice>
+      ) : null}
+    </>
+  );
+}
+export function LoadMore({
+  query,
+  label,
+}: {
+  query: { hasNextPage: boolean; isFetchingNextPage: boolean; fetchNextPage: () => unknown };
+  label: string;
+}) {
+  return query.hasNextPage ? (
+    <button
+      type="button"
+      className="btn btn--secondary btn--block list-action"
+      disabled={query.isFetchingNextPage}
+      onClick={() => void query.fetchNextPage()}
+    >
+      {query.isFetchingNextPage ? 'Загружаем…' : label}
+    </button>
+  ) : null;
+}

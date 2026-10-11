@@ -11,6 +11,7 @@ import { LinksSection } from '../links/LinksSection.tsx';
 import { factsOf, newPlacement, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { PropertyFacts } from '../property/PropertyFacts.tsx';
 import { propertyDraft } from '../property/property.ts';
+import { ResponsibleField } from '../tasks/ResponsibleField.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { ObjectAnalytics } from '../utilities/ObjectAnalytics.tsx';
 import { assigneeChoices, creatableObjectVisibilities } from './abilities.ts';
@@ -256,6 +257,16 @@ export function ObjectOverview() {
 
       {!trashed ? <PeopleBlock card={card} /> : null}
 
+      {!trashed ? (
+        <ResponsibleField
+          kind="objects"
+          key={card.id}
+          householdId={card.spaceKind === 'household' ? card.spaceId : null}
+          id={card.id}
+          assigneeId={card.assigneeId}
+          canEdit={abilities.edit}
+        />
+      ) : null}
       {!trashed ? <DeadlinesSection source="objects" card={card} /> : null}
 
       {!trashed && card.objectType === 'property' ? <ObjectAnalytics objectId={card.id} /> : null}

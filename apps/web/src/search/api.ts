@@ -6,11 +6,11 @@ export const SearchResponse = z.object({
   hasMore: z.boolean(),
   groups: z.array(
     z.object({
-      type: z.enum(['note', 'object', 'object_event', 'document', 'contact']),
+      type: z.enum(['note', 'object', 'object_event', 'document', 'contact', 'task']),
       label: z.string(),
       items: z.array(
         z.object({
-          type: z.enum(['note', 'object', 'object_event', 'document', 'contact']),
+          type: z.enum(['note', 'object', 'object_event', 'document', 'contact', 'task']),
           id: z.string(),
           targetId: z.string(),
           title: z.string(),

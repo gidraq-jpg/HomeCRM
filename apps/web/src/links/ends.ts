@@ -5,6 +5,7 @@ import { useNoteCard } from '../notes/queries.ts';
 import type { RecordRef } from '../objects/api.ts';
 import { useObjectCard } from '../objects/queries.ts';
 import { OBJECT_TYPE_ICONS } from '../objects/types.ts';
+import { useTask } from '../tasks/queries.ts';
 
 // Конец связи или ссылка на контакт: название, значок и права берутся из карточки записи, которую
 // пользователь видит. Если вида записи в приложении ещё нет, показывается только подпись вида.
@@ -14,6 +15,8 @@ export function routeOf(ref: RecordRef): string | null {
   if (ref.type === 'object') return `/home/${ref.id}`;
   if (ref.type === 'note') return `/more/notes/${ref.id}`;
   if (ref.type === 'contact') return `/people/contacts/${ref.id}`;
+  if (ref.type === 'task') return `/today/tasks/${ref.id}`;
+  if (ref.type === 'document') return `/documents/${ref.id}`;
   return null;
 }
 
@@ -26,6 +29,7 @@ export const OTHER_LABELS: Readonly<Record<string, string>> = {
 };
 
 export function useEnd(ref: RecordRef, viewer: Viewer) {
+  const task = useTask(ref.type === 'task' ? ref.id : undefined);
   const object = useObjectCard(ref.type === 'object' ? ref.id : undefined);
   const note = useNoteCard(ref.type === 'note' ? ref.id : undefined);
   if (ref.type === 'object') {
@@ -46,5 +50,12 @@ export function useEnd(ref: RecordRef, viewer: Viewer) {
       icon: Note,
     };
   }
+  if (ref.type === 'task')
+    return {
+      loading: task.isPending,
+      title: task.data?.title ?? null,
+      facts: task.data ? factsOf(task.data, viewer, 'task') : null,
+      icon: Note,
+    };
   return { loading: false, title: null, facts: null, icon: LinkSimple };
 }

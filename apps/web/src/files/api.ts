@@ -18,13 +18,18 @@ export const FileMeta = z.object({
 export type FileMeta = z.infer<typeof FileMeta>;
 
 /** К чему прикреплён файл: заметка, объект или документ. */
-export type ParentKind = 'note' | 'object' | 'document';
+export type ParentKind = 'note' | 'object' | 'document' | 'task';
 export interface FileParent {
   kind: ParentKind;
   id: string;
 }
 
-const COLLECTIONS = { note: 'notes', object: 'objects', document: 'documents' } as const;
+const COLLECTIONS = {
+  note: 'notes',
+  object: 'objects',
+  document: 'documents',
+  task: 'tasks',
+} as const;
 const collection = (parent: FileParent) => `${COLLECTIONS[parent.kind]}/${parent.id}/files`;
 
 /** Адрес основного файла: в адресе только идентификатор, имени файла в нём нет. */
@@ -40,7 +45,7 @@ export type DeletedFile = z.infer<typeof DeletedFile>;
 
 /** Строка общей корзины файлов: к чему относился файл и можно ли его вернуть. */
 export const TrashedFile = FileMeta.extend({
-  parentType: z.enum(['note', 'object', 'document', 'profile']),
+  parentType: z.enum(['note', 'object', 'document', 'profile', 'task']),
   parentId: z.string(),
   canRestore: z.boolean(),
 });

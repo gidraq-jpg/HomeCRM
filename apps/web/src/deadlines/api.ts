@@ -11,6 +11,9 @@ export type SourceKind = 'notes' | 'objects';
 
 /** Правило срока записи. Сервер отдаёт сохранённое правило, поэтому разбираем его той же схемой. */
 export const DeadlineItem = z.object({
+  sourceKind: z.string().optional(),
+  taskId: z.string().nullish(),
+  documentId: z.string().nullish(),
   id: z.string(),
   noteId: z.string().nullable(),
   objectId: z.string().nullable(),
@@ -68,10 +71,13 @@ export const SOURCE_KINDS = [
   'verification',
   'document',
   'birthday',
+  'task_plan',
+  'task_due',
+  'task_waiting',
 ] as const;
 export type UtilitySourceKind = Exclude<
   (typeof SOURCE_KINDS)[number],
-  'record' | 'document' | 'birthday'
+  'record' | 'document' | 'birthday' | 'task_plan' | 'task_due' | 'task_waiting'
 >;
 
 /** Основное действие пункта радара (docs/utility-deadlines-api.md). Подписи приходят с сервера. */
@@ -101,6 +107,7 @@ export const RadarItem = z.object({
   objectId: z.string().nullish(),
   /** Документ, из даты окончания которого получен срок (DOC-3); у остальных сроков пусто. */
   documentId: z.string().nullish(),
+  taskId: z.string().nullish(),
   title: z.string().optional(),
   rule: DeadlineRule.optional(),
   /** Календарная дата начала в поясе дома: `YYYY-MM-DD`. */

@@ -60,5 +60,6 @@ export function useRefreshDocuments() {
       client.invalidateQueries({ queryKey: [DOCUMENTS] }),
       client.invalidateQueries({ queryKey: ['files'] }),
       client.invalidateQueries({ queryKey: ['deadlines'] }),
+      client.invalidateQueries({ queryKey: ['tasks'] }),
     ]);
 }

@@ -6,11 +6,12 @@ import { SCOPE_LABELS } from '../access/scope.ts';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
+import { TakeFromRadar } from '../tasks/TakeFromRadar.tsx';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
 import { countWord, formatRub } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
-import { Row, RowContent, RowList } from '../ui/Row.tsx';
+import { RowContent, RowList } from '../ui/Row.tsx';
 import { DeadlineError, RecalculatingNotice } from './components.tsx';
 import {
   filterRows,
@@ -79,11 +80,54 @@ function UtilityRadarItem({ row }: { row: RadarRow }) {
         />
       </div>
       <UtilityActions utility={utility} />
+      <Link className="text-button" to={`/home/${utility.objectId}`}>
+        Ответственный — в карточке источника
+      </Link>
+      <TakeFromRadar occurrenceId={row.id} assigneeId={row.assigneeId} />
     </li>
   );
 }
 
 /** Пункт радара: название записи, что за срок, когда, значок пространства, переход в карточку. */
+function RecordRadarItem({ row }: { row: RadarRow }) {
+  const content = (
+    <RowContent
+      icon={
+        row.group === 'overdue' ? (
+          <Warning size={22} aria-hidden />
+        ) : (
+          <CalendarBlank size={22} aria-hidden />
+        )
+      }
+      {...(row.group === 'overdue' ? { iconTone: 'warning' as const } : {})}
+      title={row.title ?? 'Запись не найдена'}
+      meta={
+        <>
+          <span className="radar-line">{row.what}</span>
+          <span className="radar-line">
+            {row.when} · {row.relative}
+          </span>
+          {row.to && !row.to.startsWith('/home/') && !row.to.startsWith('/more/notes/') ? (
+            <span className="radar-line">Ответственный — в карточке источника</span>
+          ) : null}
+        </>
+      }
+      badge={row.visibility}
+    />
+  );
+  return (
+    <li>
+      {row.to ? (
+        <Link className="row" to={row.to}>
+          {content}
+        </Link>
+      ) : (
+        <div className="row">{content}</div>
+      )}
+      <TakeFromRadar occurrenceId={row.id} assigneeId={row.assigneeId} />
+    </li>
+  );
+}
 export function RadarRows({ rows, label }: { rows: readonly RadarRow[]; label: string }) {
   return (
     <RowList label={label}>
@@ -91,28 +135,7 @@ export function RadarRows({ rows, label }: { rows: readonly RadarRow[]; label: s
         row.utility ? (
           <UtilityRadarItem key={row.id} row={row} />
         ) : (
-          <Row
-            key={row.id}
-            {...(row.to === null ? {} : { to: row.to })}
-            icon={
-              row.group === 'overdue' ? (
-                <Warning size={22} aria-hidden />
-              ) : (
-                <CalendarBlank size={22} aria-hidden />
-              )
-            }
-            {...(row.group === 'overdue' ? { iconTone: 'warning' as const } : {})}
-            title={row.title ?? 'Запись не найдена'}
-            meta={
-              <>
-                <span className="radar-line">{row.what}</span>
-                <span className="radar-line">
-                  {row.when} · {row.relative}
-                </span>
-              </>
-            }
-            badge={row.visibility}
-          />
+          <RecordRadarItem key={row.id} row={row} />
         ),
       )}
     </RowList>
