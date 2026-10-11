@@ -2,6 +2,16 @@ import { z } from 'zod';
 import { CalendarDate, DeadlineRule, RADAR_GROUPS, TimeZone } from './deadlines.ts';
 
 const CalendarTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+// Проверка пояса одинакова для всех участников: кэш только валидности публичного IANA-ID,
+// без данных источников. Ограничение не даёт строкам запроса накапливаться в памяти.
+const validZones = new Set<string>();
+const ResponseTimeZone = z.string().refine((value) => {
+  if (validZones.has(value)) return true;
+  if (!TimeZone.safeParse(value).success) return false;
+  if (validZones.size >= 64) validZones.clear();
+  validZones.add(value);
+  return true;
+}, 'Expected an IANA time zone');
 
 export const RadarFilters = z
   .strictObject({
@@ -54,7 +64,7 @@ export const SummaryMetadata = z.strictObject({
   accountId: z.uuid(),
   householdId: z.uuid(),
   householdName: z.string().optional(),
-  timeZone: z.string(),
+  timeZone: ResponseTimeZone,
   kind: SummaryKind,
   localDate: CalendarDate,
   periodStart: z.iso.datetime(),
@@ -82,7 +92,7 @@ export const RadarResponseItem = z.strictObject({
   date: CalendarDate,
   startsAt: z.iso.datetime(),
   endsAt: z.iso.datetime(),
-  timeZone: TimeZone,
+  timeZone: ResponseTimeZone,
   warningsAt: z.array(z.iso.datetime()),
   completedAt: z.iso.datetime().nullable(),
   deletedAt: z.iso.datetime().nullable(),

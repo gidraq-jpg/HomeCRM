@@ -12,7 +12,7 @@ async function snapshot() {
     await db.admin.query(`SELECT * FROM (SELECT 'tasks' AS source,to_jsonb(t) AS data FROM tasks t
     UNION ALL SELECT 'history',to_jsonb(h) FROM tasks_history h
     UNION ALL SELECT 'deadlines',to_jsonb(d) FROM deadlines d
-    UNION ALL SELECT 'notifications',to_jsonb(n) FROM deadline_notifications n) records ORDER BY source,data::text`)
+    UNION ALL SELECT 'notifications',to_jsonb(n)-'summary_id' FROM deadline_notifications n) records ORDER BY source,data::text`)
   ).rows;
 }
 beforeAll(async () => {
@@ -52,6 +52,11 @@ it('A3: 0059 → 0060 сохраняет строки, историю, связ�
     ).rows;
   const grants = await permissions();
   await runMigrations(db.owner);
+  expect(
+    (await db.admin.query('SELECT summary_id FROM deadline_notifications')).rows.every(
+      (x) => x.summary_id === null,
+    ),
+  ).toBe(true);
   expect(await snapshot()).toEqual(before);
   expect(await permissions()).toEqual(grants);
   const tables = (

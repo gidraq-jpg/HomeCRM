@@ -104,6 +104,17 @@ export async function radarActionRoutes(app: FastifyInstance, options: AuthModul
             )
           : null;
       if (snoozedUntil && snoozedUntil <= new Date()) throw new Failure(400, 'SNOOZE_IN_PAST');
+      if (snoozedUntil) {
+        const zone = radar.items.find((x) => x.id === id)?.timeZone ?? 'UTC';
+        const clock = new Intl.DateTimeFormat('en-GB', {
+          timeZone: zone,
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+        }).format(snoozedUntil);
+        if (localDate(snoozedUntil, zone) !== body.date || clock !== body.time)
+          throw new Failure(400, 'INVALID_LOCAL_TIME');
+      }
       const values = {
         status:
           body.action === 'restore'

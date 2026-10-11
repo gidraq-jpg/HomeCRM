@@ -213,6 +213,9 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ...(name === 'utility_accounts'
             ? ['utility_accounts.utility_accounts_charges_worker:SELECT']
             : []),
+          ...(name === 'utility_payments'
+            ? ['utility_payments.utility_payments_summary_worker:SELECT']
+            : []),
           ...(name === 'contacts' ? ['contacts.contacts_birthday_lookup:SELECT'] : []),
           ...(name === 'documents'
             ? [

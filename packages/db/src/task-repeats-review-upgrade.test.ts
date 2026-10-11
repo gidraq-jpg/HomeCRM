@@ -13,7 +13,7 @@ async function snapshot() {
     SELECT 'tasks' AS source,to_jsonb(t)-'repeat_next_event_id' AS data FROM tasks t
     UNION ALL SELECT 'history',to_jsonb(h) FROM tasks_history h
     UNION ALL SELECT 'deadlines',to_jsonb(d) FROM deadlines d
-    UNION ALL SELECT 'notifications',to_jsonb(n) FROM deadline_notifications n
+    UNION ALL SELECT 'notifications',to_jsonb(n)-'summary_id' FROM deadline_notifications n
   ) records ORDER BY source,data::text`)
   ).rows;
 }
@@ -48,6 +48,11 @@ afterAll(async () => {
   if (folder) await rm(folder, { recursive: true, force: true });
 });
 it('TASK-4/7/11: миграция 0058 сохраняет строки, преемника, историю, сроки, очередь и FORCE RLS базы 0057', async () => {
+  expect(
+    (await db.admin.query('SELECT summary_id FROM deadline_notifications')).rows.every(
+      (x) => x.summary_id === null,
+    ),
+  ).toBe(true);
   expect(await snapshot()).toEqual(before);
   const rows = (
     await db.admin.query(

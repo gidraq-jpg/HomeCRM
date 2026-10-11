@@ -411,7 +411,12 @@ export async function readRadar(
   // материализация не запускает отдельный SQL-план с политиками на каждое окно.
   // Источники по ID и проверка пояса соединяются с исходными таблицами под RLS:
   // их индексы исключают повторные полные проходы по материализованным наборам.
-  const result = await tx.execute<{ items: RadarRow[]; recalculating: boolean }>(sql`
+  const result = await tx.execute<{
+    items: RadarRow[];
+    recalculating: boolean;
+    accountId: string;
+    houses: { id: string; title: string; role: string }[];
+  }>(sql`
         WITH visible_deadlines AS MATERIALIZED (SELECT * FROM deadlines),
         visible_occurrences AS MATERIALIZED (SELECT * FROM deadline_occurrences WHERE date<=${to} AND date<=CURRENT_DATE+366),
         visible_meters AS MATERIALIZED (SELECT id,title,utility_account_id,is_active,deleted_at FROM meters),
@@ -465,12 +470,16 @@ export async function readRadar(
               AND r.occurred_on BETWEEN (o.starts_at AT TIME ZONE o.time_zone)::date AND (o.ends_at AT TIME ZONE o.time_zone)::date))))
           ORDER BY o.starts_at,o.id
         ) SELECT coalesce(jsonb_agg(radar),'[]'::jsonb) AS items,
+          app.current_account_id() AS "accountId",
+          (SELECT coalesce(jsonb_agg(h),'[]'::jsonb) FROM (SELECT s.id,s.name AS title,coalesce(s.time_zone,'UTC') AS role FROM spaces s WHERE s.kind='household' AND s.id IN (SELECT space_id FROM space_members WHERE account_id=app.current_account_id() AND left_at IS NULL) ORDER BY s.name,s.id) h) AS houses,
           (EXISTS (SELECT 1 FROM visible_deadlines d WHERE d.deleted_at IS NULL AND d.needs_refresh)
            OR EXISTS (SELECT 1 FROM visible_occurrences o JOIN visible_deadlines d ON d.id=o.deadline_id
             JOIN spaces s ON s.id=d.household_id WHERE d.deleted_at IS NULL AND o.time_zone<>s.time_zone)) AS recalculating
         FROM radar`);
   const rows = (result.rows[0]?.items ?? []).map((x) => ({
     ...x,
+    completedAt: x.completedAt ? new Date(x.completedAt).toISOString() : null,
+    deletedAt: x.deletedAt ? new Date(x.deletedAt).toISOString() : null,
     actionState: {
       ...x.actionState,
       snoozedUntil: x.actionState.snoozedUntil
@@ -551,11 +560,7 @@ export async function readRadar(
     x.actionState.status === 'active' ||
     (x.actionState.status === 'snoozed' && new Date(x.actionState.snoozedUntil ?? 0) <= now);
   const options = {
-    houses: (
-      await tx.execute<{ id: string; title: string; role: string }>(
-        sql`SELECT s.id,s.name AS title,coalesce(s.time_zone,'UTC') AS role FROM spaces s WHERE s.kind='household' AND s.id IN (SELECT space_id FROM space_members WHERE account_id=app.current_account_id() AND left_at IS NULL) ORDER BY s.name,s.id`,
-      )
-    ).rows,
+    houses: result.rows[0]?.houses ?? [],
     objects: [
       ...new Map(
         candidates.flatMap((x) => x.objects).map((x) => [`${x.id}:${x.role}`, x]),
@@ -569,9 +574,7 @@ export async function readRadar(
     throw new Failure(404, 'NOT_FOUND');
   if (filters.personId && !options.people.some((x) => x.id === filters.personId))
     throw new Failure(404, 'NOT_FOUND');
-  const [{ account_id: currentId }] = (
-    await tx.execute<{ account_id: string }>(sql`SELECT app.current_account_id() AS account_id`)
-  ).rows as [{ account_id: string }];
+  const currentId = result.rows[0]?.accountId;
   const items = candidates.filter(
     (x) =>
       (!filters.householdId || x.householdId === filters.householdId) &&

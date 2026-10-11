@@ -373,3 +373,46 @@ it('два дома около полуночи: группа и UTC откла�
     await instance.close();
   }
 });
+it('DST: несуществующее местное время откладывания отклоняется без записи отметки', async () => {
+  const s = await source();
+  try {
+    expect(
+      (
+        await admin.request('PATCH', `/api/households/${world.houseId}/time-zone`, {
+          json: { timeZone: 'Europe/Berlin' },
+        })
+      ).status,
+    ).toBe(200);
+    await refreshDeadlines(createWorkerDatabase(world.database.worker), new Date(), true);
+    const item = (await adult.get(radarUrl))
+      .json<{ items: Item[] }>()
+      .items.find((x) => x.deadlineId === s.deadlineId);
+    if (!item) throw new Error('Missing DST occurrence');
+    const year = new Date().getUTCFullYear() + 1,
+      last = new Date(Date.UTC(year, 3, 0));
+    last.setUTCDate(last.getUTCDate() - last.getUTCDay());
+    const date = last.toISOString().slice(0, 10);
+    const response = await adult.post(`/api/deadlines/occurrences/${item.id}/action`, {
+      action: 'snooze',
+      calendarKey: item.calendarKey,
+      expectedVersion: 0,
+      idempotencyKey: randomUUID(),
+      date,
+      time: '02:30',
+    });
+    expect(response.status, response.text).toBe(400);
+    expect(response.json()).toEqual({ code: 'INVALID_LOCAL_TIME' });
+    expect(
+      (
+        await world.database.admin.query('SELECT id FROM radar_actions WHERE deadline_id=$1', [
+          s.deadlineId,
+        ])
+      ).rowCount,
+    ).toBe(0);
+  } finally {
+    await world.database.admin.query(
+      "UPDATE spaces SET time_zone='Asia/Yekaterinburg' WHERE id=$1",
+      [world.houseId],
+    );
+  }
+});
