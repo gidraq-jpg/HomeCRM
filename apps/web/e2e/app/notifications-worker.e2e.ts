@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
+import { scheduleSummaries } from '../../../server/src/notifications/summaries.ts';
 import { test } from '../auth/support/fixtures.ts';
-import { apiAs, expectNothingStored, seedObject } from './notes-support.ts';
+import { homeDate, recalc, seedDeadline, setHomeZone } from './deadlines-support.ts';
+import { apiAs, expectNothingStored, seedNote, seedObject } from './notes-support.ts';
 import { expect, signInAs } from './support.ts';
 
 // Push в сервис-воркере (R0.7b, NOTIF-1, NOTIF-6): настоящее событие `push`, которое браузер доставляет
@@ -8,6 +10,35 @@ import { expect, signInAs } from './support.ts';
 // облегчённый безголовый запрет на уведомления не снимает, поэтому файл идёт на `channel: 'chromium'`.
 
 test.use({ channel: 'chromium', permissions: ['notifications'] });
+test('сводка: настоящее событие push и notificationclick до входа открывают защищённый API после входа', async ({
+  page,
+  family,
+}) => {
+  await setHomeZone(family);
+  const api = await apiAs(family, 'adult');
+  const note = await seedNote(api, family, { title: 'Вымышленный срок из сводки' });
+  await seedDeadline(api, 'notes', note.id, { kind: 'date', date: homeDate(-1) });
+  await recalc(family);
+  await scheduleSummaries(family.database.worker, new Date(Date.now() + 86400000));
+  const rows = (await api.get('summaries')).body as { id: string; kind: string }[];
+  const summary = rows.find((s) => s.kind === 'morning');
+  if (!summary) throw new Error('Missing summary');
+  await page.goto('#/sign-in');
+  await expect(page.getByRole('button', { name: 'Войти', exact: true })).toBeVisible();
+  const { push, shown, click } = await connectWorker(page, family.origin);
+  await push(
+    JSON.stringify({ kind: 'summary', recordId: summary.id, text: 'В HomeCRM есть новое' }),
+  );
+  await expect.poll(async () => (await shown()).length).toBe(1);
+  await click(`summary-${summary.id}`);
+  await page.getByLabel('Имя пользователя или почта').fill('adult');
+  await page.getByLabel('Пароль', { exact: true }).fill(family.person('adult').password);
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/more/summaries/${summary.id}$`));
+  await expect(page.getByRole('heading', { level: 1, name: 'Сводки', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Вымышленный срок из сводки/ })).toBeVisible();
+  await expectNothingStored(page, ['Вымышленный срок из сводки']);
+});
 
 test('дело: тестовый push и нажатие до входа открывают карточку после входа', async ({
   page,

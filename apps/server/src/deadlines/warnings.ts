@@ -34,7 +34,11 @@ export function warningKinds(
             : 'payment_upcoming'
           : sourceKind === 'verification'
             ? 'verification'
-            : 'deadline',
+            : sourceKind === 'document'
+              ? 'document'
+              : sourceKind.startsWith('task_')
+                ? 'task_reminder'
+                : 'deadline',
     );
   for (const at of calculate({ ...rule, warnings: [] }))
     add(
@@ -47,7 +51,11 @@ export function warningKinds(
           ? 'payment_upcoming'
           : sourceKind === 'verification'
             ? 'verification'
-            : 'deadline',
+            : sourceKind === 'document'
+              ? 'document'
+              : sourceKind.startsWith('task_')
+                ? 'task_reminder'
+                : 'deadline',
     );
   return result;
 }

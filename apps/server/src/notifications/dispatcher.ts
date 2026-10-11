@@ -2,6 +2,7 @@ import { documentChildBarrierSql, type Pool, type PoolClient } from '@homecrm/db
 import { DeadlineRule, localDate, NotificationSettings } from '@homecrm/shared';
 import { warningKinds } from '../deadlines/warnings.ts';
 import { budgetDate, DEFAULT_SETTINGS, quietUntil, retryAt } from './policy.ts';
+import { summaryHasContent, summaryPeriod } from './summaries.ts';
 import { type PushSender, pushErrorCode } from './transport.ts';
 
 interface Due {
@@ -13,6 +14,40 @@ interface Due {
 }
 /** Читает только актуальные служебные поля источника; названия worker не получает. */
 async function currentSource(client: PoolClient, notificationId: string, now: Date) {
+  const summary = (
+    await client.query<{
+      id: string;
+      recipient_id: string;
+      warning_at: Date;
+      time_zone: string;
+      kind: 'morning' | 'weekly';
+      local_date: string;
+    }>(
+      `SELECT s.id,n.recipient_id,n.warning_at,s.time_zone,s.kind,s.local_date::text FROM deadline_notifications n JOIN summaries s ON n.record_table='summaries' AND s.id=n.record_id JOIN spaces house ON house.id=s.household_id AND house.time_zone=s.time_zone JOIN space_members m ON m.space_id=s.household_id AND m.account_id=s.account_id AND m.left_at IS NULL LEFT JOIN notification_settings settings ON settings.account_id=s.account_id WHERE n.id=$1 AND n.status='pending' AND CASE WHEN s.kind='morning' THEN coalesce(settings.morning_enabled,true) ELSE coalesce(settings.weekly_enabled,true) END`,
+      [notificationId],
+    )
+  ).rows[0];
+  if (summary) {
+    if (
+      summary.local_date !== summaryPeriod(now, summary.time_zone, summary.kind).date ||
+      !(await summaryHasContent(client, summary.id, now))
+    )
+      return null;
+    return {
+      ...summary,
+      record_id: summary.id,
+      source_kind: 'summary' as const,
+      source_type: 'summary' as const,
+      event_kind: null,
+      notificationKind: 'deadline' as const,
+      summaryKind: summary.kind,
+      untilStart: 0,
+      untilEnd: 0,
+      contact_id: null,
+      profile_account_id: null,
+      has_meters: true,
+    };
+  }
   const event = (
     await client.query<{
       recipient_id: string;
@@ -23,7 +58,7 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
       event_key: string;
       time_zone: string;
     }>(
-      `SELECT n.recipient_id,n.warning_at,n.record_id,n.record_table,n.event_kind,n.event_key,coalesce(s.time_zone,'UTC') AS time_zone FROM deadline_notifications n JOIN spaces s ON s.id=n.event_household_id WHERE n.id=$1 AND n.status='pending' AND n.record_id IS NOT NULL`,
+      `SELECT n.recipient_id,n.warning_at,n.record_id,n.record_table,n.event_kind,n.event_key,coalesce(s.time_zone,'UTC') AS time_zone FROM deadline_notifications n JOIN spaces s ON s.id=n.event_household_id WHERE n.id=$1 AND n.status='pending' AND n.record_id IS NOT NULL AND n.record_table<>'summaries'`,
       [notificationId],
     )
   ).rows[0];
@@ -62,7 +97,13 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
           : event.record_table === 'documents'
             ? ('document' as const)
             : ('object' as const),
-      notificationKind: 'deadline' as const,
+      notificationKind:
+        event.record_table === 'tasks'
+          ? event.event_kind === 'assignment'
+            ? ('task_assignment' as const)
+            : ('task_done' as const)
+          : ('deadline' as const),
+      summaryKind: null,
       untilStart: 0,
       untilEnd: 0,
       contact_id: null,
@@ -103,12 +144,13 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
     JOIN deadlines d ON d.id=o.deadline_id JOIN spaces s ON s.id=d.household_id
     JOIN space_members m ON m.space_id=d.household_id AND m.account_id=n.recipient_id AND m.left_at IS NULL
     WHERE n.id=$1 AND n.status='pending' AND d.deleted_at IS NULL AND NOT d.needs_refresh
+      AND app.radar_occurrence_open(o.id,$2,n.recipient_id)
       AND o.deleted_at IS NULL AND (o.completed_at IS NULL OR d.source_kind='readings') AND o.time_zone=s.time_zone
       AND o.warnings_at ? to_char(n.warning_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
       AND (d.source_kind<>'payment' OR app.utility_payment_open(d.utility_account_id,d.charge_id,o.date))
       AND (d.source_kind<>'readings' OR app.utility_window_open(d.utility_account_id,o.starts_at,o.ends_at,o.time_zone))
     `,
-    [notificationId],
+    [notificationId, now],
   );
   const row = rows[0];
   if (!row) return null;
@@ -179,7 +221,7 @@ async function currentSource(client: PoolClient, notificationId: string, now: Da
     (Date.parse(localDate(row.starts_at, row.time_zone)) - Date.parse(date)) / 86_400_000;
   const untilEnd =
     (Date.parse(localDate(row.ends_at, row.time_zone)) - Date.parse(date)) / 86_400_000;
-  return { ...row, event_kind: null, notificationKind, untilStart, untilEnd };
+  return { ...row, summaryKind: null, event_kind: null, notificationKind, untilStart, untilEnd };
 }
 
 async function transaction<T>(client: PoolClient, fn: () => Promise<T>): Promise<T> {
@@ -237,7 +279,10 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
           )
         ).rows[0];
         const settings = NotificationSettings.parse(raw ?? DEFAULT_SETTINGS);
-        if (!settings.enabledKinds.includes(source.notificationKind)) {
+        if (
+          source.source_kind !== 'summary' &&
+          !settings.enabledKinds.includes(source.notificationKind)
+        ) {
           await client.query(
             "UPDATE deadline_notifications SET status='cancelled',cancellation_reason='settings' WHERE id=$1",
             [delivery.notification_id],
@@ -245,7 +290,7 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
           await finish(client, delivery, 'cancelled');
           return false;
         }
-        if (+now - +source.warning_at > 86_400_000) {
+        if (source.source_kind !== 'summary' && +now - +source.warning_at > 86_400_000) {
           await finish(client, delivery, 'summary');
           return false;
         }
@@ -289,11 +334,34 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
           return;
         }
         const settings = (
-          await client.query<{ hide_text: boolean }>(
-            'SELECT hide_text FROM notification_settings WHERE account_id=$1',
+          await client.query<{
+            hide_text: boolean;
+            enabled_kinds: NotificationSettings['enabledKinds'];
+            morning_enabled: boolean;
+            weekly_enabled: boolean;
+          }>(
+            'SELECT hide_text,enabled_kinds,morning_enabled,weekly_enabled FROM notification_settings WHERE account_id=$1',
             [delivery.account_id],
           )
         ).rows[0];
+        if (
+          source.source_kind !== 'summary' &&
+          !(settings?.enabled_kinds ?? DEFAULT_SETTINGS.enabledKinds).includes(
+            source.notificationKind,
+          )
+        ) {
+          await finish(client, delivery, 'cancelled');
+          return;
+        }
+        if (
+          source.source_kind === 'summary' &&
+          (source.summaryKind === 'morning'
+            ? settings?.morning_enabled
+            : settings?.weekly_enabled) === false
+        ) {
+          await finish(client, delivery, 'cancelled');
+          return;
+        }
         const birthdayName =
           source.source_kind === 'birthday' && settings?.hide_text === false
             ? (
@@ -307,7 +375,7 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
           await send(
             device,
             {
-              kind: 'deadline',
+              kind: source.source_kind === 'summary' ? 'summary' : 'deadline',
               ...(source.source_kind === 'record' ||
               source.source_kind === 'document' ||
               source.source_type === 'task'
@@ -317,33 +385,41 @@ export async function dispatchNotifications(pool: Pool, send: PushSender, now = 
               text:
                 (settings?.hide_text ?? true)
                   ? 'В HomeCRM есть новое'
-                  : source.event_kind === 'assignment'
-                    ? 'Вам назначена запись в HomeCRM'
-                    : source.event_kind === 'task_done'
-                      ? 'Назначенное вами дело выполнено'
-                      : source.source_kind === 'birthday'
-                        ? `День рождения: ${birthdayName ?? 'участник'}`
-                        : {
-                            deadline: 'Подходит срок записи в HomeCRM',
-                            readings_open:
-                              source.untilStart > 0
-                                ? 'Скоро откроется окно показаний'
-                                : 'Открылось окно показаний',
-                            readings_closing:
-                              source.untilEnd === 1
-                                ? 'Окно закрывается завтра'
-                                : 'Подходит конец окна показаний',
-                            readings_last_day: 'Последний день передачи показаний',
-                            payment_upcoming:
-                              source.untilStart === 3
-                                ? 'Оплата через 3 дня'
-                                : 'Подходит срок оплаты',
-                            payment_due: 'Оплата сегодня',
-                            verification: 'Подходит срок поверки',
-                          }[source.notificationKind] +
-                          (source.source_kind === 'readings' && !source.has_meters
-                            ? '. Добавьте счётчики'
-                            : ''),
+                  : source.source_kind === 'summary'
+                    ? source.summaryKind === 'morning'
+                      ? 'Готова утренняя сводка'
+                      : 'Готова недельная сводка'
+                    : source.event_kind === 'assignment'
+                      ? 'Вам назначена запись в HomeCRM'
+                      : source.event_kind === 'task_done'
+                        ? 'Назначенное вами дело выполнено'
+                        : source.source_kind === 'birthday'
+                          ? `День рождения: ${birthdayName ?? 'участник'}`
+                          : {
+                              deadline: 'Подходит срок записи в HomeCRM',
+                              readings_open:
+                                source.untilStart > 0
+                                  ? 'Скоро откроется окно показаний'
+                                  : 'Открылось окно показаний',
+                              readings_closing:
+                                source.untilEnd === 1
+                                  ? 'Окно закрывается завтра'
+                                  : 'Подходит конец окна показаний',
+                              readings_last_day: 'Последний день передачи показаний',
+                              payment_upcoming:
+                                source.untilStart === 3
+                                  ? 'Оплата через 3 дня'
+                                  : 'Подходит срок оплаты',
+                              payment_due: 'Оплата сегодня',
+                              verification: 'Подходит срок поверки',
+                              document: 'Подходит срок документа',
+                              task_reminder: 'Напоминание о деле',
+                              task_assignment: 'Вам назначено дело',
+                              task_done: 'Назначенное вами дело выполнено',
+                            }[source.notificationKind] +
+                            (source.source_kind === 'readings' && !source.has_meters
+                              ? '. Добавьте счётчики'
+                              : ''),
             },
             delivery.id,
           );

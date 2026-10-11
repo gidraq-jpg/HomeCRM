@@ -17,6 +17,7 @@ export interface PushDescription {
   recordId: string | null;
   /** Коммунальный вид предупреждения (ADR-0033) или `null`; неизвестные значения отбрасываются. */
   notificationKind: UtilityNotificationKind | null;
+  kind?: 'summary';
 }
 
 /** Виды коммунальных предупреждений: по ним push ведёт на нужный экран объекта. */
@@ -57,6 +58,7 @@ export function describePush(raw: unknown): PushDescription {
   const notificationKind =
     UTILITY_NOTIFICATION_KINDS.find((known) => known === data.notificationKind) ?? null;
   return {
+    ...(data.kind === 'summary' ? { kind: 'summary' as const } : {}),
     title: text(data.title, TITLE_LIMIT) ?? DEFAULT_TITLE,
     body:
       text(data.body, BODY_LIMIT) ??
@@ -89,8 +91,10 @@ export function parsePushData(read: { json(): unknown; text(): string } | null):
 export function targetRoute(
   recordId: string | null,
   notificationKind: UtilityNotificationKind | null = null,
+  kind?: 'summary',
 ): string {
   if (!recordId) return '/more/radar';
+  if (kind === 'summary') return `/more/summaries/${recordId}`;
   const screen = screenOf(notificationKind);
   return screen ? `/open/${recordId}/${screen}` : `/open/${recordId}`;
 }
@@ -102,6 +106,8 @@ export const OPEN_MESSAGE = 'homecrm:open';
 export function safeRoute(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   if (value === '/more/radar') return value;
+  const summary = /^\/more\/summaries\/([^/]+)$/.exec(value);
+  if (summary?.[1] && UUID.test(summary[1])) return value;
   const match = /^\/open\/([^/]+)(?:\/(readings|accounts|meters))?$/.exec(value);
   return match?.[1] && UUID.test(match[1]) ? value : null;
 }

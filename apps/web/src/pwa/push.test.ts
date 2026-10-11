@@ -103,6 +103,23 @@ describe('содержимое push', () => {
 });
 
 describe('куда ведёт нажатие', () => {
+  it('сводка открывается только по UUID; маршрут проходит прежний защищённый переход после входа', () => {
+    expect(describePush({ kind: 'summary', recordId: RECORD, text: FALLBACK_TEXT })).toMatchObject({
+      kind: 'summary',
+      recordId: RECORD,
+      tag: `summary-${RECORD}`,
+    });
+    expect(targetRoute(RECORD, null, 'summary')).toBe(`/more/summaries/${RECORD}`);
+    expect(routeFromMessage({ type: OPEN_MESSAGE, route: `/more/summaries/${RECORD}` })).toBe(
+      `/more/summaries/${RECORD}`,
+    );
+    for (const bad of [
+      '/more/summaries/../settings',
+      '/more/summaries/abc',
+      `/more/summaries/${RECORD}?user=other`,
+    ])
+      expect(safeRoute(bad)).toBeNull();
+  });
   it('на запись, а без записи — в радар', () => {
     expect(targetRoute(RECORD)).toBe(`/open/${RECORD}`);
     expect(targetRoute(null)).toBe('/more/radar');

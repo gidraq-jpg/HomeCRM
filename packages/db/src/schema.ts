@@ -70,6 +70,7 @@ export * from './core.ts';
 export * from './deadlines-schema.ts';
 export * from './export-schema.ts';
 export * from './notifications-schema.ts';
+export * from './radar-schema.ts';
 export * from './records.ts';
 export * from './search-schema.ts';
 
@@ -754,6 +755,13 @@ const paymentsDefinition = recordTable(
   {
     parent: utilityCharges,
     extraChecks: [check('payments_cents', sql`amount_cents BETWEEN 1 AND 1000000000000`)],
+    extraPolicies: [
+      pgPolicy('utility_payments_summary_worker', {
+        for: 'select',
+        to: workerRole,
+        using: sql`EXISTS(SELECT 1 FROM utility_charges c WHERE c.id=parent_id)`,
+      }),
+    ],
   },
 );
 export const utilityPayments = paymentsDefinition.table;

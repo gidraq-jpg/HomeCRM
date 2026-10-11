@@ -25,6 +25,7 @@ import { DeliveriesScreen } from './notifications/DeliveriesScreen.tsx';
 import { NotificationsScreen } from './notifications/NotificationsScreen.tsx';
 import { OpenRecordScreen } from './notifications/OpenRecordScreen.tsx';
 import { PushBridge } from './notifications/PushBridge.tsx';
+import { SummariesScreen } from './notifications/SummariesScreen.tsx';
 import { NewObjectScreen } from './objects/NewObjectScreen.tsx';
 import { ObjectFiles } from './objects/ObjectFiles.tsx';
 import { ObjectOverview } from './objects/ObjectOverview.tsx';
@@ -127,6 +128,8 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="more/radar" element={<RadarScreen />} />
         <Route path="more/house" element={<HouseScreen />} />
         <Route path="more/notifications" element={<NotificationsScreen />} />
+        <Route path="more/summaries" element={<SummariesScreen />} />
+        <Route path="more/summaries/:summaryId" element={<SummariesScreen />} />
         <Route path="more/notifications/log" element={<DeliveriesScreen />} />
         <Route path="open/:recordId" element={<OpenRecordScreen />} />
         <Route path="open/:recordId/:screen" element={<OpenRecordScreen />} />

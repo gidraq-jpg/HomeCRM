@@ -39,6 +39,7 @@ self.addEventListener('push', (event) => {
     renotify: true,
     lang: 'ru',
     data: {
+      ...(push.kind === 'summary' ? { kind: 'summary' } : {}),
       recordId: push.recordId,
       ...(push.notificationKind === null ? {} : { notificationKind: push.notificationKind }),
     },
@@ -49,7 +50,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const push = describePush(event.notification.data);
-  const route = targetRoute(push.recordId, push.notificationKind);
+  const route = targetRoute(push.recordId, push.notificationKind, push.kind);
   event.waitUntil(openApp(route));
 });
 

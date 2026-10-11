@@ -1,6 +1,7 @@
 import { NOTIFICATION_KINDS } from '@homecrm/shared';
 import { ListChecks } from '@phosphor-icons/react';
 import { type FormEvent, useId, useState } from 'react';
+import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
@@ -241,6 +242,8 @@ function KindToggle({
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 interface Draft {
+  morningEnabled: boolean;
+  weeklyEnabled: boolean;
   quietStart: string;
   quietEnd: string;
   budget: string;
@@ -264,7 +267,9 @@ function SettingsForm({ settings, timeZone }: { settings: Draft; timeZone: strin
     draft.quietEnd !== settings.quietEnd ||
     draft.budget !== settings.budget ||
     draft.hideText !== settings.hideText ||
-    draft.kinds.join() !== settings.kinds.join();
+    draft.morningEnabled !== settings.morningEnabled ||
+    draft.weeklyEnabled !== settings.weeklyEnabled ||
+    [...draft.kinds].sort().join() !== [...settings.kinds].sort().join();
   const set = (patch: Partial<Draft>) => {
     setInvalid(null);
     setDraft((previous) => ({ ...previous, ...patch }));
@@ -287,6 +292,8 @@ function SettingsForm({ settings, timeZone }: { settings: Draft; timeZone: strin
       dailyBudget: budget,
       enabledKinds: NOTIFICATION_KINDS.filter((kind) => draft.kinds.includes(kind)),
       hideText: draft.hideText,
+      morningEnabled: draft.morningEnabled,
+      weeklyEnabled: draft.weeklyEnabled,
     };
     void save.run(async () => {
       await saveSettings(patch);
@@ -383,6 +390,25 @@ function SettingsForm({ settings, timeZone }: { settings: Draft; timeZone: strin
         </CheckLine>
       </Section>
 
+      <Section title="Сводки">
+        <CheckLine
+          checked={draft.morningEnabled}
+          onChange={(checked) => set({ morningEnabled: checked })}
+        >
+          <strong>Утренняя · 08:00 дома</strong>
+          <span className="check-hint">Сегодня и срочное</span>
+        </CheckLine>
+        <CheckLine
+          checked={draft.weeklyEnabled}
+          onChange={(checked) => set({ weeklyEnabled: checked })}
+        >
+          <strong>Недельная · воскресенье 19:00</strong>
+          <span className="check-hint">Сделано, на подходе и зависло</span>
+        </CheckLine>
+        <Link className="text-button" to="/more/summaries">
+          Открыть сводки
+        </Link>
+      </Section>
       {invalid ? (
         <p className="field__error" id={errorId} role="alert">
           {invalid}
@@ -408,11 +434,19 @@ function Settings() {
     return (
       <Failure error={settings.error} retry={() => void settings.refetch()} what="настройки" />
     );
-  const { quietStart, quietEnd, dailyBudget, enabledKinds, hideText } = settings.data;
+  const {
+    quietStart,
+    quietEnd,
+    dailyBudget,
+    enabledKinds,
+    hideText,
+    morningEnabled,
+    weeklyEnabled,
+  } = settings.data;
   return (
     <SettingsForm
       // Новые значения с сервера пересоздают форму: черновик не расходится с сохранённым.
-      key={`${quietStart}|${quietEnd}|${dailyBudget}|${enabledKinds.join()}|${hideText}`}
+      key={`${me.id}|${quietStart}|${quietEnd}|${dailyBudget}|${enabledKinds.join()}|${hideText}|${morningEnabled}|${weeklyEnabled}`}
       timeZone={me.timeZone}
       settings={{
         quietStart,
@@ -420,6 +454,8 @@ function Settings() {
         budget: String(dailyBudget),
         kinds: [...enabledKinds],
         hideText,
+        morningEnabled,
+        weeklyEnabled,
       }}
     />
   );

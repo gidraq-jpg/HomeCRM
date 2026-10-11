@@ -196,9 +196,12 @@ export async function refreshDeadlines(db: Database, now = new Date(), full = fa
 /** Проверка предупреждений раз в пять минут. Названия и тексты worker не читает. */
 export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
   await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`UPDATE deadline_notifications n SET status='cancelled' WHERE n.occurrence_id IS NOT NULL AND n.status='pending' AND NOT app.radar_occurrence_open(n.occurrence_id,${now.toISOString()}::timestamptz,n.recipient_id)`,
+    );
     // Отменяем утратившие актуальность события даже без подписанного устройства.
     await tx.execute(
-      sql`UPDATE deadline_notifications n SET status='cancelled' WHERE n.record_id IS NOT NULL AND n.status='pending' AND NOT app.record_notification_current(n.record_table,n.record_id,n.recipient_id,n.event_kind,n.event_key)`,
+      sql`UPDATE deadline_notifications n SET status='cancelled' WHERE n.record_id IS NOT NULL AND n.record_table<>'summaries' AND n.status='pending' AND NOT app.record_notification_current(n.record_table,n.record_id,n.recipient_id,n.event_kind,n.event_key)`,
     );
     await tx.execute(sql`UPDATE deadline_notifications n SET status='cancelled'
       FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id
@@ -215,6 +218,7 @@ export async function enqueueDeadlineWarnings(db: Database, now = new Date()) {
       .from(occurrences)
       .where(
         and(
+          sql`app.radar_occurrence_open(${occurrences.id},${now.toISOString()}::timestamptz,${occurrences.assigneeId})`,
           isNull(occurrences.deletedAt),
           sql`EXISTS (SELECT 1 FROM deadlines d WHERE d.id=${occurrences.deadlineId} AND (d.source_kind<>'payment' OR app.utility_payment_open(d.utility_account_id,d.charge_id,${occurrences.date})))`,
           sql`(${occurrences.completedAt} IS NULL OR EXISTS (SELECT 1 FROM deadlines d WHERE d.id=${occurrences.deadlineId} AND d.source_kind='readings'))`,

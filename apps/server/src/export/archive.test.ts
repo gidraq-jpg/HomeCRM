@@ -2,12 +2,20 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAppDatabase, sql } from '@homecrm/db';
-import { ExportManifest, ExportRecords, type ExportScope } from '@homecrm/shared';
+import { createAppDatabase, createWorkerDatabase, sql } from '@homecrm/db';
+import {
+  ExportManifest,
+  ExportRecords,
+  type ExportScope,
+  localDate,
+  shiftTaskDate,
+} from '@homecrm/shared';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { fromBuffer, open, type ZipFile } from 'yauzl';
+import { initializeHouseTimeZones, refreshDeadlines } from '../deadlines/engine.ts';
 import { FileCipher } from '../files/crypto.ts';
 import { DirectoryStorage } from '../files/storage.ts';
+import { scheduleSummaries } from '../notifications/summaries.ts';
 import * as references from '../objects/support.ts';
 import { BASE_URL, type Device } from '../testing/device.ts';
 import { enrollTotp, signedInAdmin } from '../testing/flows.ts';
@@ -23,6 +31,78 @@ let adult: Device;
 let child: Device;
 const payload = Buffer.from('%PDF-1.7\nfictional export original\n%%EOF');
 const ids = new Map<string, { note: string; object: string; file: string; photo: string }>();
+it('R1c.5–6: ZIP причин и истории следует текущему RLS источника; сводки только получателю', async () => {
+  const instance = await createWorld();
+  try {
+    const device = instance.device();
+    await device.signIn(instance.boris.username, instance.boris.password);
+    const owner = (await signedInAdmin(instance)).device;
+    await initializeHouseTimeZones(
+      createWorkerDatabase(instance.database.worker),
+      'Asia/Yekaterinburg',
+    );
+    const note = (
+      await device.post('/api/notes', { title: 'Вымышленный личный экспорт отметки' })
+    ).json<{ id: string }>();
+    expect(
+      (
+        await device.post(`/api/notes/${note.id}/deadlines`, {
+          rule: {
+            kind: 'date',
+            date: shiftTaskDate(localDate(new Date(), 'Asia/Yekaterinburg'), -1),
+            warnings: [],
+          },
+        })
+      ).status,
+    ).toBe(201);
+    await refreshDeadlines(createWorkerDatabase(instance.database.worker), new Date(), true);
+    const item = (await device.get('/api/deadlines?from=0001-01-01&to=9999-12-31')).json<{
+      items: { id: string; calendarKey: string }[];
+    }>().items[0];
+    if (!item) throw new Error('Missing export occurrence');
+    const action = await device.post(`/api/deadlines/occurrences/${item.id}/action`, {
+      action: 'dismiss',
+      calendarKey: item.calendarKey,
+      expectedVersion: 0,
+      idempotencyKey: randomUUID(),
+      reason: 'Вымышленная причина в архиве',
+    });
+    expect(action.status, action.text).toBe(200);
+    const restored = await device.post(`/api/deadlines/occurrences/${item.id}/action`, {
+      action: 'restore',
+      calendarKey: item.calendarKey,
+      expectedVersion: 1,
+      idempotencyKey: randomUUID(),
+    });
+    expect(restored.status, restored.text).toBe(200);
+    await scheduleSummaries(instance.database.worker, new Date(Date.now() + 86400000));
+    const personal = await archive(device, instance.boris.password, { kind: 'personal' }, instance);
+    expect(personal.statusCode, personal.body).toBe(200);
+    const entries = await unpack(personal.rawPayload);
+    const marks = json(entries, 'radar_actions');
+    expect(marks).toHaveLength(1);
+    expect(ExportRecords.radar_actions.parse(marks[0]).history).toEqual([
+      expect.objectContaining({ reason: 'Вымышленная причина в архиве' }),
+    ]);
+    expect(
+      json(entries, 'summaries').every(
+        (s: { account_id: string }) => s.account_id === instance.boris.id,
+      ),
+    ).toBe(true);
+    const foreign = await archive(owner, instance.anna.password, { kind: 'personal' }, instance);
+    expect(foreign.statusCode, foreign.body).toBe(200);
+    const other = await unpack(foreign.rawPayload);
+    expect(json(other, 'radar_actions')).toEqual([]);
+    expect(foreign.rawPayload.includes(Buffer.from('Вымышленная причина в архиве'))).toBe(false);
+    expect(
+      json(other, 'summaries').every(
+        (s: { account_id: string }) => s.account_id === instance.anna.id,
+      ),
+    ).toBe(true);
+  } finally {
+    await instance.close();
+  }
+});
 const hash = (value: Buffer) => createHash('sha256').update(value).digest('hex');
 async function unpack(source: Buffer | string) {
   const zip = await new Promise<ZipFile>((resolve, reject) => {

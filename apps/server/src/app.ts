@@ -15,6 +15,7 @@ import { householdRoutes } from './household/routes.ts';
 import { serializeRequest } from './logging.ts';
 import { notesRoutes } from './notes/routes.ts';
 import { notificationRoutes } from './notifications/routes.ts';
+import { summaryRoutes } from './notifications/summary-routes.ts';
 import { objectsRoutes } from './objects/routes.ts';
 import { searchRoutes } from './search/routes.ts';
 import { createStaticHandler } from './static.ts';
@@ -162,6 +163,7 @@ export function buildApp(
       ...(dependencies.files ? { files: dependencies.files } : {}),
     });
     void app.register(deadlinesRoutes, auth);
+    void app.register(summaryRoutes, auth);
     void app.register(documentRoutes, auth);
     void app.register(taskRoutes, auth);
     void app.register(contactImportRoutes, auth);

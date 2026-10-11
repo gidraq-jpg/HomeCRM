@@ -138,9 +138,17 @@ function MarkPaymentButton({ occurrenceId, label }: { occurrenceId: string; labe
   );
 }
 /** «Поверка проведена»: дата поверки и следующая дата, по умолчанию — от интервала счётчика. */
-function VerifySheet({ meterId, onClose }: { meterId: string; onClose: () => void }) {
+function VerifySheet({
+  meterId,
+  onClose,
+  timeZone,
+}: {
+  meterId: string;
+  onClose: () => void;
+  timeZone?: string;
+}) {
   const { me } = useHousehold();
-  const today = todayIn(me.timeZone);
+  const today = todayIn(timeZone ?? me.timeZone);
   const meter = useQuery({
     queryKey: ['meters', meterId, 'card'],
     queryFn: ({ signal }) => fetchMeterCard(meterId, signal),
@@ -242,14 +250,24 @@ function VerifySheet({ meterId, onClose }: { meterId: string; onClose: () => voi
   );
 }
 
-function VerifyButton({ meterId, label }: { meterId: string; label: string }) {
+function VerifyButton({
+  meterId,
+  label,
+  timeZone,
+}: {
+  meterId: string;
+  label: string;
+  timeZone?: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <button type="button" className="btn btn--primary btn--block" onClick={() => setOpen(true)}>
         {label}
       </button>
-      {open ? <VerifySheet meterId={meterId} onClose={() => setOpen(false)} /> : null}
+      {open ? (
+        <VerifySheet meterId={meterId} timeZone={timeZone} onClose={() => setOpen(false)} />
+      ) : null}
     </>
   );
 }
@@ -297,7 +315,11 @@ export function UtilityActions({
     );
   } else if (action?.kind === 'verify_meter' && action.meterId) {
     primary = (
-      <VerifyButton meterId={action.meterId} label={action.label || FALLBACK.verify_meter} />
+      <VerifyButton
+        meterId={action.meterId}
+        timeZone={utility.timeZone}
+        label={action.label || FALLBACK.verify_meter}
+      />
     );
   }
   return (

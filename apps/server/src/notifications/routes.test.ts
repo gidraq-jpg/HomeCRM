@@ -130,8 +130,14 @@ it('API возвращает defaults, валидирует настройки �
       'payment_upcoming',
       'payment_due',
       'verification',
+      'document',
+      'task_reminder',
+      'task_assignment',
+      'task_done',
     ],
     hideText: true,
+    morningEnabled: true,
+    weeklyEnabled: true,
   });
   expect((await admin.get('/api/push/subscriptions')).json()).toEqual([]);
   expect((await child.get('/api/push/subscriptions')).json()).toEqual([]);

@@ -28,6 +28,7 @@ import {
   spaces,
   workerRole,
 } from './core.ts';
+import { summaries } from './radar-schema.ts';
 import { contacts, documents, meters, tasks, utilityAccounts, utilityCharges } from './schema.ts';
 
 // Явная проверка пространства плюс чтение источника под его RLS. Подзапросы могут
@@ -274,6 +275,7 @@ export const deadlineNotifications = pgTable(
     eventKey: text('event_key'),
     recordTable: text('record_table'),
     recordId: uuid('record_id'),
+    summaryId: uuid('summary_id').references(() => summaries.id, { onDelete: 'set null' }),
     eventKind: text('event_kind'),
     householdId: uuid('event_household_id'),
     recipientId: uuid('recipient_id')
@@ -300,7 +302,7 @@ export const deadlineNotifications = pgTable(
     uniqueIndex('deadline_notifications_event_once').on(t.eventKey),
     check(
       'deadline_notifications_source',
-      sql`(occurrence_id IS NOT NULL AND event_key IS NULL AND record_id IS NULL AND record_table IS NULL AND event_kind IS NULL AND event_household_id IS NULL) OR (occurrence_id IS NULL AND event_key IS NOT NULL AND record_id IS NOT NULL AND record_table IN ('tasks','objects','documents','deadlines') AND event_kind IN ('assignment','task_done') AND event_household_id IS NOT NULL)`,
+      sql`(occurrence_id IS NOT NULL AND event_key IS NULL AND record_id IS NULL AND record_table IS NULL AND event_kind IS NULL AND event_household_id IS NULL) OR (occurrence_id IS NULL AND event_key IS NOT NULL AND record_id IS NOT NULL AND ((record_table IN ('tasks','objects','documents','deadlines') AND event_kind IN ('assignment','task_done')) OR (record_table='summaries' AND event_kind='summary')) AND event_household_id IS NOT NULL)`,
     ),
     pgPolicy('deadline_notifications_event_owner', {
       for: 'insert',

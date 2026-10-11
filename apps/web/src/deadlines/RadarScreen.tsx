@@ -1,3 +1,4 @@
+import type { RadarFilters } from '@homecrm/shared';
 import { CalendarBlank, Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -13,6 +14,7 @@ import { countWord, formatRub } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { RowContent, RowList } from '../ui/Row.tsx';
 import { DeadlineError, RecalculatingNotice } from './components.tsx';
+import { OccurrenceActions } from './OccurrenceActions.tsx';
 import {
   filterRows,
   GROUP_LABELS,
@@ -79,11 +81,17 @@ function UtilityRadarItem({ row }: { row: RadarRow }) {
           badge={row.visibility}
         />
       </div>
+      {row.item?.sourceKind === 'readings' && !utility.needsMeters ? (
+        <p className="muted">Без переданных показаний: {row.item.missingReadingsCount ?? 0}.</p>
+      ) : null}
       <UtilityActions utility={utility} />
       <Link className="text-button" to={`/home/${utility.objectId}`}>
         Ответственный — в карточке источника
       </Link>
-      <TakeFromRadar occurrenceId={row.id} assigneeId={row.assigneeId} />
+      {row.item?.canWrite ? (
+        <TakeFromRadar occurrenceId={row.id} assigneeId={row.assigneeId} />
+      ) : null}
+      <OccurrenceActions row={row} />
     </li>
   );
 }
@@ -124,7 +132,10 @@ function RecordRadarItem({ row }: { row: RadarRow }) {
       ) : (
         <div className="row">{content}</div>
       )}
-      <TakeFromRadar occurrenceId={row.id} assigneeId={row.assigneeId} />
+      {row.item?.canWrite && !row.item.taskId ? (
+        <TakeFromRadar occurrenceId={row.id} assigneeId={row.assigneeId} />
+      ) : null}
+      <OccurrenceActions row={row} />
     </li>
   );
 }
@@ -146,8 +157,15 @@ export function RadarRows({ rows, label }: { rows: readonly RadarRow[]; label: s
 export function RadarScreen() {
   const { me } = useHousehold();
   const { scope, setScope } = useScope();
-  const radar = useRadar();
   const [view, setView] = useState<RadarView>('mine');
+  const [filters, setFilters] = useState<Partial<RadarFilters>>({});
+  const radar = useRadar({
+    filters: {
+      ...filters,
+      scope: scope === 'shared' ? 'household' : scope,
+      view: view === 'mine' ? 'mine' : 'all',
+    },
+  });
 
   if (radar.status === 'loading') {
     return (
@@ -178,6 +196,81 @@ export function RadarScreen() {
       back={BACK}
       {...(shown.length > 0 ? { eyebrow: pointCount(shown.length) } : {})}
     >
+      <div className="field">
+        {me.roles.length > 1 ? (
+          <label className="field">
+            Дом
+            <select
+              className="input"
+              value={filters.householdId ?? ''}
+              onChange={(e) => setFilters({ householdId: e.target.value || undefined })}
+            >
+              <option value="">Все мои дома</option>
+              {radar.options.houses.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.title} · {h.role}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <label className="field">
+          Объект
+          <select
+            className="input"
+            value={filters.objectId ?? ''}
+            onChange={(e) => setFilters({ ...filters, objectId: e.target.value || undefined })}
+          >
+            <option value="">Все объекты</option>
+            {radar.options.objects.map((o) => (
+              <option key={`${o.id}:${o.role}`} value={o.id}>
+                {o.title} · {o.role}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Человек
+          <select
+            className="input"
+            value={filters.personId ?? ''}
+            onChange={(e) => setFilters({ ...filters, personId: e.target.value || undefined })}
+          >
+            <option value="">Все люди</option>
+            {radar.options.people.map((p) => (
+              <option key={`${p.id}:${p.role}`} value={p.id}>
+                {p.title} · {p.role}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Состояние
+          <select
+            className="input"
+            value={filters.state ?? 'active'}
+            onChange={(e) =>
+              setFilters({ ...filters, state: e.target.value as RadarFilters['state'] })
+            }
+          >
+            <option value="active">В радаре</option>
+            <option value="snoozed">Отложенные</option>
+            <option value="dismissed">Не актуальные</option>
+            <option value="all">Все состояния</option>
+          </select>
+        </label>
+        <button
+          className="text-button"
+          type="button"
+          onClick={() => {
+            setFilters({});
+            setScope('all');
+            setView('mine');
+          }}
+        >
+          Сбросить фильтры
+        </button>
+      </div>
       <div className="field radar-view">
         <span className="field__label" aria-hidden="true">
           Чьи сроки показывать
@@ -197,7 +290,12 @@ export function RadarScreen() {
       ) : null}
 
       {radar.rows.length === 0 && radar.recalculating ? null : radar.rows.length === 0 ? (
-        <EmptyState icon={<CalendarBlank size={24} aria-hidden />} title="Сроков пока нет">
+        <EmptyState
+          icon={<CalendarBlank size={24} aria-hidden />}
+          title={
+            Object.keys(filters).length ? 'Под выбранные фильтры сроков нет' : 'Сроков пока нет'
+          }
+        >
           <p>
             Срок добавляется в карточке объекта или заметки: откройте запись и нажмите «Добавить
             срок». В радар попадут даты, окна, повторы и сроки «через N после события» на 90 дней

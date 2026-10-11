@@ -1,4 +1,12 @@
-import { AUDIENCES, DeadlineRule, RADAR_GROUPS } from '@homecrm/shared';
+import {
+  AUDIENCES,
+  DeadlineRule,
+  RADAR_GROUPS,
+  type RadarActionInput,
+  RadarActionState,
+  RadarFilterOption,
+  type RadarFilters,
+} from '@homecrm/shared';
 import * as z from 'zod';
 import { apiRequest } from '../auth/api.ts';
 import { MeterCard } from '../meters/api.ts';
@@ -82,7 +90,8 @@ export type UtilitySourceKind = Exclude<
 
 /** Основное действие пункта радара (docs/utility-deadlines-api.md). Подписи приходят с сервера. */
 export const PrimaryAction = z.object({
-  kind: z.enum(['enter_readings', 'mark_payment', 'verify_meter']),
+  kind: z.enum(['enter_readings', 'mark_payment', 'verify_meter', 'renew_document']),
+  documentId: z.string().nullish(),
   label: z.string(),
   objectId: z.string().nullish(),
   occurrenceId: z.string().nullish(),
@@ -103,6 +112,10 @@ export type PrimaryAction = z.infer<typeof PrimaryAction>;
 export const RadarItem = z.object({
   id: z.string(),
   deadlineId: z.string(),
+  calendarKey: z.string().optional(),
+  canWrite: z.boolean().optional(),
+  missingReadingsCount: z.number().int().optional(),
+  actionState: RadarActionState.optional(),
   noteId: z.string().nullish(),
   objectId: z.string().nullish(),
   /** Документ, из даты окончания которого получен срок (DOC-3); у остальных сроков пусто. */
@@ -144,12 +157,29 @@ const Radar = z.object({
   items: z.array(RadarItem),
   groups: z.record(z.string(), z.number()),
   recalculating: z.boolean().default(false),
+  options: z
+    .object({
+      objects: z.array(RadarFilterOption),
+      people: z.array(RadarFilterOption),
+      houses: z.array(RadarFilterOption).default([]),
+    })
+    .optional(),
 });
 
 /** Все ещё не выполненные наступления до `to`; давно прошедшие разовые сроки тоже приходят. */
-export function fetchRadar(from: string, to: string, signal?: AbortSignal) {
+export function fetchRadar(
+  from: string,
+  to: string,
+  signal?: AbortSignal,
+  filters: Partial<RadarFilters> = {},
+) {
   const query = new URLSearchParams({ from, to });
+  for (const [key, value] of Object.entries(filters))
+    if (value !== undefined) query.set(key, value);
   return apiRequest('GET', `deadlines?${query}`, Radar, undefined, signal);
+}
+export function saveRadarAction(id: string, input: RadarActionInput) {
+  return apiRequest('POST', `deadlines/occurrences/${id}/action`, RadarActionState, input);
 }
 
 export function saveTimeZone(householdId: string, timeZone: string) {

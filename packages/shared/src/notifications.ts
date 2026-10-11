@@ -9,6 +9,10 @@ export const NOTIFICATION_KINDS = [
   'payment_upcoming',
   'payment_due',
   'verification',
+  'document',
+  'task_reminder',
+  'task_assignment',
+  'task_done',
 ] as const;
 const Clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 export const NotificationSettings = z.strictObject({
@@ -20,6 +24,8 @@ export const NotificationSettings = z.strictObject({
     .max(NOTIFICATION_KINDS.length)
     .default([...NOTIFICATION_KINDS]),
   hideText: z.boolean().default(true),
+  morningEnabled: z.boolean().default(true),
+  weeklyEnabled: z.boolean().default(true),
 });
 export type NotificationSettings = z.infer<typeof NotificationSettings>;
 /** У PATCH нет defaults: пропущенные поля должны сохранять прежние значения. */
@@ -29,6 +35,8 @@ export const NotificationSettingsPatch = z.strictObject({
   dailyBudget: NotificationSettings.shape.dailyBudget.removeDefault().optional(),
   enabledKinds: NotificationSettings.shape.enabledKinds.removeDefault().optional(),
   hideText: NotificationSettings.shape.hideText.removeDefault().optional(),
+  morningEnabled: NotificationSettings.shape.morningEnabled.removeDefault().optional(),
+  weeklyEnabled: NotificationSettings.shape.weeklyEnabled.removeDefault().optional(),
 });
 
 /** Адрес задаёт браузер, но запрос worker не должен уходить во внутреннюю сеть. */

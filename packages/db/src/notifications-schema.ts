@@ -96,6 +96,8 @@ export const notificationSettings = pgTable(
       .notNull()
       .default([...NOTIFICATION_KINDS]),
     hideText: boolean('hide_text').notNull().default(true),
+    morningEnabled: boolean('morning_enabled').notNull().default(true),
+    weeklyEnabled: boolean('weekly_enabled').notNull().default(true),
   },
   () => [
     ...ownPolicies('notification_settings', ['select', 'insert', 'update']),
@@ -107,7 +109,7 @@ export const notificationSettings = pgTable(
     ),
     check(
       'notification_settings_kinds',
-      sql`enabled_kinds <@ '["deadline","readings_open","readings_closing","readings_last_day","payment_upcoming","payment_due","verification"]'::jsonb AND jsonb_typeof(enabled_kinds) = 'array'`,
+      sql`enabled_kinds <@ '["deadline","readings_open","readings_closing","readings_last_day","payment_upcoming","payment_due","verification","document","task_reminder","task_assignment","task_done"]'::jsonb AND jsonb_typeof(enabled_kinds) = 'array'`,
     ),
   ],
 );

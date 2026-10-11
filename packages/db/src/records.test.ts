@@ -34,6 +34,7 @@ describe('таблицы записей в коде и в базе', () => {
         ...RECORD_DEFINITIONS.map((definition) => definition.name),
         'deadlines',
         'deadline_occurrences',
+        'radar_actions',
       ].sort(),
     );
   });
@@ -293,6 +294,8 @@ describe('в базе нет таблицы, которой не знает ни
       'deadlines',
       'deadline_occurrences',
       'deadline_notifications', // deadlines-matrix.test.ts
+      'radar_actions',
+      'summaries', // radar-summaries-matrix.test.ts
       'search_index', // search-matrix.test.ts: видимость, снимки событий и закрытые изменения индекса.
       'profile_files', // profile-files-matrix.test.ts: фото действующей семьи и корзина владельца.
       'file_blobs', // files.test.ts: реестр ключей, без пользовательских метаданных.

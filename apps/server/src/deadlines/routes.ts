@@ -13,13 +13,14 @@ import {
   type Transaction,
 } from '@homecrm/db';
 import {
-  CalendarDate,
   canRestore,
   canViewDeadline,
   canWriteDeadline,
   DeadlineRule,
   localDate,
   RADAR_GROUPS,
+  RadarFilters,
+  RadarResponse,
   radarGroup,
   TimeZone,
 } from '@homecrm/shared';
@@ -32,6 +33,7 @@ import { placementOf } from '../notes/routes.ts';
 import { Failure } from '../objects/support.ts';
 import { safeCents } from '../utilities/analytics.ts';
 import { chargeSummary, createPayment, getCharge } from '../utilities/charges.ts';
+import { radarActionRoutes } from './actions.ts';
 
 const Source = z.strictObject({ source: z.enum(['notes', 'objects']), sourceId: z.uuid() });
 const Id = z.strictObject({ id: z.uuid() });
@@ -41,10 +43,12 @@ function parse<T>(schema: z.ZodType<T>, data: unknown): T {
   return result.data;
 }
 export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule) {
+  await radarActionRoutes(app, options);
   const currentAccount = createAccountReader(options);
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof Failure) return reply.code(error.status).send({ code: error.code });
     const { code } = pgError(error);
+    if (code === '40P01' || code === '40001') return reply.code(409).send({ code: 'CONFLICT' });
     if (code === '42501') return reply.code(403).send({ code: 'ACCESS_DENIED' });
     if (code === '23503' || code === '23514')
       return reply.code(400).send({ code: 'INVALID_INPUT' });
@@ -205,12 +209,13 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
   app.get('/api/deadlines', async (request, reply) => {
     const account = await currentAccount(request, reply);
     if (!account) return reply;
-    const { from, to } = parse(
-      z.strictObject({ from: CalendarDate, to: CalendarDate }).refine((x) => x.from <= x.to),
-      request.query,
-    );
+    const filters = parse(RadarFilters, request.query);
+    const { from, to } = filters;
+    if (filters.householdId && !account.viewer.memberships.has(filters.householdId))
+      throw new Failure(404, 'NOT_FOUND');
     return options.appDb.withAccount(account.id, async (tx) => {
-      return readRadar(tx, from, to);
+      const result = await readRadar(tx, from, to, filters);
+      return RadarResponse.parse(JSON.parse(JSON.stringify(result)));
     });
   });
   for (const action of ['complete-payment', 'complete-readings'] as const)
@@ -346,7 +351,12 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
   });
 }
 
-export async function readRadar(tx: Transaction, from: string, to: string) {
+export async function readRadar(
+  tx: Transaction,
+  from: string,
+  to: string,
+  filters: Partial<RadarFilters> = {},
+) {
   // План с вложенным RLS дороже компилировать, чем выполнить на сотнях сроков;
   // источники быстрее соединяются наборами. Обе настройки — одним запросом,
   // только в этой транзакции; замеры проверяют тот же порог 300 мс.
@@ -382,6 +392,20 @@ export async function readRadar(tx: Transaction, from: string, to: string) {
     meter: { id: string; title: string } | null;
     needsMeters: boolean;
     chargeId: string | null;
+    calendarKey: string;
+    canWrite: boolean;
+    missingReadingsCount: number;
+    actionState: {
+      version: number;
+      status: 'active' | 'snoozed' | 'dismissed' | 'completed';
+      snoozedUntil: string | null;
+      reason: string | null;
+      actorId: string | null;
+      actorName: string | null;
+      changedAt: string | null;
+    };
+    objects: { id: string; title: string; role: string }[];
+    people: { id: string; title: string; role: string }[];
   };
   // Те же условия DEAD-5, что у app.utility_window_open, над наборами под RLS:
   // материализация не запускает отдельный SQL-план с политиками на каждое окно.
@@ -394,10 +418,25 @@ export async function readRadar(tx: Transaction, from: string, to: string) {
         visible_payments AS MATERIALIZED (SELECT parent_id,sum(amount_cents) AS paid FROM utility_payments WHERE deleted_at IS NULL AND cancelled_at IS NULL GROUP BY parent_id),
         visible_charges AS MATERIALIZED (SELECT c.id,c.parent_id,c.period,c.is_paid,c.deleted_at,c.cancelled_at,c.total_cents,coalesce(p.paid,0) AS paid,greatest(c.total_cents-coalesce(p.paid,0),0) AS remaining FROM utility_charges c LEFT JOIN visible_payments p ON p.parent_id=c.id),
         visible_readings AS MATERIALIZED (SELECT parent_id,occurred_on,transmitted_at,deleted_at FROM meter_readings),
+        visible_objects AS MATERIALIZED (SELECT id,title FROM objects WHERE deleted_at IS NULL),
+        visible_contacts AS MATERIALIZED (SELECT id,title FROM contacts WHERE deleted_at IS NULL AND kind='person'),
+        object_links AS MATERIALIZED (
+          SELECT l.left_id AS source_id,jsonb_agg(jsonb_build_object('id',p.id,'title',p.title,'role','Связанный объект')) AS options FROM record_links l JOIN visible_objects p ON l.right_table='objects' AND p.id=l.right_id WHERE l.deleted_at IS NULL GROUP BY l.left_id
+          UNION ALL SELECT l.right_id,jsonb_agg(jsonb_build_object('id',p.id,'title',p.title,'role','Связанный объект')) FROM record_links l JOIN visible_objects p ON l.left_table='objects' AND p.id=l.left_id WHERE l.deleted_at IS NULL GROUP BY l.right_id
+        ),
+        linked_objects AS MATERIALIZED (SELECT source_id,jsonb_agg(option) AS options FROM object_links CROSS JOIN LATERAL jsonb_array_elements(options) AS option GROUP BY source_id),
+        members AS MATERIALIZED (SELECT account_id,display_name FROM member_profiles),
         radar AS (
           SELECT o.id,o.deadline_id AS "deadlineId",o.date,o.starts_at AS "startsAt",o.ends_at AS "endsAt",o.time_zone AS "timeZone",
            o.warnings_at AS "warningsAt",o.completed_at AS "completedAt",o.space_id AS "spaceId",o.space_kind AS "spaceKind",o.audience,
            o.author_id AS "authorId",o.assignee_id AS "assigneeId",o.deleted_at AS "deletedAt",
+           app.radar_calendar_key(d.rule) AS "calendarKey",
+           CASE WHEN d.profile_account_id IS NOT NULL THEN d.profile_account_id=app.current_account_id() ELSE
+            d.space_kind='personal' OR d.space_id IN (SELECT member.space_id FROM space_members member WHERE member.account_id=app.current_account_id() AND member.left_at IS NULL AND member.role IN ('admin','adult')) OR (d.task_id IS NOT NULL AND t.assignee_id=app.current_account_id()) END AS "canWrite",
+           CASE WHEN ra.id IS NOT NULL THEN jsonb_build_object('version',ra.version,'status',ra.status,'snoozedUntil',ra.snoozed_until,'reason',ra.reason,'actorId',ra.actor_id,'actorName',(SELECT display_name FROM members WHERE account_id=ra.actor_id),'changedAt',ra.changed_at) ELSE '{"version":0,"status":"active","snoozedUntil":null,"reason":null,"actorId":null,"actorName":null,"changedAt":null}'::jsonb END AS "actionState",
+           coalesce(lo.options,'[]'::jsonb) || CASE WHEN op.id IS NOT NULL THEN jsonb_build_array(jsonb_build_object('id',op.id,'title',op.title,'role','Объект источника')) ELSE '[]'::jsonb END AS objects,
+           CASE WHEN responsible.account_id IS NOT NULL THEN jsonb_build_array(jsonb_build_object('id',responsible.account_id,'title',responsible.display_name,'role','Ответственный')) ELSE '[]'::jsonb END || CASE WHEN person.id IS NOT NULL THEN jsonb_build_array(jsonb_build_object('id',person.id,'title',person.title,'role',CASE WHEN d.source_kind='birthday' THEN 'Именинник' WHEN d.document_id IS NOT NULL THEN 'Владелец документа' ELSE 'Адресат ожидания' END)) ELSE '[]'::jsonb END || CASE WHEN related.account_id IS NOT NULL THEN jsonb_build_array(jsonb_build_object('id',related.account_id,'title',related.display_name,'role',CASE WHEN d.source_kind='birthday' THEN 'Именинник' WHEN d.document_id IS NOT NULL THEN 'Владелец документа' ELSE 'Адресат ожидания' END)) ELSE '[]'::jsonb END AS people,
+           (SELECT count(*)::int FROM visible_meters vm WHERE vm.utility_account_id=d.utility_account_id AND vm.is_active AND vm.deleted_at IS NULL AND NOT EXISTS(SELECT 1 FROM visible_readings vr WHERE vr.parent_id=vm.id AND vr.deleted_at IS NULL AND vr.transmitted_at IS NOT NULL AND vr.occurred_on BETWEEN (o.starts_at AT TIME ZONE o.time_zone)::date AND (o.ends_at AT TIME ZONE o.time_zone)::date)) AS "missingReadingsCount",
            d.document_id AS "documentId",d.contact_id AS "contactId",d.profile_account_id AS "profileAccountId",coalesce(bc.data->>'birthday',bp.birth_date::text) AS birthday,
            c.total_cents::text AS "totalCents",c.paid::text AS "paidCents",c.remaining::text AS "remainingCents",
            d.household_id AS "householdId",d.task_id AS "taskId",d.note_id AS "noteId",d.object_id AS "objectId",d.rule,d.source_kind AS "sourceKind",coalesce(d.label,n.title,p.title,doc.title,bc.title,bp.display_name,t.title) AS title,d.charge_id AS "chargeId",
@@ -409,6 +448,12 @@ export async function readRadar(tx: Transaction, from: string, to: string) {
           LEFT JOIN documents doc ON doc.id=d.document_id LEFT JOIN notes n ON n.id=d.note_id LEFT JOIN objects p ON p.id=d.object_id
           LEFT JOIN tasks t ON t.id=d.task_id
           LEFT JOIN contacts bc ON bc.id=d.contact_id LEFT JOIN member_profiles bp ON bp.account_id=d.profile_account_id
+          LEFT JOIN radar_actions ra ON ra.deadline_id=d.id AND ra.date=o.date AND ra.calendar_key=app.radar_calendar_key(d.rule)
+          LEFT JOIN linked_objects lo ON lo.source_id=coalesce(d.document_id,d.task_id,d.note_id)
+          LEFT JOIN visible_objects op ON op.id=coalesce(d.object_id,doc.owner_object_id)
+          LEFT JOIN visible_contacts person ON person.id=coalesce(d.contact_id,doc.owner_contact_id,t.waiting_contact_id)
+          LEFT JOIN members responsible ON responsible.account_id=o.assignee_id
+          LEFT JOIN members related ON related.account_id=coalesce(d.profile_account_id,doc.owner_account_id,t.waiting_account_id)
           LEFT JOIN visible_charges c ON c.id=d.charge_id
           LEFT JOIN utility_accounts a ON a.id=d.utility_account_id LEFT JOIN meters m ON m.id=d.meter_id
           WHERE o.date<=${to} AND o.date<=(CURRENT_TIMESTAMP AT TIME ZONE o.time_zone)::date+CASE WHEN d.source_kind IN ('document','birthday') THEN 365 ELSE 90 END AND d.deleted_at IS NULL AND (d.task_id IS NULL OR (t.id IS NOT NULL AND t.deleted_at IS NULL AND t.status IN ('open','waiting'))) AND n.deleted_at IS NULL AND p.deleted_at IS NULL AND doc.deleted_at IS NULL AND (d.document_id IS NULL OR (doc.id IS NOT NULL AND doc.status='valid'))
@@ -426,6 +471,13 @@ export async function readRadar(tx: Transaction, from: string, to: string) {
         FROM radar`);
   const rows = (result.rows[0]?.items ?? []).map((x) => ({
     ...x,
+    actionState: {
+      ...x.actionState,
+      snoozedUntil: x.actionState.snoozedUntil
+        ? new Date(x.actionState.snoozedUntil).toISOString()
+        : null,
+      changedAt: x.actionState.changedAt ? new Date(x.actionState.changedAt).toISOString() : null,
+    },
     startsAt: new Date(x.startsAt),
     endsAt: new Date(x.endsAt),
   }));
@@ -451,12 +503,12 @@ export async function readRadar(tx: Transaction, from: string, to: string) {
         : null)
     );
   };
-  const items = rows
+  const candidates = rows
     .filter(
       (x) =>
         (x.sourceKind !== 'birthday' || x.endsAt >= now) &&
         (x.completedAt === null || (x.sourceKind === 'readings' && !x.needsMeters)) &&
-        (endDate(x) >= from || (x.sourceKind === 'document' && x.endsAt < now)),
+        (endDate(x) >= from || x.endsAt < now),
     )
     .map((x) => ({
       ...x,
@@ -468,8 +520,9 @@ export async function readRadar(tx: Transaction, from: string, to: string) {
           ? Number(x.date.slice(0, 4)) - Number(x.birthday.slice(0, 4))
           : null,
       group: groupFor(x),
-      primaryAction:
-        x.sourceKind === 'readings'
+      primaryAction: !x.canWrite
+        ? null
+        : x.sourceKind === 'readings'
           ? {
               kind: 'enter_readings',
               label: 'Внести показания',
@@ -489,11 +542,53 @@ export async function readRadar(tx: Transaction, from: string, to: string) {
             ? { kind: 'mark_payment', label: 'Отметить оплату', occurrenceId: x.id }
             : x.sourceKind === 'verification'
               ? { kind: 'verify_meter', label: 'Поверка проведена', meterId: x.meter?.id }
-              : null,
+              : x.sourceKind === 'document'
+                ? { kind: 'renew_document', label: 'Продлить', documentId: x.documentId }
+                : null,
     }))
     .filter((x) => x.group !== null);
+  const active = (x: (typeof candidates)[number]) =>
+    x.actionState.status === 'active' ||
+    (x.actionState.status === 'snoozed' && new Date(x.actionState.snoozedUntil ?? 0) <= now);
+  const options = {
+    houses: (
+      await tx.execute<{ id: string; title: string; role: string }>(
+        sql`SELECT s.id,s.name AS title,coalesce(s.time_zone,'UTC') AS role FROM spaces s WHERE s.kind='household' AND s.id IN (SELECT space_id FROM space_members WHERE account_id=app.current_account_id() AND left_at IS NULL) ORDER BY s.name,s.id`,
+      )
+    ).rows,
+    objects: [
+      ...new Map(
+        candidates.flatMap((x) => x.objects).map((x) => [`${x.id}:${x.role}`, x]),
+      ).values(),
+    ],
+    people: [
+      ...new Map(candidates.flatMap((x) => x.people).map((x) => [`${x.id}:${x.role}`, x])).values(),
+    ],
+  };
+  if (filters.objectId && !options.objects.some((x) => x.id === filters.objectId))
+    throw new Failure(404, 'NOT_FOUND');
+  if (filters.personId && !options.people.some((x) => x.id === filters.personId))
+    throw new Failure(404, 'NOT_FOUND');
+  const [{ account_id: currentId }] = (
+    await tx.execute<{ account_id: string }>(sql`SELECT app.current_account_id() AS account_id`)
+  ).rows as [{ account_id: string }];
+  const items = candidates.filter(
+    (x) =>
+      (!filters.householdId || x.householdId === filters.householdId) &&
+      (!filters.objectId || x.objects.some((o) => o.id === filters.objectId)) &&
+      (!filters.personId || x.people.some((p) => p.id === filters.personId)) &&
+      (!filters.scope || filters.scope === 'all' || x.spaceKind === filters.scope) &&
+      (filters.view !== 'mine' || x.assigneeId === currentId) &&
+      (filters.state === 'all' ||
+        (filters.state === 'snoozed'
+          ? x.actionState.status === 'snoozed' && !active(x)
+          : filters.state === 'dismissed'
+            ? x.actionState.status === 'dismissed'
+            : active(x))),
+  );
   return {
     items,
+    options,
     recalculating: result.rows[0]?.recalculating ?? false,
     groups: Object.fromEntries(
       RADAR_GROUPS.map((group) => [group, items.filter((x) => x.group === group).length]),
