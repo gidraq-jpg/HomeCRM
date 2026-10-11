@@ -517,6 +517,32 @@ for (const code of ['UNDO_EXPIRED', 'COMPLETION_CHANGED'] as const)
     await check(page, info, `a3-${code}`);
   });
 
+test('A3: неизвестный CONFLICT отмены сохраняет общее объяснение', async ({
+  page,
+  family,
+}, info) => {
+  const api = await apiAs(family, 'adult');
+  const row = (await api.post('tasks', { title: 'Неизвестный конфликт отмены' })).body as {
+    id: string;
+  };
+  await signInAs(page, family, 'adult');
+  await page.goto('#/today/all');
+  await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toBeVisible();
+  // Только неизвестный отказ контролируется HTTP-ответом; три точных кода выше проверены настоящим API.
+  await page.route(`**/api/tasks/${row.id}/undo`, (route) =>
+    route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'CONFLICT' }),
+    }),
+  );
+  await page.getByRole('button', { name: 'Отменить', exact: true }).click();
+  await expect(page.locator('.toast')).toContainText('Отмена невозможна:');
+  expect((await api.get(`tasks/${row.id}`)).body).toMatchObject({ status: 'done' });
+  await check(page, info, 'a3-unknown-conflict');
+});
+
 test('A5: быстрый ввод двух домов в разных поясах, переключение очищает чипы и назначение', async ({
   page,
   family,

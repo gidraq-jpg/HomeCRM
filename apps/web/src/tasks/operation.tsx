@@ -66,8 +66,15 @@ export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<
       )
         setConfirmation({ request, place: failure.suggestedPlacement });
       else {
-        setError(failure);
-        if (request.path.endsWith('/undo')) toast.show({ message: taskError(failure) });
+        const reported =
+          request.path.endsWith('/undo') &&
+          failure instanceof ApiError &&
+          failure.status === 409 &&
+          failure.code === 'CONFLICT'
+            ? new ApiError(409, 'UNDO_CONFLICT')
+            : failure;
+        setError(reported);
+        if (request.path.endsWith('/undo')) toast.show({ message: taskError(reported) });
         if (failure instanceof ApiError && failure.status === 409) void refresh();
       }
     } finally {

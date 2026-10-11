@@ -620,6 +620,9 @@ test('срок скрыт вместе с записью: ребёнок не в
       await anna.page.evaluate(() => globalThis.dispatchEvent(new Event('visibilitychange')));
       expect((await (await changed).json()).roles[0].role).toBe('child');
       await expect(anna.page.getByText('Счета на квартиру')).toHaveCount(0);
+      // B1: локальный режим прежнего участника сбрасывается вместе с интерфейсом.
+      await expect(anna.page.getByRole('radio', { name: 'Моё', exact: true })).toBeChecked();
+      await anna.page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
       await expect(anna.page.getByText('Правила дома')).toBeVisible();
       expect(await radarSummary(anna.page)).toEqual({ '7 дней': 1 });
     } finally {
