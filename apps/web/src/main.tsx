@@ -22,6 +22,7 @@ import './styles/documents.css';
 import './styles/utilities.css';
 import './styles/templates.css';
 import './styles/notifications.css';
+import './styles/tasks.css';
 import { registerShell } from './pwa/register.ts';
 
 const root = document.getElementById('root');

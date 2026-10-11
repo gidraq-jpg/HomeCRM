@@ -5,6 +5,7 @@ import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, type PlacedRecord, viewerOf } from '../notes/abilities.ts';
 import { todayIn } from '../objects/dates.ts';
+import { ResponsibleField } from '../tasks/ResponsibleField.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Status } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -190,6 +191,23 @@ export function DeadlinesSection({ source, card }: DeadlinesSectionProps) {
                   <p className="deadline-item__kind">{KIND_LABELS[item.rule.kind]}</p>
                   <p className="deadline-item__rule">{label}</p>
                   <Upcoming item={item} timeZone={me.timeZone} />
+                  <ResponsibleField
+                    kind="deadlines"
+                    id={item.id}
+                    assigneeId={item.assigneeId}
+                    canEdit={canEdit}
+                    sourceTo={
+                      item.sourceKind && item.sourceKind !== 'record'
+                        ? item.taskId
+                          ? `/today/tasks/${item.taskId}`
+                          : item.documentId
+                            ? `/documents/${item.documentId}`
+                            : item.objectId
+                              ? `/home/${item.objectId}`
+                              : undefined
+                        : undefined
+                    }
+                  />
                   {warnings ? (
                     <p className="deadline-item__warn muted">Предупреждение: {warnings}</p>
                   ) : null}

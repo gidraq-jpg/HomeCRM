@@ -5,6 +5,7 @@ import { Notice } from '../auth/components.tsx';
 import { fetchDocument } from '../documents/api.ts';
 import { fetchNote } from '../notes/api.ts';
 import { fetchObject } from '../objects/api.ts';
+import { fetchTask } from '../tasks/api.ts';
 import { Page } from '../ui/Page.tsx';
 
 /** Экраны объекта, куда ведут уведомления: показания, лицевые счета, счётчики. */
@@ -35,6 +36,12 @@ async function locate(id: string, screen: string, signal: AbortSignal): Promise<
   try {
     await fetchDocument(id, signal);
     return { kind: 'found', to: `/documents/${id}` };
+  } catch (error) {
+    if (!(error instanceof ApiError && error.status === 404)) throw error;
+  }
+  try {
+    await fetchTask(id, signal);
+    return { kind: 'found', to: `/today/tasks/${id}` };
   } catch (error) {
     if (!(error instanceof ApiError && error.status === 404)) throw error;
   }

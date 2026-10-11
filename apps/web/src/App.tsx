@@ -37,7 +37,6 @@ import { OrganizationsScreen } from './organizations/OrganizationsScreen.tsx';
 import { ImportScreen } from './people/ImportScreen.tsx';
 import { NewPersonScreen } from './people/NewPersonScreen.tsx';
 import { ContactScreen } from './people/PersonScreen.tsx';
-import { TodayScreen } from './screens/EmptySections.tsx';
 import { InviteScreen } from './screens/InviteScreen.tsx';
 import { MemberScreen } from './screens/MemberScreen.tsx';
 import { MoreScreen } from './screens/MoreScreen.tsx';
@@ -49,6 +48,9 @@ import { SpacesScreen } from './screens/SpacesScreen.tsx';
 import { AddMenu } from './shell/AddMenu.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import { SECTIONS } from './shell/sections.ts';
+import { NewTaskScreen } from './tasks/NewTaskScreen.tsx';
+import { TaskScreen } from './tasks/TaskScreen.tsx';
+import { TasksScreen } from './tasks/TasksScreen.tsx';
 import { NewFromTemplateScreen } from './templates/NewFromTemplateScreen.tsx';
 import { StartScreen } from './templates/StartScreen.tsx';
 import { ToastProvider } from './ui/Toast.tsx';
@@ -72,7 +74,11 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
       <PushBridge accountId={me.id} />
       <Routes>
         <Route index element={<Navigate to="/today" replace />} />
-        <Route path="today" element={<TodayScreen />} />
+        <Route path="today" element={<TasksScreen />} />
+        <Route path="today/plan" element={<TasksScreen view="plan" />} />
+        <Route path="today/all" element={<TasksScreen view="all" />} />
+        <Route path="today/new" element={<NewTaskScreen />} />
+        <Route path="today/tasks/:taskId" element={<TaskScreen />} />
         <Route path="home" element={<ObjectsScreen />} />
         <Route path="home/new" element={<NewObjectScreen />} />
         <Route path="home/month" element={<MonthScreen />} />

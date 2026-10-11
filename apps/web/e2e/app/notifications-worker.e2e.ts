@@ -9,6 +9,30 @@ import { expect, signInAs } from './support.ts';
 
 test.use({ channel: 'chromium', permissions: ['notifications'] });
 
+test('дело: тестовый push и нажатие до входа открывают карточку после входа', async ({
+  page,
+  family,
+}) => {
+  const api = await apiAs(family, 'adult');
+  const response = await api.post('tasks', { title: 'Дело из уведомления' });
+  expect(response.status).toBe(201);
+  const id = (response.body as { id: string }).id;
+  await page.goto('#/sign-in');
+  await expect(page.getByRole('button', { name: 'Войти', exact: true })).toBeVisible();
+  const { push, shown, click } = await connectWorker(page, family.origin);
+  await push(JSON.stringify({ kind: 'deadline', recordId: id }));
+  await expect.poll(async () => (await shown()).length).toBe(1);
+  await click(`deadline-${id}`);
+  await page.getByLabel('Имя пользователя или почта').fill('adult');
+  await page.getByLabel('Пароль', { exact: true }).fill(family.person('adult').password);
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Дело из уведомления', exact: true }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/today/tasks/${id}$`));
+  await expectNothingStored(page, ['Дело из уведомления']);
+});
+
 /** Сервис-воркер страницы и протокол отладки: доставка push, показанные уведомления, нажатие на них. */
 async function connectWorker(page: Page, origin: string) {
   await page.evaluate(async () => {

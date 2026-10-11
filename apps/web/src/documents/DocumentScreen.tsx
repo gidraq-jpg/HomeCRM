@@ -17,6 +17,7 @@ import { noteAbilities, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { assigneeChoices } from '../objects/abilities.ts';
 import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
+import { ResponsibleField } from '../tasks/ResponsibleField.tsx';
 import { Page } from '../ui/Page.tsx';
 import { Status } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -326,6 +327,15 @@ function DocumentView({ card }: { card: DocumentCard }) {
           <dd>{formatDay(card.createdAt, me.timeZone)}</dd>
         </div>
       </dl>
+
+      {!trashed ? (
+        <ResponsibleField
+          kind="documents"
+          id={card.id}
+          assigneeId={card.assigneeId}
+          canEdit={abilities.edit}
+        />
+      ) : null}
 
       {card.data.note === '' ? null : (
         <section className="section" aria-labelledby={`note-${card.id}`}>

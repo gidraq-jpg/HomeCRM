@@ -27,5 +27,6 @@ export function useRefreshCharges() {
     Promise.all([
       client.invalidateQueries({ queryKey: [CHARGES] }),
       client.invalidateQueries({ queryKey: ['deadlines'] }),
+      client.invalidateQueries({ queryKey: ['tasks'] }),
     ]);
 }

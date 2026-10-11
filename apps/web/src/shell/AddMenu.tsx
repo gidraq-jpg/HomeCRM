@@ -31,6 +31,12 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
     >
       <RowList label="Что можно добавить">
         <Row
+          icon={<ListChecks size={22} aria-hidden />}
+          title="Дело"
+          meta="План, чек-лист, ожидание и повтор"
+          onClick={() => go('/today/new')}
+        />
+        <Row
           icon={<Note size={22} aria-hidden />}
           title="Заметка"
           meta="Текст, чек-лист; по умолчанию личная"
@@ -64,7 +70,7 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
         ) : null}
       </RowList>
       <p className="muted add-note">
-        Дела в приложении пока создавать нельзя: этот раздел не готов.
+        Дело можно добавить и быстрой строкой на «Сегодня».
         {isAdmin
           ? ''
           : ' Сейчас можно записать заметку, завести объект или документ, заполнить «Обо мне» и посмотреть, кто в доме.'}

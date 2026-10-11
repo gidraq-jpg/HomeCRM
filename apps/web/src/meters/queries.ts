@@ -31,5 +31,6 @@ export function useRefreshMeters() {
       client.invalidateQueries({ queryKey: [METERS] }),
       client.invalidateQueries({ queryKey: [TRANSMISSION] }),
       client.invalidateQueries({ queryKey: ['objects'] }),
+      client.invalidateQueries({ queryKey: ['tasks'] }),
     ]);
 }

@@ -134,6 +134,7 @@ export function utilityOf(item: RadarItem, endsAt: Date): UtilityRow | null {
     item.sourceKind === 'record' ||
     item.sourceKind === 'document' ||
     item.sourceKind === 'birthday' ||
+    item.sourceKind.startsWith('task_') ||
     !item.object
   )
     return null;
@@ -143,7 +144,7 @@ export function utilityOf(item: RadarItem, endsAt: Date): UtilityRow | null {
   const isMeterSource = item.sourceKind === 'verification' && meter !== null;
   const number = account?.number ? ` · № ${account.number}` : '';
   return {
-    kind: item.sourceKind,
+    kind: item.sourceKind as UtilitySourceKind,
     occurrenceId: item.id,
     objectId,
     status: propertyStatusOf(item.object.status),
@@ -172,6 +173,25 @@ export function buildRows(items: readonly RadarItem[], context: RowContext): Rad
       endsAt: new Date(item.endsAt),
     };
     const utility = utilityOf(item, timing.endsAt);
+    if (item.sourceKind.startsWith('task_'))
+      return {
+        id: item.id,
+        group: item.group,
+        title: item.title ?? null,
+        what:
+          item.sourceKind === 'task_waiting'
+            ? 'Проверить ожидание'
+            : item.sourceKind === 'task_due'
+              ? 'Крайний срок дела'
+              : 'План дела',
+        when: occurrenceWhen(timing, item.timeZone, context.now),
+        relative: occurrenceRelative(timing, item.timeZone, context.now),
+        visibility: visibilityOf(item),
+        assigneeId: item.assigneeId,
+        startsAt: timing.startsAt.getTime(),
+        to: item.taskId ? `/today/tasks/${item.taskId}` : null,
+        utility: null,
+      };
     if (utility !== null) {
       return {
         id: item.id,

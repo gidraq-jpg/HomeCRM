@@ -5,6 +5,7 @@ import { useMeters } from '../meters/queries.ts';
 import { todayIn } from '../objects/dates.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { Section } from '../ui/Page.tsx';
+import type { RadarRow } from './radar.ts';
 import { filterRows } from './radar.ts';
 import { MarkReadingsButton, readingsPath } from './UtilityActions.tsx';
 import { useRadar } from './useRadar.ts';
@@ -77,11 +78,15 @@ function WindowCard({ card }: { card: WindowCardData }) {
 
 /** Открытые окна показаний, по карточке на объект; нет открытых окон — блока нет. */
 export function ReadingsWindowCards() {
-  const { me } = useHousehold();
-  const { scope } = useScope();
   const radar = useRadar({ poll: false });
   if (radar.status !== 'ready') return null;
-  const cards = windowCards(filterRows(radar.rows, { view: 'house', scope, meId: me.id }));
+  return <ReadingsWindowsFromRows rows={radar.rows} />;
+}
+
+export function ReadingsWindowsFromRows({ rows }: { rows: readonly RadarRow[] }) {
+  const { me } = useHousehold();
+  const { scope } = useScope();
+  const cards = windowCards(filterRows(rows, { view: 'house', scope, meId: me.id }));
   if (cards.length === 0) return null;
   return (
     <Section title="Открыто окно показаний">

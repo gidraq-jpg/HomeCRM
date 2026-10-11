@@ -18,9 +18,11 @@ const icons = {
   object_event: ClockCounterClockwise,
   document: FileText,
   contact: AddressBook,
+  task: Note,
 };
 /** Куда ведёт результат: заметка, документ, объект или его лента. */
 function pathOf(item: SearchResult['groups'][number]['items'][number]): string {
+  if (item.type === 'task') return `/today/tasks/${item.targetId}`;
   if (item.type === 'contact') return `/people/contacts/${item.targetId}`;
   if (item.type === 'note') return `/more/notes/${item.targetId}`;
   if (item.type === 'document') return `/documents/${item.targetId}`;

@@ -74,9 +74,18 @@ test('радар: один запрос с названием; ошибка бл
         })
       : route.continue(),
   );
+  await page.route('**/api/tasks/today?*', (route) =>
+    failed
+      ? route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ code: 'INTERNAL_ERROR' }),
+        })
+      : route.continue(),
+  );
   await signInAs(page, family, 'adult');
   await expect(page.getByRole('heading', { level: 1, name: 'Сегодня', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Повторить загрузку срочного' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Повторить загрузку дел' })).toBeVisible();
   await checkApp(page, info, 'today-radar-error');
   await openRadar(page);
   await expect(page.getByRole('button', { name: 'Повторить загрузку радара' })).toBeVisible();

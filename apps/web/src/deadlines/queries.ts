@@ -17,7 +17,11 @@ export function useSourceDeadlines(source: SourceKind, id: string) {
 /** Что перечитать после изменения срока или часового пояса: карточки записей и радар. */
 export function useRefreshDeadlines() {
   const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: [DEADLINES] });
+  return () =>
+    Promise.all([
+      client.invalidateQueries({ queryKey: [DEADLINES] }),
+      client.invalidateQueries({ queryKey: ['tasks'] }),
+    ]);
 }
 
 /** Радар охватывает 90 дней вперёд и всё, что просрочено, без ограничения давности. */
