@@ -150,6 +150,8 @@ export const RadarResponseItem = z.strictObject({
 });
 export const RadarResponse = z.strictObject({
   items: z.array(RadarResponseItem),
+  visibleCount: z.number().int().nonnegative(),
+  matchingCount: z.number().int().nonnegative(),
   options: z.strictObject({
     objects: z.array(RadarFilterOption),
     people: z.array(RadarFilterOption),

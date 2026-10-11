@@ -575,23 +575,27 @@ export async function readRadar(
   if (filters.personId && !options.people.some((x) => x.id === filters.personId))
     throw new Failure(404, 'NOT_FOUND');
   const currentId = result.rows[0]?.accountId;
-  const items = candidates.filter(
+  const inState = (x: (typeof candidates)[number]) =>
+    filters.state === 'all' ||
+    (filters.state === 'snoozed'
+      ? x.actionState.status === 'snoozed' && !active(x)
+      : filters.state === 'dismissed'
+        ? x.actionState.status === 'dismissed'
+        : active(x));
+  const matching = candidates.filter(
     (x) =>
       (!filters.householdId || x.householdId === filters.householdId) &&
       (!filters.objectId || x.objects.some((o) => o.id === filters.objectId)) &&
       (!filters.personId || x.people.some((p) => p.id === filters.personId)) &&
       (!filters.scope || filters.scope === 'all' || x.spaceKind === filters.scope) &&
-      (filters.view !== 'mine' || x.assigneeId === currentId) &&
-      (filters.state === 'all' ||
-        (filters.state === 'snoozed'
-          ? x.actionState.status === 'snoozed' && !active(x)
-          : filters.state === 'dismissed'
-            ? x.actionState.status === 'dismissed'
-            : active(x))),
+      inState(x),
   );
+  const items = matching.filter((x) => filters.view !== 'mine' || x.assigneeId === currentId);
   return {
     items,
     options,
+    visibleCount: candidates.filter(inState).length,
+    matchingCount: matching.length,
     recalculating: result.rows[0]?.recalculating ?? false,
     groups: Object.fromEntries(
       RADAR_GROUPS.map((group) => [group, items.filter((x) => x.group === group).length]),

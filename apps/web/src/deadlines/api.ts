@@ -155,6 +155,8 @@ export const RadarItem = z.object({
 export type RadarItem = z.infer<typeof RadarItem>;
 const Radar = z.object({
   items: z.array(RadarItem),
+  visibleCount: z.number().int().nonnegative().optional(),
+  matchingCount: z.number().int().nonnegative().optional(),
   groups: z.record(z.string(), z.number()),
   recalculating: z.boolean().default(false),
   options: z

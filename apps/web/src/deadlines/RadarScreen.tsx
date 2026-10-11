@@ -187,7 +187,9 @@ export function RadarScreen() {
 
   const options = { scope, meId: me.id };
   const shown = filterRows(radar.rows, { ...options, view });
-  const house = filterRows(radar.rows, { ...options, view: 'house' });
+  const hasFilters = Object.entries(filters).some(
+    ([key, value]) => value !== undefined && (key !== 'state' || value !== 'active'),
+  );
   const groups = groupRows(shown);
 
   return (
@@ -289,13 +291,15 @@ export function RadarScreen() {
         <RecalculatingNotice stalled={radar.stalled} onRetry={radar.retry} />
       ) : null}
 
-      {radar.rows.length === 0 && radar.recalculating ? null : radar.rows.length === 0 ? (
+      {radar.rows.length === 0 && radar.recalculating ? null : shown.length === 0 && hasFilters ? (
         <EmptyState
           icon={<CalendarBlank size={24} aria-hidden />}
-          title={
-            Object.keys(filters).length ? 'Под выбранные фильтры сроков нет' : 'Сроков пока нет'
-          }
+          title="Под выбранные фильтры сроков нет"
         >
+          <p>Измените выбор дома, объекта, человека или состояния либо сбросьте фильтры.</p>
+        </EmptyState>
+      ) : radar.visibleCount === 0 ? (
+        <EmptyState icon={<CalendarBlank size={24} aria-hidden />} title="Сроков пока нет">
           <p>
             Срок добавляется в карточке объекта или заметки: откройте запись и нажмите «Добавить
             срок». В радар попадут даты, окна, повторы и сроки «через N после события» на 90 дней
@@ -308,7 +312,7 @@ export function RadarScreen() {
           title={view === 'mine' ? 'У вас сроков нет' : 'Под выбранный режим сроков нет'}
           actions={
             <>
-              {view === 'mine' && house.length > 0 ? (
+              {view === 'mine' && radar.matchingCount > 0 ? (
                 <button
                   type="button"
                   className="btn btn--primary btn--block"

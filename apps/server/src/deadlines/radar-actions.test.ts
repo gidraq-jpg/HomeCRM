@@ -311,6 +311,26 @@ it('фильтры совместно используют видимую свя
   expect(visible.text).not.toContain(hiddenId);
   expect(visible.text).not.toContain('Вымышленный скрытый объект');
   expect((await child.get(`${radarUrl}&objectId=${hiddenId}`)).status).toBe(404);
+  const beforeCounts = visible.json<{ visibleCount: number; matchingCount: number }>();
+  expect(
+    (
+      await adult.post(`/api/objects/${hiddenId}/deadlines`, {
+        rule: { kind: 'date', date: localDate(new Date(), 'Asia/Yekaterinburg') },
+      })
+    ).status,
+  ).toBe(201);
+  await refreshDeadlines(createWorkerDatabase(world.database.worker), new Date(), true);
+  const afterCounts = (await child.get(radarUrl)).json<typeof beforeCounts>();
+  expect(afterCounts.visibleCount).toBe(beforeCounts.visibleCount);
+  expect(afterCounts.matchingCount).toBe(beforeCounts.matchingCount);
+  const mine = (await child.get(`${radarUrl}&view=mine`)).json<{
+    items: unknown[];
+    visibleCount: number;
+    matchingCount: number;
+  }>();
+  expect(mine.items).toHaveLength(0);
+  expect(mine.visibleCount).toBeGreaterThan(0);
+  expect(mine.matchingCount).toBeGreaterThan(0);
 });
 it('два дома около полуночи: группа и UTC откладывания берутся из пояса каждого источника', async () => {
   const instance = await createWorld();

@@ -434,13 +434,15 @@ test('радар: группы по времени дома, «Моё · Вес�
 
   // «Моё»: шесть пунктов, пять групп; гаража Анны нет.
   await expect(page.getByRole('radio', { name: 'Моё', exact: true })).toBeChecked();
-  expect(await radarSummary(page)).toEqual({
-    Просрочено: 1,
-    Сейчас: 1,
-    '7 дней': 2,
-    '30 дней': 1,
-    '90 дней': 1,
-  });
+  await expect
+    .poll(() => radarSummary(page))
+    .toEqual({
+      Просрочено: 1,
+      Сейчас: 1,
+      '7 дней': 2,
+      '30 дней': 1,
+      '90 дней': 1,
+    });
   await expect(page.getByText('6 пунктов', { exact: true })).toBeVisible();
   await expect(
     page.getByRole('heading', { level: 2, name: 'Просрочено', exact: true }),
@@ -476,8 +478,9 @@ test('радар: группы по времени дома, «Моё · Вес�
   await checkApp(page, info, 'radar-house');
 
   // «Всё · Общее · Личное».
+  // Пространство теперь фильтрует сервер: ждём новый агрегат, сохраняя точные числа.
   await setScope(page, 'Личное');
-  expect(await radarSummary(page)).toEqual({ '7 дней': 1 });
+  await expect.poll(() => radarSummary(page)).toEqual({ '7 дней': 1 });
   await expect(groupItems(page, '7 дней')).toContainText('Заметка о лекарствах');
   await checkApp(page, info, 'radar-personal');
   await setScope(page, 'Общее');
@@ -574,7 +577,7 @@ test('срок скрыт вместе с записью: ребёнок не в
   try {
     await openRadar(child.page);
     await child.page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
-    expect(await radarSummary(child.page)).toEqual({ '7 дней': 1 });
+    await expect.poll(() => radarSummary(child.page)).toEqual({ '7 дней': 1 });
     await expect(child.page.getByText('1 пункт', { exact: true })).toBeVisible();
     const text = await child.page.locator('main').innerText();
     for (const hidden of ['Счета на квартиру', 'Подарок на юбилей', 'Просрочено'])
@@ -595,10 +598,10 @@ test('срок скрыт вместе с записью: ребёнок не в
   try {
     await openRadar(anna.page);
     await anna.page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
-    await expect(anna.page.getByText('Счета на квартиру').first()).toBeVisible();
-    await expect(anna.page.getByText('Правила дома').first()).toBeVisible();
+    await expect(anna.page.getByRole('link', { name: /Счета на квартиру/ }).first()).toBeVisible();
+    await expect(anna.page.getByRole('link', { name: /Правила дома/ })).toBeVisible();
     await expect(anna.page.getByText('Подарок на юбилей')).toHaveCount(0);
-    expect(await radarSummary(anna.page)).toEqual({ Просрочено: 1, '7 дней': 2 });
+    await expect.poll(() => radarSummary(anna.page)).toEqual({ Просрочено: 1, '7 дней': 2 });
     await setScope(anna.page, 'Личное');
     await expect(
       anna.page.getByRole('region', { name: 'Под выбранный режим сроков нет' }),
@@ -623,8 +626,8 @@ test('срок скрыт вместе с записью: ребёнок не в
       // B1: локальный режим прежнего участника сбрасывается вместе с интерфейсом.
       await expect(anna.page.getByRole('radio', { name: 'Моё', exact: true })).toBeChecked();
       await anna.page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
-      await expect(anna.page.getByText('Правила дома')).toBeVisible();
-      expect(await radarSummary(anna.page)).toEqual({ '7 дней': 1 });
+      await expect(anna.page.getByRole('link', { name: /Правила дома/ })).toBeVisible();
+      await expect.poll(() => radarSummary(anna.page)).toEqual({ '7 дней': 1 });
     } finally {
       await next.close();
     }

@@ -7,6 +7,8 @@ import { useRadarItems } from './queries.ts';
 import { buildRows, type RadarRow } from './radar.ts';
 
 export interface RadarState {
+  visibleCount: number;
+  matchingCount: number;
   options: {
     objects: Array<typeof RadarFilterOption._output>;
     people: Array<typeof RadarFilterOption._output>;
@@ -75,6 +77,8 @@ export function useRadar({
   }, [refetch]);
 
   return {
+    visibleCount: radar.data?.visibleCount ?? rows.length,
+    matchingCount: radar.data?.matchingCount ?? rows.length,
     options: radar.data?.options ?? { objects: [], people: [], houses: [] },
     status: radar.data ? 'ready' : radar.isPending ? 'loading' : 'error',
     rows,
