@@ -1,6 +1,6 @@
 // Замер радара сроков (PRD, раздел 13: до 300 мс). Идёт в проекте perf: после остальных тестов и по одному файлу.
 import { sql } from '@homecrm/db';
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { Device } from '../testing/device.ts';
 import { signedInAdmin } from '../testing/flows.ts';
 import { percentile } from '../testing/perf.ts';
@@ -17,6 +17,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await world?.close();
 });
+afterEach(() => vi.useRealTimers());
 it('радар на 500 заметках и 500 объектах: названия под RLS, один HTTP-запрос, сервер p95 до 300 мс', async () => {
   const ids: string[] = [];
   for (const source of ['notes', 'objects'] as const) {
@@ -150,6 +151,9 @@ it('UTIL-9/10: 500 частично оплаченных начислений з
 }, 120_000);
 
 it('CONT-7: радар 1000 дней рождения, имена только под RLS, p95 до 300 мс', async () => {
+  // Фиксируем только Date; performance.now и порог скорости остаются реальными.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-09T05:00:00Z'));
   await world.database.admin.query('DELETE FROM deadlines');
   await world.database.admin.query(
     `INSERT INTO contacts(space_id,space_kind,author_id,title,kind,data)
