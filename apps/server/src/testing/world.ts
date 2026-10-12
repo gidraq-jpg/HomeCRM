@@ -65,6 +65,8 @@ export interface World {
 }
 
 export interface WorldOptions {
+  /** Старая база для реальной проверки обновления с сохранёнными квитанциями. */
+  migrationsFolder?: string;
   files?: FileServices;
   /** Почта настроена: восстановление по e-mail работает (AUTH-4). */
   mail?: boolean;
@@ -98,7 +100,7 @@ const FAMILY: ReadonlyArray<Omit<Person, 'id' | 'personalSpaceId'>> = [
 ];
 
 export async function createWorld(options: WorldOptions = {}): Promise<World> {
-  const database = await createTestDatabase(inject('pgAdminUrl'));
+  const database = await createTestDatabase(inject('pgAdminUrl'), options.migrationsFolder);
   const secret = randomBytes(32).toString('base64url');
   const logs: string[] = [];
   const requestLog: string[] = [];

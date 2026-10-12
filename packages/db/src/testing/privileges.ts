@@ -240,8 +240,13 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         ...(name === 'utility_charges' ? ['period', 'due_on', 'is_paid', 'cancelled_at'] : []),
         ...(name === 'tasks' ? ['household_id', 'status', 'done_at'] : []),
         ...(name === 'utility_payments' ? ['created_at', 'cancelled_at'] : []),
+        ...(name === 'shopping_items' ? ['bought_at'] : []),
       ],
-      UPDATE: ['assignee_id', ...(name === 'object_events' ? ['contact_table', 'contact_id'] : [])],
+      UPDATE: [
+        'assignee_id',
+        ...(name === 'object_events' ? ['contact_table', 'contact_id'] : []),
+        ...(name === 'shopping_items' ? ['deleted_at'] : []),
+      ],
       DELETE: 'all',
     };
   }

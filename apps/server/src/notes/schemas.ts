@@ -1,38 +1,12 @@
 import { z } from 'zod';
 
-const title = z.string().trim().min(1).max(200);
-const body = z.string().max(100_000);
+export {
+  NoteChecklist as Checklist,
+  NoteCreate as CreateNote,
+  NotePatch as PatchNote,
+} from '@homecrm/shared';
+
 const audience = z.enum(['household', 'adults']);
-const item = z.strictObject({ id: z.uuid().optional(), title, done: z.boolean().default(false) });
-export const Checklist = z
-  .array(item)
-  .max(200)
-  .refine(
-    (items) =>
-      new Set(items.flatMap((value) => (value.id ? [value.id] : []))).size ===
-      items.filter((value) => value.id).length,
-  );
-export const CreateNote = z.strictObject({
-  title,
-  body: body.default(''),
-  pinned: z.boolean().default(false),
-  checklist: Checklist.default([]),
-  placement: z.strictObject({ spaceId: z.uuid(), audience: audience.optional() }).optional(),
-  /** Контекст карточки: настоящий объект или прежний образец-дело; постоянная связь создаётся отдельно. */
-  object: z.strictObject({ type: z.enum(['object', 'task']), id: z.uuid() }).optional(),
-});
-export const PatchNote = z
-  .strictObject({
-    title: title.optional(),
-    body: body.optional(),
-    pinned: z.boolean().optional(),
-    assigneeId: z.uuid().optional(),
-    checklist: Checklist.optional(),
-    expectedUpdatedAt: z.iso.datetime().optional(),
-  })
-  .refine((value) =>
-    ['title', 'body', 'pinned', 'assigneeId', 'checklist'].some((key) => key in value),
-  );
 export const ShareNote = z.strictObject({
   spaceId: z.uuid(),
   audience: audience.default('household'),
@@ -49,5 +23,6 @@ export const ListNotes = z.strictObject({
   trash: z.enum(['true', 'false']).default('false'),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).max(50_000).default(0),
+  offline: z.literal('true').optional(),
 });
 export const Id = z.strictObject({ id: z.uuid() });

@@ -17,6 +17,9 @@ import {
   canRestore,
   canTrash,
   canView,
+  OfflineTaskCreate,
+  OfflineTaskPatch,
+  OfflineTaskStatus,
   type Placement,
   TaskData,
   TaskDataWithMissingTarget,
@@ -29,7 +32,14 @@ import type { Account } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import { getContact } from '../contacts/routes.ts';
 import { fileSummary } from '../files/service.ts';
-import { beginOperation, fingerprint, finishOperation } from '../idempotency.ts';
+import {
+  beginOperation,
+  exactVersion,
+  fingerprint,
+  finishReceipt,
+  operationOwner,
+  receiptOf,
+} from '../idempotency.ts';
 import { getObject } from '../objects/routes.ts';
 import {
   columnsOf,
@@ -211,12 +221,24 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
         links: z.array(Link).max(100).default([]),
         expandAudience: z.boolean().default(false),
         idempotencyKey: z.uuid().optional(),
+        ownerAccountId: z.uuid().optional(),
+        offline: z.literal(true).optional(),
+        clientActedAt: z.iso.datetime().optional(),
       }),
       request.body,
     );
+    if (body.offline) parse(OfflineTaskCreate, request.body);
+    operationOwner(account.id, body.ownerAccountId, body.offline);
     const hash = fingerprint(body);
     const prior = await beginOperation(tx, account.id, body.idempotencyKey, 'task_create', hash);
-    if (prior) return summary(tx, await getTask(tx, account, prior[0] ?? ''));
+    if (prior) {
+      const row = await getTask(tx, account, prior[0] ?? '');
+      requireWrite(account, row, 'task');
+      return {
+        ...(await summary(tx, row)),
+        ...(body.offline ? { receipt: await receiptOf(tx, account.id, body.idempotencyKey) } : {}),
+      };
+    }
     const object = body.objectId ? await getObject(tx, account, body.objectId) : null;
     if (object?.deletedAt) missing();
     let place = body.placement
@@ -260,6 +282,9 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
       objectId: _object,
       links,
       expandAudience: _expand,
+      offline: _offline,
+      clientActedAt: _clientAt,
+      ownerAccountId: _owner,
       ...fields
     } = body;
     const [row] = await tx
@@ -294,8 +319,22 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
         authorId: account.id,
       });
     }
-    await finishOperation(tx, account.id, body.idempotencyKey, 'task_create', hash, [row.id]);
-    return summary(tx, row);
+    const current = await getTask(tx, account, row.id);
+    const result = await summary(tx, current);
+    const receipt = await finishReceipt(
+      tx,
+      account.id,
+      body.idempotencyKey,
+      'task_create',
+      hash,
+      [current],
+      {
+        table: 'tasks',
+        completionEventId: current.completionEventId,
+        nextTaskId: result?.nextTaskId ?? null,
+      },
+    );
+    return { ...result, ...(body.offline ? { receipt } : {}) };
   });
   route('GET', '/api/tasks', 200, async (tx, account, request) => {
     const q = parse(
@@ -379,6 +418,9 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
                     householdId: z.uuid().optional(),
                     expectedUpdatedAt: z.iso.datetime().optional(),
                     idempotencyKey: z.uuid().optional(),
+                    ownerAccountId: z.uuid().optional(),
+                    offline: z.literal(true).optional(),
+                    clientActedAt: z.iso.datetime().optional(),
                   })
                   .refine((b) =>
                     Object.keys(b).some(
@@ -388,6 +430,9 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
                           'idempotencyKey',
                           'repeatScope',
                           'expandAudience',
+                          'offline',
+                          'clientActedAt',
+                          'ownerAccountId',
                         ].includes(k),
                     ),
                   ),
@@ -401,16 +446,34 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
                   checkOn: z.iso.date().nullable().optional(),
                   expectedUpdatedAt: z.iso.datetime().optional(),
                   idempotencyKey: z.uuid().optional(),
+                  ownerAccountId: z.uuid().optional(),
+                  offline: z.literal(true).optional(),
+                  clientActedAt: z.iso.datetime().optional(),
                 }),
                 request.body,
               );
+        if (body.offline) {
+          if (action === 'patch') parse(OfflineTaskPatch, request.body);
+          else parse(OfflineTaskStatus, request.body);
+        }
+        operationOwner(account.id, body.ownerAccountId, body.offline);
         const operation = action === 'patch' ? 'task_patch' : 'task_status',
           hash = fingerprint({ id, body });
         const prior = await beginOperation(tx, account.id, body.idempotencyKey, operation, hash);
-        if (prior) return summary(tx, await getTask(tx, account, id));
+        if (prior) {
+          const row = await getTask(tx, account, id);
+          requireWrite(account, row, 'task');
+          return {
+            ...(await summary(tx, row)),
+            ...(body.offline
+              ? { receipt: await receiptOf(tx, account.id, body.idempotencyKey) }
+              : {}),
+          };
+        }
         const row = await getTask(tx, account, id, true);
         requireWrite(account, row, 'task');
-        version(body.expectedUpdatedAt, row.updatedAt);
+        if (body.offline) await exactVersion(tx, 'tasks', id, body.expectedUpdatedAt);
+        else version(body.expectedUpdatedAt, row.updatedAt);
         const requestedHouse = 'householdId' in body ? body.householdId : undefined;
         if (requestedHouse !== undefined) {
           if (!account.viewer.memberships.has(requestedHouse)) missing();
@@ -479,6 +542,9 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
                 'repeatScope',
                 'expandAudience',
                 'householdId',
+                'offline',
+                'clientActedAt',
+                'ownerAccountId',
               ].includes(key),
           ),
         ) as Partial<z.infer<typeof TaskFields>> & { assigneeId?: string };
@@ -523,8 +589,22 @@ export async function taskRoutes(app: FastifyInstance, module: AuthModule) {
           if (!updated) deny();
           result = updated;
         }
-        await finishOperation(tx, account.id, body.idempotencyKey, operation, hash, [id]);
-        return summary(tx, result);
+        result = await getTask(tx, account, result.id);
+        const response = await summary(tx, result);
+        const receipt = await finishReceipt(
+          tx,
+          account.id,
+          body.idempotencyKey,
+          operation,
+          hash,
+          [result],
+          {
+            table: 'tasks',
+            completionEventId: result.completionEventId,
+            nextTaskId: response?.nextTaskId ?? null,
+          },
+        );
+        return { ...response, ...(body.offline ? { receipt } : {}) };
       },
     );
   route('GET', '/api/tasks/:id/history', 200, async (tx, account, request) => {

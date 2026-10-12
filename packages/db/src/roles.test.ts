@@ -80,6 +80,8 @@ describe('роли базы', () => {
             'summaries_worker_select',
             'summaries_worker_insert',
             'utility_payments_summary_worker',
+            'shopping_items_bought_cleanup_select',
+            'shopping_items_bought_cleanup_update',
           ].includes(policyname)
         )
           continue;
