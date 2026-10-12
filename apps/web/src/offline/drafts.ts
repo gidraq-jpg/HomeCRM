@@ -1,34 +1,61 @@
 import { useEffect, useRef, useState } from 'react';
+import { type DraftBase, DraftEnvelope } from './draft-data.ts';
 import { assertIdentity, changed, LocalFailure, localMessage, requestTicket } from './identity.ts';
 import { offlineDB } from './store.ts';
-/** Черновик формы отделён от намерения; сохранение черновика не означает отправку. */
-export function useDurableDraft<T>(draftKey: string, value: T, restore: (value: T) => void) {
+
+/** Версия принадлежит исходному вводу; поздний GET не заменяет её при восстановлении. */
+export function useDurableDraft<T>(
+  draftKey: string,
+  value: T,
+  restore: (value: T) => void,
+  source?: DraftBase,
+) {
+  const initialSource = useRef(source);
   const apply = useRef(restore);
   apply.current = restore;
-  const ready = useRef(false);
+  const [base, setBase] = useState<DraftBase | null>(
+    source ? { id: source.id, updatedAt: source.updatedAt } : null,
+  );
+  const [needsDecision, setNeedsDecision] = useState(false);
+  const [ready, setReady] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
-    ready.current = false;
+    setReady(false);
     void (async () => {
       try {
         const owner = await requestTicket();
         const row = await offlineDB.drafts.get(`${owner.owner}:${draftKey}`);
         await assertIdentity(owner);
-        if (active && row) apply.current(row.data as T);
-        if (active) ready.current = true;
+        if (active && row) {
+          const envelope = DraftEnvelope.safeParse(row.data);
+          apply.current((envelope.success ? envelope.data.value : row.data) as T);
+          if (initialSource.current) {
+            const saved = envelope.success ? envelope.data.base : null;
+            const matches = saved?.id === initialSource.current.id;
+            setBase(matches ? saved : null);
+            setNeedsDecision(!matches);
+          }
+        }
       } catch (error) {
-        if (active && error instanceof LocalFailure && error.code !== 'ACCOUNT_CHANGED')
-          setProblem(localMessage(error));
+        if (active)
+          setProblem(
+            error instanceof LocalFailure
+              ? localMessage(error)
+              : 'Не удалось прочитать черновик на устройстве.',
+          );
+      } finally {
+        if (active) setReady(true);
       }
     })();
     return () => {
       active = false;
     };
+    // Источник фиксируется при открытии формы; обновление серверной карточки его не подменяет.
   }, [draftKey]);
   useEffect(() => {
+    if (!ready) return;
     const timer = window.setTimeout(() => {
-      if (!ready.current) return;
       void (async () => {
         try {
           const owner = await requestTicket();
@@ -47,7 +74,7 @@ export function useDurableDraft<T>(draftKey: string, value: T, restore: (value: 
             await offlineDB.drafts.put({
               key: `${owner.owner}:${draftKey}`,
               owner: owner.owner ?? '',
-              data: value,
+              data: { format: 1, value, base },
               updatedAt: Date.now(),
             });
           });
@@ -63,8 +90,18 @@ export function useDurableDraft<T>(draftKey: string, value: T, restore: (value: 
       })();
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [draftKey, value]);
-  return problem;
+  }, [draftKey, value, base, ready]);
+  return {
+    problem,
+    base,
+    ready,
+    needsDecision,
+    acceptBase: () => {
+      if (!source) return;
+      setBase({ id: source.id, updatedAt: source.updatedAt });
+      setNeedsDecision(false);
+    },
+  };
 }
 export async function clearDraft(key: string) {
   const owner = await requestTicket();

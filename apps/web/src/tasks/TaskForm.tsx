@@ -14,6 +14,7 @@ import { defaultVisibility } from '../access/visibility.ts';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { creatableVisibilities, viewerOf, visibilityOf } from '../notes/abilities.ts';
+import type { DraftBase } from '../offline/draft-data.ts';
 import { useDurableDraft } from '../offline/drafts.ts';
 import type { TaskCard } from './api.ts';
 import { ChecklistEditor } from './ChecklistEditor.tsx';
@@ -37,6 +38,7 @@ export interface TaskDraft extends Omit<Fields, 'planOn' | 'dueOn' | 'checkOn'> 
   householdId: string;
   visibility: Visibility;
   repeatScope: 'this' | 'following';
+  draftBase?: DraftBase;
 }
 export function taskDraft(card: TaskCard, visibility: Visibility): TaskDraft {
   return {
@@ -52,7 +54,7 @@ export function taskDraft(card: TaskCard, visibility: Visibility): TaskDraft {
 export function taskChange(draft: TaskDraft, base: TaskCard): Record<string, unknown> {
   const fields = TaskFields.strip().parse(draft);
   const change: Record<string, unknown> = {
-    expectedUpdatedAt: base.updatedAt,
+    expectedUpdatedAt: draft.draftBase?.updatedAt ?? base.updatedAt,
     repeatScope: draft.repeatScope,
   };
   for (const [key, value] of Object.entries(fields))
@@ -80,7 +82,7 @@ export function TaskForm({
   const [visibilityTouched, setVisibilityTouched] = useState(false);
   const [draft, setDraft] = useState(initial);
   const location = useLocation();
-  const localProblem = useDurableDraft(`form:${location.pathname}`, draft, setDraft);
+  const localDraft = useDurableDraft(`form:${location.pathname}`, draft, setDraft, base);
   const calendar = useToday(draft.householdId || null);
   const [invalid, setInvalid] = useState('');
   const descriptionId = useId();
@@ -119,7 +121,8 @@ export function TaskForm({
       return;
     }
     setInvalid('');
-    onSubmit(draft);
+    if (!localDraft.ready || localDraft.needsDecision) return;
+    onSubmit({ ...draft, ...(localDraft.base ? { draftBase: localDraft.base } : {}) });
   }
   const options = creatableVisibilities(viewerOf(me), draft.householdId || null, 'task');
   return (
@@ -302,10 +305,27 @@ export function TaskForm({
             }}
           />
         ) : null}
-        {localProblem ? <Notice error>{localProblem}</Notice> : null}
+        {localDraft.problem ? <Notice error>{localDraft.problem}</Notice> : null}
+        {localDraft.needsDecision ? (
+          <Notice error>
+            Старый черновик не содержит базовую версию. Сервер: {base?.title}; {base?.description}.
+            <button
+              className="btn btn--secondary"
+              type="button"
+              disabled={pending}
+              onClick={localDraft.acceptBase}
+            >
+              Применить ввод к показанной версии
+            </button>
+          </Notice>
+        ) : null}
         {invalid ? <Notice error>{invalid}</Notice> : null}
         <div className="btn-row">
-          <button type="submit" className="btn btn--primary">
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={!localDraft.ready || localDraft.needsDecision}
+          >
             {pending ? 'Сохраняем…' : 'Сохранить'}
           </button>
           <button type="button" className="btn btn--secondary" onClick={onCancel}>

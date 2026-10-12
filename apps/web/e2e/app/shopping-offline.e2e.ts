@@ -1042,3 +1042,370 @@ test('OFFLINE: повторный ввод черновиков заметки �
   );
   expect(await rows(page)).toHaveLength(0);
 });
+
+async function putLocal(page: Page, table: string, value: Record<string, unknown>) {
+  await page.evaluate(
+    async ({ table, value }) => {
+      const db = await new Promise<IDBDatabase>((ok, bad) => {
+        const request = indexedDB.open('homecrm-offline');
+        request.onsuccess = () => ok(request.result);
+        request.onerror = () => bad(request.error);
+      });
+      await new Promise<void>((ok, bad) => {
+        const tx = db.transaction(table, 'readwrite');
+        tx.objectStore(table).put(value);
+        tx.oncomplete = () => ok();
+        tx.onerror = () => bad(tx.error);
+      });
+      db.close();
+    },
+    { table, value },
+  );
+}
+
+test('B1: восстановленный ввод заметки и дела сохраняет V1 после GET V2', async ({
+  page,
+  family,
+  context,
+}) => {
+  test.setTimeout(120000);
+  const api = await apiAs(family, 'adult');
+  const note = await seedNote(api, family, { title: 'База черновика', body: 'V1 заметки' });
+  const task = (await api.post('tasks', { title: 'База дела', description: 'V1 дела' })).body as {
+    id: string;
+  };
+  const seen: Record<string, unknown>[] = [];
+  context.on('request', (request) => {
+    if (request.method() === 'PATCH' && /\/api\/(notes|tasks)\//.test(request.url()))
+      seen.push(request.postDataJSON() as Record<string, unknown>);
+  });
+  await signInAs(page, family, 'adult');
+  await shell(page);
+  for (const kind of ['note', 'task'] as const) {
+    const id = kind === 'note' ? note.id : task.id;
+    const path = kind === 'note' ? 'notes' : 'tasks';
+    const route = kind === 'note' ? `#/more/notes/${id}` : `#/today/tasks/${id}`;
+    const label = kind === 'note' ? 'Текст' : 'Описание';
+    const field = kind === 'note' ? 'body' : 'description';
+    const wrapper = (await api.get(`${path}/${id}?offline=true`)).body as {
+      versions: { id: string; version: string }[];
+    };
+    const v1 = wrapper.versions.find((item) => item.id === id)?.version;
+    await page.goto(route);
+    await page
+      .getByRole('button', { name: kind === 'note' ? 'Править' : 'Править дело', exact: true })
+      .click();
+    await page.getByRole('textbox', { name: label, exact: true }).fill(`Мой ввод ${kind} V1`);
+    await expect
+      .poll(async () => JSON.stringify(await rows(page, 'drafts')))
+      .toContain(`Мой ввод ${kind} V1`);
+    await api.patch(`${path}/${id}`, { [field]: `Чужой ввод ${kind} V2` });
+    await page.reload();
+    await page
+      .getByRole('button', { name: kind === 'note' ? 'Править' : 'Править дело', exact: true })
+      .click();
+    await expect(page.getByRole('textbox', { name: label, exact: true })).toHaveValue(
+      `Мой ввод ${kind} V1`,
+    );
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect
+      .poll(async () =>
+        (await rows(page)).some(
+          (row) => row.operation === `${kind}_patch` && row.state === 'conflict',
+        ),
+      )
+      .toBe(true);
+    expect(
+      seen.some((body) => body.expectedUpdatedAt === v1 && body[field] === `Мой ввод ${kind} V1`),
+    ).toBe(true);
+    expect(((await api.get(`${path}/${id}`)).body as Record<string, unknown>)[field]).toBe(
+      `Чужой ввод ${kind} V2`,
+    );
+    await expect(page.getByRole('textbox', { name: label, exact: true })).toHaveValue(
+      `Мой ввод ${kind} V1`,
+    );
+  }
+});
+
+test('B1: старый черновик без базы требует явного применения', async ({ page, family }) => {
+  const api = await apiAs(family, 'adult');
+  const note = await seedNote(api, family, {
+    title: 'Старый draft',
+    body: 'Свежий серверный текст',
+  });
+  await signInAs(page, family, 'adult');
+  await shell(page);
+  await putLocal(page, 'drafts', {
+    key: `${family.person('adult').id}:form:/more/notes/${note.id}`,
+    owner: family.person('adult').id,
+    data: { title: 'Старый draft', body: 'Старый локальный текст', pinned: false, checklist: [] },
+    updatedAt: Date.now(),
+  });
+  await page.goto(`#/more/notes/${note.id}`);
+  await page.getByRole('button', { name: 'Править', exact: true }).click();
+  await expect(page.getByLabel('Текст', { exact: true })).toHaveValue('Старый локальный текст');
+  await expect(page.getByRole('button', { name: 'Сохранить', exact: true })).toBeDisabled();
+  await expect(page.getByText(/Старый черновик не содержит базовую версию/)).toBeVisible();
+  expect(await rows(page)).toHaveLength(0);
+  await page.getByRole('button', { name: 'Применить ввод к показанной версии' }).click();
+  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect
+    .poll(async () => ((await api.get(`notes/${note.id}`)).body as { body: string }).body)
+    .toBe('Старый локальный текст');
+  const task = (
+    await api.post('tasks', { title: 'Legacy task', description: 'Свежая версия дела' })
+  ).body as { id: string };
+  await page.goto(`#/today/tasks/${task.id}`);
+  await page.getByRole('button', { name: 'Править дело', exact: true }).click();
+  const key = `${family.person('adult').id}:form:/today/tasks/${task.id}`;
+  await expect
+    .poll(async () =>
+      ((await rows(page, 'drafts')) as unknown as { key: string }[]).some((row) => row.key === key),
+    )
+    .toBe(true);
+  const stored = (
+    (await rows(page, 'drafts')) as unknown as {
+      key: string;
+      data: { value: Record<string, unknown> };
+    }[]
+  ).find((row) => row.key === key);
+  await putLocal(page, 'drafts', {
+    key,
+    owner: family.person('adult').id,
+    data: { ...stored?.data.value, description: 'Старый ввод дела' },
+    updatedAt: Date.now(),
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Править дело', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Описание', exact: true })).toHaveValue(
+    'Старый ввод дела',
+  );
+  await expect(page.getByRole('button', { name: 'Сохранить', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Применить ввод к показанной версии' }).click();
+  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect
+    .poll(
+      async () => ((await api.get(`tasks/${task.id}`)).body as { description: string }).description,
+    )
+    .toBe('Старый ввод дела');
+});
+
+test('B2: cancel pending при задержанном втором freshMe не восстанавливает done', async ({
+  page,
+  family,
+  context,
+}) => {
+  test.setTimeout(120000);
+  const api = await apiAs(family, 'adult');
+  const task = (await api.post('tasks', { title: 'Отменённое pending done' })).body as {
+    id: string;
+  };
+  await signInAs(page, family, 'adult');
+  await shell(page);
+  await page.goto(`#/today/tasks/${task.id}`);
+  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible();
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
+  await expect.poll(async () => (await rows(page)).length).toBe(1);
+  await queue(page);
+  let release: () => void = () => {};
+  let held = false;
+  const paused = new Promise<void>((ok) => {
+    release = ok;
+  });
+  let posts = 0;
+  context.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().endsWith(`/api/tasks/${task.id}/status`))
+      posts++;
+  });
+  await context.route('**/api/me', async (route) => {
+    if (!route.request().serviceWorker()) return route.abort('failed');
+    if ((await rows(page, 'leases')).length) {
+      held = true;
+      await paused;
+    }
+    await route.continue();
+  });
+  await context.setOffline(false);
+  await page.evaluate(async () =>
+    (await navigator.serviceWorker.ready).active?.postMessage({ type: 'HOMECRM_SYNC' }),
+  );
+  await expect.poll(() => held).toBe(true);
+  const pending = (await rows(page))[0];
+  expect(pending?.attempted).toBe(false);
+  await page.getByRole('button', { name: 'Отменить намерение' }).click();
+  expect(await rows(page)).toHaveLength(0);
+  release();
+  await expect.poll(async () => (await rows(page, 'leases')).length).toBe(0);
+  expect(posts).toBe(0);
+  expect(await rows(page)).toHaveLength(0);
+  expect(((await api.get(`tasks/${task.id}`)).body as { status: string }).status).toBe('open');
+});
+
+test('B3: conflict зависимой local правки решается новым PATCH серверного UUID', async ({
+  page,
+  family,
+  context,
+}) => {
+  test.setTimeout(120000);
+  const api = await apiAs(family, 'adult');
+  await signInAs(page, family, 'adult');
+  await shell(page);
+  await context.setOffline(true);
+  await newNote(page, 'Цепочка local conflict');
+  await queue(page);
+  await page.getByRole('button', { name: 'Править локальный ввод' }).click();
+  await page.getByRole('textbox', { name: 'Текст', exact: true }).fill('Моя зависимая правка');
+  await page.getByRole('button', { name: 'Сохранить зависимую правку' }).click();
+  await newNote(page, 'Независимая B3');
+  await expect.poll(async () => (await rows(page)).length).toBe(3);
+  let foreign = false;
+  await context.route('**/api/notes/*', async (route) => {
+    if (!foreign && route.request().method() === 'PATCH') {
+      foreign = true;
+      const id = new URL(route.request().url()).pathname.split('/').at(-1);
+      expect((await api.patch(`notes/${id}`, { body: 'Чужой текст B3' })).status).toBe(200);
+    }
+    await route.continue();
+  });
+  await context.setOffline(false);
+  await sync(page);
+  await expect
+    .poll(async () => (await rows(page)).find((row) => row.operation === 'note_patch')?.state)
+    .toBe('conflict');
+  const conflict = (await rows(page)).find((row) => row.operation === 'note_patch');
+  expect(conflict?.frozenPath).toMatch(/^notes\/[0-9a-f-]{36}$/);
+  await expect
+    .poll(async () => (await rows(page)).filter((row) => row.state === 'confirmed').length)
+    .toBe(2);
+  await page.getByRole('button', { name: 'Сравнить и решить' }).click();
+  await expect(page.getByText(/Чужой текст B3/)).toBeVisible();
+  const snapshot = (await api.get(`${conflict?.frozenPath}?offline=true`)).body as {
+    versions: { version: string }[];
+  };
+  await page.getByRole('button', { name: 'Применить мою правку' }).click();
+  await sync(page);
+  await expect
+    .poll(async () => (await rows(page)).every((row) => row.state === 'confirmed'))
+    .toBe(true);
+  const replacement = (await rows(page)).find((row) => row.operation === 'note_patch');
+  expect(replacement?.id).not.toBe(conflict?.id);
+  expect(replacement?.frozenPath).toBe(conflict?.frozenPath);
+  expect(JSON.parse(replacement?.frozenBody ?? '{}').expectedUpdatedAt).toBe(
+    snapshot.versions[0]?.version,
+  );
+  const notes = (await api.get('notes?scope=personal')).body as { title: string }[];
+  expect(notes.filter((note) => note.title === 'Цепочка local conflict')).toHaveLength(1);
+  expect(notes.filter((note) => note.title === 'Независимая B3')).toHaveLength(1);
+  if (!replacement?.frozenPath) throw new Error('Expected confirmed server path');
+  const card = (await api.get(replacement.frozenPath)).body as { body: string };
+  expect(card.body).toBe('Моя зависимая правка');
+});
+
+for (const phase of ['before', 'between'] as const) {
+  test(`B4: sender SW без AuthRoot применяет child ${phase} freshMe и отзывает снимки`, async ({
+    page,
+    family,
+    context,
+  }) => {
+    test.setTimeout(120000);
+    const api = await apiAs(family, 'adult');
+    const note = await seedNote(api, family, {
+      title: 'Снимок взрослого B4',
+      body: 'Закрытые поля взрослых B4',
+      audience: 'adults',
+    });
+    await signInAs(page, family, 'adult');
+    await shell(page);
+    await page.goto(`#/more/notes/${note.id}`);
+    await expect(page.getByText('Закрытые поля взрослых B4')).toBeVisible();
+    await context.setOffline(true);
+    await page.goto('#/more/notes/new');
+    await page.getByLabel('Заголовок', { exact: true }).fill('Pending adults B4');
+    await page.getByLabel('Текст', { exact: true }).fill('Сохранённый ввод B4');
+    await page.getByRole('radio', { name: 'Взрослые', exact: true }).click();
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect.poll(async () => (await rows(page)).length).toBe(1);
+    await putLocal(page, 'blobs', {
+      id: 'b4-source-photo',
+      owner: family.person('adult').id,
+      name: 'b4.png',
+    });
+    await page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((ok) => {
+        const r = indexedDB.open('homecrm-offline');
+        r.onsuccess = () => ok(r.result);
+      });
+      await new Promise<void>((ok) => {
+        const tx = db.transaction('blobs', 'readwrite');
+        const r = tx.objectStore('blobs').get('b4-source-photo');
+        r.onsuccess = () =>
+          tx
+            .objectStore('blobs')
+            .put({ ...r.result, blob: new Blob(['fictional B4 photo'], { type: 'image/png' }) });
+        tx.oncomplete = () => ok();
+      });
+      db.close();
+    });
+    const identity = (await rows(page, 'identity'))[0] as unknown as { generation: number };
+    const blank = await context.newPage();
+    await blank.route('**/sender-fixture', (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: '<html lang="ru"><title>SW без AuthRoot</title></html>',
+      }),
+    );
+    await blank.goto(`${family.origin}/sender-fixture`);
+    await page.close();
+    const downgrade = async () => {
+      await family.database.admin.query('UPDATE notes SET assignee_id=$2 WHERE id=$1', [
+        note.id,
+        family.person('admin').id,
+      ]);
+      await family.database.admin.query(
+        "UPDATE space_members SET role='child' WHERE account_id=$1 AND space_id=$2",
+        [family.person('adult').id, family.houseId],
+      );
+    };
+    if (phase === 'before') await downgrade();
+    let changed = phase === 'before';
+    let workerMe = 0;
+    await context.route('**/api/me', async (route) => {
+      expect(route.request().serviceWorker()).toBeTruthy();
+      workerMe++;
+      if (!changed && (await rows(blank, 'leases')).length) {
+        await downgrade();
+        changed = true;
+      }
+      await route.continue();
+    });
+    await context.setOffline(false);
+    await blank.evaluate(async (scope) => {
+      const registration = await navigator.serviceWorker.getRegistration(scope);
+      if (!registration?.active) throw new Error('Expected active real SW');
+      registration.active.postMessage({ type: 'HOMECRM_SYNC' });
+    }, family.baseURL);
+    await expect.poll(async () => (await rows(blank))[0]?.state).toBe('error');
+    const current = (await rows(blank, 'identity'))[0] as unknown as {
+      generation: number;
+      me: { roles: { role: string }[] };
+    };
+    expect(current.generation).toBeGreaterThan(identity.generation);
+    expect(current.me.roles[0]?.role).toBe('child');
+    expect(workerMe).toBeGreaterThanOrEqual(2);
+    expect(JSON.stringify(await rows(blank, 'snapshots'))).not.toContain(
+      'Закрытые поля взрослых B4',
+    );
+    expect(JSON.stringify(await rows(blank, 'drafts'))).toContain('Сохранённый ввод B4');
+    expect(await rows(blank, 'blobs')).toHaveLength(1);
+    await context.unroute('**/api/me');
+    await context.setOffline(true);
+    await blank.goto(`${family.baseURL}#/more/notes/${note.id}`);
+    await expect(blank.getByText('Закрытые поля взрослых B4')).toHaveCount(0);
+    await expect(blank.getByText(/Эти данные ещё не сохранены на устройстве/)).toBeVisible();
+    expect((await rows(blank, 'identity'))[0]).toMatchObject({
+      verified: false,
+      me: { roles: [{ role: 'child' }] },
+    });
+  });
+}

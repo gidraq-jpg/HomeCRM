@@ -4,6 +4,7 @@ import { useLocation } from 'react-router';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { Notice, type useAction } from '../auth/components.tsx';
+import type { DraftBase } from '../offline/draft-data.ts';
 import { clearDraft, useDurableDraft } from '../offline/drafts.ts';
 import { LocalSaved } from '../offline/identity.ts';
 import { CheckLine } from '../ui/CheckLine.tsx';
@@ -40,7 +41,8 @@ interface NoteFormProps {
   pendingLabel: string;
   state: ReturnType<typeof useAction>;
   action: 'create' | 'save';
-  onSubmit: (values: NoteInput) => void;
+  onSubmit: (values: NoteInput, base?: string) => void;
+  base?: DraftBase;
   onCancel: () => void;
   /** Строка «Кто видит» над кнопкой «Сохранить»: только при создании (PRD 7.4). */
   visibility?: VisibilityChoice;
@@ -60,6 +62,7 @@ export function NoteForm({
   state,
   action,
   onSubmit,
+  base,
   onCancel,
   visibility,
   conflict,
@@ -75,7 +78,7 @@ export function NoteForm({
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const location = useLocation();
   const draftKey = `form:${location.pathname}`;
-  const localProblem = useDurableDraft(
+  const localDraft = useDurableDraft(
     draftKey,
     { title, body, pinned, checklist: items, visibility: visibility?.value },
     (value) => {
@@ -86,6 +89,7 @@ export function NoteForm({
       if (value.visibility && visibility?.options.includes(value.visibility))
         visibility.onChange(value.visibility);
     },
+    base,
   );
   const wasPending = useRef(false);
   useEffect(() => {
@@ -115,7 +119,8 @@ export function NoteForm({
       document.getElementById(ids.title)?.focus();
       return;
     }
-    onSubmit(values());
+    if (!localDraft.ready || localDraft.needsDecision) return;
+    onSubmit(values(), localDraft.base?.updatedAt);
   }
 
   function append(after?: string) {
@@ -137,7 +142,20 @@ export function NoteForm({
 
   return (
     <form className="note-form" onSubmit={submit} aria-busy={state.pending} noValidate>
-      {localProblem ? <Notice error>{localProblem}</Notice> : null}
+      {localDraft.problem ? <Notice error>{localDraft.problem}</Notice> : null}
+      {localDraft.needsDecision ? (
+        <Notice error>
+          Старый черновик не содержит базовую версию. Сервер: {draft.title}; {draft.body}.
+          <button
+            className="btn btn--secondary"
+            type="button"
+            disabled={state.pending}
+            onClick={localDraft.acceptBase}
+          >
+            Применить ввод к показанной версии
+          </button>
+        </Notice>
+      ) : null}
       <div className="field">
         <label className="field__label" htmlFor={ids.title}>
           Заголовок
@@ -295,7 +313,11 @@ export function NoteForm({
       <NoteError error={state.error} action={action} />
 
       <div className="btn-row">
-        <button type="submit" className="btn btn--primary" disabled={state.disabled}>
+        <button
+          type="submit"
+          className="btn btn--primary"
+          disabled={state.disabled || !localDraft.ready || localDraft.needsDecision}
+        >
           {state.pending ? pendingLabel : submitLabel}
         </button>
         <button type="button" className="btn btn--secondary" onClick={onCancel}>

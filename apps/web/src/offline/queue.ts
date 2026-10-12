@@ -9,6 +9,7 @@ import {
   OperationReceipt,
 } from '@homecrm/shared';
 import type { z } from 'zod';
+import { Me } from '../auth/api.ts';
 import {
   assertIdentity,
   blockIdentity,
@@ -16,6 +17,7 @@ import {
   LocalFailure,
   LocalSaved,
   requestTicket,
+  setIdentity,
   ticket,
 } from './identity.ts';
 import { exactVersion } from './snapshots.ts';
@@ -434,7 +436,7 @@ export async function resolveConflict(
   delete body.offline;
   delete body.ownerAccountId;
   body.expectedUpdatedAt = await exactVersion(
-    row.path.split('/')[1] ?? '',
+    (row.frozenPath ?? row.path).split('/')[1] ?? '',
     active,
     expectedUpdatedAt,
   );
@@ -443,10 +445,18 @@ export async function resolveConflict(
   body.offline = true;
   body.ownerAccountId = active.owner;
   body.clientActedAt = new Date().toISOString();
-  const def = definition(row.method, row.path);
+  const resolvedPath = row.frozenPath ?? row.path;
+  const def = definition(row.method, resolvedPath);
   if (!def) throw new LocalFailure('NETWORK_REQUIRED');
   const parsed = def.schema.parse(body) as Record<string, unknown>;
-  const replacement = newIntent(active, row.method, row.path, row.operation, parsed, row.entity);
+  const replacement = newIntent(
+    active,
+    row.method,
+    resolvedPath,
+    row.operation,
+    parsed,
+    row.entity,
+  );
   await offlineDB.transaction(
     'rw',
     offlineDB.identity,
@@ -474,20 +484,17 @@ export async function resolveConflict(
   changed();
   return replacement;
 }
-async function freshMe(): Promise<{
-  id: string;
-  secondFactorRequired: boolean;
-  roles: { householdId: string }[];
-} | null> {
+async function freshMe(expected: Identity) {
   const response = await fetch('/api/me', { credentials: 'same-origin', cache: 'no-store' });
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) await blockIdentity();
     return null;
   }
-  const json = await response.json();
-  if (typeof json?.id !== 'string' || json.secondFactorRequired || !Array.isArray(json.roles))
-    return null;
-  return json;
+  const parsed = Me.safeParse(await response.json());
+  if (!parsed.success || parsed.data.secondFactorRequired) return null;
+  // Окно и SW одинаково применяют авторитетный доступ; прежний snapshot отзывается до replay.
+  await setIdentity(parsed.data, expected);
+  return ticket();
 }
 const lastTiming = new Map<
   string,
@@ -502,15 +509,16 @@ export function durableTiming(value: unknown) {
 }
 const LEASE_MS = 45000;
 export async function synchronize(): Promise<void> {
-  const active = await ticket();
+  let active = await ticket();
   if (!active.owner) return;
   let me: Awaited<ReturnType<typeof freshMe>>;
   try {
-    me = await freshMe();
+    me = await freshMe(active);
   } catch {
     return;
   }
-  if (!me || me.id !== active.owner) return;
+  if (!me || me.owner !== active.owner) return;
+  active = me;
   await assertIdentity(active);
   const holder = uuid();
   const acquired = await offlineDB.transaction(
@@ -527,7 +535,10 @@ export async function synchronize(): Promise<void> {
   );
   if (!acquired) return;
   try {
-    const list = await offlineDB.outbox.where('owner').equals(active.owner).sortBy('createdAt');
+    const list = await offlineDB.outbox
+      .where('owner')
+      .equals(active.owner ?? '')
+      .sortBy('createdAt');
     for (const original of list) {
       await assertIdentity(active);
       const lease = await offlineDB.leases.get('sender');
@@ -547,17 +558,19 @@ export async function synchronize(): Promise<void> {
       if (
         row.house &&
         row.house !== active.me?.personalSpaceId &&
-        !me.roles.some((role) => role.householdId === row.house)
+        !active.me?.roles.some((role) => role.householdId === row.house)
       ) {
         await offlineDB.outbox.update(row.id, { state: 'error', code: 'HOUSE_UNAVAILABLE' });
         continue;
       }
       try {
         // Свежая проверка перед каждой отправкой, в том числе при cookie из другой вкладки.
-        const current = await freshMe();
-        if (!current || current.id !== row.owner) return;
+        const current = await freshMe(active);
+        if (!current || current.owner !== row.owner) return;
+        active = current;
         await assertIdentity(active);
         const frozen = await freeze(row, active);
+        if (!frozen) continue;
         changed();
         const started = performance.now();
         const controller = new AbortController();
@@ -695,6 +708,14 @@ export async function synchronize(): Promise<void> {
 async function freeze(row: Intent, active: Identity) {
   return offlineDB.transaction('rw', offlineDB.identity, offlineDB.outbox, async () => {
     await assertIdentity(active);
+    const current = await offlineDB.outbox.get(row.id);
+    if (
+      !current ||
+      current.owner !== active.owner ||
+      !['pending', 'sending', 'unknown'].includes(current.state)
+    )
+      return null;
+    row = current;
     if (row.attempted) return row;
     const body = structuredClone(row.body);
     let path = row.path;

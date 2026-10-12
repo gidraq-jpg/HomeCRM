@@ -1,5 +1,6 @@
 import { OfflineSnapshot } from '@homecrm/shared';
 import type { z } from 'zod';
+import { DraftEnvelope } from './draft-data.ts';
 import {
   accountChanged,
   assertIdentity,
@@ -98,6 +99,18 @@ export async function exactVersion(id: string, expected: Identity, observed?: st
     const card = cards.find((value) => value.id === id);
     if (!card || (observed && card.updatedAt !== observed)) continue;
     return version;
+  }
+  // Восстановленный ввод удерживает свою согласованную базу, даже когда путь GET уже содержит V2.
+  if (observed) {
+    const drafts = await offlineDB.drafts
+      .where('owner')
+      .equals(expected.owner ?? '')
+      .toArray();
+    for (const draft of drafts) {
+      const parsed = DraftEnvelope.safeParse(draft.data);
+      if (parsed.success && parsed.data.base?.id === id && parsed.data.base.updatedAt === observed)
+        return observed;
+    }
   }
   throw new LocalFailure('EXACT_VERSION_REQUIRED');
 }

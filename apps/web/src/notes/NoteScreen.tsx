@@ -173,10 +173,10 @@ function NoteView({ card }: { card: NoteCard }) {
     });
   }
 
-  function saveEdited(values: NoteInput) {
+  function saveEdited(values: NoteInput, restoredBase?: string) {
     void save.run(async () => {
       try {
-        await patchNote(card.id, { ...values, expectedUpdatedAt: editBase });
+        await patchNote(card.id, { ...values, expectedUpdatedAt: restoredBase ?? editBase });
       } catch (error) {
         if (isStaleVersion(error)) {
           setConflict(true);
@@ -235,6 +235,7 @@ function NoteView({ card }: { card: NoteCard }) {
           action="save"
           state={save}
           onSubmit={saveEdited}
+          base={{ id: card.id, updatedAt: editBase }}
           onCancel={() => {
             save.setError(null);
             setConflict(false);
