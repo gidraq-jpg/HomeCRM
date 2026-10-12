@@ -699,6 +699,134 @@ it('R1c.8: предупреждение показания устойчиво п
   expect(again.warnings).toEqual(first.warnings);
   expect(again.receipt).toEqual(first.receipt);
 });
+it('R1c.8 B1: два фото чужого общего объекта продолжают точную базу; late replay не скрывает чужую правку', async () => {
+  const created = await admin.post('/api/objects', {
+    title: 'Общий объект другого автора',
+    placement: place(),
+  });
+  expect(created.status, created.text).toBe(201);
+  const parent = created.json<Card>();
+  const base = (await snapshot(`/api/objects/${parent.id}`)).versions[0]?.version ?? '';
+  const key = randomUUID();
+  await loseCommittedReply(key, () => upload(parent.id, key, base));
+  const first = await upload(parent.id, key, base);
+  expect(first.statusCode, first.body).toBe(201);
+  const file = first.json<Card>();
+  const receipt = OperationReceipt.parse(file.receipt);
+  expect(receipt.parent?.id).toBe(parent.id);
+  expect(receipt.parent?.updatedAt).not.toBe(base);
+  expect(receipt.parent?.updatedAt).toBe(
+    (await snapshot(`/api/objects/${parent.id}`)).versions[0]?.version,
+  );
+  const ownVersion = receipt.parent?.updatedAt ?? '';
+  const second = await upload(parent.id, randomUUID(), ownVersion);
+  expect(second.statusCode, second.body).toBe(201);
+  expect(second.json().id).not.toBe(file.id);
+  expect((await upload(parent.id, key, base)).json().receipt).toEqual(receipt);
+  const secondReceipt = OperationReceipt.parse(second.json().receipt);
+  expect(secondReceipt.parent?.updatedAt).not.toBe(ownVersion);
+  expect(
+    (await patch('objects', parent.id, { title: 'Правка другого устройства' }, admin)).status,
+  ).toBe(200);
+  // Повтор первого COMMIT возвращает его версию, а не более свежую чужую.
+  expect((await upload(parent.id, key, base)).json().receipt).toEqual(receipt);
+  const stale = await upload(parent.id, randomUUID(), secondReceipt.parent?.updatedAt ?? '');
+  expect(stale.statusCode).toBe(409);
+  expect(stale.json().code).toBe('STALE_VERSION');
+  expect((await adult.get(`/api/objects/${parent.id}/files`)).json<unknown[]>()).toHaveLength(2);
+  expect((await adult.get(`/api/objects/${parent.id}`)).json().title).toBe(
+    'Правка другого устройства',
+  );
+});
+for (const batch of [false, true])
+  it(`R1c.8 B2: ${batch ? 'batch' : 'single'} replay требует исходное живое фото/связь/доступ после lost COMMIT`, async () => {
+    const parent = await object();
+    const first = await meter(parent.id);
+    const meterIds = batch ? [first.id, (await meter(parent.id)).id] : [first.id];
+    const base = (await snapshot(`/api/objects/${parent.id}`)).versions[0]?.version ?? '';
+    const uploaded = await upload(parent.id, randomUUID(), base);
+    expect(uploaded.statusCode, uploaded.body).toBe(201);
+    const file = uploaded.json<Card>();
+    const inputs = [];
+    for (const id of meterIds)
+      inputs.push({
+        meterId: id,
+        occurredOn: '2026-10-20',
+        values: ['100.000'],
+        photoIds: id === first.id ? [file.id] : [],
+        expectedUpdatedAt: (await snapshot(`/api/meters/${id}`)).versions[0]?.version,
+        expectedLatestReadingId: null,
+      });
+    const metadata = {
+      offline: true,
+      ownerAccountId: world.boris.id,
+      idempotencyKey: randomUUID(),
+    };
+    const { meterId: _meterId, ...single } = inputs[0] ?? {};
+    const body = batch ? { ...metadata, readings: inputs } : { ...metadata, ...single };
+    const send = () =>
+      adult.post(
+        batch ? `/api/objects/${parent.id}/readings` : `/api/meters/${first.id}/readings`,
+        body,
+      );
+    await loseCommittedReply(metadata.idempotencyKey, send);
+    const repeated = await send();
+    expect(repeated.status, repeated.text).toBe(201);
+    const cards = batch ? repeated.json<Card[]>() : [repeated.json<Card>()];
+    const reading = cards.find((row) => (row as Card & { parentId: string }).parentId === first.id);
+    if (!reading) throw new Error('Missing committed reading');
+    const receipt = reading.receipt;
+    expect(receipt.results).toHaveLength(meterIds.length);
+    expect(reading).toMatchObject({ photoIds: [file.id] });
+    const history = (
+      await world.database.admin.query('SELECT id FROM meter_readings_history WHERE record_id=$1', [
+        reading.id,
+      ])
+    ).rows;
+    expect((await adult.post(`/api/objects/${parent.id}/files/${file.id}/trash`, {})).status).toBe(
+      200,
+    );
+    expect((await send()).status).toBe(404);
+    expect(
+      (await adult.post(`/api/objects/${parent.id}/files/${file.id}/restore`, {})).status,
+    ).toBe(200);
+    expect((await send()).status).toBe(201);
+    const link = (
+      await world.database.admin.query(
+        "SELECT id FROM record_links WHERE left_id=$1 AND right_id=$2 AND role='reading_photo'",
+        [reading.id, file.id],
+      )
+    ).rows[0].id as string;
+    expect((await adult.post(`/api/links/${link}/trash`, {})).status).toBe(200);
+    expect((await send()).status).toBe(404);
+    expect((await adult.post(`/api/links/${link}/restore`, {})).status).toBe(200);
+    expect((await send()).status).toBe(201);
+    await world.database.admin.query(
+      "UPDATE space_members SET role='child' WHERE account_id=$1 AND space_id=$2 AND left_at IS NULL",
+      [world.boris.id, world.houseId],
+    );
+    try {
+      expect((await send()).status).toBe(403);
+    } finally {
+      await world.database.admin.query(
+        "UPDATE space_members SET role='adult' WHERE account_id=$1 AND space_id=$2 AND left_at IS NULL",
+        [world.boris.id, world.houseId],
+      );
+    }
+    const restored = await send();
+    expect(restored.status, restored.text).toBe(201);
+    expect((batch ? restored.json<Card[]>()[0] : restored.json<Card>())?.receipt).toEqual(receipt);
+    expect(
+      (
+        await world.database.admin.query(
+          'SELECT id FROM meter_readings_history WHERE record_id=$1',
+          [reading.id],
+        )
+      ).rows,
+    ).toEqual(history);
+    for (const id of meterIds)
+      expect((await adult.get(`/api/meters/${id}/readings`)).json<unknown[]>()).toHaveLength(1);
+  });
 it('R1c.8: owner/key защищён от аккаунта B, replay закрывается при удалении/назначении/аудитории/уходе', async () => {
   const key = randomUUID(),
     body = {

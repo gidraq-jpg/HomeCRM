@@ -130,6 +130,7 @@ export const OperationReceipt = z.strictObject({
   completionEventId: z.uuid().nullable().optional(),
   nextTaskId: z.uuid().nullable().optional(),
   warningIds: z.array(z.uuid()).max(100).optional(),
+  parent: z.strictObject({ id: z.uuid(), updatedAt: z.iso.datetime() }).optional(),
 });
 export type OperationReceipt = z.infer<typeof OperationReceipt>;
 export const OfflineSnapshot = z.strictObject({

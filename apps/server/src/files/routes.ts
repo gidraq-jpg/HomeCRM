@@ -22,6 +22,7 @@ import {
   finishReceipt,
   operationOwner,
   receiptOf,
+  recordVersions,
 } from '../idempotency.ts';
 import {
   dataRoutes,
@@ -274,7 +275,13 @@ export async function filesRoutes(
           await exactVersion(tx, 'objects', id, expected);
         else version(expected, parent.row.updatedAt);
         const row = await insertPreparedFile(tx, account, type, parent.row, sealed);
+        // Чужой вклад может изменить объект: следующему фото нужна версия своего эффекта.
+        const parentVersion =
+          request.headers['x-offline'] === 'true'
+            ? (await recordVersions(tx, 'objects', [id]))[0]
+            : undefined;
         const receipt = await finishReceipt(tx, account.id, key, 'file_upload', hash, [row], {
+          parent: parentVersion ? { id, updatedAt: parentVersion.version } : undefined,
           table:
             type === 'object'
               ? 'object_files'

@@ -93,7 +93,7 @@ export async function finishReceipt(
   rows: { id: string; updatedAt: Date | string }[],
   metadata: Pick<
     OperationReceipt,
-    'checklist' | 'completionEventId' | 'nextTaskId' | 'warningIds'
+    'checklist' | 'completionEventId' | 'nextTaskId' | 'warningIds' | 'parent'
   > & { table: string },
 ) {
   if (!key) return undefined;

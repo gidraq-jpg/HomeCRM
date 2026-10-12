@@ -109,18 +109,25 @@ async function replayReadings(
   account: Account,
   ids: string[],
   key: string | undefined,
+  inputs: { meterId: string; photoIds: string[] }[],
 ) {
   const receipt = await receiptOf(tx, account.id, key);
   const result = [];
   for (const id of ids) {
     const [row] = await tx.select().from(meterReadings).where(eq(meterReadings.id, id));
     if (!row || !canView(account.viewer, placementOf(row))) missing();
-    const meter = await getMeter(tx, account, row.parentId);
+    const meter = await getMeter(tx, account, row.parentId, true);
     requireWrite(account, meter, 'meter');
     requireWrite(account, row, 'meter_reading');
+    const input = inputs.find((candidate) => candidate.meterId === row.parentId);
+    if (!input) missing();
+    const photoIds = await photosOf(tx, row, true);
+    await requireReadingPhotos(tx, account, meter, input.photoIds);
+    // Нельзя признать исходную операцию, молча исключив утраченную связь или фото.
+    if (input.photoIds.some((id) => !photoIds.includes(id))) missing();
     result.push({
       ...readingSummary(row),
-      photoIds: await photosOf(tx, row),
+      photoIds,
       warnings: receipt?.warningIds?.includes(id) ? [CONSUMPTION_WARNING] : [],
       receipt,
     });
@@ -162,11 +169,29 @@ async function historyOf(tx: Transaction, meterId: string, trash = false) {
     )
     .orderBy(desc(meterReadings.occurredOn), desc(meterReadings.id));
 }
-async function photosOf(tx: Transaction, reading: Reading) {
+async function photosOf(tx: Transaction, reading: Reading, lock = false) {
   const result = await tx.execute<{ id: string }>(
-    sql`SELECT f.id FROM record_links l JOIN object_files f ON f.id=l.right_id WHERE l.left_table='meter_readings' AND l.left_id=${reading.id}::uuid AND l.right_table='object_files' AND l.role='reading_photo' AND l.deleted_at IS NULL AND f.deleted_at IS NULL ORDER BY f.id`,
+    sql`SELECT f.id FROM record_links l JOIN object_files f ON f.id=l.right_id WHERE l.left_table='meter_readings' AND l.left_id=${reading.id}::uuid AND l.right_table='object_files' AND l.role='reading_photo' AND l.deleted_at IS NULL AND f.deleted_at IS NULL ORDER BY f.id ${lock ? sql`FOR SHARE OF l` : sql``}`,
   );
   return result.rows.map((r) => r.id);
+}
+async function requireReadingPhotos(
+  tx: Transaction,
+  account: Account,
+  meter: Meter,
+  photoIds: string[],
+) {
+  for (const id of photoIds) {
+    const [file] = await tx.select().from(objectFiles).where(eq(objectFiles.id, id));
+    if (
+      !file ||
+      file.parentId !== meter.parentId ||
+      file.deletedAt ||
+      !file.mimeType.startsWith('image/') ||
+      !canView(account.viewer, placementOf(file))
+    )
+      missing();
+  }
 }
 export async function createReading(
   tx: Transaction,
@@ -202,17 +227,7 @@ export async function createReading(
     throw new Failure(400, 'INVALID_READING');
   }
   // Фото загружается штатным R0.5 API в объект; связь не дублирует блоки и конверты.
-  for (const id of input.photoIds) {
-    const [file] = await tx.select().from(objectFiles).where(eq(objectFiles.id, id));
-    if (
-      !file ||
-      file.parentId !== meter.parentId ||
-      file.deletedAt ||
-      !file.mimeType.startsWith('image/') ||
-      !canView(account.viewer, placementOf(file))
-    )
-      missing();
-  }
+  await requireReadingPhotos(tx, account, meter, input.photoIds);
   const [row] = await tx
     .insert(meterReadings)
     .values({
@@ -432,7 +447,12 @@ export async function meterRoutes(route: DataRoute) {
     operationOwner(account.id, body.ownerAccountId, body.offline);
     const hash = fingerprint({ id, body });
     const prior = await beginOperation(tx, account.id, body.idempotencyKey, 'reading_create', hash);
-    if (prior) return (await replayReadings(tx, account, prior, body.idempotencyKey))[0];
+    if (prior)
+      return (
+        await replayReadings(tx, account, prior, body.idempotencyKey, [
+          { meterId: id, photoIds: body.photoIds },
+        ])
+      )[0];
     const meter = await getMeter(tx, account, id, true);
     await checkReadingBase(tx, meter, body, body.offline);
     const result = await createReading(tx, account, meter, body);
@@ -462,7 +482,7 @@ export async function meterRoutes(route: DataRoute) {
     );
     if (prior) {
       requireWrite(account, await getObject(tx, account, id));
-      return replayReadings(tx, account, prior, body.idempotencyKey);
+      return replayReadings(tx, account, prior, body.idempotencyKey, body.readings);
     }
     const parent = await getObject(tx, account, id, true);
     requireWrite(account, parent);
