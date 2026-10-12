@@ -104,3 +104,76 @@
   width: 100%;
   min-width: 0;
 }
+.task-actions {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin-block: 16px 22px;
+}
+.task-actions__help {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.task-actions__help .text-button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.task-quickline {
+  max-width: var(--column);
+}
+.task-quickline .task-form__fields {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+.task-quickline .field {
+  width: 100%;
+  margin: 0;
+}
+.task-quickline__hint {
+  font-size: 0.875rem;
+}
+.task-quickline__title {
+  overflow-wrap: anywhere;
+}
+.task-quickline .task-chips:empty {
+  display: none;
+}
+.task-chip .text-button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+  padding-inline: 8px;
+}
+.task-focus .focus__title {
+  overflow-wrap: anywhere;
+}
+.task-focus .focus__actions {
+  flex-wrap: wrap;
+}
+.task-focus .focus__actions .btn {
+  flex-basis: 140px;
+}
+.task-completed {
+  margin-bottom: 22px;
+}
+
+.task-filters {
+  display: grid;
+  gap: 12px;
+  margin-block: 16px 22px;
+}
+.task-filters .field {
+  margin: 0;
+}
+.row-list:has(> .task-focus),
+.row-list > .task-focus {
+  border: 0;
+}
+@media (min-width: 640px) {
+  .task-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: end;
+  }
+}
