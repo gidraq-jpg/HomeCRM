@@ -29,7 +29,9 @@ async function snapshot() {
     result.push({
       table: t,
       rows: (
-        await db.admin.query(`SELECT to_jsonb(t)-'organization_id' AS data FROM ${t} t ORDER BY id`)
+        await db.admin.query(
+          `SELECT to_jsonb(t)-ARRAY['organization_id','invalidated_at'] AS data FROM ${t} t ORDER BY id`,
+        )
       ).rows,
     });
   return result;

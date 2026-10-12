@@ -135,6 +135,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         ...(name === 'documents'
           ? {
               documents_document: 'document_guard',
+              documents_01_confirmation: 'document_confirmation',
               documents_deadlines: 'document_deadline',
               documents_files_placement: 'cascade_file_placement',
               documents_source_metadata: 'sync_source_deadlines',

@@ -109,6 +109,7 @@ export const ExportRecords = {
     owner_object_id: uuid.nullable(),
     previous_id: uuid.nullable(),
     status: z.enum(['valid', 'invalid']),
+    invalidated_at: z.iso.datetime({ offset: true }).nullable(),
   }),
   note_items: z.strictObject({
     ...record,

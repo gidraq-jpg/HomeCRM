@@ -788,6 +788,12 @@ it('DOC-1/5: архив содержит версии документов, ис
   });
   expect(renewed.status, renewed.text).toBe(201);
   const current = renewed.json<{ id: string }>();
+  const invalidatedAt = (
+    await world.database.admin.query(
+      "SELECT to_jsonb(d)->>'invalidated_at' AS at FROM documents d WHERE id=$1",
+      [old.id],
+    )
+  ).rows[0].at;
   const key = randomUUID(),
     file = randomUUID();
   const sealed = cipher.seal(payload, key);
@@ -813,9 +819,10 @@ it('DOC-1/5: архив содержит версии документов, ис
       expect.objectContaining({
         id: old.id,
         status: 'invalid',
+        invalidated_at: invalidatedAt,
         data: expect.objectContaining({ number: 'EXPORT-FAKE-001' }),
       }),
-      expect.objectContaining({ id: current.id, previous_id: old.id }),
+      expect.objectContaining({ id: current.id, previous_id: old.id, invalidated_at: null }),
     ]),
   );
   expect(json(entries, 'history')).toEqual(

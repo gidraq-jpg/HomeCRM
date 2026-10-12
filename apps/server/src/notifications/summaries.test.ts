@@ -217,7 +217,7 @@ it('планировщик идемпотентен; пустая сводка �
     new Date('2026-10-11T05:00:00Z'),
     true,
   );
-  const now = new Date('2026-10-12T05:00:00Z');
+  const now = runAt();
   await Promise.all([
     scheduleSummaries(world.database.worker, now),
     scheduleSummaries(world.database.worker, now),

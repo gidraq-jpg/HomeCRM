@@ -73,11 +73,17 @@ it('0046 → 0049: бэкфилл не раскрывает личную, взр
   documents.push({ id, visible: false });
   expect((await database.admin.query('SELECT * FROM deadlines')).rows).toHaveLength(0);
   const before = (
-    await database.admin.query('SELECT to_jsonb(d) AS data FROM documents d ORDER BY id')
+    await database.admin.query(
+      "SELECT to_jsonb(d)-'invalidated_at' AS data FROM documents d ORDER BY id",
+    )
   ).rows;
   await runMigrations(database.owner);
   expect(
-    (await database.admin.query('SELECT to_jsonb(d) AS data FROM documents d ORDER BY id')).rows,
+    (
+      await database.admin.query(
+        "SELECT to_jsonb(d)-'invalidated_at' AS data FROM documents d ORDER BY id",
+      )
+    ).rows,
   ).toEqual(before);
   for (const document of documents) {
     const read = await app.withAccount(family.person('vera').id, (tx) =>

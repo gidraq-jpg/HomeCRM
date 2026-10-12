@@ -24,7 +24,7 @@ function columnsOf(table: object): ColumnInfo[] {
 }
 
 /** Колонки записи, которые приложение не меняет никогда: id, автор, время создания и изменения. */
-const FROZEN = ['id', 'author_id', 'created_at', 'updated_at'];
+const FROZEN = ['id', 'author_id', 'created_at', 'updated_at', 'invalidated_at'];
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
@@ -232,7 +232,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         ...columns.filter((column) => column.name === 'parent_id').map((column) => column.name),
         ...(['notes', 'objects', 'documents', 'tasks'].includes(name) ? ['audience'] : []),
         ...(name === 'documents'
-          ? ['owner_account_id', 'is_identity', 'status', 'updated_at']
+          ? ['owner_account_id', 'is_identity', 'status', 'invalidated_at']
           : []),
         ...(name === 'object_events' ? ['contact_table', 'contact_id'] : []),
         ...(name === 'meters' ? ['utility_account_id', 'is_active'] : []),

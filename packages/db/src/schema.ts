@@ -406,6 +406,8 @@ const documentsDefinition = recordTable(
       onDelete: 'set null',
     }),
     status: text('status').$type<'valid' | 'invalid'>().notNull().default('valid'),
+    /** Момент признания недействительным; у старых документов без истории может быть неизвестен. */
+    invalidatedAt: timestamp('invalidated_at', { withTimezone: true }),
     isIdentity: boolean('is_identity').generatedAlwaysAs(
       sql`data->>'type' IN ('russian_passport','international_passport','birth_certificate','snils','inn','driver_license')`,
     ),

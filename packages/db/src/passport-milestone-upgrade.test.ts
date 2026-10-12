@@ -56,7 +56,11 @@ it('0052 → 0053: дополняется лишь граница прежнег
     for (const table of ['documents', 'documents_history', 'contacts', 'contacts_history'])
       result.push({
         table,
-        rows: (await db.admin.query(`SELECT to_jsonb(t) AS data FROM ${table} t ORDER BY 1`)).rows,
+        rows: (
+          await db.admin.query(
+            `SELECT to_jsonb(t)-'invalidated_at' AS data FROM ${table} t ORDER BY 1`,
+          )
+        ).rows,
       });
     return result;
   };

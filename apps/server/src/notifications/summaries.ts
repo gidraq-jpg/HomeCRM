@@ -36,7 +36,7 @@ export async function summaryHasContent(client: PoolClient, summaryId: string, n
       SELECT 1 FROM summaries s JOIN deadlines d ON d.household_id=s.household_id
       JOIN documents doc ON doc.id=d.document_id
       WHERE s.id=$1 AND s.kind='weekly' AND doc.assignee_id=s.account_id AND doc.deleted_at IS NULL
-      AND doc.status='invalid' AND doc.updated_at>=s.period_start AND doc.updated_at<s.period_end
+      AND doc.status='invalid' AND doc.invalidated_at>=s.period_start AND doc.invalidated_at<s.period_end
       AND app.record_notification_visible('documents',doc.id,s.account_id)
     ) OR EXISTS (
       SELECT 1 FROM summaries s JOIN deadlines d ON d.household_id=s.household_id
