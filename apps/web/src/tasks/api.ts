@@ -10,6 +10,9 @@ import { z } from 'zod';
 import { ApiError, type ApiMethod, apiRequest } from '../auth/api.ts';
 import { RadarItem } from '../deadlines/api.ts';
 import { FileMeta } from '../files/api.ts';
+import { offlineOwnerAvailable } from '../offline/identity.ts';
+import { durableMutation, durableTiming } from '../offline/queue.ts';
+import { snapshotPath, snapshotTiming } from '../offline/snapshots.ts';
 
 export const TaskCard = TaskFields.extend({
   id: z.string(),
@@ -88,6 +91,42 @@ export async function taskRequest<T>(
   body?: unknown,
   signal?: AbortSignal,
 ) {
+  if (typeof indexedDB !== 'undefined' && (await offlineOwnerAvailable())) {
+    if (method === 'GET' && snapshotPath(path)) {
+      const data = await apiRequest(method, path, schema, body, signal);
+      return {
+        data,
+        ...(snapshotTiming(data) ?? {
+          serverDate: null,
+          elapsed: 0,
+          receivedAt: performance.now(),
+        }),
+      };
+    }
+    if (method !== 'GET') {
+      try {
+        const value = await durableMutation(method, path, body);
+        if (value !== undefined) {
+          const data = schema.parse(value);
+          // Метка HTTP Date не сохранена: позднее подтверждение не продлевает семь секунд.
+          return {
+            data,
+            ...(durableTiming(value) ?? {
+              serverDate: null,
+              elapsed: 0,
+              receivedAt: performance.now(),
+            }),
+          };
+        }
+      } catch (error) {
+        if (error instanceof Error && 'status' in error)
+          throw new TaskError(Number(error.status), {
+            code: 'code' in error ? String(error.code) : '',
+          });
+        throw error;
+      }
+    }
+  }
   const started = performance.now();
   let response: Response;
   try {

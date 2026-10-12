@@ -1,4 +1,7 @@
 import * as z from 'zod';
+import { LocalFailure, localMessage, offlineOwnerAvailable } from '../offline/identity.ts';
+import { durableMutation } from '../offline/queue.ts';
+import { snapshotPath, snapshotRequest } from '../offline/snapshots.ts';
 
 export const Me = z.object({
   id: z.string(),
@@ -64,6 +67,30 @@ export async function apiRequest<T>(
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<T> {
+  try {
+    if (
+      method === 'GET' &&
+      snapshotPath(path) &&
+      typeof indexedDB !== 'undefined' &&
+      (await offlineOwnerAvailable())
+    )
+      return await snapshotRequest(path, schema, signal);
+    if (method !== 'GET' && typeof indexedDB !== 'undefined' && (await offlineOwnerAvailable())) {
+      const durable = await durableMutation(method, path, body);
+      if (durable !== undefined) {
+        const parsed = schema.safeParse(durable);
+        if (!parsed.success) throw new ApiError(502, 'INVALID_RESPONSE');
+        return parsed.data;
+      }
+    }
+  } catch (error) {
+    if (error instanceof LocalFailure) throw error;
+    if (error instanceof Error && 'status' in error)
+      throw new ApiError(Number(error.status), 'code' in error ? String(error.code) : '');
+    throw error;
+  }
+  if (method !== 'GET' && typeof navigator !== 'undefined' && !navigator.onLine)
+    throw new LocalFailure('NETWORK_REQUIRED');
   let response: Response;
   try {
     response = await fetch(`/api/${path}`, {
@@ -112,6 +139,8 @@ export function isAdmin(me: Me): boolean {
 
 /** Не показываем технические сообщения сервера: они могут содержать детали запроса. */
 export function errorMessage(error: unknown): string {
+  const local = localMessage(error);
+  if (local) return local;
   if (!(error instanceof ApiError)) return 'Не удалось выполнить действие. Попробуйте ещё раз.';
   if (error.status === 429) {
     const minutes = Math.max(1, Math.ceil((error.retryAfter || 900) / 60));

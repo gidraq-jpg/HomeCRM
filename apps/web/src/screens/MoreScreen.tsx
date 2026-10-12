@@ -2,12 +2,14 @@ import {
   AddressBook,
   BellRinging,
   CalendarCheck,
+  CloudArrowUp,
   Export,
   Gauge,
   GearSix,
   House,
   Lock,
   Note,
+  ShoppingCart,
   Trash,
   UserCircle,
 } from '@phosphor-icons/react';
@@ -19,6 +21,18 @@ export function MoreScreen() {
   return (
     <Page title="Ещё" eyebrow="Под рукой">
       <RowList label="Разделы">
+        <Row
+          to="/more/shopping"
+          icon={<ShoppingCart size={22} aria-hidden />}
+          title="Покупки"
+          meta="Общий и личный списки, количество и заметки"
+        />
+        <Row
+          to="/more/offline"
+          icon={<CloudArrowUp size={22} aria-hidden />}
+          title="Очередь изменений"
+          meta="Сохранённое на устройстве и конфликты"
+        />
         <Row
           to="/more/notes"
           icon={<Note size={22} aria-hidden />}
@@ -86,7 +100,6 @@ export function MoreScreen() {
           meta="Кто что видит"
         />
       </RowList>
-      <p className="muted more-note">Покупок в приложении пока нет: раздел не готов.</p>
     </Page>
   );
 }

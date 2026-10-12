@@ -1,4 +1,11 @@
-import { Buildings, FileText, ListChecks, Note, UserPlus } from '@phosphor-icons/react';
+import {
+  Buildings,
+  FileText,
+  ListChecks,
+  Note,
+  ShoppingCart,
+  UserPlus,
+} from '@phosphor-icons/react';
 import { useNavigate } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
@@ -30,6 +37,12 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
       description="Что можно добавить сейчас"
     >
       <RowList label="Что можно добавить">
+        <Row
+          icon={<ShoppingCart size={22} aria-hidden />}
+          title="Покупка"
+          meta="Одна строка, количество, заметка и связи"
+          onClick={() => go('/more/shopping')}
+        />
         <Row
           icon={<ListChecks size={22} aria-hidden />}
           title="Дело"

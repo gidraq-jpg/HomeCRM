@@ -1,0 +1,59 @@
+.shopping-quick {
+  margin: var(--space-5, 20px) 0;
+  display: grid;
+  gap: 12px;
+}
+.shopping-quick__line {
+  display: flex;
+  gap: 8px;
+}
+.shopping-quick__line .input {
+  min-width: 0;
+  flex: 1;
+}
+.shopping-quick__line .icon-button {
+  flex: 0 0 44px;
+}
+.shopping-bought {
+  margin-top: 12px;
+}
+.shopping-bought summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+.shopping-note,
+.offline-local {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.offline-status {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.offline-status a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.offline-queue-item {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.offline-queue-item .btn-row {
+  margin-top: 12px;
+}
+
+.shopping-row-link {
+  text-decoration: none;
+}
+.shopping-row-link:hover .row__title {
+  text-decoration: underline;
+}

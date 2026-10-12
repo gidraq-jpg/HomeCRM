@@ -32,6 +32,7 @@ import { ObjectOverview } from './objects/ObjectOverview.tsx';
 import { ObjectScreen } from './objects/ObjectScreen.tsx';
 import { ObjectsScreen } from './objects/ObjectsScreen.tsx';
 import { ObjectTimeline } from './objects/ObjectTimeline.tsx';
+import { OfflineBridge, OfflinePanel } from './offline/OfflinePanel.tsx';
 import { NewOrganizationScreen } from './organizations/NewOrganizationScreen.tsx';
 import { OrganizationScreen } from './organizations/OrganizationScreen.tsx';
 import { OrganizationsScreen } from './organizations/OrganizationsScreen.tsx';
@@ -49,6 +50,7 @@ import { SpacesScreen } from './screens/SpacesScreen.tsx';
 import { AddMenu } from './shell/AddMenu.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import { SECTIONS } from './shell/sections.ts';
+import { ShoppingCardScreen, ShoppingScreen } from './shopping/ShoppingScreen.tsx';
 import { NewTaskScreen } from './tasks/NewTaskScreen.tsx';
 import { TaskScreen } from './tasks/TaskScreen.tsx';
 import { TasksScreen } from './tasks/TasksScreen.tsx';
@@ -73,6 +75,7 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
       overlays={<AddMenu open={adding} onOpenChange={setAdding} />}
     >
       <PushBridge accountId={me.id} />
+      <OfflineBridge />
       <Routes>
         <Route index element={<Navigate to="/today" replace />} />
         <Route path="today" element={<TasksScreen />} />
@@ -110,6 +113,9 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="people/invite" element={<InviteScreen />} />
         <Route path="people/members/:accountId" element={<MemberScreen />} />
         <Route path="more" element={<MoreScreen />} />
+        <Route path="more/shopping" element={<ShoppingScreen />} />
+        <Route path="more/shopping/:shoppingId" element={<ShoppingCardScreen />} />
+        <Route path="more/offline" element={<OfflinePanel />} />
         <Route path="more/profile" element={<ProfileScreen />} />
         <Route
           path="more/settings"

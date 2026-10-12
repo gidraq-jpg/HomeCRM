@@ -6,6 +6,7 @@ import {
   TaskRepeatRule,
 } from '@homecrm/shared';
 import { type FormEvent, useId, useState } from 'react';
+import { useLocation } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
@@ -13,6 +14,7 @@ import { defaultVisibility } from '../access/visibility.ts';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { creatableVisibilities, viewerOf, visibilityOf } from '../notes/abilities.ts';
+import { useDurableDraft } from '../offline/drafts.ts';
 import type { TaskCard } from './api.ts';
 import { ChecklistEditor } from './ChecklistEditor.tsx';
 import { SelectField, TextField } from './fields.tsx';
@@ -77,6 +79,8 @@ export function TaskForm({
   const objects = useOptions('object', !base);
   const [visibilityTouched, setVisibilityTouched] = useState(false);
   const [draft, setDraft] = useState(initial);
+  const location = useLocation();
+  const localProblem = useDurableDraft(`form:${location.pathname}`, draft, setDraft);
   const calendar = useToday(draft.householdId || null);
   const [invalid, setInvalid] = useState('');
   const descriptionId = useId();
@@ -298,6 +302,7 @@ export function TaskForm({
             }}
           />
         ) : null}
+        {localProblem ? <Notice error>{localProblem}</Notice> : null}
         {invalid ? <Notice error>{invalid}</Notice> : null}
         <div className="btn-row">
           <button type="submit" className="btn btn--primary">

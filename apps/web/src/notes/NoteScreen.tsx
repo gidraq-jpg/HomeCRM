@@ -87,9 +87,10 @@ function NoteView({ card }: { card: NoteCard }) {
   const toast = useToast();
   const refresh = useRefreshNotes();
   const members = useMembers();
-  const quick = useAction();
-  const save = useAction();
+  const quick = useAction(true);
+  const save = useAction(true);
   const [editing, setEditing] = useState(false);
+  const [editBase, setEditBase] = useState(card.updatedAt);
   const [conflict, setConflict] = useState(false);
 
   const viewer = viewerOf(me);
@@ -175,7 +176,7 @@ function NoteView({ card }: { card: NoteCard }) {
   function saveEdited(values: NoteInput) {
     void save.run(async () => {
       try {
-        await patchNote(card.id, { ...values, expectedUpdatedAt: card.updatedAt });
+        await patchNote(card.id, { ...values, expectedUpdatedAt: editBase });
       } catch (error) {
         if (isStaleVersion(error)) {
           setConflict(true);
@@ -331,7 +332,10 @@ function NoteView({ card }: { card: NoteCard }) {
                   <button
                     type="button"
                     className="btn btn--primary"
-                    onClick={() => setEditing(true)}
+                    onClick={() => {
+                      setEditBase(card.updatedAt);
+                      setEditing(true);
+                    }}
                   >
                     <PencilSimple size={20} aria-hidden />
                     Править

@@ -8,7 +8,13 @@ import { taskError } from './errors.ts';
 import { SelectField } from './fields.tsx';
 import { uniqueTasks } from './queries.ts';
 
-export type OptionKind = 'object' | 'contact' | 'document' | 'utility_charge' | 'utility_account';
+export type OptionKind =
+  | 'object'
+  | 'contact'
+  | 'document'
+  | 'utility_charge'
+  | 'utility_account'
+  | 'task';
 export const OptionRecord = z.object({
   id: z.string(),
   title: z.string(),
@@ -21,6 +27,7 @@ export const OptionRecord = z.object({
   parentId: z.string().optional(),
 });
 const paths = {
+  task: 'tasks',
   object: 'objects',
   contact: 'contacts',
   document: 'documents',

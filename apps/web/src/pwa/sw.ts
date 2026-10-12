@@ -5,6 +5,7 @@ import {
   precacheAndRoute,
 } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { synchronize } from '../offline/queue.ts';
 import { deviceName } from './device-name.ts';
 import { keyToBytes } from './push-key.ts';
 import { describePush, OPEN_MESSAGE, parsePushData, targetRoute } from './push-message.ts';
@@ -23,6 +24,13 @@ registerRoute(
 );
 // Ссылки с токенами получают общий index.html: их адрес и ответ в кэш не записываются.
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'HOMECRM_SYNC') event.waitUntil(synchronize());
+});
+self.addEventListener('sync', ((event: ExtendableEvent & { tag: string }) => {
+  if (event.tag === 'homecrm-outbox') event.waitUntil(synchronize());
+}) as EventListener);
 
 // Push (NOTIF-1, NOTIF-6, ADR-0009). Содержимое push не попадает в кэш, консоль и хранилища: оно живёт
 // только в самом уведомлении. Текст по умолчанию — «В HomeCRM есть новое» (его выбирает сервер).

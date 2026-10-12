@@ -1,4 +1,5 @@
 import { ApiError, errorMessage } from '../auth/api.ts';
+import { localMessage } from '../offline/identity.ts';
 
 // Тексты ответов API объектов (ADR-0023). Технические сообщения сервера не показываются. Каждое
 // объяснение говорит, что делать дальше; названий, значений полей и текстов событий в них нет.
@@ -45,6 +46,8 @@ const INVALID: Readonly<Partial<Record<ObjectAction, string>>> = {
 };
 
 export function objectErrorMessage(error: unknown, action: ObjectAction): string {
+  const local = localMessage(error);
+  if (local) return local;
   if (!(error instanceof ApiError)) return errorMessage(error);
   const { status, code } = error;
   if (status === 0 || status === 429) return errorMessage(error);

@@ -4,6 +4,14 @@ import { useLocation, useNavigate } from 'react-router';
 import * as z from 'zod';
 import { App } from '../App.tsx';
 import { usePendingRoute } from '../notifications/pending-route.ts';
+import {
+  blockIdentity,
+  cachedIdentity,
+  changed,
+  offlineEvents,
+  setIdentity,
+  ticket,
+} from '../offline/identity.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { ApiError, action, api, appURL, consumeLink, Me } from './api.ts';
 import { AuthPage, ErrorNotice, Notice, OfflineBanner, useAction } from './components.tsx';
@@ -88,14 +96,40 @@ export function AuthRoot() {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const query = useQuery({
     queryKey: [ME_KEY],
+    networkMode: 'always',
     queryFn: async ({ signal }) => {
-      const next = await currentMe(signal);
+      const expected = await ticket().catch(() => null);
+      let next: Me | null;
+      try {
+        next = await currentMe(signal);
+        if (next) {
+          try {
+            await setIdentity(next, expected ?? undefined);
+          } catch (error) {
+            if (error instanceof Error && error.message === 'ACCOUNT_CHANGED') throw error;
+            changed('storage-error');
+          }
+        } else await blockIdentity().catch(() => changed('storage-error'));
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 0) {
+          next = await cachedIdentity();
+          if (!next) throw error;
+        } else throw error;
+      }
       // Смена участника (например, вход другого человека в соседней вкладке): прежний кэш не показываем.
       dropCacheOnAccountChange(client, client.getQueryData<Me | null>([ME_KEY]), next);
       return next;
     },
     refetchOnWindowFocus: true,
   });
+  useEffect(() => {
+    const update = () => {
+      client.removeQueries({ predicate: (item) => item.queryKey[0] !== ME_KEY });
+      void query.refetch();
+    };
+    offlineEvents.addEventListener('identity', update);
+    return () => offlineEvents.removeEventListener('identity', update);
+  }, [client, query.refetch]);
   // Сессии точно нет (проверка завершена): уведомление в это время запоминает свой маршрут до входа.
   const takePendingRoute = usePendingRoute(query.isSuccess && query.data === null);
   useEffect(() => {
@@ -121,6 +155,7 @@ export function AuthRoot() {
     navigate(setup ? '/setup-two-factor' : (pending ?? '/today'), { replace: true });
   }
   function signedOut() {
+    void setIdentity(null);
     client.clear();
     client.setQueryData([ME_KEY], null);
     takePendingRoute();

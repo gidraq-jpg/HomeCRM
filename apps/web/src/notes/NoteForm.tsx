@@ -1,8 +1,11 @@
 import { ArrowDown, ArrowUp, Plus, Trash } from '@phosphor-icons/react';
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { useLocation } from 'react-router';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { Notice, type useAction } from '../auth/components.tsx';
+import { clearDraft, useDurableDraft } from '../offline/drafts.ts';
+import { LocalSaved } from '../offline/identity.ts';
 import { CheckLine } from '../ui/CheckLine.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
 import { MAX_BODY, MAX_ITEMS, MAX_TITLE, type NoteInput } from './api.ts';
@@ -47,8 +50,8 @@ interface NoteFormProps {
 }
 
 /**
- * Форма заметки: заголовок, текст, чек-лист, закрепление. Всё введённое живёт только в памяти
- * этой страницы: в localStorage, адрес и журнал черновик не попадает.
+ * Форма заметки: заголовок, текст, чек-лист, закрепление. Черновик хранится в пространстве
+ * аккаунта в IndexedDB; в localStorage, адрес и журнал черновик не попадает.
  */
 export function NoteForm({
   draft,
@@ -70,6 +73,26 @@ export function NoteForm({
   const ids = { title: useId(), body: useId() };
   const inputs = useRef(new Map<string, HTMLInputElement>());
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  const location = useLocation();
+  const draftKey = `form:${location.pathname}`;
+  const localProblem = useDurableDraft(
+    draftKey,
+    { title, body, pinned, checklist: items, visibility: visibility?.value },
+    (value) => {
+      setTitle(value.title);
+      setBody(value.body);
+      setPinned(value.pinned);
+      setItems(value.checklist);
+      if (value.visibility && visibility?.options.includes(value.visibility))
+        visibility.onChange(value.visibility);
+    },
+  );
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !state.pending && (!state.error || state.error instanceof LocalSaved))
+      void clearDraft(draftKey);
+    wasPending.current = state.pending;
+  }, [state.pending, state.error, draftKey]);
 
   useEffect(() => {
     if (focusKey === null) return;
@@ -114,6 +137,7 @@ export function NoteForm({
 
   return (
     <form className="note-form" onSubmit={submit} aria-busy={state.pending} noValidate>
+      {localProblem ? <Notice error>{localProblem}</Notice> : null}
       <div className="field">
         <label className="field__label" htmlFor={ids.title}>
           Заголовок

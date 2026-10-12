@@ -6,11 +6,27 @@ export const SearchResponse = z.object({
   hasMore: z.boolean(),
   groups: z.array(
     z.object({
-      type: z.enum(['note', 'object', 'object_event', 'document', 'contact', 'task']),
+      type: z.enum([
+        'note',
+        'object',
+        'object_event',
+        'document',
+        'contact',
+        'task',
+        'shopping_item',
+      ]),
       label: z.string(),
       items: z.array(
         z.object({
-          type: z.enum(['note', 'object', 'object_event', 'document', 'contact', 'task']),
+          type: z.enum([
+            'note',
+            'object',
+            'object_event',
+            'document',
+            'contact',
+            'task',
+            'shopping_item',
+          ]),
           id: z.string(),
           targetId: z.string(),
           title: z.string(),
@@ -30,7 +46,7 @@ export function fetchSearch(
   signal: AbortSignal,
 ) {
   return api(
-    `search?${new URLSearchParams({ q: query, scope })}`,
+    `search?${new URLSearchParams({ q: query, scope, includeShopping: 'true' })}`,
     SearchResponse,
     undefined,
     signal,

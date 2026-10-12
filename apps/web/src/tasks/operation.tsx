@@ -1,10 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { VISIBILITY_LABELS } from '../access/visibility.ts';
 import { ApiError, type ApiMethod, type Me } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
 import { ME_KEY } from '../auth/session-cache.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { clearDraft } from '../offline/drafts.ts';
+import { changed, LocalSaved } from '../offline/identity.ts';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
@@ -21,6 +24,8 @@ export interface TaskOperation {
 export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<void>) {
   const { me } = useHousehold();
   const client = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const mounted = useRef(true);
   useEffect(() => {
@@ -54,11 +59,17 @@ export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<
       await client.cancelQueries({ queryKey: ['tasks', me.id] });
       if (!sameAccount()) return;
       setConfirmation(null);
+      await clearDraft(`form:${location.pathname}`).catch(() => changed('storage-error'));
       if (mounted.current) await onSuccess(result);
       // Блокировка защищает отправку мутации; актуализация не расходует окно отмены.
       void refresh();
     } catch (failure) {
       if (!sameAccount()) return;
+      if (failure instanceof LocalSaved && request.path === 'tasks') {
+        await clearDraft(`form:${location.pathname}`).catch(() => changed('storage-error'));
+        navigate('/more/offline');
+        return;
+      }
       if (
         failure instanceof TaskError &&
         failure.code === 'ASSIGNEE_NOT_VISIBLE' &&

@@ -4,6 +4,8 @@ import { useScope } from '../access/ScopeContext.tsx';
 import { defaultVisibility, type Visibility } from '../access/visibility.ts';
 import { useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { clearDraft } from '../offline/drafts.ts';
+import { changed, LocalSaved } from '../offline/identity.ts';
 import { Page } from '../ui/Page.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { creatableVisibilities, newPlacement, viewerOf } from './abilities.ts';
@@ -22,7 +24,7 @@ export function NewNoteScreen() {
   const navigate = useNavigate();
   const toast = useToast();
   const refresh = useRefreshNotes();
-  const state = useAction();
+  const state = useAction(true);
   const options = creatableVisibilities(viewerOf(me), householdId);
   const wanted = defaultVisibility('note', scope);
   const [visibility, setVisibility] = useState<Visibility>(
@@ -31,7 +33,18 @@ export function NewNoteScreen() {
 
   function submit(values: NoteInput) {
     void state.run(async () => {
-      const created = await createNote(values, newPlacement(visibility, householdId));
+      let created: Awaited<ReturnType<typeof createNote>>;
+      try {
+        created = await createNote(values, newPlacement(visibility, householdId));
+      } catch (error) {
+        if (error instanceof LocalSaved) {
+          await clearDraft('form:/more/notes/new').catch(() => changed('storage-error'));
+          navigate('/more/offline');
+          return;
+        }
+        throw error;
+      }
+      await clearDraft('form:/more/notes/new').catch(() => changed('storage-error'));
       await refresh();
       toast.show(accessToast('Заметка сохранена', visibility, scope, () => setScope('all')));
       navigate(`/more/notes/${created.id}`, { replace: true });

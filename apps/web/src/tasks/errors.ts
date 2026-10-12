@@ -1,6 +1,9 @@
 import { ApiError, errorMessage } from '../auth/api.ts';
+import { localMessage } from '../offline/identity.ts';
 import { TaskError } from './api.ts';
 export function taskError(error: unknown): string {
+  const local = localMessage(error);
+  if (local) return local;
   if (!(error instanceof ApiError)) return errorMessage(error);
   if (
     error instanceof TaskError &&
