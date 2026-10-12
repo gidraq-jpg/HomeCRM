@@ -69,6 +69,36 @@ const file = {
 };
 const reference = z.strictObject({ table: z.string(), id: uuid });
 export const ExportRecords = {
+  radar_actions: z.strictObject({
+    id: uuid,
+    deadline_id: uuid,
+    calendar_key: z.string(),
+    date: z.iso.date(),
+    status: z.enum(['active', 'snoozed', 'dismissed', 'completed']),
+    snoozed_until: instant.nullable(),
+    reason: z.string().nullable(),
+    version: z.number().int(),
+    actor_id: uuid,
+    changed_at: instant,
+    history: z.array(z.record(z.string(), z.unknown())),
+    space_id: uuid,
+    space_kind: z.enum(['personal', 'household']),
+    audience: z.enum(['household', 'adults']).nullable(),
+    author_id: uuid,
+    assignee_id: uuid,
+    deleted_at: instant.nullable(),
+  }),
+  summaries: z.strictObject({
+    id: uuid,
+    account_id: uuid,
+    household_id: uuid,
+    time_zone: z.string(),
+    kind: z.enum(['morning', 'weekly']),
+    local_date: z.iso.date(),
+    period_start: instant,
+    period_end: instant,
+    created_at: instant,
+  }),
   export_events: ExportEvent,
   notes: z.strictObject({ ...record, body: z.string(), pinned: z.boolean() }),
   documents: z.strictObject({
@@ -79,6 +109,7 @@ export const ExportRecords = {
     owner_object_id: uuid.nullable(),
     previous_id: uuid.nullable(),
     status: z.enum(['valid', 'invalid']),
+    invalidated_at: z.iso.datetime({ offset: true }).nullable(),
   }),
   note_items: z.strictObject({
     ...record,

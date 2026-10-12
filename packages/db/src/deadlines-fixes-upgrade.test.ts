@@ -69,6 +69,7 @@ it('обновление с R0.7 сохраняет источники, прав
       'record_id',
       'event_kind',
       'event_household_id',
+      'summary_id',
     ]) {
       expect(row.value[key]).toBeNull();
       delete row.value[key];

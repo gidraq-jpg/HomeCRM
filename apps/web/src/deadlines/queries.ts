@@ -1,3 +1,4 @@
+import type { RadarFilters } from '@homecrm/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { todayIn } from '../objects/dates.ts';
 import { addDays } from '../ui/format.ts';
@@ -21,6 +22,10 @@ export function useRefreshDeadlines() {
     Promise.all([
       client.invalidateQueries({ queryKey: [DEADLINES] }),
       client.invalidateQueries({ queryKey: ['tasks'] }),
+      client.invalidateQueries({ queryKey: ['summaries'] }),
+      client.invalidateQueries({ queryKey: ['objects'] }),
+      client.invalidateQueries({ queryKey: ['notes'] }),
+      client.invalidateQueries({ queryKey: ['documents'] }),
     ]);
 }
 
@@ -29,14 +34,18 @@ export const RADAR_FROM = '2000-01-01';
 /** Горизонт запроса радара, дней: год и день, как горизонт сроков документов. */
 export const RADAR_DAYS_AHEAD = 366;
 
-export function useRadarItems(accountId: string, timeZone: string) {
+export function useRadarItems(
+  accountId: string,
+  timeZone: string,
+  filters: Partial<RadarFilters> = {},
+) {
   // Сервер отбирает наступления по дате срока, а группу «Позже» даёт предупреждение документа,
   // которое началось раньше срока (загранпаспорт — за 180 дней, горизонт документов — 365). Поэтому
   // запрос идёт на год вперёд; остальные сроки дальше 90 дней сервер в радар не включает.
   const to = addDays(todayIn(timeZone), RADAR_DAYS_AHEAD);
   return useQuery({
-    queryKey: [DEADLINES, 'radar', accountId, timeZone, to],
-    queryFn: ({ signal }) => fetchRadar(RADAR_FROM, to, signal),
+    queryKey: [DEADLINES, 'radar', accountId, timeZone, to, filters],
+    queryFn: ({ signal }) => fetchRadar(RADAR_FROM, to, signal, filters),
     staleTime: 30_000,
     gcTime: 300_000,
     // Опрос во время пересчёта ведёт `useRadar` (polling.ts): с растущим интервалом и пределом.

@@ -24,10 +24,16 @@ function columnsOf(table: object): ColumnInfo[] {
 }
 
 /** Колонки записи, которые приложение не меняет никогда: id, автор, время создания и изменения. */
-const FROZEN = ['id', 'author_id', 'created_at', 'updated_at'];
+const FROZEN = ['id', 'author_id', 'created_at', 'updated_at', 'invalidated_at'];
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
+    radar_actions: {
+      SELECT: 'all',
+      INSERT: 'all',
+      UPDATE: ['status', 'snoozed_until', 'reason', 'version'],
+    },
+    summaries: { SELECT: 'all' },
     api_operations: { SELECT: 'all', INSERT: 'all' },
     template_applications: { SELECT: 'all', INSERT: 'all' },
     export_events: {
@@ -43,7 +49,15 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     notification_settings: {
       SELECT: 'all',
       INSERT: 'all',
-      UPDATE: ['quiet_start', 'quiet_end', 'daily_budget', 'enabled_kinds', 'hide_text'],
+      UPDATE: [
+        'quiet_start',
+        'quiet_end',
+        'daily_budget',
+        'enabled_kinds',
+        'hide_text',
+        'morning_enabled',
+        'weekly_enabled',
+      ],
     },
     push_attempts: { SELECT: 'all' },
     search_index: { SELECT: 'all' },
@@ -85,6 +99,19 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     password_resets: { SELECT: 'all', UPDATE: ['acknowledged_at'] },
   };
   const worker: Record<string, TableGrants> = {
+    radar_actions: {
+      SELECT: [
+        'id',
+        'deadline_id',
+        'calendar_key',
+        'date',
+        'status',
+        'snoozed_until',
+        'version',
+        'changed_at',
+      ],
+    },
+    summaries: { SELECT: 'all', INSERT: 'all' },
     push_subscriptions: { SELECT: 'all', UPDATE: ['last_success_at'], DELETE: 'all' },
     notification_settings: { SELECT: 'all' },
     push_deliveries: { SELECT: 'all', INSERT: 'all', UPDATE: 'all', DELETE: 'all' },
@@ -204,11 +231,15 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         'deleted_at',
         ...columns.filter((column) => column.name === 'parent_id').map((column) => column.name),
         ...(['notes', 'objects', 'documents', 'tasks'].includes(name) ? ['audience'] : []),
-        ...(name === 'documents' ? ['owner_account_id', 'is_identity'] : []),
+        ...(name === 'documents'
+          ? ['owner_account_id', 'is_identity', 'status', 'invalidated_at']
+          : []),
         ...(name === 'object_events' ? ['contact_table', 'contact_id'] : []),
         ...(name === 'meters' ? ['utility_account_id', 'is_active'] : []),
         ...(name === 'meter_readings' ? ['occurred_on', 'transmitted_at'] : []),
         ...(name === 'utility_charges' ? ['period', 'due_on', 'is_paid', 'cancelled_at'] : []),
+        ...(name === 'tasks' ? ['household_id', 'status', 'done_at'] : []),
+        ...(name === 'utility_payments' ? ['created_at', 'cancelled_at'] : []),
       ],
       UPDATE: ['assignee_id', ...(name === 'object_events' ? ['contact_table', 'contact_id'] : [])],
       DELETE: 'all',

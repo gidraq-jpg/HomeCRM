@@ -6,7 +6,7 @@ import {
   Trash,
 } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
@@ -92,7 +92,15 @@ function DocumentView({ card }: { card: DocumentCard }) {
   const nameOf = usePersonName();
   const quick = useAction();
   const save = useAction();
-  const [mode, setMode] = useState<'view' | 'edit' | 'renew'>('view');
+  const [search] = useSearchParams();
+  const [mode, setMode] = useState<'view' | 'edit' | 'renew'>(() =>
+    search.get('action') === 'renew' &&
+    card.status === 'valid' &&
+    card.deletedAt === null &&
+    noteAbilities(viewerOf(me), card, householdId, DOCUMENT_TYPE).edit
+      ? 'renew'
+      : 'view',
+  );
   const [assignee, setAssignee] = useState<string | null>(null);
   const assigneeId = useId();
 

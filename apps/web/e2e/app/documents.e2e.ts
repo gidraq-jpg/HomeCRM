@@ -269,15 +269,19 @@ test('радар: срок документа ведёт в карточку, п
     .getByRole('listitem')
     .filter({ hasText: 'ОСАГО Субару' })
     .filter({ hasText: 'Срок документа' });
-  await expect(soonRow.getByRole('link')).toHaveAttribute('href', `#/documents/${soon.id}`);
+  await expect(soonRow.locator('a.row')).toHaveAttribute('href', `#/documents/${soon.id}`);
+  await expect(soonRow.getByRole('link', { name: 'Продлить', exact: true })).toHaveAttribute(
+    'href',
+    `#/documents/${soon.id}?action=renew`,
+  );
   const laterGroup = page.getByRole('list', { name: 'Позже', exact: true });
   await expect(laterGroup).toContainText('Загранпаспорт Бориса');
-  await expect(laterGroup.getByRole('link')).toHaveAttribute('href', `#/documents/${later.id}`);
+  await expect(laterGroup.locator('a.row')).toHaveAttribute('href', `#/documents/${later.id}`);
   // «Позже» идёт последней группой.
   const headings = await page.getByRole('heading', { level: 2 }).allInnerTexts();
   expect(headings.at(-1)).toBe('Позже');
   await checkApp(page, info, 'documents-radar');
-  await laterGroup.getByRole('link').click();
+  await laterGroup.locator('a.row').click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Загранпаспорт Бориса', exact: true }),
   ).toBeVisible();

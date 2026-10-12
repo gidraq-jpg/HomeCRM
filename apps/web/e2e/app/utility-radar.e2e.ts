@@ -287,6 +287,10 @@ test('уведомления: шесть коммунальных видов о�
         'readings_closing',
         'payment_upcoming',
         'verification',
+        'document',
+        'task_reminder',
+        'task_assignment',
+        'task_done',
       ],
     },
   ]);

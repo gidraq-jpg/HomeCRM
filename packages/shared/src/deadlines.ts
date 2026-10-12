@@ -82,8 +82,8 @@ export function localDate(now: Date, timeZone: string): CalendarDate {
 export function shiftLocalDays(now: Date, days: number, zone: string): Date {
   return new Date(+addDays(new TZDate(now, zone), days));
 }
-export function calendarInstant(date: CalendarDate, zone: string): Date {
-  return new Date(+at(date, '00:00', zone));
+export function calendarInstant(date: CalendarDate, zone: string, clock = '00:00'): Date {
+  return new Date(+at(date, clock, zone));
 }
 function at(date: string, clock: string, zone: string): TZDate {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number];

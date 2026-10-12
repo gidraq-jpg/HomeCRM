@@ -2,6 +2,7 @@ import { createWorkerDatabase, type Pool } from '@homecrm/db';
 import { PgBoss } from 'pg-boss';
 import { z } from 'zod';
 import { dispatchNotifications } from '../notifications/dispatcher.ts';
+import { scheduleSummaries } from '../notifications/summaries.ts';
 import type { PushSender } from '../notifications/transport.ts';
 import { enqueueDeadlineWarnings, initializeHouseTimeZones, refreshDeadlines } from './engine.ts';
 
@@ -27,6 +28,8 @@ export async function startDeadlineJobs(
         for (const job of jobs) {
           z.strictObject({}).parse(job.data);
           await dispatchNotifications(pool, send);
+          await scheduleSummaries(pool);
+          await dispatchNotifications(pool, send);
         }
       } catch (error) {
         report(error);
@@ -46,6 +49,7 @@ export async function startDeadlineJobs(
         await pool.query('SELECT app.process_task_overdue($1)', [new Date()]);
         await refreshDeadlines(db, new Date(), full);
         await enqueueDeadlineWarnings(db);
+        await scheduleSummaries(pool);
         if (send)
           await boss.send('push-dispatch', {}, { singletonKey: 'dispatch', singletonSeconds: 1 });
       }

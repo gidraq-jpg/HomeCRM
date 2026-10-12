@@ -44,7 +44,7 @@ it('0049 → 0052: старые данные и история сохраняю�
         table,
         rows: (
           await db.admin.query(
-            `SELECT to_jsonb(t)-ARRAY['birthday_enabled','contact_id','profile_account_id'] AS data FROM ${table} t ORDER BY 1`,
+            `SELECT to_jsonb(t)-ARRAY['birthday_enabled','contact_id','profile_account_id','invalidated_at'] AS data FROM ${table} t ORDER BY 1`,
           )
         ).rows,
       });

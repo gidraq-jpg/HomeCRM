@@ -74,6 +74,15 @@ describe('роли базы', () => {
     for (const { policyname, roles } of rows) {
       expect(roles, policyname).toHaveLength(1);
       if (roles[0] === DB_ROLES.worker) {
+        if (
+          [
+            'radar_actions_worker_select',
+            'summaries_worker_select',
+            'summaries_worker_insert',
+            'utility_payments_summary_worker',
+          ].includes(policyname)
+        )
+          continue;
         expect(policyname).toMatch(
           /_purge(_select)?$|_reassign(_select)?$|_history_worker_insert$|^space_members_worker_select$|_worker_cleanup(_select)?$|^file_blobs_worker_(select|delete)$|^spaces_timezone_(worker|initialize)$|^deadlines_(engine|refresh)$|^deadline_(occurrences|notifications)_worker_(select|insert|update|delete)$|^(notes|objects|meters|meter_readings|utility_charges|documents|tasks)_deadline_worker_select$|^utility_accounts_charges_worker$|^(push_(subscriptions|attempts|deliveries)|notification_settings)_worker_(select|insert|update|delete)$/,
         );

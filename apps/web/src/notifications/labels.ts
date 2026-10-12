@@ -15,6 +15,10 @@ export const KIND_LABELS: Record<string, string> = {
   payment_upcoming: 'Оплата через 3 дня',
   payment_due: 'Оплата сегодня',
   verification: 'Подходит срок поверки',
+  document: 'Срок документа',
+  task_reminder: 'Напоминание дела',
+  task_assignment: 'Назначение дела',
+  task_done: 'Выполнение дела',
 };
 
 export const KIND_HINTS: Record<string, string> = {
@@ -25,6 +29,10 @@ export const KIND_HINTS: Record<string, string> = {
   payment_upcoming: 'Предупреждение за три дня до срока оплаты.',
   payment_due: 'Сегодня срок оплаты по лицевому счёту.',
   verification: 'Приближается срок поверки счётчика: за 60, 30 и 7 дней.',
+  document: 'Предупреждения срока действия и паспорта.',
+  task_reminder: 'Время плана, крайнего срока или проверки ожидания.',
+  task_assignment: 'Вам назначили дело.',
+  task_done: 'Назначенное вами дело выполнено другим участником.',
 };
 
 /** Виды коммунальных сроков (UTIL-13): в настройках идут отдельным блоком, каждый со своим переключателем. */

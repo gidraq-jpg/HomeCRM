@@ -1,0 +1,32 @@
+name: homecrm-test-radar-summaries
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    command: [postgres, -c, fsync=off, -c, synchronous_commit=off, -c, full_page_writes=off]
+    tmpfs: [/var/lib/postgresql]
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, postgres]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+  playwright:
+    image: homecrm-test-radar-summaries:e2e-linux
+    build:
+      context: ../../../..
+      dockerfile: apps/web/e2e/Dockerfile
+    init: true
+    ipc: host
+    working_dir: /workspace
+    environment:
+      HOMECRM_TEST_PG_ADMIN_URL: postgres://postgres@postgres:5432/postgres
+    volumes:
+      - ../../../..:/source:ro
+      - ../../../../docs/screenshots/R1c.5-6:/workspace/docs/screenshots/R1c.5-6
+      - ../../test-results:/workspace/apps/web/test-results
+    entrypoint: [sh, -c]
+    command: ["sleep infinity"]
+    depends_on:
+      postgres:
+        condition: service_healthy

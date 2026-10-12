@@ -368,6 +368,22 @@ export async function buildArchive(
     await addJSON('record_links', ExportRecords.record_links, links(tx, account, scope));
     await addJSON('history', ExportRecords.history, histories(tx, scope));
     await addJSON(
+      'radar_actions',
+      ExportRecords.radar_actions,
+      rows(
+        tx,
+        'radar_actions',
+        sql`EXISTS(SELECT 1 FROM deadlines d WHERE d.id=t.deadline_id AND ${scopeWhere(scope, 'd')})`,
+        sql`to_jsonb(t) || (SELECT jsonb_build_object('space_id',d.space_id,'space_kind',d.space_kind,'audience',d.audience,'assignee_id',d.assignee_id,'deleted_at',d.deleted_at) FROM deadlines d WHERE d.id=t.deadline_id)`,
+      ),
+    );
+    if (scope.kind === 'personal')
+      await addJSON(
+        'summaries',
+        ExportRecords.summaries,
+        rows(tx, 'summaries', sql`account_id=${account.id}::uuid`),
+      );
+    await addJSON(
       'export_events',
       ExportRecords.export_events,
       rows(
@@ -428,7 +444,7 @@ export async function buildArchive(
         await tx.execute<{
           data: Data;
         }>(sql`SELECT jsonb_build_object('quietStart',quiet_start,'quietEnd',quiet_end,
-        'dailyBudget',daily_budget,'enabledKinds',enabled_kinds,'hideText',hide_text) AS data FROM notification_settings WHERE account_id=${account.id}::uuid`)
+        'dailyBudget',daily_budget,'enabledKinds',enabled_kinds,'hideText',hide_text,'morningEnabled',morning_enabled,'weeklyEnabled',weekly_enabled) AS data FROM notification_settings WHERE account_id=${account.id}::uuid`)
       ).rows;
       await addJSON('notification_settings', ExportRecords.notification_settings, [
         settings[0]?.data ?? NotificationSettings.parse({}),

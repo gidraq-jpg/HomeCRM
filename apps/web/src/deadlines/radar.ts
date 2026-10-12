@@ -83,6 +83,7 @@ export interface UtilityRow {
   remainingCents?: number | null;
   startDate: DateOnly;
   endDate: DateOnly;
+  timeZone?: string;
   /** Управляемый срок не правится в радаре: вместо этого ссылка на счёт или счётчик. */
   openLabel: 'Открыть счёт' | 'Открыть счётчик';
   openTo: string;
@@ -93,6 +94,7 @@ export function propertyStatusOf(value: string | null | undefined): PropertyStat
 }
 
 export interface RadarRow {
+  item?: RadarItem;
   id: string;
   group: RadarGroup;
   /** Название записи; пусто, если запись не удалось сопоставить. */
@@ -157,6 +159,7 @@ export function utilityOf(item: RadarItem, endsAt: Date): UtilityRow | null {
     remainingCents: item.remainingCents ?? null,
     startDate: item.date as DateOnly,
     endDate: todayIn(item.timeZone, endsAt),
+    timeZone: item.timeZone,
     openLabel: isMeterSource ? 'Открыть счётчик' : 'Открыть счёт',
     openTo:
       item.sourceKind === 'payment' && item.chargeId && account
@@ -166,111 +169,113 @@ export function utilityOf(item: RadarItem, endsAt: Date): UtilityRow | null {
 }
 
 export function buildRows(items: readonly RadarItem[], context: RowContext): RadarRow[] {
-  return items.map((item) => {
-    const timing = {
-      date: item.date,
-      startsAt: new Date(item.startsAt),
-      endsAt: new Date(item.endsAt),
-    };
-    const utility = utilityOf(item, timing.endsAt);
-    if (item.sourceKind.startsWith('task_'))
-      return {
-        id: item.id,
-        group: item.group,
-        title: item.title ?? null,
-        what:
-          item.sourceKind === 'task_waiting'
-            ? 'Проверить ожидание'
-            : item.sourceKind === 'task_due'
-              ? 'Крайний срок дела'
-              : 'План дела',
-        when: occurrenceWhen(timing, item.timeZone, context.now),
-        relative: occurrenceRelative(timing, item.timeZone, context.now),
-        visibility: visibilityOf(item),
-        assigneeId: item.assigneeId,
-        startsAt: timing.startsAt.getTime(),
-        to: item.taskId ? `/today/tasks/${item.taskId}` : null,
-        utility: null,
+  return items
+    .map((item) => {
+      const timing = {
+        date: item.date,
+        startsAt: new Date(item.startsAt),
+        endsAt: new Date(item.endsAt),
       };
-    if (utility !== null) {
+      const utility = utilityOf(item, timing.endsAt);
+      if (item.sourceKind.startsWith('task_'))
+        return {
+          id: item.id,
+          group: item.group,
+          title: item.title ?? null,
+          what:
+            item.sourceKind === 'task_waiting'
+              ? 'Проверить ожидание'
+              : item.sourceKind === 'task_due'
+                ? 'Крайний срок дела'
+                : 'План дела',
+          when: occurrenceWhen(timing, item.timeZone, context.now),
+          relative: occurrenceRelative(timing, item.timeZone, context.now),
+          visibility: visibilityOf(item),
+          assigneeId: item.assigneeId,
+          startsAt: timing.startsAt.getTime(),
+          to: item.taskId ? `/today/tasks/${item.taskId}` : null,
+          utility: null,
+        };
+      if (utility !== null) {
+        return {
+          id: item.id,
+          group: item.group,
+          title: item.object?.title ?? null,
+          what: UTILITY_WHAT[utility.kind],
+          when: occurrenceWhen(timing, item.timeZone, context.now),
+          relative: occurrenceRelative(timing, item.timeZone, context.now),
+          visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
+          assigneeId: item.assigneeId,
+          startsAt: timing.startsAt.getTime(),
+          to: utility.openTo,
+          utility,
+        };
+      }
+      if (item.sourceKind === 'birthday') {
+        return {
+          id: item.id,
+          group: item.group,
+          title: item.title ?? null,
+          what: item.age == null ? 'День рождения' : `День рождения · исполнится ${item.age}`,
+          when: occurrenceWhen(timing, item.timeZone, context.now),
+          relative: occurrenceRelative(timing, item.timeZone, context.now),
+          visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
+          assigneeId: item.assigneeId,
+          startsAt: timing.startsAt.getTime(),
+          to: item.contactId
+            ? `/people/contacts/${item.contactId}`
+            : item.profileAccountId
+              ? `/people/members/${item.profileAccountId}`
+              : null,
+          utility: null,
+        };
+      }
+      // Срок документа (DOC-3): название приходит с сервером, переход — в карточку документа.
+      if (item.sourceKind === 'document') {
+        return {
+          id: item.id,
+          group: item.group,
+          title: item.title ?? null,
+          what: DOCUMENT_WHAT,
+          when: occurrenceWhen(timing, item.timeZone, context.now),
+          relative: occurrenceRelative(timing, item.timeZone, context.now),
+          visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
+          assigneeId: item.assigneeId,
+          startsAt: timing.startsAt.getTime(),
+          to: item.documentId ? documentPath(item.documentId) : null,
+          utility: null,
+        };
+      }
+      const located = item.rule
+        ? {
+            rule: item.rule,
+            kind: item.noteId ? ('notes' as const) : ('objects' as const),
+            sourceId: item.noteId ?? item.objectId ?? '',
+          }
+        : context.locate(item.deadlineId);
+      // Если сервер сам назвал источник, берём его; иначе — найденный по карточкам записей.
+      const direct: SourceKind | null = item.noteId ? 'notes' : item.objectId ? 'objects' : null;
+      const kind = located?.kind ?? direct;
+      const sourceId = located?.sourceId ?? item.noteId ?? item.objectId ?? null;
       return {
         id: item.id,
         group: item.group,
-        title: item.object?.title ?? null,
-        what: UTILITY_WHAT[utility.kind],
+        title: item.title ?? (kind && sourceId ? (context.titleOf(kind, sourceId) ?? null) : null),
+        what: located
+          ? located.rule.kind === 'date' || located.rule.kind === 'window'
+            ? KIND_LABELS[located.rule.kind]
+            : `${KIND_LABELS[located.rule.kind]}: ${describeRule(located.rule, context.today)}`
+          : 'Срок',
         when: occurrenceWhen(timing, item.timeZone, context.now),
         relative: occurrenceRelative(timing, item.timeZone, context.now),
         visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
         assigneeId: item.assigneeId,
         startsAt: timing.startsAt.getTime(),
-        to: utility.openTo,
-        utility,
-      };
-    }
-    if (item.sourceKind === 'birthday') {
-      return {
-        id: item.id,
-        group: item.group,
-        title: item.title ?? null,
-        what: item.age == null ? 'День рождения' : `День рождения · исполнится ${item.age}`,
-        when: occurrenceWhen(timing, item.timeZone, context.now),
-        relative: occurrenceRelative(timing, item.timeZone, context.now),
-        visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
-        assigneeId: item.assigneeId,
-        startsAt: timing.startsAt.getTime(),
-        to: item.contactId
-          ? `/people/contacts/${item.contactId}`
-          : item.profileAccountId
-            ? `/people/members/${item.profileAccountId}`
-            : null,
+        to: kind && sourceId ? cardPath(kind, sourceId) : null,
         utility: null,
       };
-    }
-    // Срок документа (DOC-3): название приходит с сервером, переход — в карточку документа.
-    if (item.sourceKind === 'document') {
-      return {
-        id: item.id,
-        group: item.group,
-        title: item.title ?? null,
-        what: DOCUMENT_WHAT,
-        when: occurrenceWhen(timing, item.timeZone, context.now),
-        relative: occurrenceRelative(timing, item.timeZone, context.now),
-        visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
-        assigneeId: item.assigneeId,
-        startsAt: timing.startsAt.getTime(),
-        to: item.documentId ? documentPath(item.documentId) : null,
-        utility: null,
-      };
-    }
-    const located = item.rule
-      ? {
-          rule: item.rule,
-          kind: item.noteId ? ('notes' as const) : ('objects' as const),
-          sourceId: item.noteId ?? item.objectId ?? '',
-        }
-      : context.locate(item.deadlineId);
-    // Если сервер сам назвал источник, берём его; иначе — найденный по карточкам записей.
-    const direct: SourceKind | null = item.noteId ? 'notes' : item.objectId ? 'objects' : null;
-    const kind = located?.kind ?? direct;
-    const sourceId = located?.sourceId ?? item.noteId ?? item.objectId ?? null;
-    return {
-      id: item.id,
-      group: item.group,
-      title: item.title ?? (kind && sourceId ? (context.titleOf(kind, sourceId) ?? null) : null),
-      what: located
-        ? located.rule.kind === 'date' || located.rule.kind === 'window'
-          ? KIND_LABELS[located.rule.kind]
-          : `${KIND_LABELS[located.rule.kind]}: ${describeRule(located.rule, context.today)}`
-        : 'Срок',
-      when: occurrenceWhen(timing, item.timeZone, context.now),
-      relative: occurrenceRelative(timing, item.timeZone, context.now),
-      visibility: visibilityOf({ spaceKind: item.spaceKind, audience: item.audience }),
-      assigneeId: item.assigneeId,
-      startsAt: timing.startsAt.getTime(),
-      to: kind && sourceId ? cardPath(kind, sourceId) : null,
-      utility: null,
-    };
-  });
+    })
+    .map((row, index) => ({ ...row, item: items[index] }));
 }
 
 /** «Моё» — пункты, за которые отвечает сам участник; «Весь дом» — всё, что он видит. */

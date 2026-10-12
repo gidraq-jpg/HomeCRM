@@ -20,7 +20,12 @@ export interface PushDevice {
 }
 export type PushSender = (
   device: PushDevice,
-  payload: { kind: 'deadline'; recordId: string; text: string; notificationKind?: string },
+  payload: {
+    kind: 'deadline' | 'summary';
+    recordId: string;
+    text: string;
+    notificationKind?: string;
+  },
   deliveryId: string,
 ) => Promise<void>;
 export function createPushSender(config: z.infer<typeof VapidConfig>): PushSender {

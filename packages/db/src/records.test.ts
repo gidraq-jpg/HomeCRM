@@ -34,6 +34,7 @@ describe('таблицы записей в коде и в базе', () => {
         ...RECORD_DEFINITIONS.map((definition) => definition.name),
         'deadlines',
         'deadline_occurrences',
+        'radar_actions',
       ].sort(),
     );
   });
@@ -134,6 +135,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         ...(name === 'documents'
           ? {
               documents_document: 'document_guard',
+              documents_01_confirmation: 'document_confirmation',
               documents_deadlines: 'document_deadline',
               documents_files_placement: 'cascade_file_placement',
               documents_source_metadata: 'sync_source_deadlines',
@@ -211,6 +213,9 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
             : []),
           ...(name === 'utility_accounts'
             ? ['utility_accounts.utility_accounts_charges_worker:SELECT']
+            : []),
+          ...(name === 'utility_payments'
+            ? ['utility_payments.utility_payments_summary_worker:SELECT']
             : []),
           ...(name === 'contacts' ? ['contacts.contacts_birthday_lookup:SELECT'] : []),
           ...(name === 'documents'
@@ -293,6 +298,8 @@ describe('в базе нет таблицы, которой не знает ни
       'deadlines',
       'deadline_occurrences',
       'deadline_notifications', // deadlines-matrix.test.ts
+      'radar_actions',
+      'summaries', // radar-summaries-matrix.test.ts
       'search_index', // search-matrix.test.ts: видимость, снимки событий и закрытые изменения индекса.
       'profile_files', // profile-files-matrix.test.ts: фото действующей семьи и корзина владельца.
       'file_blobs', // files.test.ts: реестр ключей, без пользовательских метаданных.

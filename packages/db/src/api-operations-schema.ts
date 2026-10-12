@@ -19,7 +19,7 @@ export const apiOperations = pgTable(
     primaryKey({ columns: [t.accountId, t.key] }),
     check(
       'api_operations_operation',
-      sql`operation IN ('contact_import','charge','payment','task_create','task_patch','task_status')`,
+      sql`operation IN ('contact_import','charge','payment','task_create','task_patch','task_status','radar_action')`,
     ),
     check('api_operations_fingerprint', sql`fingerprint ~ '^[a-f0-9]{64}$'`),
     pgPolicy('api_operations_select', {

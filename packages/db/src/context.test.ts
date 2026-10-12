@@ -29,6 +29,8 @@ const AUTH_ONLY = [
 // Таблицы записей и их истории берутся из recordTable(): новая таблица попадает сюда сама.
 const RECORD_NAMES = RECORD_DEFINITIONS.map((definition) => definition.name);
 const APP_TABLES = [
+  'radar_actions',
+  'summaries',
   'api_operations',
   'template_applications',
   'export_events',

@@ -1,3 +1,4 @@
+import type { RadarFilterOption, RadarFilters } from '@homecrm/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
@@ -6,6 +7,13 @@ import { useRadarItems } from './queries.ts';
 import { buildRows, type RadarRow } from './radar.ts';
 
 export interface RadarState {
+  visibleCount: number;
+  matchingCount: number;
+  options: {
+    objects: Array<typeof RadarFilterOption._output>;
+    people: Array<typeof RadarFilterOption._output>;
+    houses: Array<typeof RadarFilterOption._output>;
+  };
   status: 'loading' | 'error' | 'ready';
   rows: RadarRow[];
   unresolved: number;
@@ -22,9 +30,15 @@ export interface RadarState {
  * Один запрос несёт наступления и сведения источника под его RLS. poll: false — для второго
  * читателя того же запроса на экране: опрос во время пересчёта ведёт только один.
  */
-export function useRadar({ poll = true }: { poll?: boolean } = {}): RadarState {
+export function useRadar({
+  poll = true,
+  filters = {},
+}: {
+  poll?: boolean;
+  filters?: Partial<RadarFilters>;
+} = {}): RadarState {
   const { me } = useHousehold();
-  const radar = useRadarItems(me.id, me.timeZone);
+  const radar = useRadarItems(me.id, me.timeZone, filters);
   const rows = useMemo(() => {
     const now = new Date();
     return buildRows(radar.data?.items ?? [], {
@@ -63,6 +77,9 @@ export function useRadar({ poll = true }: { poll?: boolean } = {}): RadarState {
   }, [refetch]);
 
   return {
+    visibleCount: radar.data?.visibleCount ?? rows.length,
+    matchingCount: radar.data?.matchingCount ?? rows.length,
+    options: radar.data?.options ?? { objects: [], people: [], houses: [] },
     status: radar.data ? 'ready' : radar.isPending ? 'loading' : 'error',
     rows,
     unresolved: rows.filter((row) => row.to === null).length,
