@@ -18,6 +18,7 @@ import type { z } from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
 import { pgError } from '../auth/provision.ts';
 import type { AuthModule } from '../auth/routes.ts';
+import { offlineSnapshot, SNAPSHOT_TABLES } from '../offline/snapshot.ts';
 
 export class Failure extends Error {
   status: number;
@@ -185,8 +186,22 @@ export function dataRoutes(app: FastifyInstance, module: AuthModule): DataRoute 
       handler: async (request, reply) => {
         const account = await currentAccount(request, reply);
         if (!account) return reply;
-        const result = await module.appDb.withAccount(account.id, (tx) =>
-          handler(tx, account, request),
+        const query = request.query as Record<string, unknown>;
+        const offline = method === 'GET' && query?.offline === 'true';
+        if (method === 'GET' && query?.offline !== undefined) {
+          if (!offline || !(url in SNAPSHOT_TABLES)) throw new Failure(400, 'INVALID_INPUT');
+          const { offline: _offline, ...rest } = query;
+          request.query = rest;
+        }
+        const result = await module.appDb.withAccount(
+          account.id,
+          async (tx) => {
+            const data = await handler(tx, account, request);
+            return offline
+              ? offlineSnapshot(tx, account.id, SNAPSHOT_TABLES[url] ?? null, data)
+              : data;
+          },
+          offline ? { isolationLevel: 'repeatable read' } : undefined,
         );
         return reply.code(status).send(result);
       },

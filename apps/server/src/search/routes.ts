@@ -10,10 +10,12 @@ import { searchSnippet } from './snippet.ts';
 const Query = z.object({
   q: z.string().trim().max(200).default(''),
   scope: z.enum(['all', 'household', 'personal']).default('all'),
+  includeShopping: z.enum(['true', 'false']).default('false'),
 });
 const labels = {
   note: 'Заметки',
   task: 'Дела',
+  shopping_item: 'Покупки',
   object: 'Объекты',
   object_event: 'События',
   document: 'Документы',
@@ -29,7 +31,9 @@ interface Hit extends Record<string, unknown> {
     | 'object_event'
     | 'meter'
     | 'document'
-    | 'contact';
+    | 'contact'
+    | 'shopping_item';
+  // Покупки включаются явно: прежний клиент проверяет закрытый перечень групп.
   source_id: string;
   target_id: string;
   title: string;
@@ -50,13 +54,15 @@ const typeOf = (hit: Hit): keyof typeof labels =>
 export async function searchRoutes(app: FastifyInstance, module: AuthModule) {
   const route = dataRoutes(app, module);
   route('GET', '/api/search', 200, async (tx, account, request) => {
-    const { q, scope } = parse(Query, request.query);
+    const { q, scope, includeShopping } = parse(Query, request.query);
     if (q.length < 3)
       return { state: q.length === 0 ? 'empty' : 'short', groups: [], total: 0, hasMore: false };
     await setSearchQuery(tx, q);
     const keys = await searchAccessKeys(tx, account.viewer);
     // RLS отбирает доступ и совпадения до счётчиков, лимита и формирования фрагментов.
-    const { rows } = await tx.execute<Hit>(searchRowsQuery(q, scope, keys));
+    const { rows } = await tx.execute<Hit>(
+      searchRowsQuery(q, scope, keys, includeShopping === 'true'),
+    );
     // Второй рубеж, как у модулей записей. Время и число скрытых строк не возвращаются.
     const visible = rows.filter((hit) =>
       canView(

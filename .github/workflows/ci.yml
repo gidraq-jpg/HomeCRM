@@ -17,7 +17,7 @@ jobs:
   check:
     name: pnpm check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     # Одноразовая PostgreSQL 18 для тестов пакета db и матрицы доступа (ADR-0004, ADR-0013).
     # Пароль не нужен: контейнер живёт один прогон и доступен только внутри этого задания.
     services:

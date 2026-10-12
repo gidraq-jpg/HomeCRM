@@ -82,6 +82,7 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           'meters',
           'documents',
           'contacts',
+          'shopping_items',
         ].includes(name)
           ? { [`${name}_search`]: 'sync_search_entry' }
           : {}),
@@ -193,6 +194,12 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
             : []),
           ...(name === 'tasks'
             ? ['tasks.tasks_repeat_owner:ALL', 'tasks_history.tasks_history_repeat_owner:INSERT']
+            : []),
+          ...(name === 'shopping_items'
+            ? [
+                'shopping_items.shopping_items_bought_cleanup_select:SELECT',
+                'shopping_items.shopping_items_bought_cleanup_update:UPDATE',
+              ]
             : []),
           `${name}.${name}_insert:INSERT`,
           `${name}.${name}_update:UPDATE`,

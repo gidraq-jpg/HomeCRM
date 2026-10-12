@@ -5,6 +5,7 @@ import { DeadlineRule, TimeZone } from './deadlines.ts';
 import { DocumentData } from './documents.ts';
 import { DecimalValue, MeterData } from './meters.ts';
 import { NotificationSettings } from './notifications.ts';
+import { ShoppingData } from './shopping.ts';
 import { TaskChecklist, TaskClock, TaskStatus } from './tasks.ts';
 import { OrganizationData, UtilityAccountData } from './utilities.ts';
 
@@ -237,6 +238,7 @@ export const ExportRecords = {
   }),
   shopping_items: z.strictObject({
     ...record,
+    data: ShoppingData.default({ note: '', store: '', category: '' }),
     quantity: z.string().nullable(),
     bought_at: instant.nullable(),
   }),

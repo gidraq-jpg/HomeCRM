@@ -31,6 +31,7 @@ import { pgError } from '../auth/provision.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import { placementOf } from '../notes/routes.ts';
 import { Failure } from '../objects/support.ts';
+import { offlineSnapshot } from '../offline/snapshot.ts';
 import { safeCents } from '../utilities/analytics.ts';
 import { chargeSummary, createPayment, getCharge } from '../utilities/charges.ts';
 import { radarActionRoutes } from './actions.ts';
@@ -209,14 +210,21 @@ export async function deadlinesRoutes(app: FastifyInstance, options: AuthModule)
   app.get('/api/deadlines', async (request, reply) => {
     const account = await currentAccount(request, reply);
     if (!account) return reply;
-    const filters = parse(RadarFilters, request.query);
+    const { offline, ...rawFilters } = request.query as Record<string, unknown>;
+    if (offline !== undefined) parse(z.literal('true'), offline);
+    const filters = parse(RadarFilters, rawFilters);
     const { from, to } = filters;
     if (filters.householdId && !account.viewer.memberships.has(filters.householdId))
       throw new Failure(404, 'NOT_FOUND');
-    return options.appDb.withAccount(account.id, async (tx) => {
-      const result = await readRadar(tx, from, to, filters);
-      return RadarResponse.parse(JSON.parse(JSON.stringify(result)));
-    });
+    return options.appDb.withAccount(
+      account.id,
+      async (tx) => {
+        const result = await readRadar(tx, from, to, filters);
+        const data = RadarResponse.parse(JSON.parse(JSON.stringify(result)));
+        return offline ? offlineSnapshot(tx, account.id, null, data) : data;
+      },
+      offline ? { isolationLevel: 'repeatable read' } : undefined,
+    );
   });
   for (const action of ['complete-payment', 'complete-readings'] as const)
     app.post(`/api/deadlines/occurrences/:id/${action}`, async (request, reply) => {

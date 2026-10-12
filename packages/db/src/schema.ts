@@ -14,6 +14,7 @@ import {
   type OrganizationData,
   type PaymentInput,
   type PersonData,
+  type ShoppingData,
   type TaskChecklist,
   type UtilityAccountData,
 } from '@homecrm/shared';
@@ -124,10 +125,33 @@ export const noteItems = noteItemsDefinition.table;
 export const noteItemsHistory = noteItemsDefinition.history;
 
 /** Покупки: ребёнок может писать в общий список. */
-const shoppingItemsDefinition = recordTable('shopping_items', 'shopping_item', {
-  quantity: text('quantity'),
-  boughtAt: timestamp('bought_at', { withTimezone: true }),
-});
+const shoppingItemsDefinition = recordTable(
+  'shopping_items',
+  'shopping_item',
+  {
+    data: jsonb('data')
+      .$type<ShoppingData>()
+      .notNull()
+      .default({ note: '', store: '', category: '' }),
+    quantity: text('quantity'),
+    boughtAt: timestamp('bought_at', { withTimezone: true }),
+  },
+  {
+    extraPolicies: [
+      pgPolicy('shopping_items_bought_cleanup_select', {
+        for: 'select',
+        to: workerRole,
+        using: sql`bought_at<=clock_timestamp()-interval '7 days'`,
+      }),
+      pgPolicy('shopping_items_bought_cleanup_update', {
+        for: 'update',
+        to: workerRole,
+        using: sql`deleted_at IS NULL AND bought_at<=clock_timestamp()-interval '7 days'`,
+        withCheck: sql`deleted_at IS NOT NULL AND bought_at<=clock_timestamp()-interval '7 days'`,
+      }),
+    ],
+  },
+);
 export const shoppingItems = shoppingItemsDefinition.table;
 export const shoppingItemsHistory = shoppingItemsDefinition.history;
 

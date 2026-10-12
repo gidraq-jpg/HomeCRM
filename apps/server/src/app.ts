@@ -18,6 +18,7 @@ import { notificationRoutes } from './notifications/routes.ts';
 import { summaryRoutes } from './notifications/summary-routes.ts';
 import { objectsRoutes } from './objects/routes.ts';
 import { searchRoutes } from './search/routes.ts';
+import { shoppingRoutes } from './shopping/routes.ts';
 import { createStaticHandler } from './static.ts';
 import { taskRoutes } from './tasks/routes.ts';
 import { utilityRoutes } from './utilities/routes.ts';
@@ -176,6 +177,7 @@ export function buildApp(
     void app.register(objectsRoutes, auth);
     void app.register(utilityRoutes, auth);
     void app.register(searchRoutes, auth);
+    void app.register(shoppingRoutes, auth);
     void app.register(householdRoutes, {
       ...auth,
       ...(dependencies.worker ? { worker: dependencies.worker } : {}),

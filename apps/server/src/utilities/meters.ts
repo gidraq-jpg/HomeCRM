@@ -13,6 +13,7 @@ import {
 } from '@homecrm/db';
 import {
   CalendarDate,
+  CONSUMPTION_WARNING,
   canRestore,
   canTrash,
   canView,
@@ -20,12 +21,24 @@ import {
   MeterData,
   meterDecimal,
   meterUnits,
+  OfflineReadingCreate,
+  OfflineReadingsCreate,
+  ReadingCreate,
   ReadingInput,
+  ReadingsCreate,
   readingConsumption,
   resolveMeterData,
 } from '@homecrm/shared';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
+import {
+  beginOperation,
+  exactVersion,
+  fingerprint,
+  finishReceipt,
+  operationOwner,
+  receiptOf,
+} from '../idempotency.ts';
 import { getObject } from '../objects/routes.ts';
 import {
   columnsOf,
@@ -48,14 +61,6 @@ const CreateMeter = z.strictObject({
   data: MeterData,
   initialReading: ReadingInput.optional(),
 });
-const Batch = z
-  .strictObject({
-    readings: z
-      .array(ReadingInput.extend({ meterId: z.uuid() }))
-      .min(1)
-      .max(100),
-  })
-  .refine((b) => new Set(b.readings.map((r) => r.meterId)).size === b.readings.length);
 const Transmission = z
   .strictObject({
     readingIds: z.array(z.uuid()).min(1).max(100),
@@ -85,6 +90,50 @@ const readingSummary = (row: Reading) => ({
   transmittedAt: row.transmittedAt,
   transmissionMethod: row.transmissionMethod,
 });
+async function checkReadingBase(
+  tx: Transaction,
+  meter: Meter,
+  input: z.infer<typeof ReadingCreate>,
+  offline = false,
+) {
+  if (offline) await exactVersion(tx, 'meters', meter.id, input.expectedUpdatedAt);
+  else version(input.expectedUpdatedAt, meter.updatedAt);
+  if (
+    input.expectedLatestReadingId !== undefined &&
+    input.expectedLatestReadingId !== ((await historyOf(tx, meter.id))[0]?.id ?? null)
+  )
+    throw new Failure(409, 'STALE_READING_BASE');
+}
+async function replayReadings(
+  tx: Transaction,
+  account: Account,
+  ids: string[],
+  key: string | undefined,
+  inputs: { meterId: string; photoIds: string[] }[],
+) {
+  const receipt = await receiptOf(tx, account.id, key);
+  const result = [];
+  for (const id of ids) {
+    const [row] = await tx.select().from(meterReadings).where(eq(meterReadings.id, id));
+    if (!row || !canView(account.viewer, placementOf(row))) missing();
+    const meter = await getMeter(tx, account, row.parentId, true);
+    requireWrite(account, meter, 'meter');
+    requireWrite(account, row, 'meter_reading');
+    const input = inputs.find((candidate) => candidate.meterId === row.parentId);
+    if (!input) missing();
+    const photoIds = await photosOf(tx, row, true);
+    await requireReadingPhotos(tx, account, meter, input.photoIds);
+    // Нельзя признать исходную операцию, молча исключив утраченную связь или фото.
+    if (input.photoIds.some((id) => !photoIds.includes(id))) missing();
+    result.push({
+      ...readingSummary(row),
+      photoIds,
+      warnings: receipt?.warningIds?.includes(id) ? [CONSUMPTION_WARNING] : [],
+      receipt,
+    });
+  }
+  return result;
+}
 
 async function getMeter(tx: Transaction, account: Account, id: string, lock = false) {
   let [row] = await tx.select().from(meters).where(eq(meters.id, id));
@@ -120,11 +169,29 @@ async function historyOf(tx: Transaction, meterId: string, trash = false) {
     )
     .orderBy(desc(meterReadings.occurredOn), desc(meterReadings.id));
 }
-async function photosOf(tx: Transaction, reading: Reading) {
+async function photosOf(tx: Transaction, reading: Reading, lock = false) {
   const result = await tx.execute<{ id: string }>(
-    sql`SELECT f.id FROM record_links l JOIN object_files f ON f.id=l.right_id WHERE l.left_table='meter_readings' AND l.left_id=${reading.id}::uuid AND l.right_table='object_files' AND l.role='reading_photo' AND l.deleted_at IS NULL AND f.deleted_at IS NULL ORDER BY f.id`,
+    sql`SELECT f.id FROM record_links l JOIN object_files f ON f.id=l.right_id WHERE l.left_table='meter_readings' AND l.left_id=${reading.id}::uuid AND l.right_table='object_files' AND l.role='reading_photo' AND l.deleted_at IS NULL AND f.deleted_at IS NULL ORDER BY f.id ${lock ? sql`FOR SHARE OF l` : sql``}`,
   );
   return result.rows.map((r) => r.id);
+}
+async function requireReadingPhotos(
+  tx: Transaction,
+  account: Account,
+  meter: Meter,
+  photoIds: string[],
+) {
+  for (const id of photoIds) {
+    const [file] = await tx.select().from(objectFiles).where(eq(objectFiles.id, id));
+    if (
+      !file ||
+      file.parentId !== meter.parentId ||
+      file.deletedAt ||
+      !file.mimeType.startsWith('image/') ||
+      !canView(account.viewer, placementOf(file))
+    )
+      missing();
+  }
 }
 export async function createReading(
   tx: Transaction,
@@ -160,17 +227,7 @@ export async function createReading(
     throw new Failure(400, 'INVALID_READING');
   }
   // Фото загружается штатным R0.5 API в объект; связь не дублирует блоки и конверты.
-  for (const id of input.photoIds) {
-    const [file] = await tx.select().from(objectFiles).where(eq(objectFiles.id, id));
-    if (
-      !file ||
-      file.parentId !== meter.parentId ||
-      file.deletedAt ||
-      !file.mimeType.startsWith('image/') ||
-      !canView(account.viewer, placementOf(file))
-    )
-      missing();
-  }
+  await requireReadingPhotos(tx, account, meter, input.photoIds);
   const [row] = await tx
     .insert(meterReadings)
     .values({
@@ -383,25 +440,74 @@ export async function meterRoutes(route: DataRoute) {
     await getMeter(tx, account, row.parentId);
     return { ...readingSummary(row), photoIds: await photosOf(tx, row) };
   });
-  route('POST', '/api/meters/:id/readings', 201, async (tx, account, request) =>
-    createReading(
+  route('POST', '/api/meters/:id/readings', 201, async (tx, account, request) => {
+    const id = parse(Id, request.params).id;
+    const body = parse(ReadingCreate, request.body);
+    if (body.offline) parse(OfflineReadingCreate, request.body);
+    operationOwner(account.id, body.ownerAccountId, body.offline);
+    const hash = fingerprint({ id, body });
+    const prior = await beginOperation(tx, account.id, body.idempotencyKey, 'reading_create', hash);
+    if (prior)
+      return (
+        await replayReadings(tx, account, prior, body.idempotencyKey, [
+          { meterId: id, photoIds: body.photoIds },
+        ])
+      )[0];
+    const meter = await getMeter(tx, account, id, true);
+    await checkReadingBase(tx, meter, body, body.offline);
+    const result = await createReading(tx, account, meter, body);
+    const receipt = await finishReceipt(
       tx,
-      account,
-      await getMeter(tx, account, parse(Id, request.params).id, true),
-      parse(ReadingInput, request.body),
-    ),
-  );
+      account.id,
+      body.idempotencyKey,
+      'reading_create',
+      hash,
+      [result],
+      { table: 'meter_readings', warningIds: result.warnings.length ? [result.id] : [] },
+    );
+    return { ...result, receipt };
+  });
   route('POST', '/api/objects/:id/readings', 201, async (tx, account, request) => {
-    const parent = await getObject(tx, account, parse(Id, request.params).id, true);
+    const id = parse(Id, request.params).id;
+    const body = parse(ReadingsCreate, request.body);
+    if (body.offline) parse(OfflineReadingsCreate, request.body);
+    operationOwner(account.id, body.ownerAccountId, body.offline);
+    const hash = fingerprint({ id, body });
+    const prior = await beginOperation(
+      tx,
+      account.id,
+      body.idempotencyKey,
+      'readings_create',
+      hash,
+    );
+    if (prior) {
+      requireWrite(account, await getObject(tx, account, id));
+      return replayReadings(tx, account, prior, body.idempotencyKey, body.readings);
+    }
+    const parent = await getObject(tx, account, id, true);
     requireWrite(account, parent);
-    const body = parse(Batch, request.body);
     const result = [];
     for (const input of [...body.readings].sort((a, b) => a.meterId.localeCompare(b.meterId))) {
       const meter = await getMeter(tx, account, input.meterId, true);
       if (meter.parentId !== parent.id) missing();
+      await checkReadingBase(tx, meter, input, body.offline);
       result.push(await createReading(tx, account, meter, input));
     }
-    return result;
+    const receipt = await finishReceipt(
+      tx,
+      account.id,
+      body.idempotencyKey,
+      'readings_create',
+      hash,
+      result,
+      {
+        table: 'meter_readings',
+        warningIds: result
+          .filter((reading) => reading.warnings.length)
+          .map((reading) => reading.id),
+      },
+    );
+    return result.map((reading) => ({ ...reading, receipt }));
   });
   route('POST', '/api/meters/:id/replace', 201, async (tx, account, request) => {
     const body = parse(

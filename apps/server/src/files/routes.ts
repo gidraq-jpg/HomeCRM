@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import multipart from '@fastify/multipart';
 import {
   documents,
@@ -15,6 +16,15 @@ import { z } from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import {
+  beginOperation,
+  exactVersion,
+  fingerprint,
+  finishReceipt,
+  operationOwner,
+  receiptOf,
+  recordVersions,
+} from '../idempotency.ts';
+import {
   dataRoutes,
   deny,
   Failure,
@@ -22,6 +32,7 @@ import {
   missing,
   parse,
   readReference,
+  version,
 } from '../objects/support.ts';
 import { visibleProfilePhoto } from './export.ts';
 import { MAX_FILE_BYTES, prepareFile, safeFilename } from './media.ts';
@@ -107,7 +118,11 @@ export async function filesRoutes(
       uploaded = { data: await part.toBuffer(), name: safeFilename(part.filename) };
     }
     if (!uploaded) throw new Failure(400, 'INVALID_INPUT');
-    return { ...(await prepareFile(uploaded.data)), name: uploaded.name };
+    return {
+      ...(await prepareFile(uploaded.data)),
+      name: uploaded.name,
+      sourceHash: createHash('sha256').update(uploaded.data).digest('hex'),
+    };
   }
   app.post('/api/me/profile/photo', async (request, reply) => {
     const account = await currentAccount(request, reply);
@@ -209,19 +224,76 @@ export async function filesRoutes(
       const account = await currentAccount(request, reply);
       if (!account) return reply;
       const id = parse(Id, request.params).id;
+      const key =
+        request.headers['idempotency-key'] === undefined
+          ? undefined
+          : parse(z.uuid(), request.headers['idempotency-key']);
+      const expected =
+        request.headers['x-expected-updated-at'] === undefined
+          ? undefined
+          : parse(z.iso.datetime(), request.headers['x-expected-updated-at']);
+      if (request.headers['x-offline'] !== undefined) {
+        parse(z.literal('true'), request.headers['x-offline']);
+        if (type !== 'object' || !key || !expected) throw new Failure(400, 'INVALID_INPUT');
+      }
+      const owner =
+        request.headers['x-owner-account-id'] === undefined
+          ? undefined
+          : parse(z.uuid(), request.headers['x-owner-account-id']);
+      operationOwner(account.id, owner, request.headers['x-offline'] === 'true');
       // Короткая предварительная проверка; приём и обработка файла не держат соединение.
       await options.appDb.withAccount(account.id, async (tx) => {
         const parent = await parentOf(tx, account, type, id);
         if (!canWrite(account.viewer, parent.facts)) deny();
       });
-      const sealed = prepareUpload(options.files, await receive(request));
-      const row = await options.appDb.withAccount(account.id, async (tx) => {
+      const prepared = await receive(request);
+      const hash = fingerprint({
+        type,
+        id,
+        name: prepared.name,
+        sourceHash: prepared.sourceHash,
+        expected,
+        owner,
+      });
+      const sealed = prepareUpload(options.files, prepared);
+      const result = await options.appDb.withAccount(account.id, async (tx) => {
+        const prior = await beginOperation(tx, account.id, key, 'file_upload', hash);
         // Повторяем права после ожидания: родитель мог попасть в корзину или сменить доступ.
         const parent = await parentOf(tx, account, type, id, true);
         if (!canWrite(account.viewer, parent.facts)) deny();
-        return insertPreparedFile(tx, account, type, parent.row, sealed);
+        if (prior) {
+          const table = fileTable(type);
+          const [file] = await tx
+            .select()
+            .from(table)
+            .where(eq(table.id, prior[0] ?? ''));
+          const row = await visibleFile(tx, account, type, file, id);
+          if (row.deletedAt) throw new Failure(409, 'FILE_TRASHED');
+          return { ...fileSummary(row), receipt: await receiptOf(tx, account.id, key) };
+        }
+        if (request.headers['x-offline'] === 'true')
+          await exactVersion(tx, 'objects', id, expected);
+        else version(expected, parent.row.updatedAt);
+        const row = await insertPreparedFile(tx, account, type, parent.row, sealed);
+        // Чужой вклад может изменить объект: следующему фото нужна версия своего эффекта.
+        const parentVersion =
+          request.headers['x-offline'] === 'true'
+            ? (await recordVersions(tx, 'objects', [id]))[0]
+            : undefined;
+        const receipt = await finishReceipt(tx, account.id, key, 'file_upload', hash, [row], {
+          parent: parentVersion ? { id, updatedAt: parentVersion.version } : undefined,
+          table:
+            type === 'object'
+              ? 'object_files'
+              : type === 'note'
+                ? 'note_files'
+                : type === 'task'
+                  ? 'task_files'
+                  : 'document_files',
+        });
+        return { ...fileSummary(row), receipt };
       });
-      return reply.code(201).send(fileSummary(row));
+      return reply.code(201).send(result);
     });
     for (const action of ['trash', 'restore'] as const)
       route('POST', `${path}/:fileId/${action}`, 200, async (tx, account, request) => {

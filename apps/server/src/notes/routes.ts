@@ -25,15 +25,27 @@ import {
   canView,
   canViewMembership,
   canWrite,
+  OfflineNoteCreate,
+  OfflineNotePatch,
   type Placement,
   type RecordFacts,
 } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
 import { pgError } from '../auth/provision.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import { copyFiles, fileSummary, filesOf } from '../files/service.ts';
+import {
+  beginOperation,
+  exactVersion,
+  fingerprint,
+  finishReceipt,
+  operationOwner,
+  receiptOf,
+} from '../idempotency.ts';
+import { Failure } from '../objects/support.ts';
+import { offlineSnapshot } from '../offline/snapshot.ts';
 import {
   AudienceChange,
   Confirm,
@@ -47,15 +59,6 @@ import {
 
 type Note = typeof notes.$inferSelect;
 type Item = typeof noteItems.$inferSelect;
-class Failure extends Error {
-  status: number;
-  code: string;
-  constructor(status: number, code: string) {
-    super(code);
-    this.status = status;
-    this.code = code;
-  }
-}
 function denied(): never {
   throw new Failure(403, 'ACCESS_DENIED');
 }
@@ -246,36 +249,63 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
     const account = await currentAccount(request, reply);
     if (!account) return reply;
     const query = parse(ListNotes, request.query);
-    return module.appDb.withAccount(account.id, async (tx) => {
-      const rows = await tx
-        .select()
-        .from(notes)
-        .where(
-          and(
-            query.trash === 'true' ? sql`${notes.deletedAt} IS NOT NULL` : isNull(notes.deletedAt),
-            query.scope === 'all' ? undefined : eq(notes.spaceKind, query.scope),
-            query.spaceId ? eq(notes.spaceId, query.spaceId) : undefined,
-          ),
-        )
-        .orderBy(desc(notes.pinned), desc(notes.updatedAt), notes.id)
-        .limit(query.limit)
-        .offset(query.offset);
-      return rows.filter((record) => canView(account.viewer, placementOf(record))).map(summary);
-    });
+    return module.appDb.withAccount(
+      account.id,
+      async (tx) => {
+        const rows = await tx
+          .select()
+          .from(notes)
+          .where(
+            and(
+              query.trash === 'true'
+                ? sql`${notes.deletedAt} IS NOT NULL`
+                : isNull(notes.deletedAt),
+              query.scope === 'all' ? undefined : eq(notes.spaceKind, query.scope),
+              query.spaceId ? eq(notes.spaceId, query.spaceId) : undefined,
+            ),
+          )
+          .orderBy(desc(notes.pinned), desc(notes.updatedAt), notes.id)
+          .limit(query.limit)
+          .offset(query.offset);
+        const data = rows
+          .filter((record) => canView(account.viewer, placementOf(record)))
+          .map(summary);
+        return query.offline ? offlineSnapshot(tx, account.id, 'notes', data) : data;
+      },
+      query.offline ? { isolationLevel: 'repeatable read' } : undefined,
+    );
   });
   app.get<{ Params: { id: string } }>('/api/notes/:id', async (request, reply) => {
     const account = await currentAccount(request, reply);
     if (!account) return reply;
     const { id } = parse(Id, request.params);
-    return module.appDb.withAccount(account.id, async (tx) =>
-      card(tx, await get(tx, account, id, false)),
+    const query = parse(z.strictObject({ offline: z.literal('true').optional() }), request.query);
+    return module.appDb.withAccount(
+      account.id,
+      async (tx) => {
+        const data = await card(tx, await get(tx, account, id, false));
+        return query.offline ? offlineSnapshot(tx, account.id, 'notes', data) : data;
+      },
+      query.offline ? { isolationLevel: 'repeatable read' } : undefined,
     );
   });
   app.post('/api/notes', async (request, reply) => {
     const account = await currentAccount(request, reply);
     if (!account) return reply;
     const body = parse(CreateNote, request.body);
+    if (body.offline) parse(OfflineNoteCreate, request.body);
+    operationOwner(account.id, body.ownerAccountId, body.offline);
+    const hash = fingerprint(body);
     const result = await module.appDb.withAccount(account.id, async (tx) => {
+      const prior = await beginOperation(tx, account.id, body.idempotencyKey, 'note_create', hash);
+      if (prior) {
+        const record = await get(tx, account, prior[0] ?? '', false);
+        if (!canWrite(account.viewer, factsOf(record))) denied();
+        return {
+          ...(await card(tx, record)),
+          receipt: await receiptOf(tx, account.id, body.idempotencyKey),
+        };
+      }
       let placement = await personal(tx, account);
       if (body.placement) {
         const [space] = await tx.select().from(spaces).where(eq(spaces.id, body.placement.spaceId));
@@ -325,7 +355,29 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
         .returning();
       if (!record) throw new Error('Note insert returned no row');
       await replaceItems(tx, account, record, body.checklist);
-      return card(tx, record);
+      const current = await get(tx, account, record.id, false);
+      const checklist = await itemsOf(tx, record.id);
+      const receipt = await finishReceipt(
+        tx,
+        account.id,
+        body.idempotencyKey,
+        'note_create',
+        hash,
+        [current],
+        {
+          table: 'notes',
+          checklist: checklist
+            .filter((item) => !item.deletedAt)
+            .map((item) => ({
+              id: item.id,
+              position: item.position,
+              ...(body.checklist[item.position]?.clientId
+                ? { clientId: body.checklist[item.position]?.clientId }
+                : {}),
+            })),
+        },
+      );
+      return { ...(await card(tx, current)), receipt };
     });
     return reply.code(201).send(result);
   });
@@ -334,15 +386,36 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
     if (!account) return reply;
     const { id } = parse(Id, request.params);
     const body = parse(PatchNote, request.body);
+    if (body.offline) parse(OfflineNotePatch, request.body);
+    operationOwner(account.id, body.ownerAccountId, body.offline);
+    const hash = fingerprint({ id, body });
     return module.appDb.withAccount(account.id, async (tx) => {
+      const prior = await beginOperation(tx, account.id, body.idempotencyKey, 'note_patch', hash);
+      if (prior) {
+        const record = await get(tx, account, id, false);
+        if (!canWrite(account.viewer, factsOf(record))) denied();
+        return {
+          ...(await card(tx, record)),
+          receipt: await receiptOf(tx, account.id, body.idempotencyKey),
+        };
+      }
       const record = await get(tx, account, id);
       if (!canWrite(account.viewer, factsOf(record))) denied();
-      if (
+      if (body.offline) await exactVersion(tx, 'notes', id, body.expectedUpdatedAt);
+      else if (
         body.expectedUpdatedAt &&
         new Date(body.expectedUpdatedAt).getTime() !== record.updatedAt.getTime()
       )
         throw new Failure(409, 'STALE_VERSION');
-      const { checklist, expectedUpdatedAt: _version, ...fields } = body;
+      const {
+        checklist,
+        expectedUpdatedAt: _version,
+        idempotencyKey: _key,
+        offline: _offline,
+        clientActedAt: _clientAt,
+        ownerAccountId: _owner,
+        ...fields
+      } = body;
       const [updated] = await tx
         .update(notes)
         .set({ ...fields, body: fields.body ?? record.body })
@@ -350,7 +423,29 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
         .returning();
       if (!updated) denied();
       if (checklist) await replaceItems(tx, account, record, checklist);
-      return card(tx, updated ?? record);
+      const current = await get(tx, account, id, false);
+      const items = await itemsOf(tx, id);
+      const receipt = await finishReceipt(
+        tx,
+        account.id,
+        body.idempotencyKey,
+        'note_patch',
+        hash,
+        [current],
+        {
+          table: 'notes',
+          checklist: items
+            .filter((item) => !item.deletedAt)
+            .map((item) => ({
+              id: item.id,
+              position: item.position,
+              ...(checklist?.[item.position]?.clientId
+                ? { clientId: checklist[item.position]?.clientId }
+                : {}),
+            })),
+        },
+      );
+      return { ...(await card(tx, current)), receipt };
     });
   });
 

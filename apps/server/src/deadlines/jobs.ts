@@ -47,6 +47,7 @@ export async function startDeadlineJobs(
         const { full } = Job.parse(job.data);
         await initializeHouseTimeZones(db, timeZone);
         await pool.query('SELECT app.process_task_overdue($1)', [new Date()]);
+        await pool.query('SELECT app.cleanup_bought_shopping()');
         await refreshDeadlines(db, new Date(), full);
         await enqueueDeadlineWarnings(db);
         await scheduleSummaries(pool);
