@@ -81,6 +81,7 @@ export function Quickline({
   return (
     <Section title="Быстро добавить">
       <form
+        className="task-form task-quickline"
         onSubmit={(event) => {
           event.preventDefault();
           if (!draft.title || operation.pending) return;
@@ -123,7 +124,7 @@ export function Quickline({
               setOverrides({});
             }}
           />
-          <p className="muted">
+          <p className="muted task-quickline__hint">
             Например: «Позвонить завтра в 10:00 @Борис #Квартира». Неизвестное останется в названии.
           </p>
           <div className="task-chips">
@@ -171,7 +172,9 @@ export function Quickline({
           </div>
           {raw ? (
             <>
-              <p className="muted">Название: {draft.title || 'Укажите название'}</p>
+              <p className="muted task-quickline__title">
+                Название: {draft.title || 'Укажите название'}
+              </p>
               <VisibilityPicker
                 value={who}
                 onChange={setVisibility}
