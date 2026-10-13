@@ -312,9 +312,11 @@ install до загрузки, pauseAt до ввода, resume только по
 AuthRoot/get-session, а старая форма A ещё была открыта. До исправления безопасный probe
 подтвердил POST=1 и oldInputOwnedByB=true. Теперь authoritative identity не выдаёт UI owner:
 announce обнуляет viewOwner, а layout-effect AuthRoot разрешает его только после принятия
-query.data. Cached identity также ждёт принятия. Старый UI получает ACCOUNT_CHANGED.
+query.data. requestTicket фиксирует принятого UI owner до первого await и после чтения
+сравнивает его с active.owner и текущим viewOwner: начатый при null/A запрос не заимствует B.
+Cached identity также ждёт принятия. Старый UI получает ACCOUNT_CHANGED.
 App уже пересоздаёт пространство по key me.id; после принятия B прежний ввод отсутствует.
-Постоянный сценарий с настоящими cookie/Me прошёл **2/2 (8,4 с)**: POST=0, текст A отсутствует
+Постоянный сценарий с настоящими cookie/Me прошёл **2/2 (8,1 с)**: POST=0, текст A отсутствует
 в outbox/drafts B, после принятия B новая форма пустая и доступна. SW блокируется только в
 этом сценарии для доказательства именно window sender; прежние SW-only проверки сохранены.
 

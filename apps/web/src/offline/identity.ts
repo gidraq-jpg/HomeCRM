@@ -36,8 +36,10 @@ export async function offlineOwnerAvailable() {
   }
 }
 export async function requestTicket() {
+  const acceptedOwner = viewOwner;
   const active = await ticket();
-  if (!viewOwner || active.owner !== viewOwner) throw new LocalFailure('ACCOUNT_CHANGED');
+  if (!acceptedOwner || active.owner !== acceptedOwner || viewOwner !== acceptedOwner)
+    throw new LocalFailure('ACCOUNT_CHANGED');
   return active;
 }
 const channel =
