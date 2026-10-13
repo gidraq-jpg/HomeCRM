@@ -26,8 +26,18 @@ export function useDurableDraft<T>(
       try {
         const owner = await requestTicket();
         const row = await offlineDB.drafts.get(`${owner.owner}:${draftKey}`);
+        // Связь формы сохранена атомарно с outbox ДО отправки, а не поздним autosave.
+        const bound = (
+          await offlineDB.outbox
+            .where('owner')
+            .equals(owner.owner ?? '')
+            .filter((intent) => intent.formKey === draftKey && intent.formValue !== undefined)
+            .sortBy('createdAt')
+        ).at(-1);
         await assertIdentity(owner);
-        if (active && row) {
+        if (active && bound?.formValue && typeof bound.formValue === 'object') {
+          apply.current({ ...bound.formValue, idempotencyKey: bound.id } as T);
+        } else if (active && row) {
           const envelope = DraftEnvelope.safeParse(row.data);
           apply.current((envelope.success ? envelope.data.value : row.data) as T);
           if (initialSource.current) {
@@ -105,5 +115,22 @@ export function useDurableDraft<T>(
 }
 export async function clearDraft(key: string) {
   const owner = await requestTicket();
-  await offlineDB.drafts.delete(`${owner.owner}:${key}`);
+  await offlineDB.transaction(
+    'rw',
+    offlineDB.identity,
+    offlineDB.drafts,
+    offlineDB.outbox,
+    async () => {
+      await assertIdentity(owner);
+      await offlineDB.drafts.delete(`${owner.owner}:${key}`);
+      await offlineDB.outbox
+        .where('owner')
+        .equals(owner.owner ?? '')
+        .filter((row) => row.formKey === key)
+        .modify((row) => {
+          delete row.formKey;
+          delete row.formValue;
+        });
+    },
+  );
 }

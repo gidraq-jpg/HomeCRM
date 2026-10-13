@@ -337,6 +337,7 @@ test('серия: область правки, выполнение и отме�
 test('серия: возобновление после окна и отмена повторного выполнения сохраняют прежнего преемника', async ({
   page,
   family,
+  context,
 }) => {
   await setHomeZone(family);
   const api = await apiAs(family, 'adult');
@@ -356,8 +357,28 @@ test('серия: возобновление после окна и отмена
   await api.patch(`tasks/${first.nextTaskId}`, { title: 'Сохранённый преемник' });
   await signInAs(page, family, 'adult');
   await openTask(page, row.id, row.title);
-  await page.getByRole('button', { name: 'Возобновить дело' }).click();
-  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible();
+  let snapshotStarted = false;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await context.route(`**/api/tasks/${row.id}?*`, async (route) => {
+    if (snapshotStarted) return route.continue();
+    snapshotStarted = true;
+    const response = await route.fetch();
+    await gate;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.getByRole('button', { name: 'Возобновить дело' }).click();
+    await expect.poll(() => snapshotStarted).toBe(true);
+    await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toHaveCount(0);
+    release();
+    await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeEnabled();
+  } finally {
+    release();
+    await context.unroute(`**/api/tasks/${row.id}?*`);
+  }
   await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
   await expect(page.getByRole('button', { name: /Отменить выполнение/ })).toBeVisible();
   const second = await current(api, row.id);

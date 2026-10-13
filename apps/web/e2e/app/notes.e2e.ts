@@ -417,7 +417,12 @@ test('чужой вклад закрывает «Сделать личной»: 
       .locator('form.note-form')
       .getByRole('button', { name: 'Сохранить', exact: true })
       .click();
+    // Значение textarea ещё не означает COMMIT: ждём закрытия редактора и серверной V2.
+    await expect(anna.page.locator('form.note-form')).toHaveCount(0);
     await expect(anna.page.getByText('Дополнила Анна.')).toBeVisible();
+    expect((await boris.get(`notes/${shared.id}`)).body).toMatchObject({
+      body: 'Первая версия. Дополнила Анна.',
+    });
   } finally {
     await anna.close();
   }

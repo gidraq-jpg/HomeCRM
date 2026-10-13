@@ -94,6 +94,7 @@ export function AuthRoot() {
   const [link, setLink] = useState(() => consumeLink(new URL(window.location.href)));
   const linkConsumed = useRef(false);
   const [challenge, setChallenge] = useState<Challenge | null>(null);
+  const identitySource = useRef(Symbol('AuthRoot'));
   const query = useQuery({
     queryKey: [ME_KEY],
     networkMode: 'always',
@@ -104,12 +105,12 @@ export function AuthRoot() {
         next = await currentMe(signal);
         if (next) {
           try {
-            await setIdentity(next, expected ?? undefined);
+            await setIdentity(next, expected ?? undefined, identitySource.current);
           } catch (error) {
             if (error instanceof Error && error.message === 'ACCOUNT_CHANGED') throw error;
             changed('storage-error');
           }
-        } else await blockIdentity().catch(() => changed('storage-error'));
+        } else await blockIdentity(identitySource.current).catch(() => changed('storage-error'));
       } catch (error) {
         if (error instanceof ApiError && error.status === 0) {
           next = await cachedIdentity();
@@ -123,9 +124,11 @@ export function AuthRoot() {
     refetchOnWindowFocus: true,
   });
   useEffect(() => {
-    const update = () => {
+    const update = (event: Event) => {
       client.removeQueries({ predicate: (item) => item.queryKey[0] !== ME_KEY });
-      void query.refetch();
+      // Только своё уведомление: внешняя смена account/role не теряется во время любого await.
+      if ((event as Event & { source?: symbol }).source !== identitySource.current)
+        void query.refetch();
     };
     offlineEvents.addEventListener('identity', update);
     return () => offlineEvents.removeEventListener('identity', update);

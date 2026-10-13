@@ -29,6 +29,7 @@ type Row = {
   state: string;
   createdAt: number;
   operation: string;
+  httpStatus?: number;
   body: Record<string, unknown>;
   dependencies: string[];
   attempted: boolean;
@@ -1352,10 +1353,12 @@ for (const phase of ['before', 'between'] as const) {
     await blank.route('**/sender-fixture', (route) =>
       route.fulfill({
         contentType: 'text/html',
-        body: '<html lang="ru"><title>SW без AuthRoot</title></html>',
+        body: '<html lang="ru"><meta charset="utf-8"><title>SW без AuthRoot</title></html>',
       }),
     );
     await blank.goto(`${family.origin}/sender-fixture`);
+    await expect(blank).toHaveTitle('SW без AuthRoot');
+    await expect(blank.locator('script')).toHaveCount(0);
     await page.close();
     const downgrade = async () => {
       await family.database.admin.query('UPDATE notes SET assignee_id=$2 WHERE id=$1', [
@@ -1386,6 +1389,7 @@ for (const phase of ['before', 'between'] as const) {
       registration.active.postMessage({ type: 'HOMECRM_SYNC' });
     }, family.baseURL);
     await expect.poll(async () => (await rows(blank))[0]?.state).toBe('error');
+    expect((await rows(blank))[0]?.httpStatus).toBe(403);
     const current = (await rows(blank, 'identity'))[0] as unknown as {
       generation: number;
       me: { roles: { role: string }[] };
@@ -1409,3 +1413,167 @@ for (const phase of ['before', 'between'] as const) {
     });
   });
 }
+
+test('B5: online create lost ACK сохраняет key с формой после reload и даёт один эффект', async ({
+  page,
+  family,
+  context,
+}) => {
+  const api = await apiAs(family, 'adult');
+  await page.clock.install();
+  await signInAs(page, family, 'adult');
+  await shell(page);
+  const sentBodies: string[] = [];
+  context.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/tasks')
+      sentBodies.push(request.postData() ?? '');
+  });
+  await context.route('**/api/tasks', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    await route.fetch();
+    await route.abort('failed');
+  });
+  await page.goto('#/today/new');
+  const form = page.locator('form.task-form');
+  const title = 'Дело с потерянным ответом';
+  // После загрузки формы таймеры остановлены: autosave введённого не может сработать.
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await page.getByLabel('Название дела').fill(title);
+  await form.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Не удалось связаться с сервером');
+  await expect(page.getByLabel('Название дела')).toHaveValue(title);
+  await expect.poll(async () => (await rows(page))[0]?.state).toBe('unknown');
+  const before = (await rows(page))[0];
+  expect(before?.frozenBody).toBeTruthy();
+  expect((before as Row & { formKey?: string })?.formKey).toBe('form:/today/new');
+  const drafts = (await rows(page, 'drafts')) as unknown as {
+    key: string;
+    data: { value?: { title?: string } };
+  }[];
+  expect(
+    drafts.find((draft) => draft.key.endsWith(':form:/today/new'))?.data.value?.title,
+  ).not.toBe(title);
+  // Reload немедленный: ключ восстанавливается из уже durable outbox, без ожидания autosave.
+  await page.reload();
+  // Bootstrap React Query использует таймеры; старый ввод до reload всё ещё не был autosaved.
+  await page.clock.resume();
+  await expect(page.getByLabel('Название дела')).toHaveValue(title);
+  await page.getByLabel('Название дела').fill('Другое тело после неизвестного COMMIT');
+  await form.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Исход отправки ещё неизвестен');
+  expect((await rows(page)).map((row) => row.id)).toEqual([before?.id]);
+  await page.getByLabel('Название дела').fill(title);
+  await context.unroute('**/api/tasks');
+  await form.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+  const after = (await rows(page))[0];
+  expect(after?.state).toBe('confirmed');
+  expect(after?.id).toBe(before?.id);
+  expect(after?.frozenBody).toBe(before?.frozenBody);
+  expect(sentBodies.length).toBeGreaterThanOrEqual(2);
+  expect(new Set(sentBodies).size).toBe(1);
+  const tasks = (await api.get('tasks?scope=all')).body as { title: string }[];
+  expect(tasks.filter((task) => task.title === title)).toHaveLength(1);
+});
+
+test('B5: внешняя роль во время await Me не теряется, поздний Me не откатывает generation', async ({
+  page,
+  family,
+  context,
+}) => {
+  const api = await apiAs(family, 'adult');
+  const note = await seedNote(api, family, {
+    title: 'Закрытый снимок B5',
+    body: 'Данные взрослых B5',
+    audience: 'adults',
+  });
+  // Старый ответ доходит до queryFn даже после отмены: generation обязан отклонить его запись.
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = new URL(
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+        location.href,
+      );
+      return url.pathname === '/api/me'
+        ? original(input, { ...init, signal: undefined })
+        : original(input, init);
+    };
+  });
+  await signInAs(page, family, 'adult');
+  await shell(page);
+  await page.goto(`#/more/notes/${note.id}`);
+  await expect(page.getByText('Данные взрослых B5')).toBeVisible();
+  await page.goto('#/more/offline');
+  const before = (await rows(page, 'identity'))[0] as unknown as { generation: number };
+  let held = false;
+  let frameMe = 0;
+  let workerMe = 0;
+  let release!: () => void;
+  let delivered!: () => void;
+  const gate = new Promise<void>((ok) => {
+    release = ok;
+  });
+  const late = new Promise<void>((ok) => {
+    delivered = ok;
+  });
+  await context.route('**/api/me', async (route) => {
+    if (route.request().serviceWorker()) {
+      workerMe++;
+      return route.continue();
+    }
+    frameMe++;
+    if (!held) {
+      held = true;
+      const response = await route.fetch();
+      await gate;
+      await route.fulfill({ response });
+      delivered();
+    } else await route.continue();
+  });
+  try {
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+      window.dispatchEvent(new Event('visibilitychange'));
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+      window.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect.poll(() => held).toBe(true);
+    await family.database.admin.query('UPDATE notes SET assignee_id=$2 WHERE id=$1', [
+      note.id,
+      family.person('admin').id,
+    ]);
+    await family.database.admin.query(
+      "UPDATE space_members SET role='child' WHERE account_id=$1 AND space_id=$2",
+      [family.person('adult').id, family.houseId],
+    );
+    await page.evaluate(async () => {
+      (await navigator.serviceWorker.ready).active?.postMessage({ type: 'HOMECRM_SYNC' });
+    });
+    await expect
+      .poll(async () => {
+        const active = (await rows(page, 'identity'))[0] as unknown as {
+          me: { roles: { role: string }[] };
+        };
+        return active.me.roles[0]?.role;
+      })
+      .toBe('child');
+    await expect.poll(() => frameMe).toBeGreaterThanOrEqual(2);
+    expect(workerMe).toBeGreaterThanOrEqual(1);
+    release();
+    await late;
+    await context.setOffline(true);
+    await page.reload();
+    const after = (await rows(page, 'identity'))[0] as unknown as {
+      generation: number;
+      me: { roles: { role: string }[] };
+    };
+    expect(after.generation).toBeGreaterThan(before.generation);
+    expect(after.me.roles[0]?.role).toBe('child');
+    expect(JSON.stringify(await rows(page, 'snapshots'))).not.toContain('Данные взрослых B5');
+    await expect(page.getByText('Данные взрослых B5')).toHaveCount(0);
+  } finally {
+    release();
+    await context.unroute('**/api/me');
+  }
+});

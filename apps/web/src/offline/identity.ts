@@ -40,8 +40,8 @@ const channel =
   typeof BroadcastChannel === 'undefined' || typeof indexedDB === 'undefined'
     ? null
     : new BroadcastChannel('homecrm-offline');
-export function changed(type = 'queue') {
-  offlineEvents.dispatchEvent(new Event(type));
+export function changed(type = 'queue', source?: symbol) {
+  offlineEvents.dispatchEvent(Object.assign(new Event(type), { source }));
   channel?.postMessage(type);
 }
 channel?.addEventListener('message', (event) => {
@@ -71,7 +71,7 @@ export async function assertIdentity(expected: Pick<Identity, 'owner' | 'generat
     throw new LocalFailure('ACCOUNT_CHANGED');
   return active;
 }
-export async function setIdentity(me: Me | null, expected?: Identity) {
+export async function setIdentity(me: Me | null, expected?: Identity, source?: symbol) {
   let announce = false;
   await offlineDB.transaction('rw', offlineDB.tables, async () => {
     const active = await ticket();
@@ -110,13 +110,13 @@ export async function setIdentity(me: Me | null, expected?: Identity) {
     });
   });
   viewOwner = me?.id ?? null;
-  if (announce) changed('identity');
+  if (announce) changed('identity', source);
 }
-export async function blockIdentity() {
+export async function blockIdentity(source?: symbol) {
   const active = await ticket();
   if (active.locked && !active.verified) return;
   await offlineDB.identity.update('active', { verified: false, locked: true });
-  changed('identity');
+  changed('identity', source);
 }
 export async function cachedIdentity(): Promise<Me | null> {
   const active = await ticket();

@@ -147,11 +147,15 @@ function newIntent(
     attempts: 0,
   };
 }
+export interface IntentForm {
+  key: string;
+  value: unknown;
+}
 export async function enqueue(
   method: 'POST' | 'PATCH',
   path: string,
   source: Record<string, unknown>,
-  options: { idFrom?: string; baseFrom?: string } = {},
+  options: { idFrom?: string; baseFrom?: string; form?: IntentForm } = {},
 ) {
   const expected = await requestTicket();
   await assertIdentity(expected);
@@ -223,6 +227,10 @@ export async function enqueue(
     entity,
   );
   intent.inputFingerprint = fingerprint;
+  if (options.form) {
+    intent.formKey = options.form.key;
+    intent.formValue = options.form.value;
+  }
   if (options.idFrom) intent.idFrom = options.idFrom;
   if (baseFrom) intent.baseFrom = baseFrom;
   intent.dependencies = [
@@ -235,6 +243,7 @@ export async function durableMutation(
   method: string,
   path: string,
   body: unknown,
+  form?: IntentForm,
 ): Promise<unknown | undefined> {
   if (!definition(method, path) || !body || typeof body !== 'object') {
     if (!navigator.onLine) throw new LocalFailure('NETWORK_REQUIRED');
@@ -242,14 +251,20 @@ export async function durableMutation(
   }
   let intent: Intent;
   try {
-    intent = await enqueue(method as 'POST' | 'PATCH', path, body as Record<string, unknown>);
+    intent = await enqueue(method as 'POST' | 'PATCH', path, body as Record<string, unknown>, {
+      form,
+    });
   } catch (error) {
     // Не в allowlist (назначение, серия, доступ): сетевой контракт сохраняется.
     if (navigator.onLine && error instanceof LocalFailure && error.code === 'NETWORK_REQUIRED')
       return undefined;
     throw error;
   }
-  if (navigator.onLine) await synchronize();
+  if (navigator.onLine) {
+    // Повтор из формы снимает backoff, но сохраняет замороженные тело и ключ.
+    if (intent.state === 'unknown') await retryIntent(intent.id);
+    else await synchronize();
+  }
   const current = await offlineDB.outbox.get(intent.id);
   if (current?.state === 'confirmed') {
     const info = lastTiming.get(intent.id);
@@ -257,10 +272,18 @@ export async function durableMutation(
       timing.set(current.response, info);
     return current.response;
   }
+  if (current?.state === 'error' && current.httpStatus === undefined)
+    throw new LocalFailure(current.code ?? 'LOCAL_CONFIRMATION');
   if (current?.state === 'conflict' || current?.state === 'error')
     throw Object.assign(new Error('QUEUE_ERROR'), {
-      status: current.state === 'conflict' ? 409 : 403,
+      status: current.httpStatus ?? 409,
       code: current.code ?? '',
+    });
+  if (navigator.onLine && path === 'tasks' && current?.state === 'unknown')
+    throw Object.assign(new Error('QUEUE_OUTCOME_UNKNOWN'), {
+      status: 0,
+      code: 'OUTCOME_UNKNOWN',
+      intentId: intent.id,
     });
   throw new LocalSaved(intent.id);
 }
@@ -610,7 +633,11 @@ export async function synchronize(): Promise<void> {
           const code = typeof json?.code === 'string' ? json.code : 'HTTP_ERROR';
           if (response.status === 401) {
             await blockIdentity();
-            await offlineDB.outbox.update(row.id, { state: 'error', code: 'SIGN_IN_REQUIRED' });
+            await offlineDB.outbox.update(row.id, {
+              state: 'error',
+              httpStatus: 401,
+              code: 'SIGN_IN_REQUIRED',
+            });
             return;
           }
           if (response.status === 429) {
@@ -626,6 +653,7 @@ export async function synchronize(): Promise<void> {
           if (response.status >= 500) throw new Error('NETWORK');
           await offlineDB.outbox.update(row.id, {
             state: response.status === 409 ? 'conflict' : 'error',
+            httpStatus: response.status,
             code,
           });
           changed();
@@ -694,7 +722,7 @@ export async function synchronize(): Promise<void> {
         rows.filter((row) => row.state !== 'confirmed').flatMap((row) => row.dependencies),
       );
       const confirmed = rows
-        .filter((row) => row.state === 'confirmed' && !referenced.has(row.id))
+        .filter((row) => row.state === 'confirmed' && !row.formKey && !referenced.has(row.id))
         .toSorted((a, b) => b.createdAt - a.createdAt);
       for (const old of confirmed.slice(200)) await offlineDB.outbox.delete(old.id);
     });

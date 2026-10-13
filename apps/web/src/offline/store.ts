@@ -43,9 +43,12 @@ export interface Intent {
   receipt?: OperationReceipt;
   response?: unknown;
   code?: string;
+  httpStatus?: number;
   nextAttempt: number;
   attempts: number;
   inputFingerprint?: string;
+  formKey?: string;
+  formValue?: unknown;
 }
 export interface StoredBlob {
   id: string;

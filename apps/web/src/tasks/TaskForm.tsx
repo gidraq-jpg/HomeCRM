@@ -39,6 +39,7 @@ export interface TaskDraft extends Omit<Fields, 'planOn' | 'dueOn' | 'checkOn'> 
   visibility: Visibility;
   repeatScope: 'this' | 'following';
   draftBase?: DraftBase;
+  idempotencyKey?: string;
 }
 export function taskDraft(card: TaskCard, visibility: Visibility): TaskDraft {
   return {
