@@ -323,3 +323,45 @@ App уже пересоздаёт пространство по key me.id; по�
 Целевые unit после последних правок: 18 файлов, **148/148**; client/e2e types, Biome,
 кодировка и diff-check зелёные. Сервер/shared/db/CI/deploy/тайм-ауты не менялись.
 Следующий full pre-push/CI выполняется только после принятия этого кандидата ведущим.
+
+## Последний остаток CI 38364789713
+
+[CI 38364789713](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38364789713)
+на 97e52db: check SUCCESS; Linux **485 passed + 1 skipped + 4 failed** (17,6 мин).
+Это quota на обеих ширинах, notes conflict w412 и create/edit chain w412. Остальные
+проверки, включая ранее принятые fixes, прошли; полного rerun не было.
+
+- Quota: общий newNote helper ждал закрытия формы даже при намеренном отказе. Теперь
+  outcome=error сохраняет эту форму; assertions проверяют недостаток места, нулевой outbox
+  и исходные title/body. Helper ждёт draft-ready перед вводом: программный fill инертного
+  поля до готовности оставлял заголовок пустым. Штатный save по-прежнему ждёт durable closure.
+- Notes: ожидание draft-ready и проверка нового ввода воспроизвели обе ширины:
+  второй note_patch оставался pending с dependency на прежний conflict/STALE_VERSION.
+  Новая правка с явно наблюдаемой expectedUpdatedAt теперь не наследует terminal
+  conflict/error как причинную базу. Старый intent не удаляется; original exactVersion
+  берётся из согласованного snapshot/восстановленной базы, прежний key/body не меняются.
+  Pending/unknown той же сущности остаются зависимостями. NoteForm инертна до draft-ready,
+  поэтому восстановление не обгоняет пользовательский ввод; её pending и база B1 сохранены.
+- Постоянный notes case проверяет второй сохранённый новый ввод, реальный STALE_VERSION,
+  новый key, отсутствие ложной зависимости, неизменённый старый conflict, «Обновить» и
+  свежий серверный текст. Копия и оба исходных чек-листа также проверяются как раньше.
+- Chain: непосредственная причина прежнего CI из опубликованных артефактов не восстановлена.
+  Найдена стартовая граница ожидания: после click synchronize во всех четырёх узких
+  диагностических случаях create ещё sending, child pending/dependency1, активен другой
+  sender lease. Возврат конкурентного synchronize не означает ACK. Существующий сценарий
+  теперь удерживает настоящий create COMMIT, проверяет receipt owner/key/operation,
+  sending parent/pending child, release, затем исходные 20 секунд allconfirmed и один
+  серверный эффект. Тайм-ауты 20/120 не менялись. При отказе выводятся только технические
+  operation/state/code/dependency/lease-count; пользовательских текстов и секретов там нет.
+
+Последние релевантные Linux-проверки на 360/412: **10/10 уникальных**:
+quota 2, notes conflict 2, chain 2, observed-base pending/unknown 4.
+Основной набор был 9/10 (33,3 с); после исправления только quota360 helper её парные
+варианты прошли 2/2 (8,8 с). Перекрывающийся w412 посчитан один раз; 9 зелёных не повторялись.
+Реальные pending/unknown созданы через UI (offline / COMMIT lost ACK), у дочернего intent
+сохранены dependency/baseFrom, у исходного — state/key/frozenBody.
+Обновлены только Linux offline-queue кадры той же вымышленной семьи.
+
+После source fixes: targeted unit 18 файлов **148/148**, client/e2e types, Biome,
+encoding/diff-check зелёные. Сервер/shared/db/CI/deploy/тайм-ауты не менялись.
+Следующий штатный pre-push/CI выполняется после принятия этого конкретного остатка ведущим.

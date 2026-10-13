@@ -141,7 +141,13 @@ export function NoteForm({
   }
 
   return (
-    <form className="note-form" onSubmit={submit} aria-busy={state.pending} noValidate>
+    <form
+      className="note-form"
+      onSubmit={submit}
+      aria-busy={state.pending}
+      inert={!localDraft.ready}
+      noValidate
+    >
       {localDraft.problem ? <Notice error>{localDraft.problem}</Notice> : null}
       {localDraft.needsDecision ? (
         <Notice error>

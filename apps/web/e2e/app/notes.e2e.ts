@@ -489,6 +489,7 @@ test('конфликт правки: «обновить» или «сохран�
   await signInAs(page, family, 'adult');
   await page.goto(`#/more/notes/${note.id}`);
   await page.getByRole('button', { name: 'Править' }).click();
+  await expect(form(page).getByRole('button', { name: 'Сохранить', exact: true })).toBeEnabled();
   await page.getByLabel('Текст', { exact: true }).fill('Хлеб, молоко, сыр.');
 
   // Пока Борис правил на телефоне, ту же заметку изменили с другого устройства.
@@ -500,6 +501,31 @@ test('конфликт правки: «обновить» или «сохран�
   await expect(panel).toContainText('Заметку изменили, пока вы её правили');
   await expect(page.getByLabel('Текст', { exact: true })).toHaveValue('Хлеб, молоко, сыр.');
   await checkApp(page, info, 'notes-conflict');
+
+  const readIntents = async () =>
+    page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((ok) => {
+        const request = indexedDB.open('homecrm-offline');
+        request.onsuccess = () => ok(request.result);
+      });
+      return new Promise<
+        {
+          id: string;
+          state: string;
+          code?: string;
+          dependencies: string[];
+          body: { body?: string; expectedUpdatedAt?: string };
+        }[]
+      >((ok) => {
+        const request = db.transaction('outbox').objectStore('outbox').getAll();
+        request.onsuccess = () => {
+          db.close();
+          ok(request.result);
+        };
+      });
+    });
+  const originalConflict = (await readIntents()).find((row) => row.code === 'STALE_VERSION');
+  expect(originalConflict?.state).toBe('conflict');
 
   // «Сохранить мою версию как копию»: свежая версия не тронута, моя — отдельной заметкой.
   await panel.getByRole('button', { name: 'Сохранить мою версию как копию' }).click();
@@ -523,10 +549,27 @@ test('конфликт правки: «обновить» или «сохран�
 
   // «Обновить»: правка пропадает, показана свежая версия.
   await page.getByRole('button', { name: 'Править' }).click();
+  await expect(form(page).getByRole('button', { name: 'Сохранить', exact: true })).toBeEnabled();
   await page.getByLabel('Текст', { exact: true }).fill('Хлеб, молоко, мёд.');
   const again = await boris.patch(`notes/${note.id}`, { body: 'Хлеб, молоко, чай.' });
   expect(again.status).toBe(200);
   await form(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect(form(page).getByRole('alert')).toBeVisible();
+  await expect(page.getByLabel('Текст', { exact: true })).toHaveValue('Хлеб, молоко, мёд.');
+  await expect(form(page).getByRole('alert')).toContainText('Заметку изменили, пока вы её правили');
+  const secondConflict = (await readIntents()).find(
+    (row) => row.body.body === 'Хлеб, молоко, мёд.',
+  );
+  expect(secondConflict).toMatchObject({
+    state: 'conflict',
+    code: 'STALE_VERSION',
+    dependencies: [],
+  });
+  expect(secondConflict?.id).not.toBe(originalConflict?.id);
+  expect(secondConflict?.body.expectedUpdatedAt).not.toBe('2000-01-01T00:00:00.000000Z');
+  expect((await readIntents()).find((row) => row.id === originalConflict?.id)?.state).toBe(
+    'conflict',
+  );
   await form(page).getByRole('button', { name: 'Обновить' }).click();
   await expect(page.getByText('Хлеб, молоко, чай.')).toBeVisible();
   await expect(page.getByLabel('Текст', { exact: true })).toHaveCount(0);

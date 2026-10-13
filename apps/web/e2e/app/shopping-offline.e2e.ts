@@ -1,6 +1,7 @@
 import { copyFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createAuthDatabase } from '@homecrm/db';
+import { OperationReceipt } from '@homecrm/shared';
 import type { Page, TestInfo } from '@playwright/test';
 import { createHousehold } from '../../../server/src/auth/provision.ts';
 import { Me } from '../../src/auth/api.ts';
@@ -123,13 +124,14 @@ async function check(page: Page, info: TestInfo, name: string) {
     );
   }
 }
-async function newNote(page: Page, title: string) {
+async function newNote(page: Page, title: string, outcome: 'saved' | 'error' = 'saved') {
   await page.goto('#/more/notes/new');
+  await expect(page.getByRole('button', { name: 'Сохранить', exact: true })).toBeEnabled();
   await page.getByLabel('Заголовок', { exact: true }).fill(title);
   await page.getByLabel('Текст', { exact: true }).fill('Локальный текст вымышленной семьи');
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   // Click не означает durable save: reconnect ждёт завершения формы.
-  await expect(page.locator('form.note-form')).toHaveCount(0);
+  if (outcome === 'saved') await expect(page.locator('form.note-form')).toHaveCount(0);
 }
 test('SHOP: прототип списка, real quickline/bought/undo/trash/restore/search и ребёнок', async ({
   page,
@@ -202,14 +204,75 @@ test('OFFLINE: reload → durable note → reload → create/edit chain → од
   await page.getByRole('button', { name: 'Сохранить зависимую правку' }).click();
   await check(page, info, 'offline-queue');
   expect((await rows(page)).filter((row) => row.state !== 'confirmed')).toHaveLength(2);
-  await page.reload();
-  await context.setOffline(false);
-  await sync(page);
-  await expect
-    .poll(async () => (await rows(page)).every((row) => row.state === 'confirmed'), {
-      timeout: 20000,
-    })
-    .toBe(true);
+  const create = (await rows(page)).find((row) => row.operation === 'note_create');
+  const child = (await rows(page)).find((row) => row.operation === 'note_patch');
+  expect(child?.dependencies).toContain(create?.id);
+  let release!: () => void;
+  let received!: (body: Record<string, unknown>) => void;
+  let delivered!: () => void;
+  const gate = new Promise<void>((ok) => {
+    release = ok;
+  });
+  const committed = new Promise<Record<string, unknown>>((ok) => {
+    received = ok;
+  });
+  const acknowledged = new Promise<void>((ok) => {
+    delivered = ok;
+  });
+  await context.route('**/api/notes', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const response = await route.fetch();
+    received(await response.json());
+    await gate;
+    await route.fulfill({ response });
+    delivered();
+  });
+  try {
+    await page.reload();
+    await context.setOffline(false);
+    await sync(page);
+    const receipt = OperationReceipt.parse((await committed).receipt);
+    expect(receipt).toMatchObject({
+      key: create?.id,
+      ownerAccountId: family.person('adult').id,
+      operation: 'note_create',
+    });
+    const waiting = await rows(page);
+    expect(waiting.find((row) => row.id === create?.id)).toMatchObject({
+      state: 'sending',
+      attempted: true,
+    });
+    expect(waiting.find((row) => row.id === child?.id)).toMatchObject({
+      state: 'pending',
+      dependencies: [create?.id],
+    });
+    release();
+    await acknowledged;
+    try {
+      await expect
+        .poll(async () => (await rows(page)).every((row) => row.state === 'confirmed'), {
+          timeout: 20000,
+        })
+        .toBe(true);
+    } catch (failure) {
+      // Только технические состояния: без названий, текста и тела запроса.
+      process.stdout.write(
+        `Chain failure states: ${JSON.stringify({
+          intents: (await rows(page)).map((row) => ({
+            operation: row.operation,
+            state: row.state,
+            code: (row as Row & { code?: string }).code,
+            dependencies: row.dependencies.length,
+          })),
+          leaseCount: (await rows(page, 'leases')).length,
+        })}\n`,
+      );
+      throw failure;
+    }
+  } finally {
+    release();
+    await context.unroute('**/api/notes');
+  }
   const notes = await api.get('notes?scope=personal');
   const list = notes.body as { title: string }[];
   expect(list.filter((note) => note.title === 'Офлайн заметка изменена')).toHaveLength(1);
@@ -520,9 +583,15 @@ test('OFFLINE: quota не выдаёт durable save и выбранный вых
       return original.apply(this, args);
     };
   });
-  await newNote(page, 'Не сохранено из-за квоты');
+  await newNote(page, 'Не сохранено из-за квоты', 'error');
   await expect(page.getByText(/недостаточно места/)).toBeVisible();
   expect(await rows(page)).toHaveLength(0);
+  await expect(page.getByLabel('Заголовок', { exact: true })).toHaveValue(
+    'Не сохранено из-за квоты',
+  );
+  await expect(page.getByLabel('Текст', { exact: true })).toHaveValue(
+    'Локальный текст вымышленной семьи',
+  );
   await page.reload();
   await newNote(page, 'Сохранено перед выходом');
   await queue(page);
@@ -1644,3 +1713,44 @@ test('B5: window sender A→B блокирует старую форму до п
     await context.close();
   }
 });
+
+for (const parentState of ['pending', 'unknown'] as const) {
+  test(`NOTES: observed base сохраняет зависимость на ${parentState}`, async ({
+    page,
+    family,
+    context,
+  }) => {
+    const api = await apiAs(family, 'adult');
+    const note = await seedNote(api, family, { title: 'Исходная заметка цепи', body: 'База цепи' });
+    await signInAs(page, family, 'adult');
+    await page.goto(`#/more/notes/${note.id}`);
+    await page.getByRole('button', { name: 'Править', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Сохранить', exact: true })).toBeEnabled();
+    if (parentState === 'pending') await context.setOffline(true);
+    else
+      await context.route(`**/api/notes/${note.id}`, async (route) => {
+        if (route.request().method() === 'PATCH') {
+          await route.fetch();
+          await route.abort('failed');
+        } else await route.continue();
+      });
+    await page.getByLabel('Текст', { exact: true }).fill('Первая зависимая правка');
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect
+      .poll(async () => (await rows(page)).find((row) => row.operation === 'note_patch')?.state)
+      .toBe(parentState);
+    const parent = (await rows(page)).find((row) => row.operation === 'note_patch');
+    expect(parent).toBeTruthy();
+    await page.getByLabel('Текст', { exact: true }).fill('Следующая зависимая правка');
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect
+      .poll(async () => (await rows(page)).filter((row) => row.operation === 'note_patch').length)
+      .toBe(2);
+    const after = await rows(page);
+    const child = after.find((row) => row.id !== parent?.id);
+    expect(child?.dependencies).toContain(parent?.id);
+    expect((child as Row & { baseFrom?: string })?.baseFrom).toBe(parent?.id);
+    expect(after.find((row) => row.id === parent?.id)?.frozenBody).toBe(parent?.frozenBody);
+    expect(after.find((row) => row.id === parent?.id)?.state).toBe(parentState);
+  });
+}

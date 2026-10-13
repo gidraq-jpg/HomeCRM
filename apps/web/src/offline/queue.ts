@@ -213,7 +213,15 @@ export async function enqueue(
       .equals(expected.owner ?? '')
       .toArray()
   )
-    .filter((row) => row.entity === entity && row.state !== 'confirmed')
+    .filter(
+      (row) =>
+        row.entity === entity &&
+        row.state !== 'confirmed' &&
+        // Неуспешный запрос не база новой правки явно показанного серверного snapshot.
+        !(
+          typeof source.expectedUpdatedAt === 'string' && ['conflict', 'error'].includes(row.state)
+        ),
+    )
     .sort((a, b) => b.createdAt - a.createdAt)[0];
   const baseFrom = previous?.id ?? options.baseFrom;
   if (needsVersion) {
