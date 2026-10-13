@@ -128,11 +128,26 @@ test('service worker кэширует оболочку, API и токены не
   });
   expect(stored.includes(family.person('child').password)).toBe(false);
   expect(stored.includes('session_token')).toBe(false);
+  const sent: string[] = [];
+  context.on('request', (request) => {
+    if (request.method() !== 'GET' && new URL(request.url()).pathname.startsWith('/api/'))
+      sent.push(request.method());
+  });
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByText('Без сети', { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Не удалось проверить вход' })).toBeVisible();
+  // Кэшированная личность открывает сохранённую оболочку, но не разрешает отправку.
+  await expect(page.getByRole('heading', { name: 'Настройки', exact: true })).toBeVisible();
+  await expect(page.getByText('Показаны сохранённые данные.', { exact: false })).toBeVisible();
+  expect(sent).toEqual([]);
   await context.setOffline(false);
-  await page.getByRole('button', { name: 'Повторить', exact: true }).click();
+  await expect
+    .poll(async () => {
+      return page.evaluate(
+        async () => (await fetch('/api/me', { credentials: 'same-origin' })).status,
+      );
+    })
+    .toBe(200);
+  await expect(page.getByText('Без сети', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Настройки', exact: true })).toBeVisible();
 });

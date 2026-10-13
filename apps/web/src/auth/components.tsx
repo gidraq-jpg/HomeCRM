@@ -64,13 +64,14 @@ export function OfflineBanner() {
     <div className="offline-banner" role="status">
       <WifiSlash size={22} aria-hidden />
       <span>
-        <strong>Без сети</strong> · Для входа и сохранения нужно подключение.
+        <strong>Без сети</strong> · Показаны сохранённые данные. Дела, заметки и показания можно
+        оставить в очереди.
       </span>
     </div>
   );
 }
 /** Отдельное состояние для каждой формы. Секреты не сохраняются в кэше мутаций. */
-export function useAction() {
+export function useAction(allowOffline = false) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [done, setDone] = useState('');
@@ -88,7 +89,15 @@ export function useAction() {
       setPending(false);
     }
   }
-  return { pending, error, done, setDone, setError, run, disabled: pending || !online };
+  return {
+    pending,
+    error,
+    done,
+    setDone,
+    setError,
+    run,
+    disabled: pending || (!allowOffline && !online),
+  };
 }
 export function AuthForm({
   state,

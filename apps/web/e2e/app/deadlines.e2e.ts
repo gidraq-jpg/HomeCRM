@@ -346,12 +346,17 @@ test('радар: пересчёт опрашивается с пределом,
 }, info) => {
   await setHomeZone(family);
   let requests = 0;
-  await page.route('**/api/deadlines?*', (route) => {
+  await page.route('**/api/deadlines?*', async (route) => {
     requests += 1;
+    const response = await route.fetch();
+    const snapshot = (await response.json()) as Record<string, unknown>;
+    const data = { items: [], groups: {}, recalculating: true };
     return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ items: [], groups: {}, recalculating: true }),
+      response,
+      json:
+        new URL(route.request().url()).searchParams.get('offline') === 'true'
+          ? { ...snapshot, data }
+          : data,
     });
   });
   // Часы страницы идут сами, а ожидание опроса перематывается: проверка не ждёт минуту.

@@ -1,5 +1,7 @@
 import { parseQuickline, TaskFields } from '@homecrm/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as offlineIdentity from '../offline/identity.ts';
+import * as offlineQueue from '../offline/queue.ts';
 import { fetchTasks, TaskCard, TaskError, taskRequest, undoWindow } from './api.ts';
 import { createBody } from './NewTaskScreen.tsx';
 import { quickDraft } from './Quickline.tsx';
@@ -34,7 +36,10 @@ function card() {
     nextTaskId: null,
   });
 }
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 describe('дела: черновик и контракт', () => {
   it('обычная правка скрытого адресата не посылает null и не переписывает расписание', () => {
     const base = card();
@@ -117,6 +122,38 @@ describe('дела: черновик и контракт', () => {
   });
 });
 describe('дела: сеть, конфликт и окно отмены', () => {
+  it('проверенная receipt не попадает в строгий DTO дела и не теряет HTTP Date для undo', async () => {
+    const dto = card();
+    const response = {
+      ...dto,
+      receipt: {
+        ownerAccountId: account,
+        key: crypto.randomUUID(),
+        operation: 'task_create',
+        confirmedAt: dto.createdAt,
+        results: [{ id: dto.id, updatedAt: dto.updatedAt }],
+      },
+    };
+    const httpTiming = {
+      serverDate: 'Mon, 12 Oct 2026 12:00:00 GMT',
+      elapsed: 150,
+      receivedAt: 1000,
+    };
+    vi.stubGlobal('indexedDB', {});
+    vi.spyOn(offlineIdentity, 'offlineOwnerAvailable').mockResolvedValue(true);
+    const mutation = vi.spyOn(offlineQueue, 'durableMutation').mockResolvedValue(response);
+    vi.spyOn(offlineQueue, 'durableTiming').mockReturnValue(httpTiming);
+    expect(TaskCard.safeParse(response).success).toBe(false);
+    await expect(taskRequest('POST', 'tasks', TaskCard, {})).resolves.toEqual({
+      data: dto,
+      ...httpTiming,
+    });
+    mutation.mockResolvedValue({ ...response, unexpectedField: true });
+    await expect(taskRequest('POST', 'tasks', TaskCard, {})).rejects.toMatchObject({
+      name: 'ZodError',
+    });
+  });
+
   it('фильтры с undefined не превращаются в параметры API', async () => {
     const fetch = vi.fn(async (_url: string) => new Response('[]', { status: 200 }));
     vi.stubGlobal('fetch', fetch);

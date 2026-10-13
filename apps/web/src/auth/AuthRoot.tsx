@@ -1,9 +1,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import * as z from 'zod';
 import { App } from '../App.tsx';
 import { usePendingRoute } from '../notifications/pending-route.ts';
+import {
+  acceptViewOwner,
+  blockIdentity,
+  cachedIdentity,
+  changed,
+  offlineEvents,
+  setIdentity,
+  ticket,
+} from '../offline/identity.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { ApiError, action, api, appURL, consumeLink, Me } from './api.ts';
 import { AuthPage, ErrorNotice, Notice, OfflineBanner, useAction } from './components.tsx';
@@ -86,16 +95,49 @@ export function AuthRoot() {
   const [link, setLink] = useState(() => consumeLink(new URL(window.location.href)));
   const linkConsumed = useRef(false);
   const [challenge, setChallenge] = useState<Challenge | null>(null);
+  const identitySource = useRef(Symbol('AuthRoot'));
   const query = useQuery({
     queryKey: [ME_KEY],
+    networkMode: 'always',
     queryFn: async ({ signal }) => {
-      const next = await currentMe(signal);
+      const expected = await ticket().catch(() => null);
+      let next: Me | null;
+      try {
+        next = await currentMe(signal);
+        if (next) {
+          try {
+            await setIdentity(next, expected ?? undefined, identitySource.current);
+          } catch (error) {
+            if (error instanceof Error && error.message === 'ACCOUNT_CHANGED') throw error;
+            changed('storage-error');
+          }
+        } else await blockIdentity(identitySource.current).catch(() => changed('storage-error'));
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 0) {
+          next = await cachedIdentity();
+          if (!next) throw error;
+        } else throw error;
+      }
       // Смена участника (например, вход другого человека в соседней вкладке): прежний кэш не показываем.
       dropCacheOnAccountChange(client, client.getQueryData<Me | null>([ME_KEY]), next);
       return next;
     },
     refetchOnWindowFocus: true,
   });
+  // Sender может уже получить B, пока UI ещё показывает A: разрешение только после commit Me.
+  useLayoutEffect(() => {
+    acceptViewOwner(query.data?.id ?? null);
+  }, [query.data]);
+  useEffect(() => {
+    const update = (event: Event) => {
+      client.removeQueries({ predicate: (item) => item.queryKey[0] !== ME_KEY });
+      // Только своё уведомление: внешняя смена account/role не теряется во время любого await.
+      if ((event as Event & { source?: symbol }).source !== identitySource.current)
+        void query.refetch();
+    };
+    offlineEvents.addEventListener('identity', update);
+    return () => offlineEvents.removeEventListener('identity', update);
+  }, [client, query.refetch]);
   // Сессии точно нет (проверка завершена): уведомление в это время запоминает свой маршрут до входа.
   const takePendingRoute = usePendingRoute(query.isSuccess && query.data === null);
   useEffect(() => {
@@ -121,6 +163,7 @@ export function AuthRoot() {
     navigate(setup ? '/setup-two-factor' : (pending ?? '/today'), { replace: true });
   }
   function signedOut() {
+    void setIdentity(null);
     client.clear();
     client.setQueryData([ME_KEY], null);
     takePendingRoute();

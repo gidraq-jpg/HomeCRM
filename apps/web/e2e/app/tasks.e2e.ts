@@ -2,7 +2,7 @@
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createAuthDatabase } from '@homecrm/db';
-import type { Page, TestInfo } from '@playwright/test';
+import type { Page, Route, TestInfo } from '@playwright/test';
 import { createHousehold } from '../../../server/src/auth/provision.ts';
 import { type RepeatRule, TaskCard } from '../../src/tasks/api.ts';
 import { test } from '../auth/support/fixtures.ts';
@@ -290,53 +290,300 @@ for (const rule of rules)
 test('серия: область правки, выполнение и отмена, изменённый преемник блокирует отмену', async ({
   page,
   family,
+  context,
 }, info) => {
-  await setHomeZone(family);
-  const api = await apiAs(family, 'adult');
-  const row = await task(api, {
-    title: 'Ежедневная проверка',
-    planOn: homeDate(0),
-    repeatRule: { kind: 'daily' },
-    checklist: [{ id: crypto.randomUUID(), title: 'Один пункт', done: true, position: 0 }],
-  });
-  await signInAs(page, family, 'adult');
-  await openTask(page, row.id, row.title);
-  await page.getByRole('button', { name: 'Править дело' }).click();
-  await page.getByLabel('Название дела').fill('Только этот экземпляр');
-  await saved(page, 'Только этот экземпляр');
-  await page.getByRole('button', { name: 'Править дело' }).click();
-  await page.getByLabel('Область правки серии').selectOption('following');
-  await page.getByLabel('Название дела').fill('Все следующие');
-  await saved(page, 'Все следующие');
-  await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
-  await expect(page.getByRole('button', { name: /Отменить выполнение/ })).toBeVisible();
-  const done = await current(api, row.id);
-  expect(done.nextTaskId).toBeTruthy();
-  const next = await current(api, done.nextTaskId ?? '');
-  expect(next.title).toBe('Все следующие');
-  expect(next.checklist[0]?.done).toBe(false);
-  expect(next.files).toHaveLength(0);
-  expect(next.waitingFrom).toBeNull();
-  await page.getByRole('button', { name: /Отменить выполнение/ }).click();
-  await expect.poll(async () => (await current(api, row.id)).status).toBe('open');
-  expect((await current(api, next.id)).deletedAt).not.toBeNull();
-  await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
-  await expect(page.getByRole('button', { name: /Отменить выполнение/ })).toBeVisible();
-  const second = await current(api, row.id);
-  expect(second.status).toBe('done');
-  expect(
-    (await api.patch(`tasks/${second.nextTaskId}`, { title: 'Изменённый преемник' })).status,
-  ).toBe(200);
-  await page.getByRole('button', { name: /Отменить выполнение/ }).click();
-  await expect(page.getByRole('alert')).toContainText(/измен|Отмена/);
-  expect((await current(api, row.id)).status).toBe('done');
-  expect((await current(api, second.nextTaskId ?? '')).deletedAt).toBeNull();
-  await check(page, info, 'undo-conflict');
+  let stage = 'setup';
+  let heldSnapshots = 0;
+  let deliveredSnapshots = 0;
+  const technical: Record<string, string | number | boolean> = {};
+  try {
+    await setHomeZone(family);
+    const api = await apiAs(family, 'adult');
+    const row = await task(api, {
+      title: 'Ежедневная проверка',
+      planOn: homeDate(0),
+      repeatRule: { kind: 'daily' },
+      checklist: [{ id: crypto.randomUUID(), title: 'Один пункт', done: true, position: 0 }],
+    });
+    page.on('response', (response) => {
+      const path = new URL(response.url()).pathname;
+      const base = `/api/tasks/${row.id}`;
+      const operation =
+        path === base
+          ? 'task'
+          : path === `${base}/status`
+            ? 'status'
+            : path === `${base}/undo`
+              ? 'undo'
+              : null;
+      if (!operation) return;
+      technical[`${operation}HttpStatus`] = response.status();
+      if (response.status() >= 400) {
+        void response
+          .json()
+          .then((body) => {
+            const code = body?.code ?? body?.error?.code;
+            technical[`${operation}Code`] =
+              typeof code === 'string' && /^[A-Z_]{1,80}$/.test(code) ? code : 'UNAVAILABLE';
+          })
+          .catch(() => {
+            technical[`${operation}Code`] = 'UNAVAILABLE';
+          });
+      }
+    });
+    stage = 'open';
+    await signInAs(page, family, 'adult');
+    await openTask(page, row.id, row.title);
+    stage = 'edit-instance';
+    await page.getByRole('button', { name: 'Править дело' }).click();
+    await page.getByLabel('Название дела').fill('Только этот экземпляр');
+    await saved(page, 'Только этот экземпляр');
+    stage = 'restore-following-draft';
+    await page.clock.install();
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 10));
+    // Пока чтение draft задержано, ввод не должен быть перезаписан поздним восстановлением.
+    await page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((ok, bad) => {
+        const request = indexedDB.open('homecrm-offline');
+        request.onsuccess = () => ok(request.result);
+        request.onerror = () => bad(request.error);
+      });
+      const tx = db.transaction('drafts', 'readwrite');
+      const store = tx.objectStore('drafts');
+      let released = false;
+      window.addEventListener(
+        'homecrm-test-release-draft',
+        () => {
+          released = true;
+        },
+        { once: true },
+      );
+      tx.oncomplete = () => db.close();
+      const keepActive = () => {
+        const request = store.get('homecrm-test-restore-gate');
+        request.onsuccess = () => {
+          if (!released) keepActive();
+        };
+      };
+      keepActive();
+    });
+    await page.getByRole('button', { name: 'Править дело' }).click();
+    await expect(page.getByLabel('Название дела')).toBeDisabled();
+    await page.evaluate(() => window.dispatchEvent(new Event('homecrm-test-release-draft')));
+    await page.getByLabel('Область правки серии').selectOption('following');
+    await page.getByLabel('Название дела').fill('Все следующие');
+    await expect(
+      page.locator('form.task-form').getByRole('button', { name: 'Сохранить', exact: true }),
+    ).toBeEnabled();
+    // Подтверждённая карточка остаётся в UI; её offline snapshot может быть вытеснен.
+    await page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((ok, bad) => {
+        const request = indexedDB.open('homecrm-offline');
+        request.onsuccess = () => ok(request.result);
+        request.onerror = () => bad(request.error);
+      });
+      await new Promise<void>((ok, bad) => {
+        const tx = db.transaction(['snapshots', 'drafts'], 'readwrite');
+        tx.objectStore('snapshots').clear();
+        tx.objectStore('drafts').clear();
+        tx.oncomplete = () => ok();
+        tx.onerror = () => bad(tx.error);
+      });
+      db.close();
+    });
+    let releaseSnapshot!: () => void;
+    const snapshotGate = new Promise<void>((ok) => {
+      releaseSnapshot = ok;
+    });
+    let snapshotUrl = '';
+    let holdLateSnapshot = false;
+    let lateSnapshotStarted = false;
+    let releaseLateSnapshot!: () => void;
+    const lateSnapshotGate = new Promise<void>((ok) => {
+      releaseLateSnapshot = ok;
+    });
+    const inFlight = new Set<Promise<void>>();
+    const handleSnapshot = async (route: Route) => {
+      const response = await route.fetch();
+      const wrapper = await response.json();
+      if (wrapper.data?.title !== 'Все следующие') return route.fulfill({ response });
+      snapshotUrl = route.request().url();
+      heldSnapshots++;
+      await snapshotGate;
+      if (holdLateSnapshot) {
+        holdLateSnapshot = false;
+        lateSnapshotStarted = true;
+        await lateSnapshotGate;
+      }
+      await route.fulfill({ response });
+      deliveredSnapshots++;
+    };
+    const snapshotHandler = (route: Route) => {
+      const invocation = handleSnapshot(route);
+      inFlight.add(invocation);
+      technical.inFlight = inFlight.size;
+      const completed = () => {
+        inFlight.delete(invocation);
+        technical.inFlight = inFlight.size;
+      };
+      void invocation.then(completed, completed);
+      return invocation;
+    };
+    await context.route(`**/api/tasks/${row.id}?*`, snapshotHandler);
+    let cleanupPromise: Promise<void> | undefined;
+    let routeRemoved = false;
+    let cleanupFinished = false;
+    const cleanupSnapshots = () => {
+      cleanupPromise ??= (async () => {
+        // До снятия своего handler завершаем его активные вызовы, включая поздний GET.
+        while (inFlight.size > 0) await Promise.all([...inFlight]);
+        await context.unroute(`**/api/tasks/${row.id}?*`, snapshotHandler);
+        routeRemoved = true;
+        cleanupFinished = true;
+      })();
+      return cleanupPromise;
+    };
+    try {
+      stage = 'save-following';
+      const acknowledgment = page.waitForResponse(
+        (response) =>
+          response.request().method() === 'PATCH' &&
+          response.request().url().endsWith(`/api/tasks/${row.id}`) &&
+          response.request().postDataJSON()?.repeatScope === 'following',
+      );
+      await page
+        .locator('form.task-form')
+        .getByRole('button', { name: 'Сохранить', exact: true })
+        .click();
+      technical.followingHttpStatus = (await acknowledgment).status();
+      expect(technical.followingHttpStatus).toBe(200);
+      stage = 'whole-following-snapshot';
+      await page.clock.resume();
+      await expect.poll(() => heldSnapshots).toBeGreaterThan(0);
+      await expect(page.locator('form.task-form')).toHaveCount(1);
+      await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toHaveCount(0);
+      releaseSnapshot();
+      await expect.poll(() => deliveredSnapshots === heldSnapshots).toBe(true);
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'Все следующие', exact: true }),
+      ).toBeVisible();
+      await expect(page.locator('form.task-form')).toHaveCount(0);
+      // Поздний реальный GET уже in-flight при снятии handler; cleanup обязан дождаться ACK.
+      stage = 'late-snapshot-cleanup';
+      holdLateSnapshot = true;
+      const lateFetch = page.evaluate(
+        (url) => fetch(url).then((response) => response.status),
+        snapshotUrl,
+      );
+      await expect.poll(() => lateSnapshotStarted).toBe(true);
+      const cleanup = cleanupSnapshots();
+      expect(routeRemoved).toBe(false);
+      expect(cleanupFinished).toBe(false);
+      expect(inFlight.size).toBeGreaterThan(0);
+      releaseLateSnapshot();
+      await cleanup;
+      expect(routeRemoved).toBe(true);
+      expect(await lateFetch).toBe(200);
+      expect(inFlight.size).toBe(0);
+      await expect.poll(() => deliveredSnapshots === heldSnapshots).toBe(true);
+    } finally {
+      releaseSnapshot();
+      releaseLateSnapshot();
+      await page.clock.resume();
+      await cleanupSnapshots();
+      await expect.poll(() => deliveredSnapshots === heldSnapshots).toBe(true);
+    }
+    stage = 'first-done';
+    await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
+    await expect(page.getByRole('button', { name: /Отменить выполнение/ })).toBeVisible();
+    const done = await current(api, row.id);
+    technical.firstDoneStatus = done.status;
+    technical.nextExists = Boolean(done.nextTaskId);
+    expect(done.nextTaskId).toBeTruthy();
+    const next = await current(api, done.nextTaskId ?? '');
+    expect(next.title).toBe('Все следующие');
+    expect(next.checklist[0]?.done).toBe(false);
+    expect(next.files).toHaveLength(0);
+    expect(next.waitingFrom).toBeNull();
+    stage = 'first-undo';
+    await page.getByRole('button', { name: /Отменить выполнение/ }).click();
+    await expect.poll(async () => (await current(api, row.id)).status).toBe('open');
+    expect((await current(api, next.id)).deletedAt).not.toBeNull();
+    stage = 'second-done';
+    await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
+    await expect(page.getByRole('button', { name: /Отменить выполнение/ })).toBeVisible();
+    const second = await current(api, row.id);
+    technical.secondDoneStatus = second.status;
+    stage = 'edit-next';
+    expect(second.status).toBe('done');
+    expect(
+      (await api.patch(`tasks/${second.nextTaskId}`, { title: 'Изменённый преемник' })).status,
+    ).toBe(200);
+    await page.getByRole('button', { name: /Отменить выполнение/ }).click();
+    stage = 'conflicting-undo';
+    await expect(page.getByRole('alert')).toContainText(/измен|Отмена/);
+    expect((await current(api, row.id)).status).toBe('done');
+    expect((await current(api, second.nextTaskId ?? '')).deletedAt).toBeNull();
+    stage = 'accessibility';
+    await check(page, info, 'undo-conflict');
+  } catch (error) {
+    // До отмены всего CI печатаем только технические признаки; исходную ошибку не меняем.
+    const message = error instanceof Error ? error.message : '';
+    const matcher = message.match(
+      /expect\([^\r\n]*?\)\.(toBe|toEqual|toHaveCount|toBeDisabled|toBeVisible|toContainText|toBeTruthy|toBeNull|toHaveLength|toBeGreaterThan|toBeEnabled)\(/,
+    )?.[1];
+    const timeout = message.match(/Timeout (\d+)ms exceeded/)?.[1];
+    const source = [
+      ...(error instanceof Error ? (error.stack ?? '') : '').matchAll(
+        /tasks\.e2e\.ts:(\d+):(\d+)/g,
+      ),
+    ].map((match) => `tasks.e2e.ts:${match[1]}:${match[2]}`);
+    const ui = await page
+      .evaluate(() => {
+        const controls = [
+          ...document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+            'form.task-form input,form.task-form textarea,form.task-form select',
+          ),
+        ];
+        const buttons = [...document.querySelectorAll('button')];
+        return {
+          available: true,
+          forms: document.querySelectorAll('form.task-form').length,
+          editableControls: controls.length,
+          disabledControls: controls.filter((control) => control.disabled).length,
+          doneButtons: buttons.filter((button) => button.textContent?.trim() === 'Выполнить')
+            .length,
+          undoButtons: buttons.filter((button) =>
+            button.textContent?.includes('Отменить выполнение'),
+          ).length,
+          alerts: document.querySelectorAll('[role="alert"]').length,
+        };
+      })
+      .catch(() => ({ available: false }));
+    console.error(
+      'Series technical failure',
+      JSON.stringify({
+        stage,
+        source,
+        message: matcher
+          ? `expect.${matcher}`
+          : timeout
+            ? `Timeout ${timeout}ms exceeded`
+            : 'Assertion or action failed',
+        technical,
+        heldSnapshots,
+        deliveredSnapshots,
+        ui,
+      }),
+    );
+    throw error;
+  }
 });
 
 test('серия: возобновление после окна и отмена повторного выполнения сохраняют прежнего преемника', async ({
   page,
   family,
+  context,
 }) => {
   await setHomeZone(family);
   const api = await apiAs(family, 'adult');
@@ -356,8 +603,28 @@ test('серия: возобновление после окна и отмена
   await api.patch(`tasks/${first.nextTaskId}`, { title: 'Сохранённый преемник' });
   await signInAs(page, family, 'adult');
   await openTask(page, row.id, row.title);
-  await page.getByRole('button', { name: 'Возобновить дело' }).click();
-  await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible();
+  let snapshotStarted = false;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await context.route(`**/api/tasks/${row.id}?*`, async (route) => {
+    if (snapshotStarted) return route.continue();
+    snapshotStarted = true;
+    const response = await route.fetch();
+    await gate;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.getByRole('button', { name: 'Возобновить дело' }).click();
+    await expect.poll(() => snapshotStarted).toBe(true);
+    await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toHaveCount(0);
+    release();
+    await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeEnabled();
+  } finally {
+    release();
+    await context.unroute(`**/api/tasks/${row.id}?*`);
+  }
   await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
   await expect(page.getByRole('button', { name: /Отменить выполнение/ })).toBeVisible();
   const second = await current(api, row.id);

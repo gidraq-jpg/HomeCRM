@@ -10,6 +10,9 @@ import { z } from 'zod';
 import { ApiError, type ApiMethod, apiRequest } from '../auth/api.ts';
 import { RadarItem } from '../deadlines/api.ts';
 import { FileMeta } from '../files/api.ts';
+import { offlineOwnerAvailable } from '../offline/identity.ts';
+import { durableMutation, durableTiming, type IntentForm } from '../offline/queue.ts';
+import { snapshotPath, snapshotTiming } from '../offline/snapshots.ts';
 
 export const TaskCard = TaskFields.extend({
   id: z.string(),
@@ -66,9 +69,11 @@ const Failure = z.object({
 });
 export class TaskError extends ApiError {
   readonly suggestedPlacement: z.infer<typeof Failure>['suggestedPlacement'];
-  constructor(status: number, body: z.infer<typeof Failure>) {
+  readonly intentId?: string;
+  constructor(status: number, body: z.infer<typeof Failure>, intentId?: string) {
     super(status, body.code);
     this.suggestedPlacement = body.suggestedPlacement;
+    this.intentId = intentId;
   }
 }
 /** Только дата сервера и монотонные часы: перевод часов браузера не продлевает отмену. */
@@ -87,7 +92,50 @@ export async function taskRequest<T>(
   schema: z.ZodType<T>,
   body?: unknown,
   signal?: AbortSignal,
+  form?: IntentForm,
 ) {
+  if (typeof indexedDB !== 'undefined' && (await offlineOwnerAvailable())) {
+    if (method === 'GET' && snapshotPath(path)) {
+      const data = await apiRequest(method, path, schema, body, signal);
+      return {
+        data,
+        ...(snapshotTiming(data) ?? {
+          serverDate: null,
+          elapsed: 0,
+          receivedAt: performance.now(),
+        }),
+      };
+    }
+    if (method !== 'GET') {
+      try {
+        const value = await durableMutation(method, path, body, form);
+        if (value !== undefined) {
+          // Квитанция уже проверена очередью; строгий DTO дела проверяется отдельно.
+          const { receipt: _receipt, ...dto } = value as Record<string, unknown>;
+          const data = schema.parse(dto);
+          // Метка HTTP Date не сохранена: позднее подтверждение не продлевает семь секунд.
+          return {
+            data,
+            ...(durableTiming(value) ?? {
+              serverDate: null,
+              elapsed: 0,
+              receivedAt: performance.now(),
+            }),
+          };
+        }
+      } catch (error) {
+        if (error instanceof Error && 'status' in error)
+          throw new TaskError(
+            Number(error.status),
+            {
+              code: 'code' in error ? String(error.code) : '',
+            },
+            'intentId' in error ? String(error.intentId) : undefined,
+          );
+        throw error;
+      }
+    }
+  }
   const started = performance.now();
   let response: Response;
   try {
@@ -127,8 +175,13 @@ export async function fetchTask(id: string, signal?: AbortSignal) {
   };
 }
 export type TimedTask = Awaited<ReturnType<typeof fetchTask>>;
-export async function mutateTask(path: string, body: unknown, method: ApiMethod = 'POST') {
-  const result = await taskRequest(method, path, TaskCard, body);
+export async function mutateTask(
+  path: string,
+  body: unknown,
+  method: ApiMethod = 'POST',
+  form?: IntentForm,
+) {
+  const result = await taskRequest(method, path, TaskCard, body, undefined, form);
   return {
     ...result.data,
     undoUntil:

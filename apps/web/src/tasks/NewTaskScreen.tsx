@@ -21,6 +21,7 @@ export function createBody(
       draft.visibility === 'personal'
         ? { spaceId: personalSpaceId }
         : newPlacement(draft.visibility, draft.householdId),
+    ...(draft.idempotencyKey ? { idempotencyKey: draft.idempotencyKey } : {}),
   };
 }
 export function NewTaskScreen() {
@@ -55,6 +56,7 @@ export function NewTaskScreen() {
             path: 'tasks',
             body: createBody(draft, me.personalSpaceId),
             keyed: true,
+            draft,
           })
         }
         onCancel={() => navigate('/today')}

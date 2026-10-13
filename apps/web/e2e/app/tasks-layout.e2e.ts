@@ -70,6 +70,7 @@ test('пустые ленты: исходный фокус, подписи и о
 test('быстрая строка: отступы, длинные чипы, ошибка и сохранение без потери ввода', async ({
   page,
   family,
+  context,
 }, info) => {
   await setHomeZone(family);
   const api = await apiAs(family, 'adult');
@@ -99,7 +100,12 @@ test('быстрая строка: отступы, длинные чипы, ош
   await input.fill(raw);
   await expect(page.getByRole('button', { name: 'Снять чип: Объект' })).toBeVisible();
   await check(page, `quickline-chips-${info.project.use.viewport?.width}`);
-  await page.route('**/api/tasks', async (route) => {
+  const sentBodies: string[] = [];
+  context.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/tasks')
+      sentBodies.push(request.postData() ?? '');
+  });
+  await context.route('**/api/tasks', async (route) => {
     if (route.request().method() === 'POST') {
       await route.fulfill({
         status: 503,
@@ -113,9 +119,23 @@ test('быстрая строка: отступы, длинные чипы, ош
   await expect(input).toHaveValue(raw);
   await expectGap(page, 'form.task-quickline', 'form.task-quickline + .auth-notice', 8);
   await check(page, `quickline-error-${info.project.use.viewport?.width}`);
-  await page.unroute('**/api/tasks');
+  await input.fill('Изменённый ввод после неизвестного COMMIT');
+  await section.getByRole('button', { name: 'Добавить дело', exact: true }).click();
+  await expect(section.getByRole('alert')).toContainText('Исход отправки ещё неизвестен');
+  expect(new Set(sentBodies).size).toBe(1);
+  await input.fill(raw);
+  await context.unroute('**/api/tasks');
   await section.getByRole('button', { name: 'Добавить дело', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+  expect(sentBodies.length).toBeGreaterThanOrEqual(2);
+  expect(new Set(sentBodies).size).toBe(1);
+  expect(JSON.parse(sentBodies[0] ?? '{}')).toMatchObject({
+    offline: true,
+    idempotencyKey: expect.any(String),
+    ownerAccountId: family.person('adult').id,
+  });
+  const rows = (await api.get('tasks?scope=all')).body as { title: string }[];
+  expect(rows.filter((row) => row.title === title)).toHaveLength(1);
 });
 
 test('заполненные ленты: главное перед вводом, длинный заголовок, выполнение и отмена', async ({

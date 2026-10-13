@@ -4,6 +4,7 @@ import {
   ClockCounterClockwise,
   FileText,
   Note,
+  ShoppingCart,
 } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
@@ -19,9 +20,11 @@ const icons = {
   document: FileText,
   contact: AddressBook,
   task: Note,
+  shopping_item: ShoppingCart,
 };
 /** Куда ведёт результат: заметка, документ, объект или его лента. */
 function pathOf(item: SearchResult['groups'][number]['items'][number]): string {
+  if (item.type === 'shopping_item') return `/more/shopping/${encodeURIComponent(item.targetId)}`;
   if (item.type === 'task') return `/today/tasks/${item.targetId}`;
   if (item.type === 'contact') return `/people/contacts/${item.targetId}`;
   if (item.type === 'note') return `/more/notes/${item.targetId}`;

@@ -2,15 +2,17 @@ import { Camera, Gauge, X } from '@phosphor-icons/react';
 import { useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
-import { uploadFile } from '../files/api.ts';
-import { fileErrorMessage, LOCAL_MESSAGES } from '../files/errors.ts';
-import { localProblem, prepareForUpload } from '../files/prepare.ts';
+import { LOCAL_MESSAGES } from '../files/errors.ts';
+import { localProblem } from '../files/prepare.ts';
 import { ObjectError } from '../objects/components.tsx';
+import { LocalSaved } from '../offline/identity.ts';
+import { enqueueReadings, synchronize } from '../offline/queue.ts';
+import { offlineDB } from '../offline/store.ts';
 import { CheckLine } from '../ui/CheckLine.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { type DateOnly, formatShortDate } from '../ui/format.ts';
 import { useToast } from '../ui/Toast.tsx';
-import { type MeterListItem, saveReadings } from './api.ts';
+import { type MeterListItem, ReadingCard } from './api.ts';
 import { showDecimal, showWithUnit } from './decimal.ts';
 import { RESOURCE_UNITS, zoneLabel } from './labels.ts';
 import { ReplaceSheet } from './MeterForms.tsx';
@@ -254,13 +256,14 @@ export function ReadingsEntry() {
   const navigate = useNavigate();
   const toast = useToast();
   const refresh = useRefreshMeters();
-  const state = useAction();
+  const state = useAction(true);
   const list = useRef<HTMLUListElement>(null);
   const dateId = useId();
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
   const [photoProblems, setPhotoProblems] = useState<Record<string, string | undefined>>({});
-  const [uploading, setUploading] = useState(false);
+  const uploading = false;
+  const queued = useRef<string | null>(null);
 
   const { card, meters } = ctx;
   const base = `/home/${card.id}/readings`;
@@ -316,39 +319,36 @@ export function ReadingsEntry() {
     }
     setFormError('');
     void state.run(async () => {
-      // Фото уходят в файлы объекта до показаний; уже загруженные при повторе не отправляются снова.
-      const ids: Record<string, string[]> = { ...ctx.uploaded };
-      const problems: Record<string, string | undefined> = {};
-      setUploading(true);
-      try {
-        for (const reading of probe.readings) {
-          const pending = ctx.files[reading.meterId] ?? [];
-          if (pending.length === 0 || (ids[reading.meterId]?.length ?? 0) === pending.length) {
-            continue;
-          }
-          ids[reading.meterId] = [];
-          for (const file of pending) {
-            try {
-              const prepared = await prepareForUpload(file);
-              const meta = await uploadFile({ kind: 'object', id: card.id }, prepared);
-              ids[reading.meterId]?.push(meta.id);
-            } catch (error) {
-              problems[reading.meterId] = fileErrorMessage(error, 'upload');
-              ctx.setUploaded(ids);
-              setPhotoProblems(problems);
-              setFormError(
-                'Не удалось загрузить фото. Уберите его или повторите: значения не потеряны.',
-              );
-              return;
-            }
-          }
-        }
-      } finally {
-        setUploading(false);
+      if (queued.current) {
+        navigate('/more/offline');
+        return;
       }
-      ctx.setUploaded(ids);
-      const payload = buildPayload(meters, ctx.drafts, ctx.date, ids);
-      const result = await saveReadings(card.id, payload.readings);
+      const payload = buildPayload(meters, ctx.drafts, ctx.date, {});
+      const intent = await enqueueReadings({
+        objectId: card.id,
+        objectUpdatedAt: card.updatedAt,
+        spaceId: card.spaceId,
+        spaceKind: card.spaceKind,
+        readings: payload.readings.map((reading) => {
+          const meter = meters.find((item) => item.id === reading.meterId);
+          if (!meter) throw new Error('Meter missing');
+          return {
+            ...reading,
+            expectedUpdatedAt: meter.updatedAt,
+            expectedLatestReadingId: meter.previousReading?.id ?? null,
+          };
+        }),
+        files: ctx.files,
+        single: payload.readings.length === 1,
+      });
+      queued.current = intent.id;
+      if (navigator.onLine) await synchronize();
+      const saved = await offlineDB.outbox.get(intent.id);
+      if (saved?.state !== 'confirmed') throw new LocalSaved(intent.id);
+      const result = (Array.isArray(saved.response) ? saved.response : [saved.response]).map(
+        (value) => ReadingCard.parse(value),
+      );
+      queued.current = null;
       await refresh();
       ctx.setSaved({ readings: result });
       for (const reading of payload.readings) {

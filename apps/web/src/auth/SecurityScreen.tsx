@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import * as z from 'zod';
+import { prepareLogout } from '../offline/logout.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { ApiError, action, api, BackupCodes, Events, isAdmin, type Me } from './api.ts';
@@ -95,6 +96,7 @@ function Devices({ onSignedOut, timeZone }: { onSignedOut: () => void; timeZone:
             type="button"
             onClick={() =>
               void state.run(async () => {
+                if (!(await prepareLogout())) return;
                 await action('auth/revoke-sessions');
                 await action('auth/sign-out');
                 onSignedOut();
@@ -289,6 +291,7 @@ export function SecurityScreen({
           disabled={state.disabled}
           onClick={() =>
             void state.run(async () => {
+              if (!(await prepareLogout())) return;
               await action('auth/sign-out');
               onSignedOut();
             })
