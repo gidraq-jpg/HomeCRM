@@ -74,8 +74,11 @@ export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<
         request.draft ? { key: `form:${location.pathname}`, value: request.draft } : undefined,
       );
       if (!sameAccount()) return;
-      if (request.path.endsWith('/status') && request.body.status === 'open') {
-        // Обычный online open не несёт exact version: сначала принимаем целый согласованный GET.
+      if (
+        (request.path.endsWith('/status') && request.body.status === 'open') ||
+        (request.method === 'PATCH' && request.body.repeatScope === 'following')
+      ) {
+        // Обычные online open/following не несут exact version: принимаем целый согласованный GET.
         result = await fetchTask(result.id);
         if (!sameAccount()) return;
       }

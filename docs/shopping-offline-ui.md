@@ -365,3 +365,37 @@ quota 2, notes conflict 2, chain 2, observed-base pending/unknown 4.
 После source fixes: targeted unit 18 файлов **148/148**, client/e2e types, Biome,
 encoding/diff-check зелёные. Сервер/shared/db/CI/deploy/тайм-ауты не менялись.
 Следующий штатный pre-push/CI выполняется после принятия этого конкретного остатка ведущим.
+
+## Native-ready и целый snapshot после following
+
+[CI 38371885894](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38371885894)
+на 0416ae8: check SUCCESS; Linux **481 passed + 1 skipped + 12 failed** (21,1 мин).
+Принятые quota/notes409/COMMIT-chain/pending/unknown прошли; полный rerun не выполнялся.
+
+- Inert защищал реальное взаимодействие до draft-ready, но программный Playwright fill
+  не ждал его готовности: CI получил пустые или исходные title/body. В NoteForm введён
+  настоящий disabled fieldset до ready для всех editable controls. Display contents
+  сохраняет прежнюю вёрстку; обычный pending и original base B1 не изменены.
+- В существующем repeated-draft case удержана IDB restore transaction: title и textarea
+  native-disabled до release, затем первый/следующий ввод сохранён в draft, после reload
+  восстановлен без отправки. Прежние assertions autosave и task draft также сохранены.
+- B4 between freshMe отказал ещё до SW на rows.length после Save. Native-ready исправил
+  эту исходную границу; прежние SW-only/child/403/revocation/pending/Blob assertions прошли.
+  Повторного SW-аудита не было.
+- Series following возвращал обычный legacy DTO до согласованного GET. Управляемый
+  post-following GET подтвердил обе ширины: Done не отправлялся (POST=0), UI показывал
+  EXACT_VERSION_REQUIRED. Теперь following, как online open, принимает целый fetchTask
+  snapshot до onSuccess. Свежая версия отдельно к прежнему содержимому не подставляется.
+  Done/undo receipt и реальное окно 7 секунд не изменены.
+- Постоянный series case удерживает полный GET: форма остаётся открытой, Done отсутствует
+  до release; после release проверяются heading, Done/undo, преемник и настоящий конфликт.
+  Тест ждёт равенства текущих held/delivered, учитывая следующий refetch; отменённая
+  отправка или 409 не считаются успехом.
+
+Последние релевантные Linux-результаты: **18/18 уникальных**, все 12 CI-отказов с парными
+360/412. Основной набор 16/18 (51,7 с) прошёл readiness/B1/SW, а series helper сравнивал
+два ответа с числом запросов, зафиксированным до нового refetch. После исправления только
+динамического сравнения её два viewport прошли 2/2 (10,9 с); 16 зелёных не повторялись.
+Source targeted: 18 файлов, **148/148**, client/e2e types, Biome, encoding/diff-check OK.
+Временный Series boundary stdout удалён. Тайм-ауты/сервер/shared/db/CI/deploy не менялись.
+Следующий штатный pre-push/CI запускается после принятия этого конкретного кандидата ведущим.

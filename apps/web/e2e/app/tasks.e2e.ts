@@ -290,6 +290,7 @@ for (const rule of rules)
 test('серия: область правки, выполнение и отмена, изменённый преемник блокирует отмену', async ({
   page,
   family,
+  context,
 }, info) => {
   await setHomeZone(family);
   const api = await apiAs(family, 'adult');
@@ -356,6 +357,21 @@ test('серия: область правки, выполнение и отме�
     });
     db.close();
   });
+  let releaseSnapshot!: () => void;
+  const snapshotGate = new Promise<void>((ok) => {
+    releaseSnapshot = ok;
+  });
+  let heldSnapshots = 0;
+  let deliveredSnapshots = 0;
+  await context.route(`**/api/tasks/${row.id}?*`, async (route) => {
+    const response = await route.fetch();
+    const wrapper = await response.json();
+    if (wrapper.data?.title !== 'Все следующие') return route.fulfill({ response });
+    heldSnapshots++;
+    await snapshotGate;
+    await route.fulfill({ response });
+    deliveredSnapshots++;
+  });
   try {
     const acknowledgment = page.waitForResponse(
       (response) =>
@@ -368,14 +384,21 @@ test('серия: область правки, выполнение и отме�
       .getByRole('button', { name: 'Сохранить', exact: true })
       .click();
     expect((await acknowledgment).status()).toBe(200);
-    // Restore/React Query работают после ACK; pause не задерживает обновление заголовка.
     await page.clock.resume();
+    await expect.poll(() => heldSnapshots).toBeGreaterThan(0);
+    await expect(page.locator('form.task-form')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toHaveCount(0);
+    releaseSnapshot();
+    await expect.poll(() => deliveredSnapshots === heldSnapshots).toBe(true);
     await expect(
       page.getByRole('heading', { level: 1, name: 'Все следующие', exact: true }),
     ).toBeVisible();
     await expect(page.locator('form.task-form')).toHaveCount(0);
   } finally {
+    releaseSnapshot();
     await page.clock.resume();
+    await expect.poll(() => deliveredSnapshots === heldSnapshots).toBe(true);
+    await context.unroute(`**/api/tasks/${row.id}?*`);
   }
   await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
   await expect(page.getByRole('button', { name: /Отменить выполнение/ })).toBeVisible();

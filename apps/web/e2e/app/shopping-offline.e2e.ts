@@ -1089,7 +1089,35 @@ test('OFFLINE: повторный ввод черновиков заметки �
   await signInAs(page, family, 'adult');
   await shell(page);
   await context.setOffline(true);
+  // Управляемая задержка restore: native controls закрыты до принятия черновика.
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((ok) => {
+      const request = indexedDB.open('homecrm-offline');
+      request.onsuccess = () => ok(request.result);
+    });
+    const tx = db.transaction('drafts', 'readwrite');
+    const store = tx.objectStore('drafts');
+    let released = false;
+    window.addEventListener(
+      'homecrm-test-release-note-restore',
+      () => {
+        released = true;
+      },
+      { once: true },
+    );
+    tx.oncomplete = () => db.close();
+    const keepActive = () => {
+      const request = store.get('homecrm-test-note-restore');
+      request.onsuccess = () => {
+        if (!released) keepActive();
+      };
+    };
+    keepActive();
+  });
   await page.goto('#/more/notes/new');
+  await expect(page.getByLabel('Заголовок', { exact: true })).toBeDisabled();
+  await expect(page.getByLabel('Текст', { exact: true })).toBeDisabled();
+  await page.evaluate(() => window.dispatchEvent(new Event('homecrm-test-release-note-restore')));
   await page.getByLabel('Заголовок', { exact: true }).fill('Первый черновик');
   await expect
     .poll(async () => JSON.stringify(await rows(page, 'drafts')))
