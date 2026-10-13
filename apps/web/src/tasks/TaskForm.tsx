@@ -128,7 +128,7 @@ export function TaskForm({
   const options = creatableVisibilities(viewerOf(me), draft.householdId || null, 'task');
   return (
     <form className="task-form" onSubmit={submit}>
-      <fieldset disabled={pending} className="task-form__fields">
+      <fieldset disabled={pending || !localDraft.ready} className="task-form__fields">
         <TextField
           label="Название дела"
           value={draft.title}

@@ -304,10 +304,79 @@ test('серия: область правки, выполнение и отме�
   await page.getByRole('button', { name: 'Править дело' }).click();
   await page.getByLabel('Название дела').fill('Только этот экземпляр');
   await saved(page, 'Только этот экземпляр');
+  await page.clock.install();
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 10));
+  // Пока чтение draft задержано, ввод не должен быть перезаписан поздним восстановлением.
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((ok, bad) => {
+      const request = indexedDB.open('homecrm-offline');
+      request.onsuccess = () => ok(request.result);
+      request.onerror = () => bad(request.error);
+    });
+    const tx = db.transaction('drafts', 'readwrite');
+    const store = tx.objectStore('drafts');
+    let released = false;
+    window.addEventListener(
+      'homecrm-test-release-draft',
+      () => {
+        released = true;
+      },
+      { once: true },
+    );
+    tx.oncomplete = () => db.close();
+    const keepActive = () => {
+      const request = store.get('homecrm-test-restore-gate');
+      request.onsuccess = () => {
+        if (!released) keepActive();
+      };
+    };
+    keepActive();
+  });
   await page.getByRole('button', { name: 'Править дело' }).click();
+  await expect(page.getByLabel('Название дела')).toBeDisabled();
+  await page.evaluate(() => window.dispatchEvent(new Event('homecrm-test-release-draft')));
   await page.getByLabel('Область правки серии').selectOption('following');
   await page.getByLabel('Название дела').fill('Все следующие');
-  await saved(page, 'Все следующие');
+  await expect(
+    page.locator('form.task-form').getByRole('button', { name: 'Сохранить', exact: true }),
+  ).toBeEnabled();
+  // Подтверждённая карточка остаётся в UI; её offline snapshot может быть вытеснен.
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((ok, bad) => {
+      const request = indexedDB.open('homecrm-offline');
+      request.onsuccess = () => ok(request.result);
+      request.onerror = () => bad(request.error);
+    });
+    await new Promise<void>((ok, bad) => {
+      const tx = db.transaction(['snapshots', 'drafts'], 'readwrite');
+      tx.objectStore('snapshots').clear();
+      tx.objectStore('drafts').clear();
+      tx.oncomplete = () => ok();
+      tx.onerror = () => bad(tx.error);
+    });
+    db.close();
+  });
+  try {
+    const acknowledgment = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PATCH' &&
+        response.request().url().endsWith(`/api/tasks/${row.id}`) &&
+        response.request().postDataJSON()?.repeatScope === 'following',
+    );
+    await page
+      .locator('form.task-form')
+      .getByRole('button', { name: 'Сохранить', exact: true })
+      .click();
+    expect((await acknowledgment).status()).toBe(200);
+    // Restore/React Query работают после ACK; pause не задерживает обновление заголовка.
+    await page.clock.resume();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Все следующие', exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('form.task-form')).toHaveCount(0);
+  } finally {
+    await page.clock.resume();
+  }
   await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
   await expect(page.getByRole('button', { name: /Отменить выполнение/ })).toBeVisible();
   const done = await current(api, row.id);

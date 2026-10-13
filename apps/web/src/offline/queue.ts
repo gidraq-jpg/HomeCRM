@@ -196,6 +196,15 @@ export async function enqueue(
       const item = raw as Record<string, unknown>;
       return item.id || item.clientId ? item : { ...item, clientId: uuid() };
     });
+  const needsVersion = ['task_patch', 'task_status', 'note_patch'].includes(def.operation);
+  // Сначала allowlist: обычная сетевая правка серии не требует локального снимка.
+  if (
+    !def.schema.safeParse({
+      ...body,
+      ...(needsVersion ? { expectedUpdatedAt: '2000-01-01T00:00:00.000000Z' } : {}),
+    }).success
+  )
+    throw new LocalFailure('NETWORK_REQUIRED');
   const id = path.split('/')[1];
   const entity = options.idFrom ? `local:${options.idFrom}` : (id ?? `local:${key}`);
   const previous = (
@@ -207,7 +216,7 @@ export async function enqueue(
     .filter((row) => row.entity === entity && row.state !== 'confirmed')
     .sort((a, b) => b.createdAt - a.createdAt)[0];
   const baseFrom = previous?.id ?? options.baseFrom;
-  if (['task_patch', 'task_status', 'note_patch'].includes(def.operation)) {
+  if (needsVersion) {
     body.expectedUpdatedAt = baseFrom
       ? '2000-01-01T00:00:00.000000Z'
       : await exactVersion(

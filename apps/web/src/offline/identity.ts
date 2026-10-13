@@ -16,6 +16,10 @@ export class LocalSaved extends LocalFailure {
   }
 }
 let viewOwner: string | null = null;
+/** Только принятый AuthRoot владелец UI разрешает локальное чтение/запись. */
+export function acceptViewOwner(owner: string | null) {
+  viewOwner = owner;
+}
 export const offlineEvents = new EventTarget();
 export function accountChanged() {
   viewOwner = null;
@@ -109,8 +113,10 @@ export async function setIdentity(me: Me | null, expected?: Identity, source?: s
       locked: false,
     });
   });
-  viewOwner = me?.id ?? null;
-  if (announce) changed('identity', source);
+  if (announce) {
+    viewOwner = null;
+    changed('identity', source);
+  }
 }
 export async function blockIdentity(source?: symbol) {
   const active = await ticket();
@@ -122,7 +128,6 @@ export async function cachedIdentity(): Promise<Me | null> {
   const active = await ticket();
   if (!active.owner || !active.me || active.locked || active.me.secondFactorRequired) return null;
   await offlineDB.identity.update('active', { verified: false });
-  viewOwner = active.owner;
   return active.me;
 }
 export function localMessage(error: unknown): string | null {

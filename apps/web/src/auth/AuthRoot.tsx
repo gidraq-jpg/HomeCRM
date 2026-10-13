@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import * as z from 'zod';
 import { App } from '../App.tsx';
 import { usePendingRoute } from '../notifications/pending-route.ts';
 import {
+  acceptViewOwner,
   blockIdentity,
   cachedIdentity,
   changed,
@@ -123,6 +124,10 @@ export function AuthRoot() {
     },
     refetchOnWindowFocus: true,
   });
+  // Sender может уже получить B, пока UI ещё показывает A: разрешение только после commit Me.
+  useLayoutEffect(() => {
+    acceptViewOwner(query.data?.id ?? null);
+  }, [query.data]);
   useEffect(() => {
     const update = (event: Event) => {
       client.removeQueries({ predicate: (item) => item.queryKey[0] !== ME_KEY });

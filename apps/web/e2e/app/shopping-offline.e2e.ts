@@ -128,6 +128,8 @@ async function newNote(page: Page, title: string) {
   await page.getByLabel('Заголовок', { exact: true }).fill(title);
   await page.getByLabel('Текст', { exact: true }).fill('Локальный текст вымышленной семьи');
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  // Click не означает durable save: reconnect ждёт завершения формы.
+  await expect(page.locator('form.note-form')).toHaveCount(0);
 }
 test('SHOP: прототип списка, real quickline/bought/undo/trash/restore/search и ребёнок', async ({
   page,
@@ -323,6 +325,9 @@ test('OFFLINE: 409 сохраняет ввод, независимая запи�
   await page.getByLabel('Текст', { exact: true }).fill('Мой локальный текст');
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   await newNote(page, 'Независимая заметка');
+  await expect(page.getByRole('heading', { level: 1, name: 'Очередь изменений' })).toBeVisible();
+  const independent = (await rows(page)).find((row) => row.body.title === 'Независимая заметка');
+  expect(independent).toMatchObject({ state: 'pending', attempted: false });
   await api.patch(`notes/${note.id}`, { body: 'Чужой серверный текст' });
   await context.setOffline(false);
   await sync(page);
@@ -1575,5 +1580,67 @@ test('B5: внешняя роль во время await Me не теряется
   } finally {
     release();
     await context.unroute('**/api/me');
+  }
+});
+
+test('B5: window sender A→B блокирует старую форму до принятия AuthRoot Me', async ({
+  family,
+  browser,
+}) => {
+  const context = await browser.newContext({ baseURL: family.baseURL, serviceWorkers: 'block' });
+  const page = await context.newPage();
+  await signInAs(page, family, 'adult');
+  await page.goto('#/more/notes/new');
+  await page.getByLabel('Заголовок', { exact: true }).fill('Личный ввод участника A');
+  await page.getByLabel('Текст', { exact: true }).fill('Текст A не принадлежит B');
+  await expect(page.getByRole('button', { name: 'Сохранить', exact: true })).toBeEnabled();
+  let release!: () => void;
+  const gate = new Promise<void>((ok) => {
+    release = ok;
+  });
+  let held = false;
+  let posts = 0;
+  let windowMe = 0;
+  await context.route('**/api/auth/get-session', async (route) => {
+    held = true;
+    const response = await route.fetch();
+    await gate;
+    await route.fulfill({ response });
+  });
+  await context.route('**/api/me', async (route) => {
+    expect(route.request().serviceWorker()).toBeNull();
+    windowMe++;
+    await route.continue();
+  });
+  await context.route('**/api/notes', async (route) => {
+    if (route.request().method() === 'POST') {
+      posts++;
+      await route.abort('failed');
+    } else await route.continue();
+  });
+  try {
+    const login = await context.request.post(`${family.origin}/api/auth/sign-in/username`, {
+      headers: { origin: family.origin },
+      data: { username: 'child', password: family.person('child').password },
+    });
+    expect(login.ok()).toBe(true);
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await expect
+      .poll(async () => ((await rows(page, 'identity'))[0] as unknown as { owner: string }).owner)
+      .toBe(family.person('child').id);
+    await expect.poll(() => held).toBe(true);
+    expect(windowMe).toBeGreaterThan(0);
+    await expect(page.getByLabel('Текст', { exact: true })).toHaveValue('Текст A не принадлежит B');
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Учётная запись изменилась');
+    expect(posts).toBe(0);
+    expect(JSON.stringify(await rows(page))).not.toContain('Текст A не принадлежит B');
+    expect(JSON.stringify(await rows(page, 'drafts'))).not.toContain('Текст A не принадлежит B');
+    release();
+    await expect(page.getByLabel('Текст', { exact: true })).toHaveValue('');
+    await expect(page.getByRole('button', { name: 'Сохранить', exact: true })).toBeEnabled();
+  } finally {
+    release();
+    await context.close();
   }
 });
