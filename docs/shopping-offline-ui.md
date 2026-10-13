@@ -411,3 +411,17 @@ Source targeted: 18 файлов, **148/148**, client/e2e types, Biome, encoding
 В существующем series добавлена диагностика только при отказе с повторным выбросом исходной ошибки: стадия, source location, безопасное имя assertion/числовой timeout, HTTP status/code, статусы done, счётчики задержанных/доставленных целых snapshots и числовые/булевы признаки формы. Тексты записей, значения полей, тела запросов, ключи и учётные данные не выводятся. Исходные assertions, native-ready gate, целый following snapshot, выполнение/отмена и настоящий конфликт сохранены.
 
 Последний релевантный парный прогон с диагностикой — 2/2 на Linux 360/412 (11,1 с; `series-budget-diagnostic-targeted.txt`, session 85532, exit 0). Типы e2e, Biome, check:encoding и diff-check зелёные; повторный source-unit/full не требуется для этого test/CI-only delta. Решение о слиянии по-прежнему требует полного зелёного CI точного финального HEAD.
+
+### Полный CI 7f0cfc2: scoped route cleanup и owner warning
+
+[CI 38400689495](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38400689495) exact `7f0cfc26f9a355fdfac4eaf8898ccf1b8dfaf205` завершил полный набор в разрешённом jobbudget35: check 190 файлов, 1636/1636 (647,64 с); Linux 490 passed + 1 skipped + 3 failed, всего 494 (24,9 мин.; job 25 мин. 59 с). Остаток — series w360 и window owner A→B на обеих ширинах. Красный CI не разрешает слияние.
+
+Первичная series ошибка — `tasks.e2e.ts:404:19`, `route.fulfill: Route is already handled!`; Protocol/session-closed на ожидании Undo строка440 вторичен. Диагностика сохранила following HTTP200, held2/delivered1. Ошибка относится к async routing fixture; application bug или crash не утверждается.
+
+В existing series добавлен управляемый поздний реальный GET того же согласованного snapshot. При снятии handler до завершения in-flight он воспроизвёл тот же Route-already-handled на обеих ширинах, held3/delivered2 (`route-owner-final.txt`). Исправление дожидается всех активных invocations до `unroute(pattern, snapshotHandler)`. Снимается только собственный handler; чужие routes/серверный sender не затрагиваются. Контракт unroute/отсутствие встроенного ожидания проверен через Context7 для [Playwright1.63](https://github.com/microsoft/playwright/blob/v1.63.0/docs/src/api/class-browsercontext.md).
+
+Постоянная controlled граница доказывает: пока поздний GET удержан, cleanup не завершён и handler ещё не снят; после release настоящий GET получает200, in-flight=0 и held=delivered. Затем прежний сценарий целиком проверяет Done/Undo, преемника, настоящий конфликт и axe. Окно7секунд, payload/key, snapshot assertions и per-testtimeouts сохранены.
+
+Owner обе ширины отказали на строгом общем locator `getByRole('alert')`: рядом были предупреждения snapshot/draft. Locator теперь выбирает конкретное предупреждение ACCOUNT_CHANGED, сохраняя его исходный текст. После него все прежние POST=0, отсутствие текстаA в outbox/draftsB, пустой ввод после принятого MeB и ready Save проверяются без ослабления.
+
+Последние релевантные результаты — 4 уникальных green: owner360/4122/2 в `route-owner-final.txt` (общий targeted15,1с, session56248; series в этом запуске дали controlled red); затем только исправленные series360/4122/2 в `route-owner-series-final.txt` (11,5с, session92694, exit0). Зелёные owner не повторены. Types e2e, Biome, check:encoding и diff-check зелёные; source-unit/full до приёмки не повторялись. Изменены только два e2e и этот proof; согласованный jobbudget35 и все остальные области сохранены.

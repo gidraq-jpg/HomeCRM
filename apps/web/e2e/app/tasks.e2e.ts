@@ -2,7 +2,7 @@
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createAuthDatabase } from '@homecrm/db';
-import type { Page, TestInfo } from '@playwright/test';
+import type { Page, Route, TestInfo } from '@playwright/test';
 import { createHousehold } from '../../../server/src/auth/provision.ts';
 import { type RepeatRule, TaskCard } from '../../src/tasks/api.ts';
 import { test } from '../auth/support/fixtures.ts';
@@ -395,15 +395,54 @@ test('серия: область правки, выполнение и отме�
     const snapshotGate = new Promise<void>((ok) => {
       releaseSnapshot = ok;
     });
-    await context.route(`**/api/tasks/${row.id}?*`, async (route) => {
+    let snapshotUrl = '';
+    let holdLateSnapshot = false;
+    let lateSnapshotStarted = false;
+    let releaseLateSnapshot!: () => void;
+    const lateSnapshotGate = new Promise<void>((ok) => {
+      releaseLateSnapshot = ok;
+    });
+    const inFlight = new Set<Promise<void>>();
+    const handleSnapshot = async (route: Route) => {
       const response = await route.fetch();
       const wrapper = await response.json();
       if (wrapper.data?.title !== 'Все следующие') return route.fulfill({ response });
+      snapshotUrl = route.request().url();
       heldSnapshots++;
       await snapshotGate;
+      if (holdLateSnapshot) {
+        holdLateSnapshot = false;
+        lateSnapshotStarted = true;
+        await lateSnapshotGate;
+      }
       await route.fulfill({ response });
       deliveredSnapshots++;
-    });
+    };
+    const snapshotHandler = (route: Route) => {
+      const invocation = handleSnapshot(route);
+      inFlight.add(invocation);
+      technical.inFlight = inFlight.size;
+      const completed = () => {
+        inFlight.delete(invocation);
+        technical.inFlight = inFlight.size;
+      };
+      void invocation.then(completed, completed);
+      return invocation;
+    };
+    await context.route(`**/api/tasks/${row.id}?*`, snapshotHandler);
+    let cleanupPromise: Promise<void> | undefined;
+    let routeRemoved = false;
+    let cleanupFinished = false;
+    const cleanupSnapshots = () => {
+      cleanupPromise ??= (async () => {
+        // До снятия своего handler завершаем его активные вызовы, включая поздний GET.
+        while (inFlight.size > 0) await Promise.all([...inFlight]);
+        await context.unroute(`**/api/tasks/${row.id}?*`, snapshotHandler);
+        routeRemoved = true;
+        cleanupFinished = true;
+      })();
+      return cleanupPromise;
+    };
     try {
       stage = 'save-following';
       const acknowledgment = page.waitForResponse(
@@ -429,11 +468,30 @@ test('серия: область правки, выполнение и отме�
         page.getByRole('heading', { level: 1, name: 'Все следующие', exact: true }),
       ).toBeVisible();
       await expect(page.locator('form.task-form')).toHaveCount(0);
+      // Поздний реальный GET уже in-flight при снятии handler; cleanup обязан дождаться ACK.
+      stage = 'late-snapshot-cleanup';
+      holdLateSnapshot = true;
+      const lateFetch = page.evaluate(
+        (url) => fetch(url).then((response) => response.status),
+        snapshotUrl,
+      );
+      await expect.poll(() => lateSnapshotStarted).toBe(true);
+      const cleanup = cleanupSnapshots();
+      expect(routeRemoved).toBe(false);
+      expect(cleanupFinished).toBe(false);
+      expect(inFlight.size).toBeGreaterThan(0);
+      releaseLateSnapshot();
+      await cleanup;
+      expect(routeRemoved).toBe(true);
+      expect(await lateFetch).toBe(200);
+      expect(inFlight.size).toBe(0);
+      await expect.poll(() => deliveredSnapshots === heldSnapshots).toBe(true);
     } finally {
       releaseSnapshot();
+      releaseLateSnapshot();
       await page.clock.resume();
+      await cleanupSnapshots();
       await expect.poll(() => deliveredSnapshots === heldSnapshots).toBe(true);
-      await context.unroute(`**/api/tasks/${row.id}?*`);
     }
     stage = 'first-done';
     await page.getByRole('button', { name: 'Выполнить', exact: true }).click();

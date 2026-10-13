@@ -1729,7 +1729,9 @@ test('B5: window sender A→B блокирует старую форму до п
     expect(windowMe).toBeGreaterThan(0);
     await expect(page.getByLabel('Текст', { exact: true })).toHaveValue('Текст A не принадлежит B');
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-    await expect(page.getByRole('alert')).toContainText('Учётная запись изменилась');
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Учётная запись изменилась' }),
+    ).toContainText('Учётная запись изменилась');
     expect(posts).toBe(0);
     expect(JSON.stringify(await rows(page))).not.toContain('Текст A не принадлежит B');
     expect(JSON.stringify(await rows(page, 'drafts'))).not.toContain('Текст A не принадлежит B');
