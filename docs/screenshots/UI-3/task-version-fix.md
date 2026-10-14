@@ -1,10 +1,13 @@
-# D3d: локальная поправка базы Edit и позднего autosave
+# D3d: поправка базы Edit и позднего autosave для Studio
 
 15 октября 2026. Основа — exact объединённый кандидат `fb219eab495ff4771b9cdd04fdcf0ce98103a6de`.
 Worktree: `C:/Users/user/.codex/worktrees/fix-task-version-coherence/HomeCRM`, ветка
 `fix/task-5-studio-version-coherence`. Принятый docs-only D3c commit `85fb6f7` перенесён
 обычным cherry-pick как `0ca2921`; [доказательства исходных гонок](task-ci-diagnosis.md) сохранены.
-Это локальный кандидат для отдельного решения о включении в PR58.
+Лид проверил final source `770480f7` и принял узкую поправку двух доказанных клиентских
+блокеров в пределах утверждённого перехода на Studio с сохранением данных и действий.
+Разрешена штатная доставка в PR58: normal push с pre-push, затем CI точного head.
+Результат hook и статус CI фиксируются в описании PR58; новых app/test изменений при доставке нет.
 
 ## Изменение
 
@@ -96,7 +99,8 @@ pnpm --filter @homecrm/web exec playwright test e2e/app/task-edit-coherence.e2e.
 
 ## Границы
 
-Полного check/hook, CI, push, merge и deploy нет. Телефоны/рабочее окружение не проверялись.
+Лид разрешил одну штатную отправку PR58 с общим check в pre-push и независимым CI.
+Merge/deploy/tag не входят в доставку. Телефоны/рабочее окружение не проверялись.
 При закрытии до завершённого autosave остаётся только предыдущий durable черновик; flush при
 navigation не добавлен. Сохранённый старый draft не ребазируется автоматически.
 409 остаётся конфликтом; outbox/receipt/undo/replay контракт не изменён.
