@@ -43,7 +43,7 @@ export default defineConfig(({ mode }) => {
               filename: 'sw.ts',
               injectRegister: false,
               includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
-              injectManifest: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'] },
+              injectManifest: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,woff2}'] },
               manifest: {
                 name: 'HomeCRM — дом и личное',
                 short_name: 'HomeCRM',
@@ -53,8 +53,8 @@ export default defineConfig(({ mode }) => {
                 start_url: './',
                 scope: './',
                 display: 'standalone',
-                background_color: '#f7f7f2',
-                theme_color: '#f7f7f2',
+                background_color: '#e9e5db',
+                theme_color: '#20201e',
                 icons: [
                   {
                     src: 'icon-192.png',

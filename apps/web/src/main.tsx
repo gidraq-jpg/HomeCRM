@@ -26,6 +26,9 @@ import './styles/tasks.css';
 import './styles/offline-shopping.css';
 import { registerShell } from './pwa/register.ts';
 
+// Общие стили прототипа 0.5 сохраняются в его отдельном entry.
+document.documentElement.dataset.design = 'studio';
+
 const root = document.getElementById('root');
 if (!root) throw new Error('Нет элемента #root');
 const client = new QueryClient({

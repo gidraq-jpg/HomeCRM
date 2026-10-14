@@ -552,3 +552,96 @@
   font-size: 0.8125rem;
   line-height: 1.5;
 }
+
+/* Studio: общие компоненты сохраняют API и состояния. */
+html[data-design="studio"] .btn {
+  border-radius: 24px;
+  font-weight: 500;
+}
+
+html[data-design="studio"] .btn--secondary {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+html[data-design="studio"] .btn--primary {
+  background: var(--accent);
+}
+
+html[data-design="studio"] .btn--primary:active,
+html[data-design="studio"] .btn--primary:hover:not([disabled]) {
+  background: var(--accent-strong);
+}
+
+html[data-design="studio"]
+  :is(
+    .text-button,
+    .access-badge--labeled,
+    .card__title,
+    .field__label,
+    .field__error,
+    .visibility__legend,
+    .visibility__label,
+    .empty-state__title
+  ) {
+  font-weight: 500;
+}
+
+html[data-design="studio"] .card {
+  padding: 18px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+html[data-design="studio"] :is(.input, .select, .textarea) {
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+html[data-design="studio"] .row__icon {
+  background: var(--soft);
+  color: var(--muted);
+}
+
+html[data-design="studio"] .row__icon--warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+html[data-design="studio"] .status {
+  background: var(--success-soft);
+  color: var(--success);
+  font-weight: 500;
+}
+
+html[data-design="studio"] .status--warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+html[data-design="studio"] .status--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+html[data-design="studio"] .status--neutral {
+  background: var(--soft);
+  color: var(--muted);
+}
+
+/* Нейтральный текст на тёплой поверхности сохраняет контраст WCAG AA. */
+html[data-design="studio"]
+:is(.status--neutral, .access-caption > p, .access-card__note, .choice__hint) {
+  color: #5b544a;
+}
+
+html[data-design="studio"] .empty-state {
+  padding: 22px 18px;
+  background: var(--surface);
+}
+
+html[data-design="studio"] .empty-state__icon {
+  background: var(--soft);
+  color: var(--muted);
+}

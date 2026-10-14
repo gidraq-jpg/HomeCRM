@@ -70,3 +70,30 @@ a {
   white-space: nowrap;
   border: 0;
 }
+
+/* Поверхности браузера следуют тому же языку Studio. */
+html[data-design="studio"] {
+  scrollbar-color: var(--border) var(--paper);
+}
+
+html[data-design="studio"] ::selection {
+  background: var(--accent);
+  color: #fff;
+}
+
+html[data-design="studio"] :is(input, textarea) {
+  caret-color: var(--accent);
+}
+
+html[data-design="studio"] ::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+html[data-design="studio"] a {
+  text-underline-offset: 0.2em;
+}
+
+html[data-design="studio"] :is(b, strong) {
+  font-weight: 500;
+}

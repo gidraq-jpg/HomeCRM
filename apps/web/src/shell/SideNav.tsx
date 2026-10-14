@@ -1,6 +1,8 @@
 import { House } from '@phosphor-icons/react';
 import { NavLink } from 'react-router';
 import type { ShellSection } from './BottomNav.tsx';
+import { StudioBrand } from './StudioBrand.tsx';
+import { isStudio } from './studio.ts';
 
 /**
  * Боковое меню компьютера: те же пять разделов, что и в нижнем меню телефона (PRD, раздел 14).
@@ -10,8 +12,14 @@ export function SideNav({ sections }: { sections: readonly ShellSection[] }) {
   return (
     <nav className="side-nav" aria-label="Основные разделы">
       <div className="side-nav__brand">
-        <House size={26} aria-hidden />
-        <span>HomeCRM</span>
+        {isStudio() ? (
+          <StudioBrand />
+        ) : (
+          <>
+            <House size={26} aria-hidden />
+            <span>HomeCRM</span>
+          </>
+        )}
       </div>
       <ul className="side-nav__list">
         {sections.map(({ to, label, icon: SectionIcon }) => (
