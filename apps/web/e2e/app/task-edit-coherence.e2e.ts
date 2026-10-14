@@ -25,7 +25,39 @@ async function drafts(page: Page) {
 }
 
 type AutosaveGate = { held: boolean; release: () => void; restore: () => void };
-type GateWindow = Window & { homecrmAutosaveGate?: AutosaveGate };
+type ClearGate = { committed: boolean; release: () => void; restore: () => void };
+type GateWindow = Window & { homecrmAutosaveGate?: AutosaveGate; homecrmClearGate?: ClearGate };
+
+/** IDB уже завершает DELETE, но clearDraft promise ещё не доставлен вызывающей форме. */
+async function holdClearCompletion(page: Page, key: string) {
+  await page.evaluate((formKey) => {
+    const original = IDBObjectStore.prototype.delete;
+    const state: ClearGate = {
+      committed: false,
+      release: () => {},
+      restore: () => {
+        IDBObjectStore.prototype.delete = original;
+      },
+    };
+    (window as GateWindow).homecrmClearGate = state;
+    IDBObjectStore.prototype.delete = function (targetKey) {
+      if (this.name === 'drafts' && targetKey === formKey) {
+        IDBObjectStore.prototype.delete = original;
+        const tx = this.transaction;
+        const complete = tx.oncomplete;
+        if (!complete) throw new Error('Clear transaction completion callback missing');
+        tx.oncomplete = (event) => {
+          state.committed = true;
+          state.release = () => {
+            state.release = () => {};
+            complete.call(tx, event);
+          };
+        };
+      }
+      return original.call(this, targetKey);
+    };
+  }, key);
+}
 
 /** Задерживается настоящий requestTicket autosave; данные и базовая версия не подменяются. */
 async function holdAutosave(page: Page) {
@@ -175,73 +207,95 @@ test('TASK-5: быстрый Edit после PATCH получает точный
   await checkApp(page, info, 'task-edit-exact-conflict');
 });
 
-test('TASK-5: autosave после clearDraft и unmount не воскрешает базу; following использует текущую', async ({
-  page,
-  family,
-}, info) => {
-  await setHomeZone(family);
-  const api = await apiAs(family, 'adult');
-  const created = await api.post('tasks', {
-    title: 'Серия без позднего черновика',
-    planOn: homeDate(0),
-    repeatRule: { kind: 'daily' },
-  });
-  expect(created.status).toBe(201);
-  const row = TaskCard.parse(created.body);
-  await signInAs(page, family, 'adult');
-  await page.goto(`#/today/tasks/${row.id}`);
-  await expect(page.getByRole('heading', { level: 1, name: row.title, exact: true })).toBeVisible();
-  await page.clock.install();
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 10));
-  try {
-    await page.getByRole('button', { name: 'Править дело' }).click();
-    await page.getByLabel('Название дела').fill('Первое успешное изменение');
-    await holdAutosave(page);
-    const firstAck = page.waitForResponse(
-      (response) =>
-        response.request().method() === 'PATCH' && response.url().endsWith(`/api/tasks/${row.id}`),
-    );
-    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-    const response = await firstAck;
-    expect(response.status()).toBe(200);
-    const receipt = (await response.json()).receipt;
-    const version = receipt.results.find(
-      (result: { id: string }) => result.id === row.id,
-    ).updatedAt;
-    await expect(page.locator('form.task-form')).toHaveCount(0);
-    expect(await drafts(page)).toHaveLength(0);
-    await page.evaluate(() => (window as GateWindow).homecrmAutosaveGate?.release());
-    await page.clock.runFor(10);
-    await page.getByRole('button', { name: 'Править дело' }).click();
-    await expect(page.getByLabel('Название дела')).toHaveValue('Первое успешное изменение');
-    expect(await drafts(page)).toHaveLength(0);
-    await page.getByLabel('Область правки серии').selectOption('following');
-    await page.getByLabel('Название дела').fill('Все следующие без старой базы');
-    const secondAck = page.waitForResponse(
-      (ack) =>
-        ack.request().method() === 'PATCH' &&
-        ack.url().endsWith(`/api/tasks/${row.id}`) &&
-        ack.request().postDataJSON()?.repeatScope === 'following',
-    );
-    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-    const following = await secondAck;
-    expect(following.request().postDataJSON().expectedUpdatedAt).toBe(version);
-    expect(following.status()).toBe(200);
-    await expect(page.locator('form.task-form')).toHaveCount(0);
-    await page.clock.runFor(10);
-    expect(TaskCard.parse((await api.get(`tasks/${row.id}`)).body).title).toBe(
-      'Все следующие без старой базы',
-    );
-  } finally {
-    await page.evaluate(() => {
-      const gate = (window as GateWindow).homecrmAutosaveGate;
-      gate?.release();
-      gate?.restore();
+for (const moment of ['after-unmount', 'after-clear-before-unmount'] as const) {
+  test(`TASK-5: autosave ${moment} не воскрешает базу; following использует текущую`, async ({
+    page,
+    family,
+  }, info) => {
+    await setHomeZone(family);
+    const api = await apiAs(family, 'adult');
+    const created = await api.post('tasks', {
+      title: 'Серия без позднего черновика',
+      planOn: homeDate(0),
+      repeatRule: { kind: 'daily' },
     });
-    await page.clock.resume();
-  }
-  await checkApp(page, info, 'task-edit-following-current');
-});
+    expect(created.status).toBe(201);
+    const row = TaskCard.parse(created.body);
+    await signInAs(page, family, 'adult');
+    await page.goto(`#/today/tasks/${row.id}`);
+    await expect(
+      page.getByRole('heading', { level: 1, name: row.title, exact: true }),
+    ).toBeVisible();
+    await page.clock.install();
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 10));
+    try {
+      await page.getByRole('button', { name: 'Править дело' }).click();
+      await page.getByLabel('Название дела').fill('Первое успешное изменение');
+      await holdAutosave(page);
+      if (moment === 'after-clear-before-unmount')
+        await holdClearCompletion(page, `${family.person('adult').id}:form:/today/tasks/${row.id}`);
+      const firstAck = page.waitForResponse(
+        (response) =>
+          response.request().method() === 'PATCH' &&
+          response.url().endsWith(`/api/tasks/${row.id}`),
+      );
+      await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+      const response = await firstAck;
+      expect(response.status()).toBe(200);
+      const receipt = (await response.json()).receipt;
+      const version = receipt.results.find(
+        (result: { id: string }) => result.id === row.id,
+      ).updatedAt;
+      if (moment === 'after-clear-before-unmount') {
+        await expect
+          .poll(() => page.evaluate(() => (window as GateWindow).homecrmClearGate?.committed))
+          .toBe(true);
+        await page.evaluate(() => (window as GateWindow).homecrmAutosaveGate?.release());
+        await page.clock.runFor(10);
+        await expect(page.locator('form.task-form')).toHaveCount(1);
+        expect(await drafts(page)).toHaveLength(0);
+        await page.evaluate(() => (window as GateWindow).homecrmClearGate?.release());
+        await expect(page.locator('form.task-form')).toHaveCount(0);
+      } else {
+        await expect(page.locator('form.task-form')).toHaveCount(0);
+        expect(await drafts(page)).toHaveLength(0);
+        await page.evaluate(() => (window as GateWindow).homecrmAutosaveGate?.release());
+      }
+      await page.clock.runFor(10);
+      await page.getByRole('button', { name: 'Править дело' }).click();
+      await expect(page.getByLabel('Название дела')).toHaveValue('Первое успешное изменение');
+      expect(await drafts(page)).toHaveLength(0);
+      await page.getByLabel('Область правки серии').selectOption('following');
+      await page.getByLabel('Название дела').fill('Все следующие без старой базы');
+      const secondAck = page.waitForResponse(
+        (ack) =>
+          ack.request().method() === 'PATCH' &&
+          ack.url().endsWith(`/api/tasks/${row.id}`) &&
+          ack.request().postDataJSON()?.repeatScope === 'following',
+      );
+      await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+      const following = await secondAck;
+      expect(following.request().postDataJSON().expectedUpdatedAt).toBe(version);
+      expect(following.status()).toBe(200);
+      await expect(page.locator('form.task-form')).toHaveCount(0);
+      await page.clock.runFor(10);
+      expect(TaskCard.parse((await api.get(`tasks/${row.id}`)).body).title).toBe(
+        'Все следующие без старой базы',
+      );
+    } finally {
+      await page.evaluate(() => {
+        const gate = (window as GateWindow).homecrmAutosaveGate;
+        gate?.release();
+        gate?.restore();
+        const clear = (window as GateWindow).homecrmClearGate;
+        clear?.release();
+        clear?.restore();
+      });
+      await page.clock.resume();
+    }
+    await checkApp(page, info, 'task-edit-following-current');
+  });
+}
 
 test('TASK-5: Edit читает офлайн-snapshot, показывает отсутствие снимка и позволяет повторить', async ({
   page,

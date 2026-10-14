@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { useHousehold } from '../household/HouseholdContext.tsx';
 import { type DraftBase, DraftEnvelope } from './draft-data.ts';
 import { assertIdentity, changed, LocalFailure, localMessage, requestTicket } from './identity.ts';
 import { offlineDB } from './store.ts';
+
+// Только writers текущей вкладки; ключ не смешивает формы разных аккаунтов.
+const draftWriters = new Map<string, Set<() => void>>();
 
 /** Версия принадлежит исходному вводу; поздний GET не заменяет её при восстановлении. */
 export function useDurableDraft<T>(
@@ -10,6 +14,7 @@ export function useDurableDraft<T>(
   restore: (value: T) => void,
   source?: DraftBase,
 ) {
+  const { me } = useHousehold();
   const initialSource = useRef(source);
   const apply = useRef(restore);
   apply.current = restore;
@@ -71,6 +76,7 @@ export function useDurableDraft<T>(
         try {
           const owner = await requestTicket();
           if (!active) return;
+          if (owner.owner !== me.id) throw new LocalFailure('ACCOUNT_CHANGED');
           await offlineDB.transaction('rw', offlineDB.identity, offlineDB.drafts, async () => {
             await assertIdentity(owner);
             const exists = await offlineDB.drafts.get(`${owner.owner}:${draftKey}`);
@@ -103,11 +109,20 @@ export function useDurableDraft<T>(
         }
       })();
     }, 300);
-    return () => {
+    const cancel = () => {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [draftKey, value, base, ready]);
+    const key = `${me.id}:${draftKey}`;
+    const writers = draftWriters.get(key) ?? new Set<() => void>();
+    writers.add(cancel);
+    draftWriters.set(key, writers);
+    return () => {
+      cancel();
+      writers.delete(cancel);
+      if (!writers.size && draftWriters.get(key) === writers) draftWriters.delete(key);
+    };
+  }, [me.id, draftKey, value, base, ready]);
   return {
     problem,
     base,
@@ -122,6 +137,8 @@ export function useDurableDraft<T>(
 }
 export async function clearDraft(key: string) {
   const owner = await requestTicket();
+  // DELETE может закончиться до React cleanup; начатый autosave отменяется заранее.
+  for (const cancel of draftWriters.get(`${owner.owner}:${key}`) ?? []) cancel();
   await offlineDB.transaction(
     'rw',
     offlineDB.identity,
