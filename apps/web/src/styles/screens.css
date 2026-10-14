@@ -461,6 +461,10 @@
 }
 
 /* D3: детали рабочих экранов в утверждённой системе Studio. */
+html[data-design="studio"] .focus__title {
+  font-weight: 500;
+}
+
 html[data-design="studio"] .auth-page {
   padding-top: max(36px, env(safe-area-inset-top));
 }
