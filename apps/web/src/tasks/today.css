@@ -1,6 +1,7 @@
 /* Только композиция настоящего «Сегодня»; общий язык Studio задаёт UI-1. */
-html[data-design="studio"] .today-page {
+html[data-design="studio"] .page.today-page {
   padding: 0;
+  background: var(--charcoal);
 }
 html[data-design="studio"] .today-page > .page-heading {
   margin: 0;
@@ -8,8 +9,9 @@ html[data-design="studio"] .today-page > .page-heading {
 html[data-design="studio"] .today-hero {
   padding: 22px var(--gutter) 24px;
   color: var(--on-dark);
+  background: var(--charcoal);
 }
-html[data-design="studio"] .today-hero__date {
+html[data-design="studio"] .today-hero .today-hero__date {
   margin-bottom: 22px;
   color: var(--muted-on-dark);
   font-size: 0.6875rem;
@@ -113,4 +115,12 @@ html[data-design="studio"] .today-panel .section__title--eyebrow {
   html[data-design="studio"] .today-panel {
     padding-bottom: calc(var(--fab-size) + 56px);
   }
+}
+
+/* Пустая строка офлайна продолжает тёмный верх; сообщения сохраняют светлую подложку. */
+html[data-design="studio"] .main:has(> .today-page) {
+  background: var(--charcoal);
+}
+html[data-design="studio"] .main:has(> .today-page) > .offline-status:not(:empty) {
+  background: var(--paper);
 }

@@ -47,9 +47,12 @@ test('боковое меню вместо нижнего, переключат�
   await expect(side.getByRole('link')).toHaveText(['Сегодня', 'Дом', 'Документы', 'Люди', 'Ещё']);
   await expect(side.getByRole('link', { name: 'Сегодня' })).toHaveAttribute('aria-current', 'page');
 
-  // Шапка: переключатель и поиск рядом с содержимым, а не в боковом меню.
+  // На «Сегодня» переключатель в светлой панели; поиск сохраняется в шапке.
   const header = page.locator('header.topbar');
-  await expect(header.getByRole('radio', { name: 'Всё', exact: true })).toBeChecked();
+  await expect(
+    page.locator('.today-panel').getByRole('radio', { name: 'Всё', exact: true }),
+  ).toBeChecked();
+  await expect(header.getByRole('radio')).toHaveCount(0);
   await expect(header.getByRole('link', { name: 'Поиск', exact: true })).toBeVisible();
   await expect(side.getByRole('radio')).toHaveCount(0);
   await checkApp(page, info, 'desktop-today');

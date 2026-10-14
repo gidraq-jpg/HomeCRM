@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
-import { useRadarItems } from '../deadlines/queries.ts';
+import { useRadar } from '../deadlines/useRadar.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMyProfile } from '../household/queries.ts';
 import { listScopeOf } from '../notes/queries.ts';
@@ -23,21 +23,26 @@ export function TodayHero({
   const { me, householdId } = useHousehold();
   const { scope } = useScope();
   const profile = useMyProfile();
-  const timeZone = data?.timeZone ?? me.timeZone;
-  const date = todayIn(timeZone);
+  const date = data
+    ? todayIn(data.timeZone)
+    : !house || house === householdId
+      ? todayIn(me.timeZone)
+      : undefined;
   const name = profile.data?.displayName.trim() || me.displayName;
-  const radar = useRadarItems(me.id, timeZone, {
-    scope: listScopeOf(scope),
-    view: 'mine',
-    ...(house ? { householdId: house } : {}),
+  const radar = useRadar({
+    filters: {
+      scope: listScopeOf(scope),
+      view: 'mine',
+      ...(house ? { householdId: house } : {}),
+    },
   });
   const objects = useObjectsList(false);
   const taskCount = data ? todayTaskCount(data.tasks) : undefined;
-  const deadlineCount = radar.data ? nearbyDeadlineCount(radar.data.items) : undefined;
+  const deadlineCount = radar.status === 'ready' ? nearbyDeadlineCount(radar.rows) : undefined;
   const objectCount = objects.data ? uniqueTasks(objects.data.pages.flat()).length : undefined;
   const tasksValue = metricValue(taskCount, error);
   const radarValue = metricValue(deadlineCount, radar.error, {
-    recalculating: radar.data?.recalculating,
+    recalculating: radar.recalculating,
   });
   const objectsValue = metricValue(objectCount, objects.error, { partial: objects.hasNextPage });
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
@@ -75,7 +80,11 @@ export function TodayHero({
     <div className="today-hero">
       <h1 className="visually-hidden">Сегодня</h1>
       <p className="page-heading__eyebrow today-hero__date">
-        {weekdayName(date)}, {formatLongDate(date)}
+        {date
+          ? `${weekdayName(date)}, ${formatLongDate(date)}`
+          : error
+            ? 'Не удалось загрузить дату дома'
+            : 'Загружаем дату дома…'}
       </p>
       <p className="today-hero__greeting">
         <span>Добрый день,</span>

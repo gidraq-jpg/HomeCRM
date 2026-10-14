@@ -8,14 +8,15 @@ import {
   expectAccessible,
   expectNoHorizontalScroll,
   expectTouchTargets,
+  setScope,
 } from '../support/helpers.ts';
-import { homeDate, setHomeZone } from './deadlines-support.ts';
+import { homeDate, recalc, seedDeadline, setHomeZone } from './deadlines-support.ts';
 import { apiAs, seedObject } from './notes-support.ts';
 import { signInAs } from './support.ts';
 
 async function shot(page: Page, name: string) {
   if (process.platform !== 'linux') return;
-  const directory = resolve(import.meta.dirname, '../../../../docs/screenshots/R1c.4d/after');
+  const directory = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-2');
   await mkdir(directory, { recursive: true });
   await page.screenshot({ path: resolve(directory, `${name}.png`), fullPage: true });
 }
@@ -212,4 +213,86 @@ test('настольные ленты 1440 и 1718 px, масштаб 100% и 20
         await context.close();
       }
     }
+});
+
+test('Studio: реальные показатели, пространство, независимая ошибка и текст 200%', async ({
+  page,
+  family,
+  context,
+}, info) => {
+  await setHomeZone(family);
+  const api = await apiAs(family, 'adult');
+  const name = `Борис${'ОченьДлинноеИмя'.repeat(5)}`;
+  expect(await api.patch('me/profile', { displayName: name })).toMatchObject({ status: 200 });
+  expect(
+    await api.post('tasks', { title: 'Личное дело сегодня', planOn: homeDate(0) }),
+  ).toMatchObject({ status: 201 });
+  expect(
+    await api.post('tasks', {
+      title: 'Общее просроченное дело',
+      planOn: homeDate(-1),
+      placement: { spaceId: family.houseId, audience: 'household' },
+    }),
+  ).toMatchObject({ status: 201 });
+  const personal = await seedObject(api, family, { title: 'Личная вымышленная техника' });
+  const shared = await seedObject(api, family, {
+    title: 'Общая вымышленная дача',
+    audience: 'household',
+  });
+  await seedDeadline(api, 'objects', personal.id, { kind: 'date', date: homeDate(3) });
+  await seedDeadline(api, 'objects', shared.id, { kind: 'date', date: homeDate(5) });
+  await recalc(family);
+  let releaseObjects: () => void = () => {};
+  const objectsGate = new Promise<void>((resolve) => {
+    releaseObjects = resolve;
+  });
+  await context.route('**/api/objects?**', async (route) => {
+    await objectsGate;
+    await route.continue();
+  });
+  await signInAs(page, family, 'adult');
+  const metrics = page.getByRole('navigation', { name: 'Показатели на сегодня' });
+  await expect(page.locator('.today-hero__greeting')).toContainText(name);
+  await expect(metrics.getByRole('link', { name: /объектов: Загружаем/ })).toContainText('—');
+  releaseObjects();
+  await expect(metrics.getByRole('link', { name: '2 дела сегодня', exact: true })).toBeVisible();
+  await expect(metrics.getByRole('link', { name: '2 объекта', exact: true })).toBeVisible();
+  await context.unroute('**/api/objects?**');
+  await expect(metrics.getByRole('link', { name: '4 близких срока', exact: true })).toBeVisible();
+  await check(page, `studio-counters-${info.project.use.viewport?.width}`);
+  await setScope(page, 'Личное');
+  await expect(metrics.getByRole('link', { name: '1 дело сегодня', exact: true })).toBeVisible();
+  await expect(metrics.getByRole('link', { name: '1 объект', exact: true })).toBeVisible();
+  await expect(metrics.getByRole('link', { name: '2 близких срока', exact: true })).toBeVisible();
+  await metrics.getByRole('link', { name: '2 близких срока', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`view=mine&householdId=${family.houseId}$`));
+  await expect(page.getByRole('heading', { name: 'Радар', exact: true })).toBeVisible();
+  const radarResponse = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/deadlines',
+  );
+  await page.reload();
+  const radarQuery = new URL((await radarResponse).url()).searchParams;
+  expect(radarQuery.get('householdId')).toBe(family.houseId);
+  expect(radarQuery.get('view')).toBe('mine');
+  expect(radarQuery.get('scope')).toBe('personal');
+  await expect(page.getByRole('radio', { name: 'Личное', exact: true })).toBeChecked();
+  await page.goto('#/today');
+  await metrics.getByRole('link', { name: '1 объект', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Дом', exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Личное', exact: true })).toBeChecked();
+  await context.route('**/api/objects?**', (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: '{"code":"TEST_FAILURE"}',
+    }),
+  );
+  await page.goto('#/today');
+  await page.reload();
+  await expect(metrics.getByRole('link', { name: /объектов: Нет данных/ })).toContainText('—');
+  await expect(metrics.getByRole('link', { name: '1 дело сегодня', exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '200%';
+  });
+  await check(page, `studio-error-text200-${info.project.use.viewport?.width}`);
 });
