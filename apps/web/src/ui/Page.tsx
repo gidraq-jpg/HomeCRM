@@ -11,6 +11,10 @@ export function usePageTitle(title: string): void {
 
 interface PageProps {
   title: string;
+  /** Локальная композиция экрана; по умолчанию сохраняется общий каркас. */
+  className?: string;
+  /** Свой заголовочный блок обязан сохранить доступный h1. */
+  heading?: ReactNode;
   /** Строка над заголовком: дата, адрес объекта. */
   eyebrow?: string;
   back?: { to: string; label: string };
@@ -26,10 +30,20 @@ interface PageProps {
   children: ReactNode;
 }
 
-export function Page({ title, eyebrow, back, tabs, documentTitle, status, children }: PageProps) {
+export function Page({
+  title,
+  eyebrow,
+  back,
+  tabs,
+  documentTitle,
+  status,
+  children,
+  className,
+  heading,
+}: PageProps) {
   usePageTitle(documentTitle ?? title);
   return (
-    <div className="page">
+    <div className={className ? `page ${className}` : 'page'}>
       {back ? (
         <Link className="back-link" to={back.to}>
           <CaretLeft size={20} aria-hidden />
@@ -37,14 +51,18 @@ export function Page({ title, eyebrow, back, tabs, documentTitle, status, childr
         </Link>
       ) : null}
       <div className="page-heading">
-        {eyebrow ? <p className="page-heading__eyebrow">{eyebrow}</p> : null}
-        {status ? (
-          <div className="page-heading__line">
-            <h1>{title}</h1>
-            {status}
-          </div>
-        ) : (
-          <h1>{title}</h1>
+        {heading ?? (
+          <>
+            {eyebrow ? <p className="page-heading__eyebrow">{eyebrow}</p> : null}
+            {status ? (
+              <div className="page-heading__line">
+                <h1>{title}</h1>
+                {status}
+              </div>
+            ) : (
+              <h1>{title}</h1>
+            )}
+          </>
         )}
       </div>
       {tabs}

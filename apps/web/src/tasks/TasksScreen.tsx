@@ -8,9 +8,9 @@ import { buildRows, filterRows } from '../deadlines/radar.ts';
 import { isOpenWindow } from '../deadlines/utility.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { PushCard } from '../notifications/PushCard.tsx';
+import { ScopeSwitch } from '../shell/ScopeSwitch.tsx';
 import { FirstRunCard } from '../templates/FirstRunCard.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
-import { type DateOnly, formatLongDate, weekdayName } from '../ui/format.ts';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import type { TaskFilters } from './api.ts';
@@ -21,6 +21,8 @@ import { Quickline } from './Quickline.tsx';
 import { uniqueTasks, usePlan, useTaskList, useToday } from './queries.ts';
 import { STATUS_LABELS } from './TaskForm.tsx';
 import { TaskRows } from './TaskRows.tsx';
+import { TodayHero } from './TodayHero.tsx';
+import './today.css';
 
 const tabs = [
   { to: '/today', label: 'Сегодня', end: true },
@@ -47,13 +49,13 @@ export function TasksScreen({ view = 'today' }: { view?: View }) {
 function TasksPage({
   view,
   house,
-  today,
+  hero,
   eyebrow,
   children,
 }: {
   view: View;
   house: string | null;
-  today?: string;
+  hero?: ReactNode;
   eyebrow?: string;
   children: ReactNode;
 }) {
@@ -61,6 +63,12 @@ function TasksPage({
   const { scope } = useScope();
   const [, setParams] = useSearchParams();
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
+  const feedTabs = (
+    <LinkTabs
+      label="Ленты дел"
+      items={tabs.map((tab) => ({ ...tab, to: `${tab.to}${houseQuery}` }))}
+    />
+  );
   const actions = (
     <div className="task-actions">
       <Link className="btn btn--secondary" to={`/today/new${houseQuery}`}>
@@ -78,21 +86,14 @@ function TasksPage({
       </div>
     </div>
   );
-  return (
-    <Page
-      title={view === 'today' ? 'Сегодня' : view === 'plan' ? 'План' : 'Все дела'}
-      eyebrow={
-        today
-          ? `${weekdayName(today as DateOnly)}, ${formatLongDate(today as DateOnly)}`
-          : (eyebrow ?? (view === 'all' ? 'Дела дома и ваши личные' : undefined))
-      }
-      tabs={
-        <LinkTabs
-          label="Ленты дел"
-          items={tabs.map((tab) => ({ ...tab, to: `${tab.to}${houseQuery}` }))}
-        />
-      }
-    >
+  const content = (
+    <>
+      {view === 'today' ? (
+        <>
+          <ScopeSwitch />
+          {feedTabs}
+        </>
+      ) : null}
       {scope !== 'all' ? <p className="muted">{EMPTY_SCOPE_EXPLANATION[scope]}</p> : null}
       {me.roles.length > 1 ? (
         <SelectField
@@ -108,6 +109,23 @@ function TasksPage({
       {view !== 'today' ? actions : null}
       {children}
       {view === 'today' ? actions : null}
+    </>
+  );
+  return (
+    <Page
+      title={view === 'today' ? 'Сегодня' : view === 'plan' ? 'План' : 'Все дела'}
+      eyebrow={eyebrow ?? (view === 'all' ? 'Дела дома и ваши личные' : undefined)}
+      heading={hero}
+      className={view === 'today' ? 'today-page' : undefined}
+      tabs={view === 'today' ? undefined : feedTabs}
+    >
+      {view === 'today' ? (
+        <div className="studio-panel today-panel" id="today-panel">
+          {content}
+        </div>
+      ) : (
+        content
+      )}
     </Page>
   );
 }
@@ -130,7 +148,11 @@ function TodayFeed({ house }: { house: string | null }) {
   );
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
   return (
-    <TasksPage view="today" house={house} today={query.data?.today}>
+    <TasksPage
+      view="today"
+      house={house}
+      hero={<TodayHero data={query.data} error={query.error} house={house} />}
+    >
       <QueryNotice query={query} />
       {query.data ? (
         <>
