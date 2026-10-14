@@ -5,15 +5,17 @@ import { Link, useParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import { VISIBILITY_LABELS, type Visibility } from '../access/visibility.ts';
+import { ApiError, type Me } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
+import { ME_KEY } from '../auth/session-cache.ts';
 import { FilesSection } from '../files/FilesSection.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import type { TaskCard, TimedTask } from './api.ts';
-import { seriesAction } from './api.ts';
+import { fetchTask, seriesAction } from './api.ts';
 import { taskError } from './errors.ts';
 import { formatDateOnly, SelectField } from './fields.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
@@ -25,6 +27,7 @@ import { TaskLinks } from './TaskLinks.tsx';
 import { taskPath } from './TaskRows.tsx';
 export function TaskScreen() {
   const { taskId } = useParams();
+  const { me } = useHousehold();
   const query = useTask(taskId);
   if (!query.data)
     return (
@@ -41,7 +44,7 @@ export function TaskScreen() {
         )}
       </Page>
     );
-  return <TaskView key={taskId} card={query.data} />;
+  return <TaskView key={`${me.id}:${taskId}`} card={query.data} />;
 }
 function TaskView({ card }: { card: TimedTask }) {
   const { me, householdId } = useHousehold();
@@ -51,6 +54,14 @@ function TaskView({ card }: { card: TimedTask }) {
   const viewer = viewerOf(me);
   const targetHouse = card.householdId ?? householdId;
   const [editing, setEditing] = useState<TaskCard | null>(null);
+  const [editPending, setEditPending] = useState(false);
+  const editRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    return () => {
+      editRequest.current?.abort();
+      editRequest.current = null;
+    };
+  }, []);
   const [transfer, setTransfer] = useState(false);
   const [assignee, setAssignee] = useState(card.assigneeId ?? me.id);
   const [scope, setScope] = useState('this');
@@ -89,6 +100,34 @@ function TaskView({ card }: { card: TimedTask }) {
     const timer = window.setInterval(() => setTick(performance.now()), 200);
     return () => window.clearInterval(timer);
   }, [card.status]);
+  async function beginEdit() {
+    if (editRequest.current || operation.pending) return;
+    const controller = new AbortController();
+    editRequest.current = controller;
+    setEditPending(true);
+    operation.setError(null);
+    const sameAccount = () => client.getQueryData<Me | null>([ME_KEY])?.id === me.id;
+    try {
+      await client.cancelQueries({ queryKey: ['tasks', me.id, 'card', card.id], exact: true });
+      if (controller.signal.aborted || !sameAccount()) return;
+      // Форма принимает содержимое и точную версию из одного snapshot, включая офлайн-чтение.
+      const fresh = await fetchTask(card.id, controller.signal);
+      const currentMe = client.getQueryData<Me | null>([ME_KEY]);
+      if (controller.signal.aborted || currentMe?.id !== me.id) return;
+      if (fresh.id !== card.id) throw new ApiError(502, 'INVALID_RESPONSE');
+      client.setQueryData(['tasks', me.id, 'card', card.id], fresh);
+      const currentViewer = viewerOf(currentMe);
+      if (!canWrite(currentViewer, factsOf(fresh, currentViewer, 'task'))) throw new ApiError(403);
+      setEditing(fresh);
+    } catch (error) {
+      if (!controller.signal.aborted && sameAccount()) operation.setError(error);
+    } finally {
+      if (editRequest.current === controller) {
+        editRequest.current = null;
+        setEditPending(false);
+      }
+    }
+  }
   async function series(action: 'trash' | 'restore') {
     if (seriesLocked.current) return;
     seriesLocked.current = true;
@@ -245,7 +284,13 @@ function TaskView({ card }: { card: TimedTask }) {
           <div className="btn-row">
             {active ? (
               <>
-                <button type="button" className="btn btn--primary" onClick={() => setEditing(card)}>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  disabled={editPending || operation.pending}
+                  aria-busy={editPending}
+                  onClick={() => void beginEdit()}
+                >
                   Править дело
                 </button>
                 {['open', 'waiting'].includes(card.status) ? (

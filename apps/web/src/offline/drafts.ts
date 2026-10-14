@@ -65,10 +65,12 @@ export function useDurableDraft<T>(
   }, [draftKey]);
   useEffect(() => {
     if (!ready) return;
+    let active = true;
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
           const owner = await requestTicket();
+          if (!active) return;
           await offlineDB.transaction('rw', offlineDB.identity, offlineDB.drafts, async () => {
             await assertIdentity(owner);
             const exists = await offlineDB.drafts.get(`${owner.owner}:${draftKey}`);
@@ -81,6 +83,7 @@ export function useDurableDraft<T>(
                 .count()) >= 100
             )
               throw new LocalFailure('LOCAL_QUOTA');
+            if (!active) return;
             await offlineDB.drafts.put({
               key: `${owner.owner}:${draftKey}`,
               owner: owner.owner ?? '',
@@ -88,8 +91,9 @@ export function useDurableDraft<T>(
               updatedAt: Date.now(),
             });
           });
-          setProblem(null);
+          if (active) setProblem(null);
         } catch (error) {
+          if (!active) return;
           setProblem(
             error instanceof Error && /Quota/.test(error.name)
               ? 'Черновик не сохранён: на устройстве недостаточно места. Оставьте форму открытой.'
@@ -99,7 +103,10 @@ export function useDurableDraft<T>(
         }
       })();
     }, 300);
-    return () => window.clearTimeout(timer);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [draftKey, value, base, ready]);
   return {
     problem,

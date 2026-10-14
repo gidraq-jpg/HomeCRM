@@ -351,34 +351,49 @@ test('серия: область правки, выполнение и отме�
     await page.clock.install();
     await page.clock.pauseAt(await page.evaluate(() => Date.now() + 10));
     // Пока чтение draft задержано, ввод не должен быть перезаписан поздним восстановлением.
-    await page.evaluate(async () => {
-      const db = await new Promise<IDBDatabase>((ok, bad) => {
-        const request = indexedDB.open('homecrm-offline');
-        request.onsuccess = () => ok(request.result);
-        request.onerror = () => bad(request.error);
-      });
-      const tx = db.transaction('drafts', 'readwrite');
-      const store = tx.objectStore('drafts');
+    await page.evaluate(() => {
+      const original = IDBObjectStore.prototype.get;
+      let armed = true;
       let released = false;
+      let release = () => {};
       window.addEventListener(
         'homecrm-test-release-draft',
         () => {
           released = true;
+          IDBObjectStore.prototype.get = original;
+          release();
         },
         { once: true },
       );
-      tx.oncomplete = () => db.close();
-      const keepActive = () => {
-        const request = store.get('homecrm-test-restore-gate');
-        request.onsuccess = () => {
-          if (!released) keepActive();
-        };
+      // Задерживаем только restore формы; coherent GET не блокируется общей RW-транзакцией.
+      IDBObjectStore.prototype.get = function (key) {
+        const request = original.call(this, key);
+        if (!armed || this.name !== 'drafts' || !String(key).includes(':form:')) return request;
+        armed = false;
+        return new Proxy(request, {
+          get(target, property) {
+            const value = Reflect.get(target, property, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+          set(target, property, value) {
+            if (property === 'onsuccess') {
+              target.onsuccess = (event) => {
+                release = () => value.call(target, event);
+                if (released) release();
+              };
+              return true;
+            }
+            return Reflect.set(target, property, value, target);
+          },
+        });
       };
-      keepActive();
     });
     await page.getByRole('button', { name: 'Править дело' }).click();
-    await expect(page.getByLabel('Название дела')).toBeDisabled();
-    await page.evaluate(() => window.dispatchEvent(new Event('homecrm-test-release-draft')));
+    try {
+      await expect(page.getByLabel('Название дела')).toBeDisabled();
+    } finally {
+      await page.evaluate(() => window.dispatchEvent(new Event('homecrm-test-release-draft')));
+    }
     await page.getByLabel('Область правки серии').selectOption('following');
     await page.getByLabel('Название дела').fill('Все следующие');
     await expect(
