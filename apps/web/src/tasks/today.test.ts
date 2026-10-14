@@ -10,6 +10,8 @@ describe('показатели «Сегодня»', () => {
         { id: 'overdue', status: 'waiting' },
         { id: 'done', status: 'done' },
         { id: 'cancelled', status: 'cancelled' },
+        { id: 'closed', status: 'open' },
+        { id: 'closed', status: 'done' },
       ]),
     ).toBe(2);
   });
@@ -23,6 +25,8 @@ describe('показатели «Сегодня»', () => {
         { id: '4', group: '30days' },
         { id: '5', group: '90days' },
         { id: '6', group: 'later' },
+        { id: 'changed', group: 'now' },
+        { id: 'changed', group: '30days' },
       ]),
     ).toBe(3);
   });

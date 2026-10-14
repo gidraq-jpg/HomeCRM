@@ -3,12 +3,13 @@ import type { TaskCard } from './api.ts';
 import { uniqueTasks } from './queries.ts';
 
 export function todayTaskCount(tasks: readonly Pick<TaskCard, 'id' | 'status'>[]) {
-  return uniqueTasks(tasks.filter((task) => task.status === 'open' || task.status === 'waiting'))
-    .length;
+  return uniqueTasks([...tasks]).filter(
+    (task) => task.status === 'open' || task.status === 'waiting',
+  ).length;
 }
 
 export function nearbyDeadlineCount(items: readonly Pick<RadarItem, 'id' | 'group'>[]) {
-  return uniqueTasks(items.filter((item) => ['overdue', 'now', '7days'].includes(item.group)))
+  return uniqueTasks([...items]).filter((item) => ['overdue', 'now', '7days'].includes(item.group))
     .length;
 }
 
