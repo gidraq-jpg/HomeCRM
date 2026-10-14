@@ -13,6 +13,8 @@ interface AppShellProps {
   onAdd: () => void;
   /** Окна поверх экрана: например, панель добавления. */
   overlays?: ReactNode;
+  /** D2 отключает верхний экземпляр только после переноса переключателя в панель «Сегодня». */
+  scopeVisible?: boolean;
   children: ReactNode;
 }
 
@@ -21,7 +23,13 @@ interface AppShellProps {
  * из пяти разделов на телефоне, боковое меню на компьютере и кнопка «+», доступная на всех
  * экранах (PRD, раздел 14). Какое из двух меню видно, решает ширина окна (shell.css).
  */
-export function AppShell({ sections, onAdd, overlays, children }: AppShellProps) {
+export function AppShell({
+  sections,
+  onAdd,
+  overlays,
+  scopeVisible = true,
+  children,
+}: AppShellProps) {
   const { pathname } = useLocation();
   useKeyboardAttribute();
 
@@ -35,7 +43,7 @@ export function AppShell({ sections, onAdd, overlays, children }: AppShellProps)
     <div className="app">
       <SideNav sections={sections} />
       <div className="app__content">
-        <TopBar />
+        <TopBar scopeVisible={scopeVisible} />
         <main className="main" id="main">
           {children}
         </main>

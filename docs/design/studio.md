@@ -18,7 +18,7 @@ Studio включается только рабочим `src/main.tsx`: `html[da
 | `--paper` | `#e9e5db`, основная тёплая панель |
 | `--surface` | `#f5f2eb`, карточки и поля |
 | `--ink` | `#272725`, основной текст |
-| `--muted` | `#686259`, вторичный текст |
+| `--muted` | `#686259`, вторичный текст на `--paper` / `--surface`; переключатель на `--soft` использует `#5f584e` |
 | `--line` / `--border` | `#d4cec1` / `#82796a`, разделитель / различимая граница поля |
 | `--accent` / `--accent-strong` | `#a84d30` / `#8d3d25`, основное действие / нажатие |
 | `--accent-on-dark` | `#df7c56`, знак дома, точка и акцент на тёмном |
@@ -27,12 +27,12 @@ Studio включается только рабочим `src/main.tsx`: `html[da
 | `--success` / `--success-soft` | `#345d48` / `#e9eee7`, только успешный статус |
 | `--danger` / `--danger-soft` | `#9b332b` / `#f7e3e0`, опасная операция или ошибка |
 | `--warning` / `--warning-soft` | `#9a5b18` / `#f9f0e2`, предупреждение |
-| `--green` / `--green-strong` | совместимые алиасы `--accent` / `--accent-strong`; новые семантические успехи используют `--success` |
+| `--green` / `--green-strong` | совместимые алиасы `--accent-strong` для контрастного текста на тёплом фоне; основные кнопки используют `--accent`, успехи — `--success` |
 | `--font-sans` | локальный Roboto 300/400/500, латиница и кириллица |
 | `--font-serif` | совместимый алиас `--font-sans` в Studio |
 | `--tap`, `--gutter`, `--column` | `44px`, `22px`, `680px` |
 
-Иконки остаются Phosphor. Логотип — точная геометрия Radix `HomeIcon`, надпись `homecrm` и терракотовая точка. Источник и лицензия знака: [Radix Icons](https://github.com/radix-ui/icons), MIT, Copyright (c) 2022 WorkOS; сохранённый текст лицензии — [radix-icons-LICENSE.txt](radix-icons-LICENSE.txt). PNG-иконки PWA используют тот же знак на угольном фоне. Roboto поставляется через `@fontsource/roboto`: локальные WOFF2, без внешних запросов; начертания 300, 400, 500 и две письменности. Лицензия пакета — Apache-2.0.
+Иконки остаются Phosphor. Логотип — точная геометрия Radix `HomeIcon`, надпись `homecrm` и терракотовая точка. Источник и лицензия знака: [Radix Icons](https://github.com/radix-ui/icons), MIT, Copyright (c) 2022 WorkOS; сохранённый текст лицензии — [radix-icons-LICENSE.txt](radix-icons-LICENSE.txt). PNG-иконки PWA используют тот же знак на угольном фоне. Roboto поставляется через `@fontsource/roboto`: локальные WOFF2, без внешних запросов; начертания 300, 400, 500 и две письменности. Лицензия пакета — OFL-1.1 (SIL Open Font License).
 
 ## Контракт компонентов и область D2/D3
 
