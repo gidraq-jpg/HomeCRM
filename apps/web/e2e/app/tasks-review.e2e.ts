@@ -133,6 +133,7 @@ for (const view of ['all', 'card'] as const) {
     let completed = false;
     let undoRequests = 0;
     let refetchStarted = false;
+    const pendingRouteCallbacks = new Set<Promise<void>>();
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
@@ -144,14 +145,23 @@ for (const view of ['all', 'card'] as const) {
     page.on('request', (request) => {
       if (request.url().endsWith(`tasks/${id}/undo`)) undoRequests++;
     });
-    await page.route('**/api/tasks**', async (route) => {
-      if (route.request().method() === 'GET' && completed && !undoRequests) {
-        const response = await route.fetch();
-        refetchStarted = true;
-        await gate;
-        await route.fulfill({ response });
-      } else await route.continue();
-    });
+    const routeHandler = (route: import('@playwright/test').Route) => {
+      const callback = (async () => {
+        if (route.request().method() === 'GET' && completed && !undoRequests) {
+          const response = await route.fetch();
+          refetchStarted = true;
+          await gate;
+          await route.fulfill({ response });
+        } else await route.continue();
+      })();
+      pendingRouteCallbacks.add(callback);
+      void callback.then(
+        () => pendingRouteCallbacks.delete(callback),
+        () => pendingRouteCallbacks.delete(callback),
+      );
+      return callback;
+    };
+    await page.route('**/api/tasks**', routeHandler);
     try {
       await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
       await expect.poll(() => refetchStarted).toBe(true);
@@ -169,6 +179,8 @@ for (const view of ['all', 'card'] as const) {
       expect(undoRequests).toBe(1);
     } finally {
       release();
+      await page.unroute('**/api/tasks**', routeHandler);
+      await Promise.all([...pendingRouteCallbacks]);
     }
   });
 }
