@@ -1,6 +1,7 @@
-import { House, WifiSlash } from '@phosphor-icons/react';
+import { WifiSlash } from '@phosphor-icons/react';
 import { type FormEvent, type ReactNode, useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
+import { StudioBrand } from '../shell/StudioBrand.tsx';
 import { usePageTitle } from '../ui/Page.tsx';
 import { errorMessage } from './api.ts';
 
@@ -21,8 +22,7 @@ export function AuthPage({
   return (
     <main className="auth-page">
       <div className="auth-brand">
-        <House size={28} weight="regular" aria-hidden />
-        <span>HomeCRM</span>
+        <StudioBrand />
       </div>
       <header className="auth-heading">
         <h1 tabIndex={-1}>{title}</h1>
