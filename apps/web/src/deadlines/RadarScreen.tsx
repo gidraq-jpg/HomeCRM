@@ -1,7 +1,7 @@
 import type { RadarFilters } from '@homecrm/shared';
 import { CalendarBlank, Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
 import { Notice } from '../auth/components.tsx';
@@ -157,8 +157,16 @@ export function RadarRows({ rows, label }: { rows: readonly RadarRow[]; label: s
 export function RadarScreen() {
   const { me } = useHousehold();
   const { scope, setScope } = useScope();
-  const [view, setView] = useState<RadarView>('mine');
-  const [filters, setFilters] = useState<Partial<RadarFilters>>({});
+  const [params] = useSearchParams();
+  const [view, setView] = useState<RadarView>(() =>
+    params.get('view') === 'house' ? 'house' : 'mine',
+  );
+  const [filters, setFilters] = useState<Partial<RadarFilters>>(() => {
+    const householdId = params.get('householdId');
+    return householdId && me.roles.some((role) => role.householdId === householdId)
+      ? { householdId }
+      : {};
+  });
   const radar = useRadar({
     filters: {
       ...filters,

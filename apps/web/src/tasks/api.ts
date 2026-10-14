@@ -51,6 +51,7 @@ export const Today = z.object({
   radar: z.array(RadarItem),
   recalculating: z.boolean(),
 });
+export type Today = z.infer<typeof Today>;
 export const Plan = z.object({
   householdId: z.string().nullable(),
   timeZone: TimeZone,
