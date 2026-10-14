@@ -515,11 +515,6 @@ html[data-design="studio"] .auth-notice--error {
   color: var(--danger);
 }
 
-html[data-design="studio"] .status--neutral,
-html[data-design="studio"] .access-caption > p {
-  color: var(--ink);
-}
-
 html[data-design="studio"] .reading {
   padding: 16px;
   border: 0;
