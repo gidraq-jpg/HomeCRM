@@ -91,8 +91,13 @@ test('три агрегированные ленты, главное, крайн
     await task(api, { title: `Дело без даты ${String(index).padStart(2, '0')}` });
   const completed = await task(api, { title: 'Выполненное свёрнуто', status: 'done' });
   const paths: string[] = [];
+  const radarQueries: URLSearchParams[] = [];
   page.on('request', (request) => {
-    if (request.method() === 'GET') paths.push(new URL(request.url()).pathname);
+    if (request.method() === 'GET') {
+      const url = new URL(request.url());
+      paths.push(url.pathname);
+      if (url.pathname === '/api/deadlines') radarQueries.push(url.searchParams);
+    }
   });
   await signInAs(page, family, 'adult');
   await expect(page.getByRole('link', { name: /Просроченный крайний срок/ })).toBeVisible();
@@ -100,7 +105,11 @@ test('три агрегированные ленты, главное, крайн
   await expect(page.getByRole('list', { name: 'Главное дело' }).getByRole('link')).toHaveCount(1);
   await expect(page.getByRole('link', { name: /Выполненное свёрнуто/ })).not.toBeVisible();
   expect(paths.filter((path) => path === '/api/tasks/today')).toHaveLength(1);
-  expect(paths.filter((path) => path === '/api/deadlines')).toHaveLength(0);
+  // UI-2: один запрос радара питает показатель близких сроков под текущими фильтрами.
+  expect(paths.filter((path) => path === '/api/deadlines')).toHaveLength(1);
+  expect(radarQueries[0]?.get('scope')).toBe('all');
+  expect(radarQueries[0]?.get('view')).toBe('mine');
+  expect(radarQueries[0]?.get('householdId')).toBe(family.houseId);
   expect(paths.filter((path) => /^\/api\/tasks\/[0-9a-f-]{36}$/.test(path))).toHaveLength(0);
   await check(page, info, 'today');
   await page.getByText(/^Выполнено сегодня/).click();
