@@ -75,7 +75,10 @@ test('«Обо мне»: просмотр и правка имени, даты �
   await seedProfiles(family);
   await signInAs(page, family, 'adult');
   await page.getByRole('link', { name: 'Ещё', exact: true }).first().click();
-  await page.getByRole('link', { name: /Обо мне/ }).click();
+  await page
+    .locator('.main')
+    .getByRole('link', { name: /Обо мне/ })
+    .click();
   await expect(page.getByRole('heading', { level: 1, name: 'Обо мне' })).toBeVisible();
   await expect(page.getByText('Борис', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('2 нояб. 1986')).toBeVisible();

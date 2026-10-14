@@ -630,6 +630,12 @@ html[data-design="studio"] .status--neutral {
   color: var(--muted);
 }
 
+/* Нейтральный текст на тёплой поверхности сохраняет контраст WCAG AA. */
+html[data-design="studio"]
+:is(.status--neutral, .access-caption > p, .access-card__note, .choice__hint) {
+  color: #5b544a;
+}
+
 html[data-design="studio"] .empty-state {
   padding: 22px 18px;
   background: var(--surface);
