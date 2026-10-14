@@ -459,3 +459,125 @@
   color: var(--muted);
   font-size: 0.9375rem;
 }
+
+/* D3: детали рабочих экранов в утверждённой системе Studio. */
+html[data-design="studio"] .auth-page {
+  padding-top: max(36px, env(safe-area-inset-top));
+}
+
+html[data-design="studio"] .auth-brand {
+  min-height: 44px;
+  margin-bottom: 44px;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+html[data-design="studio"] .auth-heading {
+  margin-bottom: 24px;
+}
+
+html[data-design="studio"] .auth-heading h1 {
+  font-size: clamp(1.8rem, 7vw, 2.2rem);
+  font-weight: 300;
+  letter-spacing: -0.035em;
+}
+
+html[data-design="studio"] .auth-form {
+  gap: 18px;
+}
+
+html[data-design="studio"] .auth-field {
+  gap: 7px;
+  font-weight: 500;
+}
+
+html[data-design="studio"] .auth-field input,
+html[data-design="studio"] .auth-field select,
+html[data-design="studio"] .auth-field textarea {
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+html[data-design="studio"] .password-field {
+  border-color: var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+html[data-design="studio"] .auth-notice {
+  border-radius: 14px;
+  background: var(--soft);
+}
+
+html[data-design="studio"] .auth-notice--error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+html[data-design="studio"] .status--neutral,
+html[data-design="studio"] .access-caption > p {
+  color: var(--ink);
+}
+
+html[data-design="studio"] .reading {
+  padding: 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+html[data-design="studio"] .reading__title,
+html[data-design="studio"] .meter-form__heading,
+html[data-design="studio"] .charge-total,
+html[data-design="studio"] .month-switch__label {
+  font-weight: 500;
+}
+
+html[data-design="studio"] :is(.timeline__item, .link-item, .version, .deadline-item, .payment) {
+  border-color: var(--line);
+}
+
+html[data-design="studio"] .data-table {
+  table-layout: fixed;
+}
+
+html[data-design="studio"] .data-table th,
+html[data-design="studio"] .data-table td {
+  padding-inline: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-design="studio"] .analytics-tables > summary,
+html[data-design="studio"] .meter-archive > summary {
+  color: var(--accent-strong);
+}
+
+html[data-design="studio"] .start-steps__item--current .start-steps__number {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+html[data-design="studio"] .issued-link__text {
+  background: var(--surface);
+}
+
+html[data-design="studio"] .backup-grid {
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+html[data-design="studio"] .offline-banner {
+  background: var(--warning-soft);
+  color: var(--ink);
+}
+
+@media (max-width: 380px) {
+  html[data-design="studio"] .category-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-design="studio"] .data-table {
+    font-size: 0.8125rem;
+  }
+}
