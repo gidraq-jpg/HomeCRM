@@ -487,6 +487,24 @@ html[data-keyboard="open"] .chrome {
 }
 
 /* Studio: общий каркас. Все правила ограничены рабочим entry. */
+/* Мобильная прокрутка учитывает липкую шапку и нижние действия.
+   Ссылка целиком попадает в доступную область, а не под плавающее меню. */
+@media (width < 960px) {
+  html[data-design="studio"] {
+    scroll-padding-top: calc(8rem + env(safe-area-inset-top));
+    scroll-padding-bottom: calc(
+      max(var(--nav-height), 5rem) +
+      var(--fab-size) +
+      24px +
+      env(safe-area-inset-bottom)
+    );
+  }
+
+  html[data-design="studio"][data-keyboard="open"] {
+    scroll-padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+}
+
 html[data-design="studio"] .app {
   background: var(--paper);
 }
