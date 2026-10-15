@@ -48,7 +48,7 @@
 
 .phone-item__number {
   font-size: 1.125rem;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
   overflow-wrap: anywhere;
 }
 

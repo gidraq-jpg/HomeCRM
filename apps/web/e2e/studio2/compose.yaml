@@ -1,0 +1,32 @@
+name: homecrm-test-ui-4-studio2
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    command: [postgres, -c, fsync=off, -c, synchronous_commit=off, -c, full_page_writes=off, -c, max_locks_per_transaction=1024]
+    ports: ["127.0.0.1::5432"]
+    tmpfs: [/var/lib/postgresql]
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, postgres]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+  playwright:
+    image: homecrm-test-ui-4-studio2:e2e-linux
+    build:
+      context: ../../../..
+      dockerfile: apps/web/e2e/Dockerfile
+    init: true
+    ipc: host
+    working_dir: /workspace
+    environment:
+      HOMECRM_TEST_PG_ADMIN_URL: postgres://postgres@postgres:5432/postgres
+      HOMECRM_E2E_SOURCE: /source
+    volumes:
+      - ../../../..:/source:ro
+      - ../../../../docs/screenshots/UI-4:/workspace/docs/screenshots/UI-4
+      - ../../test-results:/workspace/apps/web/test-results
+    depends_on:
+      postgres:
+        condition: service_healthy

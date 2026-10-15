@@ -1,6 +1,13 @@
 import type { Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
-import { plain, setScope, widthOf } from '../support/helpers.ts';
+import {
+  openObjectAccess,
+  openObjectActions,
+  openObjectDetails,
+  plain,
+  setScope,
+  widthOf,
+} from '../support/helpers.ts';
 import {
   apiAs,
   expectNothingStored,
@@ -21,29 +28,32 @@ const form = (page: Page) => page.locator('form.object-form');
 async function openCard(page: Page, title: string) {
   await objectLinks(page).filter({ hasText: title }).first().click();
   await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+  await page.getByText('Об объекте и свои поля', { exact: true }).click();
 }
 
-test('пустой «Дом» объясняет разницу личного и общего и предлагает первое действие', async ({
+test('пустой «Дом»: одна строка, пространство в листе и добавление в заголовке', async ({
   page,
   family,
 }, info) => {
   await signInAs(page, family, 'adult');
   await page.goto('#/home');
-  const empty = page.getByRole('region', { name: 'Объектов пока нет' });
-  await expect(empty).toBeVisible();
-  await expect(empty).toContainText(
-    'Недвижимость, машину, технику и другое по умолчанию видят взрослые дома',
-  );
+  await expect(page.getByRole('region', { name: 'Объектов пока нет' })).toBeVisible();
   await checkApp(page, info, 'objects-empty');
-
   await setScope(page, 'Личное');
-  await expect(empty).toContainText('Здесь только ваши записи. Их не видит никто, кроме вас.');
+  await expect(page.getByRole('button', { name: 'Пространство: Личное' })).toBeVisible();
+  await page.getByRole('button', { name: 'Пространство: Личное' }).click();
+  await expect(page.getByRole('dialog')).toContainText(
+    'Здесь только ваши записи. Их не видит никто, кроме вас.',
+  );
+  await page.keyboard.press('Escape');
   await checkApp(page, info, 'objects-empty-personal');
   await setScope(page, 'Общее');
-  await expect(empty).toContainText('Здесь только общие записи дома');
-  await empty.getByRole('button', { name: 'Показать «Всё»' }).click();
-  await expect(page.getByRole('radio', { name: 'Всё', exact: true })).toBeChecked();
-  await empty.getByRole('link', { name: 'Добавить объект' }).click();
+  await setScope(page, 'Всё');
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /^Объект/ })
+    .click();
   await expect(page.getByRole('heading', { level: 1, name: 'Новый объект' })).toBeVisible();
 });
 
@@ -180,6 +190,7 @@ test('карточка: вкладки на второй строке видны
   });
   await signInAs(page, family, 'adult');
   await page.goto(`#/home/${flat.id}`);
+  await openObjectDetails(page);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Квартира у парка');
 
   const tabs = page.getByRole('navigation', { name: 'Разделы объекта' });
@@ -222,6 +233,7 @@ test('свои поля: добавить, изменить, удалить; к�
   });
   await signInAs(page, family, 'adult');
   await page.goto(`#/home/${flat.id}`);
+  await openObjectDetails(page);
   await expect(page.getByRole('term').filter({ hasText: 'Площадь' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Править' }).click();
@@ -278,6 +290,7 @@ test('свои поля: добавить, изменить, удалить; к�
       exact: true,
     }),
   ).toBeVisible();
+  await openObjectDetails(page);
   await expect(page.locator('.facts--fields').getByRole('term')).toHaveText(['Площадь']);
   // Свежая версия осталась как была.
   const titles = await family.database.admin.query('SELECT title FROM objects');
@@ -363,6 +376,7 @@ test('связи: объект и заметка связываются, свя�
   await seedNote(boris, family, { title: 'Смета ремонта', body: 'Плитка и краска.' });
   await signInAs(page, family, 'adult');
   await page.goto(`#/home/${flat.id}`);
+  await openObjectDetails(page);
   await expect(page.getByText('Связей пока нет')).toBeVisible();
 
   await page.getByRole('button', { name: 'Связать…' }).click();
@@ -403,6 +417,7 @@ test('связи: объект и заметка связываются, свя�
   );
   // Уже связанную запись второй раз предложить нельзя.
   await page.goto(`#/home/${flat.id}`);
+  await openObjectDetails(page);
   await page.getByRole('button', { name: 'Связать…' }).click();
   await expect(page.getByRole('dialog', { name: 'Связать с записью' })).toContainText(
     'Нет записей, которые можно связать',
@@ -421,12 +436,14 @@ test('четыре действия: «Поделиться…», «Кто ви�
   const vera = await openAs(browser, family, info, 'child');
   try {
     await page.goto(`#/home/${dacha.id}`);
+    await openObjectDetails(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Дача' })).toBeVisible();
     for (const hidden of ['Кто видит…', 'Сделать личным…', 'Скопировать в личное']) {
       await expect(page.getByRole('button', { name: hidden }), hidden).toHaveCount(0);
     }
 
     // «Поделиться…»: личный объект становится общим для всей семьи.
+    await openObjectAccess(page);
     await page.getByRole('button', { name: 'Поделиться…' }).click();
     const share = page.getByRole('dialog', { name: 'Поделиться объектом' });
     await expect(share.getByRole('radio', { name: 'Взрослые' })).toBeChecked();
@@ -452,22 +469,27 @@ test('четыре действия: «Поделиться…», «Кто ви�
     ]) {
       await expect(vera.page.getByRole('button', { name: hidden }), hidden).toHaveCount(0);
     }
+    await openObjectAccess(vera.page);
     await expect(vera.page.getByRole('button', { name: 'Скопировать в личное' })).toBeVisible();
-    await expect(vera.page.getByText('могут править только взрослые')).toBeVisible();
+
     await checkApp(vera.page, info, 'objects-card-child');
 
     // «Скопировать в личное»: у Анны появляется своя копия, исходный объект не меняется.
     await anna.page.goto(`#/home/${dacha.id}`);
+    await openObjectDetails(anna.page);
+    await openObjectAccess(anna.page);
     await anna.page.getByRole('button', { name: 'Скопировать в личное' }).click();
     await expect(toast(anna.page)).toContainText('Копия сохранена в личном');
     await toast(anna.page).getByRole('button', { name: 'Открыть' }).click();
     await expect(anna.page.getByRole('heading', { level: 1, name: 'Дача' })).toBeVisible();
     await expect(anna.page.getByText('Только я', { exact: true }).first()).toBeVisible();
+    await openObjectAccess(anna.page);
     await expect(anna.page.getByRole('button', { name: 'Поделиться…' })).toBeVisible();
     const objects = await family.database.admin.query('SELECT space_kind FROM objects');
     expect(objects.rows.map((row) => row.space_kind).sort()).toEqual(['household', 'personal']);
 
     // «Кто видит…»: сужение до «Взрослых» сначала называет тех, кто потеряет доступ.
+    await openObjectAccess(page);
     await page.getByRole('button', { name: 'Кто видит…' }).click();
     const audience = page.getByRole('dialog', { name: 'Кто видит объект' });
     await expect(audience.getByRole('radio', { name: 'Взрослые' })).toBeChecked();
@@ -478,17 +500,20 @@ test('четыре действия: «Поделиться…», «Кто ви�
     await openHome(vera.page);
     await expect(vera.page.getByRole('region', { name: 'Объектов пока нет' })).toBeVisible();
     await vera.page.goto(`#/home/${dacha.id}`);
+    await openObjectDetails(vera.page);
     await expect(
       vera.page.getByText('Объекта больше нет, или он стал вам недоступен'),
     ).toBeVisible();
 
     // «Сделать личным…»: Борис — автор, чужих правок нет; Анна теряет доступ.
+    await openObjectAccess(page);
     await page.getByRole('button', { name: 'Сделать личным…' }).click();
     const personal = page.getByRole('dialog', { name: 'Сделать объект личным' });
     await expect(personal.getByRole('alert')).toContainText('Доступ потеряют: Анна');
     await checkApp(page, info, 'objects-personal-preview');
     await personal.getByRole('button', { name: 'Сделать личным', exact: true }).click();
     await expect(toast(page)).toContainText('Объект стал личным');
+    await openObjectAccess(page);
     await expect(page.getByRole('button', { name: 'Поделиться…' })).toBeVisible();
     await openHome(anna.page);
     // У Анны остаётся только её копия.
@@ -531,6 +556,7 @@ test('корзина: отмена за 7 секунд, восстановлен
 
   await openHome(page);
   await openCard(page, 'Старый холодильник');
+  await openObjectActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Дом', exact: true })).toBeVisible();
   await expect(toast(page)).toContainText('Объект в корзине');
@@ -543,6 +569,7 @@ test('корзина: отмена за 7 секунд, восстановлен
 
   // Второй раз — не отменяем: объект остаётся в корзине.
   await openCard(page, 'Старый холодильник');
+  await openObjectActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
   await expect(toast(page)).toContainText('Объект в корзине');
   await page.goto('#/more/trash');
@@ -557,6 +584,8 @@ test('корзина: отмена за 7 секунд, восстановлен
 
   // Вместе с объектом вернулись и поля, и события.
   await page.goto(`#/home/${old.id}`);
+  await openObjectDetails(page);
+  await openObjectDetails(page);
   await expect(page.locator('.facts--fields').getByRole('term')).toHaveText(['Модель']);
   await page.getByRole('link', { name: 'Лента', exact: true }).click();
   const item = page.getByRole('list', { name: 'Лента объекта' }).getByRole('listitem');
@@ -610,6 +639,7 @@ test('чужое личное и «Взрослые» не попадают ни
     await expect(objectLinks(anna.page)).toHaveCount(1);
     await expect(anna.page.getByText('Личная задумка')).toHaveCount(0);
     await anna.page.goto(`#/home/${idea.id}`);
+    await openObjectDetails(anna.page);
     await expect(
       anna.page.getByText('Объекта больше нет, или он стал вам недоступен'),
     ).toBeVisible();
@@ -627,6 +657,7 @@ test('чужое личное и «Взрослые» не попадают ни
     await openHome(vera.page);
     await expect(vera.page.getByRole('region', { name: 'Объектов пока нет' })).toBeVisible();
     await vera.page.goto(`#/home/${lease.id}`);
+    await openObjectDetails(vera.page);
     await expect(
       vera.page.getByText('Объекта больше нет, или он стал вам недоступен'),
     ).toBeVisible();

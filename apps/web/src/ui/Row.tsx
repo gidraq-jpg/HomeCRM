@@ -15,7 +15,7 @@ export function RowList({ children, label }: { children: ReactNode; label?: stri
 interface RowContentProps {
   icon?: ReactNode;
   /** Цвет значка слева: для срочного. */
-  iconTone?: 'warning';
+  iconTone?: 'warning' | 'water' | 'electricity' | 'person' | 'accent';
   title: ReactNode;
   meta?: ReactNode;
   /** Длинный текст в пояснении (заметка) обрезается до двух строк. */

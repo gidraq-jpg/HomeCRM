@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router';
+import { Navigate, Route, Routes } from 'react-router';
 import { ScopeProvider } from './access/ScopeContext.tsx';
 import { ObjectAccounts } from './accounts/ObjectAccounts.tsx';
 import type { Me } from './auth/api.ts';
@@ -68,11 +68,9 @@ interface AppProps {
 
 function Workspace({ me, reloadMe, signOut }: AppProps) {
   const [adding, setAdding] = useState(false);
-  const { pathname } = useLocation();
   return (
     <AppShell
       sections={SECTIONS}
-      scopeVisible={pathname !== '/today'}
       onAdd={() => setAdding(true)}
       overlays={<AddMenu open={adding} onOpenChange={setAdding} />}
     >

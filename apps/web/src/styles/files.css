@@ -53,7 +53,7 @@
 
 .file-row__name {
   overflow-wrap: anywhere;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
 }
 
 .file-row__meta {
@@ -81,7 +81,7 @@
 
 .file-trash__title {
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
 }
 
 .upload-row__head {

@@ -44,7 +44,7 @@
 
 .charge-lines li > span:last-child {
   flex: none;
-  font-weight: 600;
+  font-weight: var(--weight-medium, 600);
 }
 
 .charge-lines__kind {
@@ -67,7 +67,7 @@
 
 .charge-total {
   font-size: 1.375rem;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
 }
 
 .charge-line {

@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
+import { openObjectActions, openObjectDetails } from '../support/helpers.ts';
 import {
   expectImageLoaded,
   filePicker,
@@ -569,6 +570,7 @@ test('объекты: текст «Восстановить», «Кто види
 
   // Свои поля не прижаты к строке «Изменён».
   await page.goto(`#/home/${object.id}`);
+  await openObjectDetails(page);
   const lastFact = page.locator('dl.facts').first().locator('.facts__item').last();
   await expect(lastFact).toContainText('Изменён');
   const fieldsTitle = page.getByRole('heading', { level: 2, name: 'Свои поля' });
@@ -580,6 +582,7 @@ test('объекты: текст «Восстановить», «Кто види
   await checkApp(page, info, 'object-overview-spacing');
 
   // Отказ при восстановлении говорит про восстановление, а не про корзину.
+  await openObjectActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
   await expect(toast(page)).toContainText('Объект в корзине');
   await page.goto(`#/home/${object.id}`);
@@ -587,6 +590,7 @@ test('объекты: текст «Восстановить», «Кто види
   await page.route('**/api/objects/*/restore', (route) =>
     route.fulfill({ status: 403, contentType: 'application/json', body: '{"code":"FORBIDDEN"}' }),
   );
+  await openObjectActions(page);
   await page.getByRole('button', { name: 'Восстановить' }).click();
   const alert = page.getByRole('alert');
   await expect(alert).toContainText('Вернуть общий объект из корзины');

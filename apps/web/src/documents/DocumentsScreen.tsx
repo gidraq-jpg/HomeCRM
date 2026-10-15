@@ -1,7 +1,6 @@
 import { DOCUMENT_TYPES, type DocumentType } from '@homecrm/shared';
-import { FileText, Plus } from '@phosphor-icons/react';
+import { FileText } from '@phosphor-icons/react';
 import { useEffect, useId, useState } from 'react';
-import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
 import { Notice } from '../auth/components.tsx';
@@ -11,7 +10,7 @@ import { visibilityOf } from '../notes/abilities.ts';
 import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
-import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
+import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { Page } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
 import {
@@ -94,40 +93,7 @@ export function DocumentRows({
 
 /** Пустой раздел объясняет разницу личного и общего и предлагает первое действие — TPL-4, PRD 7.4. */
 function EmptyDocuments() {
-  const { scope, setScope } = useScope();
-  return (
-    <EmptyState
-      icon={<FileText size={24} aria-hidden />}
-      title="Документов пока нет"
-      actions={
-        <>
-          <Link className="btn btn--primary btn--block" to={NEW_DOCUMENT}>
-            <Plus size={20} weight="bold" aria-hidden />
-            Добавить документ
-          </Link>
-          {scope === 'all' ? null : (
-            <button
-              type="button"
-              className="btn btn--secondary btn--block"
-              onClick={() => setScope('all')}
-            >
-              Показать «{SCOPE_LABELS.all}»
-            </button>
-          )}
-          <Link className="text-button" to="/more/spaces">
-            Как устроены личное и общее
-          </Link>
-        </>
-      }
-    >
-      <p>{EMPTY_SCOPE_EXPLANATION[scope]}</p>
-      <p>
-        Паспорта, полисы, договоры и справки со сроками, номерами и сканами страниц. Документ
-        взрослого по умолчанию личный, документ ребёнка видят взрослые дома, а документ объекта
-        виден так же, как сам объект.
-      </p>
-    </EmptyState>
-  );
+  return <CompactEmptyState title="Документов пока нет" />;
 }
 
 /** Поисковая строка ждёт паузу в наборе: запрос к серверу уходит не на каждую букву. */
@@ -271,26 +237,16 @@ export function DocumentsScreen() {
 
       {list.data && all.length === 0 && !filtered && status === 'valid' ? <EmptyDocuments /> : null}
       {list.data && all.length === 0 && (filtered || status !== 'valid') ? (
-        <EmptyState icon={<FileText size={24} aria-hidden />} title="Ничего не нашлось">
-          <p>
-            Под выбранные фильтры документов нет.
-            {scope === 'all' ? '' : ` Сейчас включён режим «${SCOPE_LABELS[scope]}».`}
-          </p>
-          <div className="empty-state__actions">
-            <button type="button" className="btn btn--secondary btn--block" onClick={reset}>
-              Сбросить фильтры
+        <CompactEmptyState title="Ничего не нашлось">
+          <button type="button" className="text-button" onClick={reset}>
+            Сбросить фильтры
+          </button>
+          {scope !== 'all' ? (
+            <button type="button" className="text-button" onClick={() => setScope('all')}>
+              Показать «{SCOPE_LABELS.all}»
             </button>
-            {scope === 'all' ? null : (
-              <button
-                type="button"
-                className="btn btn--secondary btn--block"
-                onClick={() => setScope('all')}
-              >
-                Показать «{SCOPE_LABELS.all}»
-              </button>
-            )}
-          </div>
-        </EmptyState>
+          ) : null}
+        </CompactEmptyState>
       ) : null}
 
       {all.length > 0 ? (
@@ -306,10 +262,6 @@ export function DocumentsScreen() {
               {list.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
             </button>
           ) : null}
-          <Link className="btn btn--primary btn--block list-action" to={NEW_DOCUMENT}>
-            <Plus size={20} weight="bold" aria-hidden />
-            Добавить документ
-          </Link>
         </>
       ) : null}
     </Page>

@@ -41,7 +41,7 @@
 .meter-form__heading {
   margin-top: 22px;
   font-size: 1.0625rem;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
 }
 
 /* Заменённые и снятые — в свёрнутой группе */
@@ -54,7 +54,7 @@
   align-items: center;
   min-height: var(--tap);
   color: var(--green);
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
   cursor: pointer;
 }
 
@@ -89,7 +89,7 @@
 .reading__choice-text {
   color: var(--ink);
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: var(--weight-medium, 600);
 }
 
 .reading__choice .check-line {

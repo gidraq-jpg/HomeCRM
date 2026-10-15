@@ -17,7 +17,7 @@
   margin-bottom: 4px;
   padding: 0;
   font-size: 1.0625rem;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
   line-height: 1.35;
 }
 
@@ -64,7 +64,7 @@
 
 .start-steps__item--current {
   color: var(--ink);
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
 }
 
 .start-steps__number {
@@ -74,7 +74,7 @@
   height: 28px;
   border: 1px solid var(--border);
   border-radius: 50%;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
 }
 
 .start-steps__item--current .start-steps__number {

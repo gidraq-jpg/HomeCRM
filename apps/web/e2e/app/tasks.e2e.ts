@@ -10,6 +10,8 @@ import {
   expectAccessible,
   expectNoHorizontalScroll,
   expectTouchTargets,
+  openObjectActions,
+  openQuick,
 } from '../support/helpers.ts';
 import { homeDate, recalc, seedDeadline, setHomeZone } from './deadlines-support.ts';
 import { collectConsole, seedDocument } from './documents-support.ts';
@@ -190,13 +192,14 @@ test('создание, чек-лист и ожидание сохраняютс
   await expect(page.getByRole('checkbox', { name: 'Другая версия' })).toHaveCount(2);
 });
 
-test('быстрая строка: снятие и правка чипа, транспортный повтор, Enter без дубля', async ({
+test('быстрая строка: снятие чипа, транспортный повтор и отправка без дубля', async ({
   page,
   family,
 }, info) => {
   await setHomeZone(family);
   const api = await apiAs(family, 'adult');
   await signInAs(page, family, 'adult');
+  await openQuick(page);
   const input = page.getByLabel('Быстрая строка');
   await input.fill('Написать завтра в 10:00 @Вера');
   await expect(page.getByRole('button', { name: 'Снять чип: Дата' })).toBeVisible();
@@ -207,11 +210,7 @@ test('быстрая строка: снятие и правка чипа, тра
   await page.getByRole('button', { name: 'Снять чип: Время' }).click();
   await page.getByRole('button', { name: 'Снять чип: Исполнитель' }).click();
   await input.fill('Написать завтра в 10:00');
-  await page.getByRole('button', { name: /^Дата:/ }).click();
-  await page.getByRole('dialog').getByLabel('Дата', { exact: true }).fill(homeDate(2));
-  await page.getByRole('button', { name: 'Готово', exact: true }).click();
-  await expect(page.getByRole('button', { name: /^Дата:/ })).toHaveText(/Дата: \d{1,2} [а-я]/);
-  await expect(page.getByRole('button', { name: /^Дата:/ })).not.toHaveText(/\d{4}-\d{2}-\d{2}/);
+  await expect(page.getByRole('button', { name: 'Снять чип: Дата' })).toHaveText(/\d{1,2} [а-я]/);
   await check(page, info, 'quickline-chips');
   const requests: Record<string, unknown>[] = [];
   let lose = true;
@@ -227,11 +226,11 @@ test('быстрая строка: снятие и правка чипа, тра
       await route.abort('failed');
     } else await route.continue();
   });
-  await input.press('Enter');
+  await page.getByRole('button', { name: 'Добавить дело', exact: true }).click();
   await expect(page.getByText(/Не удалось связаться с сервером/)).toBeVisible();
   await expect(input).toHaveValue('Написать завтра в 10:00');
-  await expect(page.getByRole('button', { name: /^Дата:/ })).toBeVisible();
-  await input.press('Enter');
+  await expect(page.getByRole('button', { name: 'Снять чип: Дата' })).toBeVisible();
+  await page.getByRole('button', { name: 'Добавить дело', exact: true }).click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Написать', exact: true }),
   ).toBeVisible();
@@ -239,7 +238,7 @@ test('быстрая строка: снятие и правка чипа, тра
   expect(requests[0]?.idempotencyKey).toBe(requests[1]?.idempotencyKey);
   const list = await api.get('tasks');
   expect(TaskCard.array().parse(list.body)).toHaveLength(1);
-  expect(TaskCard.array().parse(list.body)[0]?.planOn).toBe(homeDate(2));
+  expect(TaskCard.array().parse(list.body)[0]?.planOn).toBe(homeDate(1));
 });
 
 const rules: RepeatRule[] = [
@@ -908,7 +907,10 @@ test('ответственный объекта, документа и ручн�
     [`/documents/${document.id}`, `documents/${document.id}`],
   ]) {
     await page.goto(`#${path}`);
-    const field = page.locator('.task-responsible').first();
+    if (endpoint?.startsWith('objects')) await openObjectActions(page);
+    const field = endpoint?.startsWith('objects')
+      ? page.getByRole('dialog', { name: 'Ещё', exact: true }).locator('.task-responsible')
+      : page.locator('.task-responsible').first();
     await field
       .getByLabel('Ответственный', { exact: true })
       .selectOption(family.person('admin').id);
@@ -922,6 +924,7 @@ test('ответственный объекта, документа и ручн�
       .selectOption(family.person('child').id);
     await field.getByRole('button', { name: 'Сменить ответственного' }).click();
     await expect(field.getByRole('alert')).toBeVisible();
+    if (endpoint?.startsWith('objects')) await page.keyboard.press('Escape');
   }
   await page.goto(`#/home/${object.id}`);
   const deadlineField = page.locator('.deadline-item .task-responsible');

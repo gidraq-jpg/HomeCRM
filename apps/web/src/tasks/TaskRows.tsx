@@ -1,9 +1,14 @@
 import { canWrite } from '@homecrm/shared';
-import { ListChecks, Star } from '@phosphor-icons/react';
+import { Check, ListChecks, Star } from '@phosphor-icons/react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
+import type { RadarItem } from '../deadlines/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf, visibilityOf } from '../notes/abilities.ts';
+import { fetchLinks } from '../objects/api.ts';
+import { useObjectsList } from '../objects/queries.ts';
+import { formatRub } from '../ui/format.ts';
 import { RowContent, RowList } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import type { TaskCard } from './api.ts';
@@ -16,7 +21,11 @@ function TaskMeta({ card }: { card: TaskCard }) {
   return (
     <>
       <span className="radar-line">
-        {STATUS_LABELS[card.status]}
+        {card.status === 'waiting' ? (
+          <span className="studio-label studio-label--waiting">Жду</span>
+        ) : (
+          STATUS_LABELS[card.status]
+        )}
         {card.planOn
           ? ` · ${formatDateOnly(card.planOn)}${card.planTime ? `, ${card.planTime}` : ''}`
           : ' · Без даты'}
@@ -36,13 +45,22 @@ export function TaskRows({
   tasks,
   label,
   focus = false,
+  radar = [],
 }: {
   tasks: readonly TaskCard[];
   label: string;
   focus?: boolean;
+  radar?: readonly RadarItem[];
 }) {
   const { me } = useHousehold();
   const viewer = viewerOf(me);
+  const objects = useObjectsList(false);
+  const mainId = focus ? tasks[0]?.id : undefined;
+  const links = useQuery({
+    queryKey: ['links', 'task', mainId],
+    enabled: !!mainId,
+    queryFn: ({ signal }) => fetchLinks({ type: 'task', id: mainId ?? '' }, signal),
+  });
   const toast = useToast();
   const operation = useTaskOperation((card) => {
     if (card.status === 'done') {
@@ -81,9 +99,10 @@ export function TaskRows({
                 <button
                   key={card.id}
                   className={
-                    focus ? 'btn btn--secondary' : 'btn btn--secondary task-feed-item__done'
+                    focus ? 'icon-button task-focus__done' : 'icon-button task-feed-item__done'
                   }
                   type="button"
+                  aria-label="Выполнить"
                   disabled={operation.pending}
                   onClick={() =>
                     void operation.run({
@@ -93,18 +112,51 @@ export function TaskRows({
                     })
                   }
                 >
-                  Выполнить
+                  <Check size={22} aria-hidden />
                 </button>
               ) : null;
+            const payment = radar.find(
+              (item) => item.id === card.radarOccurrenceId && item.sourceKind === 'payment',
+            );
+            const objectIds =
+              links.data?.flatMap((link) =>
+                [link.left, link.right].filter((ref) => ref.type === 'object').map((ref) => ref.id),
+              ) ?? [];
+            const objectTitle =
+              payment?.object?.title ??
+              objects.data?.pages.flat().find((object) => objectIds.includes(object.id))?.title;
             return focus ? (
               <li className="focus task-focus" key={card.id}>
-                <h3 className="focus__title">{card.title}</h3>
+                <div className="task-focus__heading">
+                  <span className="task-focus__tile">
+                    <ListChecks size={24} aria-hidden />
+                  </span>
+                  <div>
+                    <p className="focus__access">
+                      {objectTitle ? `${objectTitle} · ` : ''}
+                      <AccessBadge visibility={visibilityOf(card)} showLabel />
+                    </p>
+                    <h3 className="focus__title">{card.title}</h3>
+                  </div>
+                </div>
                 <p className="focus__meta">
                   <TaskMeta card={card} />
                 </p>
-                <p className="focus__access">
-                  <AccessBadge visibility={visibilityOf(card)} showLabel />
-                </p>
+                {payment?.remainingCents != null ? (
+                  <p className="task-focus__remaining">
+                    осталось {formatRub(payment.remainingCents)}
+                  </p>
+                ) : null}
+                {payment?.totalCents != null &&
+                payment.totalCents > 0 &&
+                payment.paidCents != null ? (
+                  <progress
+                    className="task-focus__progress"
+                    aria-label="Оплаченная доля"
+                    max={payment.totalCents}
+                    value={Math.min(payment.totalCents, Math.max(0, payment.paidCents))}
+                  />
+                ) : null}
                 <div className="focus__actions">
                   <Link
                     className="btn btn--primary"

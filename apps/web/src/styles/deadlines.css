@@ -14,13 +14,13 @@
 .deadline-item__kind {
   color: var(--muted);
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .deadline-item__rule {
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -137,7 +137,7 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
 }
 
 /* Карточка «Открыто окно показаний» на «Сегодня» (UTIL-7) */
@@ -155,14 +155,14 @@
 
 .window-card__title {
   font-size: 1.375rem;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .window-card__until {
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
 }
 
 .window-card__note {
@@ -179,5 +179,5 @@
   margin: 12px 0 4px;
   color: var(--muted);
   font-size: 0.875rem;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
 }

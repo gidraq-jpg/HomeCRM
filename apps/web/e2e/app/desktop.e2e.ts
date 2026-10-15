@@ -1,5 +1,5 @@
 import { test } from '../auth/support/fixtures.ts';
-import { setScope } from '../support/helpers.ts';
+import { openObjectDetails, setScope } from '../support/helpers.ts';
 import {
   deadlinesSection,
   groupItems,
@@ -47,11 +47,11 @@ test('боковое меню вместо нижнего, переключат�
   await expect(side.getByRole('link')).toHaveText(['Сегодня', 'Дом', 'Документы', 'Люди', 'Ещё']);
   await expect(side.getByRole('link', { name: 'Сегодня' })).toHaveAttribute('aria-current', 'page');
 
-  // На «Сегодня» переключатель в светлой панели; поиск сохраняется в шапке.
+  // Studio 2: пространство открывается компактной кнопкой в шапке.
   const header = page.locator('header.topbar');
   await expect(
-    page.locator('.today-panel').getByRole('radio', { name: 'Всё', exact: true }),
-  ).toBeChecked();
+    header.getByRole('button', { name: 'Пространство: Всё', exact: true }),
+  ).toBeVisible();
   await expect(header.getByRole('radio')).toHaveCount(0);
   await expect(header.getByRole('link', { name: 'Поиск', exact: true })).toBeVisible();
   await expect(side.getByRole('radio')).toHaveCount(0);
@@ -170,6 +170,7 @@ test('«Дом» на компьютере: список, карточка с в
     'aria-current',
     'page',
   );
+  await openObjectDetails(page);
   await expect(page.getByRole('term').filter({ hasText: 'Площадь' })).toBeVisible();
   await checkApp(page, info, 'desktop-object');
 

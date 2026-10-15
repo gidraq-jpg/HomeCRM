@@ -11,7 +11,7 @@
   border: 1px solid transparent;
   border-radius: 12px;
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
   line-height: 1.25;
   text-align: center;
   text-decoration: none;
@@ -86,7 +86,7 @@
   border: 0;
   background: transparent;
   color: var(--green);
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
   text-decoration: none;
 }
 
@@ -115,7 +115,7 @@
   background: var(--soft);
   color: var(--ink);
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
 }
 
 .access-caption {
@@ -212,7 +212,7 @@
   background: var(--soft);
   color: var(--green);
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
   line-height: 1.4;
 }
 
@@ -245,7 +245,7 @@
 
 .card__title {
   font-size: 1.0625rem;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
   line-height: 1.35;
 }
 
@@ -392,7 +392,7 @@
   display: block;
   margin-bottom: 7px;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: var(--weight-medium, 600);
 }
 
 .input,
@@ -422,7 +422,7 @@
   margin-top: 6px;
   color: var(--danger);
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: var(--weight-medium, 600);
 }
 
 .field__hint {
@@ -443,7 +443,7 @@
   margin-bottom: 8px;
   padding: 0;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: var(--weight-medium, 600);
 }
 
 .visibility__options {
@@ -479,7 +479,7 @@
   border-radius: 12px;
   background: var(--surface);
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: var(--weight-medium, 600);
   line-height: 1.2;
   text-align: center;
 }
@@ -521,7 +521,7 @@
 
 .empty-state__title {
   font-size: 1.0625rem;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
   line-height: 1.35;
 }
 

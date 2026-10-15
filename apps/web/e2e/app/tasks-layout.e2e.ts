@@ -8,6 +8,7 @@ import {
   expectAccessible,
   expectNoHorizontalScroll,
   expectTouchTargets,
+  openQuick,
   setScope,
 } from '../support/helpers.ts';
 import { homeDate, recalc, seedDeadline, setHomeZone } from './deadlines-support.ts';
@@ -59,7 +60,7 @@ test('пустые ленты: исходный фокус, подписи и о
       await expect(page.locator('.page-heading__eyebrow')).toContainText(
         formatLongDate(homeDate(0) as DateOnly),
       );
-      await expectGap(page, '.task-focus', 'form', 16);
+      await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
     }
     if (view === 'all')
       await expect(page.locator('.page-heading__eyebrow')).toHaveText('Дела дома и ваши личные');
@@ -80,11 +81,16 @@ test('быстрая строка: отступы, длинные чипы, ош
     audience: 'household',
   });
   await signInAs(page, family, 'adult');
-  const section = page
-    .locator('.section')
-    .filter({ has: page.getByRole('heading', { name: 'Быстро добавить', exact: true }) });
+  await openQuick(page);
+  const section = page.locator('.sheet .section');
   const input = section.getByLabel('Быстрая строка');
   await expect(input).toBeVisible();
+  // Геометрию меряем после входа листа: transform меняет промежутки во время анимации.
+  await page.getByRole('dialog', { name: 'Новое дело', exact: true }).evaluate(async (element) => {
+    await Promise.all(
+      element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+    );
+  });
   const hint = await section.locator('p').first().boundingBox();
   const field = await input.boundingBox();
   const submit = await section
@@ -154,7 +160,7 @@ test('заполненные ленты: главное перед вводом,
   await api.post('tasks', { title: 'Разобрать вымышленные бумаги без даты' });
   await signInAs(page, family, 'adult');
   await expect(page.getByRole('heading', { level: 3, name: title })).toBeVisible();
-  await expectGap(page, '.task-focus', 'form.task-quickline', 16);
+  await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
   await check(page, `main-today-${info.project.use.viewport?.width}`);
   await page
     .getByRole('list', { name: 'Главное дело' })
@@ -275,11 +281,15 @@ test('Studio: реальные показатели, пространство, �
   expect(radarQuery.get('householdId')).toBe(family.houseId);
   expect(radarQuery.get('view')).toBe('mine');
   expect(radarQuery.get('scope')).toBe('personal');
-  await expect(page.getByRole('radio', { name: 'Личное', exact: true })).toBeChecked();
+  await expect(
+    page.getByRole('button', { name: 'Пространство: Личное', exact: true }),
+  ).toBeVisible();
   await page.goto('#/today');
   await metrics.getByRole('link', { name: '1 объект', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Дом', exact: true })).toBeVisible();
-  await expect(page.getByRole('radio', { name: 'Личное', exact: true })).toBeChecked();
+  await expect(
+    page.getByRole('button', { name: 'Пространство: Личное', exact: true }),
+  ).toBeVisible();
   await context.route('**/api/objects?**', (route) =>
     route.fulfill({
       status: 503,

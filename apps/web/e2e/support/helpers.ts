@@ -69,6 +69,8 @@ export async function expectTouchTargets(page: Page, root = 'body'): Promise<voi
 
 /** axe: серьёзных и критичных замечаний нет; остальные печатаются, чтобы их было видно. */
 export async function expectAccessible(page: Page, label: string): Promise<void> {
+  // Одинаковая начальная позиция снимка: липкая шапка не обрезает цели в середине прокрутки.
+  await page.evaluate(() => window.scrollTo(0, 0));
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'])
     .analyze();
@@ -151,7 +153,15 @@ export async function checkScreen(
 
 /** Переключатель «Всё · Общее · Личное» в шапке. */
 export async function setScope(page: Page, label: 'Всё' | 'Общее' | 'Личное'): Promise<void> {
+  const trigger = page.getByRole('button', { name: /^Пространство:/ });
+  const inSheet = (await trigger.count()) > 0;
+  if (inSheet) await trigger.click();
   await page.getByRole('radio', { name: label, exact: true }).check();
+  if (inSheet)
+    await page
+      .getByRole('dialog', { name: 'Пространство', exact: true })
+      .getByRole('button', { name: 'Закрыть', exact: true })
+      .click();
 }
 
 /** Нижнее меню: перейти в раздел. */
@@ -170,4 +180,38 @@ export async function startAdd(page: Page, kind: string): Promise<void> {
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: new RegExp(`^${kind}`) }).click();
+}
+
+/** Быстрое дело в листе Studio 2. */
+export async function openQuick(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Добавить', exact: true })
+    .getByRole('button', { name: /^Дело/ })
+    .click();
+  await expect(page.getByRole('dialog', { name: 'Новое дело', exact: true })).toBeVisible();
+}
+
+export async function openObjectActions(page: Page): Promise<void> {
+  if (/^#\/home\/[a-f0-9-]+(?:\/|$)/.test(new URL(page.url()).hash))
+    await expect(page.getByRole('button', { name: 'Ещё: действия с объектом' })).toBeVisible();
+  if (
+    (await page.locator('.object-page').count()) &&
+    !(await page.getByRole('dialog', { name: 'Ещё', exact: true }).count())
+  )
+    await page.getByRole('button', { name: 'Ещё: действия с объектом' }).click();
+}
+export async function openObjectAccess(page: Page): Promise<void> {
+  if ((await page.locator('.object-page').count()) && !(await page.getByRole('dialog').count()))
+    await page.getByRole('button', { name: 'Кто видит объект', exact: true }).click();
+}
+
+export async function openObjectDetails(page: Page): Promise<void> {
+  const summary = page.getByText('Об объекте и свои поля', { exact: true });
+  const unavailable = page.getByText('Объекта больше нет, или он стал вам недоступен', {
+    exact: false,
+  });
+  await expect(summary.or(unavailable)).toBeVisible();
+  if ((await summary.count()) && (await summary.locator('..').getAttribute('open')) === null)
+    await summary.click();
 }

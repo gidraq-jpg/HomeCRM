@@ -277,7 +277,15 @@ function LinkSheet({
  * «Связи» в карточке объекта или заметки. Показывает связанные записи с подписью роли,
  * позволяет связать с другой видимой записью и убрать связь. Корзина связи — отмена 7 секунд.
  */
-export function LinksSection({ record, facts }: { record: RecordRef; facts: RecordFacts }) {
+export function LinksSection({
+  record,
+  facts,
+  compact = false,
+}: {
+  record: RecordRef;
+  facts: RecordFacts;
+  compact?: boolean;
+}) {
   const { me } = useHousehold();
   const viewer = viewerOf(me);
   const query = useLinks(record);
@@ -298,12 +306,27 @@ export function LinksSection({ record, facts }: { record: RecordRef; facts: Reco
         <h2 className="section__title" id={`links-${record.id}`}>
           Связи
         </h2>
-        {links.length > 0 ? <span className="muted">{links.length}</span> : null}
+        {compact && !facts.trashed ? (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Связать…"
+            onClick={() => setOpen(true)}
+          >
+            <Plus size={20} aria-hidden />
+          </button>
+        ) : links.length > 0 ? (
+          <span className="muted">{links.length}</span>
+        ) : null}
       </div>
       {query.isPending ? <Notice>Загружаем связи…</Notice> : null}
       {query.isError ? <ObjectError error={query.error} action="load" /> : null}
       {query.data && links.length === 0 ? (
-        <p className="muted">Связей пока нет. Свяжите, например, объект с заметкой о ремонте.</p>
+        <p className="muted">
+          {compact
+            ? 'Связей пока нет'
+            : 'Связей пока нет. Свяжите, например, объект с заметкой о ремонте.'}
+        </p>
       ) : null}
       {links.length > 0 ? (
         <RowList label="Связанные записи">
@@ -312,7 +335,7 @@ export function LinksSection({ record, facts }: { record: RecordRef; facts: Reco
           ))}
         </RowList>
       ) : null}
-      {facts.trashed === true ? null : (
+      {facts.trashed === true || compact ? null : (
         <button
           type="button"
           className="btn btn--secondary btn--block list-action"

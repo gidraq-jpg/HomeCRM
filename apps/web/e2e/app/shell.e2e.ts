@@ -19,7 +19,7 @@ test('вымышленных данных прототипа нет, все пя
   await signInAs(page, family, 'adult');
   const nav = page.getByRole('navigation', { name: 'Основные разделы' });
   await expect(nav.getByRole('link')).toHaveText(['Сегодня', 'Дом', 'Документы', 'Люди', 'Ещё']);
-  await expect(page.getByRole('radio', { name: 'Всё', exact: true })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
   await checkApp(page, info, 'section-today');
 
   const sections: [string, string, string][] = [
@@ -77,21 +77,25 @@ test('переключатель «Всё · Общее · Личное» зап
   ).toHaveCount(3);
 
   await setScope(page, 'Личное');
-  await expect(page.getByRole('heading', { level: 2, name: 'Контактов пока нет' })).toBeVisible();
+  await expect(page.getByText('Контактов пока нет', { exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Участники дома' })).toHaveCount(0);
   await checkApp(page, info, 'people-personal');
 
   await page.reload();
-  await expect(page.getByRole('radio', { name: 'Личное', exact: true })).toBeChecked();
-  await expect(page.getByRole('heading', { level: 2, name: 'Контактов пока нет' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Пространство: Личное', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('Контактов пока нет', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('homecrm.scope'))).toBe('personal');
 
-  await page.getByRole('button', { name: 'Показать «Всё»' }).click();
-  await expect(page.getByRole('radio', { name: 'Всё', exact: true })).toBeChecked();
+  await setScope(page, 'Всё');
+  await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Участники дома' })).toBeVisible();
   await setScope(page, 'Общее');
   await page.reload();
-  await expect(page.getByRole('radio', { name: 'Общее', exact: true })).toBeChecked();
+  await expect(
+    page.getByRole('button', { name: 'Пространство: Общее', exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole('list', { name: 'Участники дома' })).toBeVisible();
 });
 

@@ -105,10 +105,11 @@ test('«Сдаваемая квартира» со снятыми галочка
 }, info) => {
   await signInAs(page, family, 'adult');
 
-  // Пустой «Дом» предлагает шаблон (TPL-4).
+  // Пустой «Дом»: короткая строка и первое действие в заголовке (TPL-4, Studio 2).
   await page.goto('#/home');
   const empty = page.getByRole('region', { name: 'Объектов пока нет' });
-  await expect(empty.getByRole('link', { name: 'Создать из шаблона' })).toBeVisible();
+  await expect(empty).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
 
   await openTemplateForm(page, 'Сдаваемая квартира');
   await expect(form(page).getByRole('checkbox')).toHaveCount(19);

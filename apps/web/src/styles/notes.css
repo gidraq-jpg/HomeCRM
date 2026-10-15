@@ -16,7 +16,7 @@
 .markdown h5,
 .markdown h6 {
   margin-top: 6px;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
   line-height: 1.3;
 }
 

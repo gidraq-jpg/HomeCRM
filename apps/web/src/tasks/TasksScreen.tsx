@@ -8,7 +8,7 @@ import { buildRows, filterRows } from '../deadlines/radar.ts';
 import { isOpenWindow } from '../deadlines/utility.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { PushCard } from '../notifications/PushCard.tsx';
-import { ScopeSwitch } from '../shell/ScopeSwitch.tsx';
+import { AddAction } from '../shell/AddAction.tsx';
 import { FirstRunCard } from '../templates/FirstRunCard.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
@@ -17,7 +17,6 @@ import type { TaskFilters } from './api.ts';
 import { taskError } from './errors.ts';
 import { formatDateOnly, SelectField } from './fields.tsx';
 import { RecordPicker } from './options.tsx';
-import { Quickline } from './Quickline.tsx';
 import { uniqueTasks, usePlan, useTaskList, useToday } from './queries.ts';
 import { STATUS_LABELS } from './TaskForm.tsx';
 import { TaskRows } from './TaskRows.tsx';
@@ -64,10 +63,13 @@ function TasksPage({
   const [, setParams] = useSearchParams();
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
   const feedTabs = (
-    <LinkTabs
-      label="Ленты дел"
-      items={tabs.map((tab) => ({ ...tab, to: `${tab.to}${houseQuery}` }))}
-    />
+    <div className="today-tabs">
+      <LinkTabs
+        label="Ленты дел"
+        items={tabs.map((tab) => ({ ...tab, to: `${tab.to}${houseQuery}` }))}
+      />
+      {view === 'today' ? <AddAction /> : null}
+    </div>
   );
   const actions = (
     <div className="task-actions">
@@ -88,12 +90,7 @@ function TasksPage({
   );
   const content = (
     <>
-      {view === 'today' ? (
-        <>
-          <ScopeSwitch />
-          {feedTabs}
-        </>
-      ) : null}
+      {view === 'today' ? feedTabs : null}
       {scope !== 'all' ? <p className="muted">{EMPTY_SCOPE_EXPLANATION[scope]}</p> : null}
       {me.roles.length > 1 ? (
         <SelectField
@@ -155,38 +152,33 @@ function TodayFeed({ house }: { house: string | null }) {
     >
       <QueryNotice query={query} />
       {query.data ? (
-        <>
-          <Section title="Главное на сегодня" eyebrow>
-            {query.data.main ? (
-              <TaskRows label="Главное дело" tasks={[query.data.main]} focus />
-            ) : (
-              <div className="focus task-focus">
-                <h3 className="focus__title">Что сегодня важнее всего?</h3>
-                <p className="focus__meta">
-                  Одно дело, которому вы хотите уделить внимание. Выберите его в карточке дела.
-                </p>
-                <div className="focus__actions">
-                  <Link
-                    className="btn btn--primary"
-                    to={
-                      query.data.tasks.length
-                        ? `/today/all${houseQuery}`
-                        : `/today/new${houseQuery}`
-                    }
-                  >
-                    {query.data.tasks.length ? 'Выбрать главное дело' : 'Добавить дело'}
-                  </Link>
-                </div>
+        <Section title="Главное на сегодня" eyebrow>
+          {query.data.main ? (
+            <TaskRows
+              label="Главное дело"
+              tasks={[query.data.main]}
+              radar={query.error || query.data.recalculating ? [] : query.data.radar}
+              focus
+            />
+          ) : (
+            <div className="focus task-focus">
+              <h3 className="focus__title">Что сегодня важнее всего?</h3>
+              <p className="focus__meta">
+                Одно дело, которому вы хотите уделить внимание. Выберите его в карточке дела.
+              </p>
+              <div className="focus__actions">
+                <Link
+                  className="btn btn--primary"
+                  to={
+                    query.data.tasks.length ? `/today/all${houseQuery}` : `/today/new${houseQuery}`
+                  }
+                >
+                  {query.data.tasks.length ? 'Выбрать главное дело' : 'Добавить дело'}
+                </Link>
               </div>
-            )}
-          </Section>
-          <Quickline
-            key={house}
-            householdId={query.data.householdId}
-            timeZone={query.data.timeZone}
-            today={query.data.today}
-          />
-        </>
+            </div>
+          )}
+        </Section>
       ) : null}
       <FirstRunCard />
       {query.data ? (
