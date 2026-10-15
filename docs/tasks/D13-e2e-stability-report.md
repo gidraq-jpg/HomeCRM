@@ -43,11 +43,43 @@ Push завершает настоящий app waitUntil после D7; повт
 
 ## Проверки
 
-Linux baseline затронутых сценариев: 14/14, 35,1 с; после исправлений: 14/14, 37,0 с (360/412 px, прежние axe и геометрия).
+Linux baseline: 14/14, 35,1 с; окончательная расширенная проверка: 22/22, 53,8 с (360/412 px, прежние axe и геометрия). Linux PNG подтверждения аудитории и офлайн-показаний просмотрены на обеих ширинах.
 TypeScript web/e2e, Biome, pnpm check:encoding и git diff --check прошли.
-Полная матрица доступа: 34/34 теста, 104 652 сочетания; число проверок сохранено. Пять Windows pnpm check и пять полных CI будут добавлены после завершения.
-Сценариев e2e должно остаться 528: 526 выполняемых и два ранее пропущенных; новые skip/fixme/retries не добавлены.
+Полная матрица доступа: 34/34 теста, 104 652 сочетания; число проверок сохранено. Windows: первый штатный pre-push pnpm check — 191 файл, 1636 passed/4 прежних skipped, 402,19 с. Последовательная серия включает пять полных pnpm check с собственными PostgreSQL 512; итог всей серии записан в описании [PR #62](https://github.com/gidraq-jpg/HomeCRM/pull/62).
+Набор e2e сохранён: 528 сценариев, 526 выполняемых и два ранее пропущенных; новые skip/fixme/retries не добавлены.
 Для сравнения времени выбран последний main 38740717850: шаг полного e2e 1678 с; допустимый предел +10% — 1845,8 с.
+
+## Полные CI для приёмки
+
+Пять отдельных workflow_dispatch на одном коммите кода `628c95cdaa1080fe7812ebd0a43d17b47c95d62c`, без rerun. Следующий коммит меняет только этот отчёт. Каждый запуск выполняет весь pnpm check, матрицу и e2e на двух ширинах; фактические результаты и длительности доступны по ссылкам, итог — в PR #62.
+
+| Прогон | CI |
+|---|---|
+| 1 | [38755436551](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38755436551) |
+| 2 | [38755477316](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38755477316) |
+| 3 | [38755482965](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38755482965) |
+| 4 | [38755488953](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38755488953) |
+| 5 | [38755494457](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38755494457) |
+
+## Источники выборки
+
+| CI | Итог | Попыток | Шаг e2e, с |
+|---|---|---:|---:|
+| [38740717850](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38740717850) | success | 1 | 1678 |
+| [38737304383](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38737304383) | cancelled | 1 | 1519 |
+| [38733272562](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38733272562) | success | 1 | 1583 |
+| [38729235403](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38729235403) | success | 1 | 1704 |
+| [38722252206](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38722252206) | failure | 1 | 1624 |
+| [38721361958](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38721361958) | cancelled | 1 | 465 |
+| [38717731962](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38717731962) | success | 1 | 1636 |
+| [38704499045](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38704499045) | failure | 3 | 1610 |
+| [38697825430](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38697825430) | failure | 1 | 1703 |
+| [38681014170](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38681014170) | failure | 1 | 986 |
+| [38675550366](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38675550366) | success | 1 | 1580 |
+| [38673461119](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38673461119) | success | 1 | 1249 |
+| [38668920621](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38668920621) | failure | 1 | 1256 |
+| [38664226523](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38664226523) | failure | 1 | 1175 |
+| [38650268510](https://github.com/gidraq-jpg/HomeCRM/actions/runs/38650268510) | failure | 1 | 1271 |
 
 ## Границы
 
