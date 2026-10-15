@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { CalendarDate, calendarInstant, shiftTaskDate } from '@homecrm/shared';
-import type { Page, TestInfo } from '@playwright/test';
+import {
+  CalendarDate,
+  calendarInstant,
+  OfflineSnapshot,
+  RadarResponse,
+  shiftTaskDate,
+} from '@homecrm/shared';
+import type { Page, Response, TestInfo } from '@playwright/test';
 import { scheduleSummaries } from '../../../server/src/notifications/summaries.ts';
 import { expect, test } from '../auth/support/fixtures.ts';
 import {
@@ -197,6 +203,7 @@ test('смена A → B во время ответа действия очищ�
   await recalc(family);
   await signInAs(page, family, 'adult');
   await openRadar(page);
+  await page.getByRole('combobox', { name: 'Состояние', exact: true }).selectOption('all');
   await page.getByRole('button', { name: 'Не актуально', exact: true }).click();
   await page.getByLabel('Причина', { exact: true }).fill('Личная причина A');
   let release: () => void = () => {};
@@ -211,11 +218,18 @@ test('смена A → B во время ответа действия очищ�
     const response = await route.fetch();
     started();
     await held;
-    await route.fulfill({ response }).catch(() => {});
+    await route.fulfill({ response });
   });
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   await ready;
   const other = await page.context().newPage();
+  // Меняем общую cookie настоящим входом, без второго AuthRoot и его фоновой смены identity.
+  await other.route(family.baseURL, (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><html lang="ru"><title>Смена участника</title></html>',
+    }),
+  );
   await other.goto(family.baseURL);
   const child = family.person('child');
   expect(
@@ -231,6 +245,21 @@ test('смена A → B во время ответа действия очищ�
       child,
     ),
   ).toBe(200);
+  const defaultRadar = (response: Response) => {
+    const url = new URL(response.url());
+    return (
+      url.pathname === '/api/deadlines' &&
+      url.searchParams.get('offline') === 'true' &&
+      !url.searchParams.has('state')
+    );
+  };
+  async function expectRadarB(response: Response) {
+    expect(response.status()).toBe(200);
+    const snapshot = OfflineSnapshot.parse(await response.json());
+    expect(snapshot.accountId).toBe(child.id);
+    expect(RadarResponse.parse(snapshot.data).items).toEqual([]);
+  }
+  const radarB = page.waitForResponse(defaultRadar);
   const updated = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/me');
   await page.bringToFront();
   await page.evaluate(() => {
@@ -239,10 +268,20 @@ test('смена A → B во время ответа действия очищ�
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
     window.dispatchEvent(new Event('visibilitychange'));
   });
-  await updated;
+  const meB = await updated;
+  expect(meB.status()).toBe(200);
+  expect((await meB.json()).id).toBe(child.id);
+  await expectRadarB(await radarB);
   await expect(page.getByLabel('Причина', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: 'Состояние', exact: true })).toHaveValue(
+    'active',
+  );
+  // Старый ответ A доставляем уже после загрузки радара B и ждём вызванного им обновления.
+  const afterAction = page.waitForResponse(defaultRadar);
   release();
+  await expectRadarB(await afterAction);
   await other.close();
+  await expect(page).toHaveURL(/#\/more\/radar$/);
   await expect(page.getByText('Личный срок участника A', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Личная причина A', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('combobox', { name: 'Состояние', exact: true })).toHaveValue(
