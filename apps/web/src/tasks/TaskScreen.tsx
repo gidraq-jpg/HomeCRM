@@ -1,7 +1,7 @@
 import { canChangeAudience, canMove, canRestore, canTrash, canWrite } from '@homecrm/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import { VISIBILITY_LABELS, type Visibility } from '../access/visibility.ts';
@@ -47,6 +47,7 @@ export function TaskScreen() {
   return <TaskView key={`${me.id}:${taskId}`} card={query.data} />;
 }
 function TaskView({ card }: { card: TimedTask }) {
+  const location = useLocation();
   const { me, householdId } = useHousehold();
   const client = useQueryClient();
   const refresh = useRefreshTasks();
@@ -165,7 +166,18 @@ function TaskView({ card }: { card: TimedTask }) {
     );
   });
   return (
-    <Page title={card.title} documentTitle="Дело" back={{ to: '/today', label: 'Сегодня' }}>
+    <Page
+      title={card.title}
+      documentTitle="Дело"
+      back={{
+        to:
+          typeof location.state?.fromPlan === 'string' &&
+          location.state.fromPlan.startsWith('/today/plan')
+            ? location.state.fromPlan
+            : '/today',
+        label: location.state?.fromPlan ? 'План' : 'Сегодня',
+      }}
+    >
       <OperationNotice operation={operation} />
       {seriesError ? <Notice error>{taskError(seriesError)}</Notice> : null}
       {editing ? (

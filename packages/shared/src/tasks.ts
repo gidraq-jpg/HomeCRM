@@ -45,3 +45,6 @@ export const TaskDataWithMissingTarget = TaskFields.refine(
 export const TaskData = TaskDataWithMissingTarget.refine(
   (task) => task.status !== 'waiting' || !!(task.waitingContactId || task.waitingAccountId),
 );
+
+/** Первый доступный связанный объект в лентах дел. */
+export const TaskFeedObject = z.object({ id: z.uuid(), title: z.string() }).nullable();

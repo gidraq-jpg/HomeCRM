@@ -1,6 +1,7 @@
 import {
   AUDIENCES,
   CalendarDate,
+  TaskFeedObject,
   TaskFields,
   type TaskOverduePolicy,
   type TaskRepeatRule,
@@ -10,7 +11,7 @@ import { z } from 'zod';
 import { ApiError, type ApiMethod, apiRequest } from '../auth/api.ts';
 import { RadarItem } from '../deadlines/api.ts';
 import { FileMeta } from '../files/api.ts';
-import { offlineOwnerAvailable } from '../offline/identity.ts';
+import { LocalFailure, offlineOwnerAvailable } from '../offline/identity.ts';
 import { durableMutation, durableTiming, type IntentForm } from '../offline/queue.ts';
 import { snapshotPath, snapshotTiming } from '../offline/snapshots.ts';
 
@@ -39,15 +40,18 @@ export const TaskCard = TaskFields.extend({
   canRestore: z.boolean().optional(),
 });
 export type TaskCard = z.infer<typeof TaskCard>;
+export const FeedTaskCard = TaskCard.extend({ object: TaskFeedObject });
+export type FeedTaskCard = z.infer<typeof FeedTaskCard>;
+
 export type RepeatRule = z.infer<typeof TaskRepeatRule>;
 export type OverduePolicy = z.infer<typeof TaskOverduePolicy>;
 export const Today = z.object({
   householdId: z.string().nullable(),
   timeZone: TimeZone,
   today: CalendarDate,
-  main: TaskCard.nullable(),
-  tasks: z.array(TaskCard),
-  completed: z.array(TaskCard),
+  main: FeedTaskCard.nullable(),
+  tasks: z.array(FeedTaskCard),
+  completed: z.array(FeedTaskCard),
   radar: z.array(RadarItem),
   recalculating: z.boolean(),
 });
@@ -57,10 +61,11 @@ export const Plan = z.object({
   timeZone: TimeZone,
   today: CalendarDate,
   from: z.string(),
-  days: z.array(z.object({ date: z.string(), tasks: z.array(TaskCard) })),
-  undated: z.array(TaskCard),
+  days: z.array(z.object({ date: z.string(), tasks: z.array(FeedTaskCard) })),
+  undated: z.array(FeedTaskCard),
   nextCursor: z.string().nullable(),
 });
+
 const Failure = z.object({
   code: z.string().optional(),
   suggestedPlacement: z
@@ -137,6 +142,13 @@ export async function taskRequest<T>(
       }
     }
   }
+  const seriesPatch =
+    method === 'PATCH' &&
+    !!body &&
+    typeof body === 'object' &&
+    'repeatScope' in body &&
+    body.repeatScope === 'following';
+  if (seriesPatch && !navigator.onLine) throw new LocalFailure('NETWORK_REQUIRED');
   const started = performance.now();
   let response: Response;
   try {
@@ -151,6 +163,7 @@ export async function taskRequest<T>(
     });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') throw error;
+    if (seriesPatch) throw new LocalFailure('NETWORK_REQUIRED');
     throw new TaskError(0, { code: 'NETWORK' });
   }
   const json: unknown = await response.json().catch(() => null);

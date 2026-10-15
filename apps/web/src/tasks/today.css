@@ -124,3 +124,100 @@ html[data-design="studio"] .main:has(> .today-page) {
 html[data-design="studio"] .main:has(> .today-page) > .offline-status:not(:empty) {
   background: var(--paper);
 }
+
+/* TASK-5: высота шапки измеряется вместе с safe-area и увеличенным текстом. */
+html[data-design="studio"] .today-tabs {
+  position: sticky;
+  top: var(--task-header-height, 88px);
+  z-index: 9;
+  background: var(--paper);
+  padding-block: 6px;
+}
+html[data-design="studio"] .plan-page > .page-heading {
+  margin: 0;
+}
+html[data-design="studio"] .plan-page {
+  padding-bottom: calc(var(--nav-height) + 40px + env(safe-area-inset-bottom));
+}
+.plan-day__title {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin: 20px 4px 10px;
+}
+.plan-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px;
+  background: var(--surface);
+  border-radius: 20px;
+}
+.plan-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+}
+.plan-row + .plan-row {
+  border-top: 1px solid var(--paper);
+}
+.plan-row__body {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.plan-row__title {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+.plan-row__meta {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.plan-row__readonly {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+.plan-row .icon-button {
+  flex: none;
+}
+.plan-circle {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border: 1.6px solid var(--border);
+  border-radius: 50%;
+}
+.plan-circle--waiting {
+  border-style: dashed;
+}
+.plan-empty-days {
+  margin: 18px 4px;
+  font-size: 0.8125rem;
+}
+.plan-undated {
+  margin-top: 20px;
+}
+.plan-undated summary {
+  min-height: 44px;
+  padding-block: 12px;
+  cursor: pointer;
+}
+.plan-sentinel {
+  height: 1px;
+}
+.plan-move-options {
+  display: grid;
+  gap: 8px;
+}
+.plan-move-options .btn {
+  white-space: normal;
+}

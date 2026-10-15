@@ -23,7 +23,10 @@ export interface TaskOperation {
   keyed?: boolean;
   draft?: TaskDraft;
 }
-export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<void>) {
+export function useTaskOperation(
+  onSuccess: (card: TimedTask) => void | Promise<void>,
+  onQueued?: (request: TaskOperation) => void,
+) {
   const { me } = useHousehold();
   const client = useQueryClient();
   const navigate = useNavigate();
@@ -76,9 +79,9 @@ export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<
       if (!sameAccount()) return;
       if (
         (request.path.endsWith('/status') && request.body.status === 'open') ||
-        (request.method === 'PATCH' && request.body.repeatScope === 'following')
+        request.method === 'PATCH'
       ) {
-        // Обычные online open/following не несут exact version: принимаем целый согласованный GET.
+        // После PATCH согласованный снимок нужен и немедленной отмене через ту же очередь.
         result = await fetchTask(result.id);
         if (!sameAccount()) return;
       }
@@ -95,6 +98,10 @@ export function useTaskOperation(onSuccess: (card: TimedTask) => void | Promise<
       if (!sameAccount()) return;
       if (failure instanceof TaskError && failure.code === 'OUTCOME_UNKNOWN' && failure.intentId) {
         unresolved.current = { signature, body };
+      }
+      if (failure instanceof LocalSaved && onQueued) {
+        onQueued(request);
+        return;
       }
       if (failure instanceof LocalSaved && request.path === 'tasks') {
         await clearDraft(`form:${location.pathname}`).catch(() => changed('storage-error'));

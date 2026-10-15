@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { Notice } from '../auth/components.tsx';
@@ -15,9 +15,10 @@ import { LinkTabs } from '../ui/LinkTabs.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import type { TaskFilters } from './api.ts';
 import { taskError } from './errors.ts';
-import { formatDateOnly, SelectField } from './fields.tsx';
+import { SelectField } from './fields.tsx';
 import { RecordPicker } from './options.tsx';
-import { uniqueTasks, usePlan, useTaskList, useToday } from './queries.ts';
+import { PlanFeed } from './PlanFeed.tsx';
+import { uniqueTasks, useTaskList, useToday } from './queries.ts';
 import { STATUS_LABELS } from './TaskForm.tsx';
 import { TaskRows } from './TaskRows.tsx';
 import { TodayHero } from './TodayHero.tsx';
@@ -38,7 +39,9 @@ export function TasksScreen({ view = 'today' }: { view?: View }) {
   return view === 'today' ? (
     <TodayFeed key={house} house={house} />
   ) : view === 'plan' ? (
-    <PlanFeed key={house} house={house} />
+    <TasksPage view="plan" house={house}>
+      <PlanFeed key={house} house={house} />
+    </TasksPage>
   ) : (
     <TasksPage view={view} house={house}>
       <AllFeed key={house} house={house} />
@@ -62,13 +65,27 @@ function TasksPage({
   const { scope } = useScope();
   const [, setParams] = useSearchParams();
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const header = document.querySelector('.topbar');
+    if (!header) return;
+    const measure = () =>
+      tabsRef.current?.style.setProperty(
+        '--task-header-height',
+        `${header.getBoundingClientRect().height}px`,
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
   const feedTabs = (
-    <div className="today-tabs">
+    <div className="today-tabs" ref={tabsRef}>
       <LinkTabs
         label="Ленты дел"
         items={tabs.map((tab) => ({ ...tab, to: `${tab.to}${houseQuery}` }))}
       />
-      {view === 'today' ? <AddAction /> : null}
+      <AddAction />
     </div>
   );
   const actions = (
@@ -103,7 +120,7 @@ function TasksPage({
           }))}
         />
       ) : null}
-      {view !== 'today' ? actions : null}
+      {view === 'all' ? actions : null}
       {children}
       {view === 'today' ? actions : null}
     </>
@@ -112,8 +129,20 @@ function TasksPage({
     <Page
       title={view === 'today' ? 'Сегодня' : view === 'plan' ? 'План' : 'Все дела'}
       eyebrow={eyebrow ?? (view === 'all' ? 'Дела дома и ваши личные' : undefined)}
-      heading={hero}
-      className={view === 'today' ? 'today-page' : undefined}
+      heading={
+        hero ??
+        (view === 'plan' ? (
+          <h1 className="visually-hidden">План</h1>
+        ) : (
+          <>
+            <p className="page-heading__eyebrow">Дела дома и ваши личные</p>
+            <div className="page-heading__line">
+              <h1>Все дела</h1>
+            </div>
+          </>
+        ))
+      }
+      className={view === 'today' ? 'today-page' : view === 'plan' ? 'plan-page' : undefined}
       tabs={view === 'today' ? undefined : feedTabs}
     >
       {view === 'today' ? (
@@ -212,46 +241,6 @@ function TodayFeed({ house }: { house: string | null }) {
         </>
       ) : null}
       <PushCard />
-    </TasksPage>
-  );
-}
-function PlanFeed({ house }: { house: string | null }) {
-  const query = usePlan(house);
-  const days = new Map<
-    string,
-    Map<string, NonNullable<typeof query.data>['pages'][number]['days'][number]['tasks'][number]>
-  >();
-  for (const page of query.data?.pages ?? [])
-    for (const day of page.days) {
-      const tasks = days.get(day.date) ?? new Map();
-      for (const task of day.tasks) tasks.set(task.id, task);
-      days.set(day.date, tasks);
-    }
-  const from = query.data?.pages[0]?.from;
-  const until = query.data?.pages.at(-1)?.days.at(-1)?.date;
-  return (
-    <TasksPage
-      view="plan"
-      house={house}
-      eyebrow={from && until ? `${formatDateOnly(from)} — ${formatDateOnly(until)}` : undefined}
-    >
-      <QueryNotice query={query} />
-      {[...days].map(([date, tasks]) =>
-        tasks.size ? (
-          <Section key={date} title={formatDateOnly(date)}>
-            <TaskRows label={`Дела ${date}`} tasks={[...tasks.values()]} />
-          </Section>
-        ) : null,
-      )}
-      {query.data ? (
-        <Section title="Без даты">
-          <TaskRows
-            label="Дела без даты"
-            tasks={uniqueTasks(query.data.pages.flatMap((page) => page.undated))}
-          />
-        </Section>
-      ) : null}
-      <LoadMore query={query} label="Показать следующие дни" />
     </TasksPage>
   );
 }

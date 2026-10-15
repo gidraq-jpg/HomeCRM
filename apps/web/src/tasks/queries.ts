@@ -47,6 +47,7 @@ export function useToday(householdId: string | null) {
   const { scope } = useScope();
   return useQuery({
     queryKey: ['tasks', me.id, householdId, 'today', scope],
+    gcTime: 5 * 60_000,
     queryFn: ({ signal }) => fetchToday(listScopeOf(scope), householdId, signal),
   });
 }
@@ -55,6 +56,8 @@ export function usePlan(householdId: string | null) {
   const { scope } = useScope();
   return useInfiniteQuery({
     queryKey: ['tasks', me.id, householdId, 'plan', scope],
+    gcTime: 5 * 60_000,
+    staleTime: 30_000,
     initialPageParam: null as string | null,
     queryFn: ({ signal, pageParam }) =>
       fetchPlan(listScopeOf(scope), householdId, pageParam, signal),
