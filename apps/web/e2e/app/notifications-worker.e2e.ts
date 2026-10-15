@@ -65,7 +65,7 @@ test('дело: тестовый push и нажатие до входа откр
 });
 
 /** Сервис-воркер страницы и протокол отладки: доставка push, показанные уведомления, нажатие на них. */
-async function connectWorker(page: Page, origin: string) {
+async function connectWorker(page: Page, origin: string, includeIcon = false) {
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
@@ -92,18 +92,60 @@ async function connectWorker(page: Page, origin: string) {
   if (!worker) throw new Error('Service worker is not visible to the test');
   return {
     worker,
-    push: (data: string) =>
-      cdp.send('ServiceWorker.deliverPushMessage', { origin, registrationId, data }),
+    push: async (data: string) => {
+      // CDP подтверждает постановку доставки, а не завершение native showNotification.
+      // Наблюдаем waitUntil только следующего настоящего push с теми же данными.
+      const completion = await worker.evaluateHandle<{
+        done: Promise<Promise<unknown>[]>;
+        cleanup: () => void;
+      }>(`(() => {
+        const data = ${JSON.stringify(data)};
+        const pending = [];
+        const nativeWaitUntil = ExtendableEvent.prototype.waitUntil;
+        let dispatched;
+        const done = new Promise(resolve => { dispatched = resolve; });
+        const matches = event => event.type === 'push' && event.isTrusted &&
+          (event.data?.text() ?? '') === data;
+        const observeWaitUntil = function (promise) {
+          nativeWaitUntil.call(this, promise);
+          if (matches(this)) pending.push(promise);
+        };
+        const onPush = event => {
+          if (!matches(event)) return;
+          cleanup();
+          dispatched(pending);
+        };
+        const cleanup = () => {
+          ExtendableEvent.prototype.waitUntil = nativeWaitUntil;
+          self.removeEventListener('push', onPush);
+        };
+        ExtendableEvent.prototype.waitUntil = observeWaitUntil;
+        self.addEventListener('push', onPush);
+        return { done, cleanup };
+      })()`);
+      try {
+        await cdp.send('ServiceWorker.deliverPushMessage', { origin, registrationId, data });
+        await completion.evaluate(async ({ done }) => {
+          const pending = await done;
+          if (pending.length === 0) throw new Error('Push did not extend its lifetime');
+          await Promise.all(pending);
+        });
+      } finally {
+        await completion.evaluate(({ cleanup }) => cleanup());
+        await completion.dispose();
+      }
+    },
     shown: () =>
-      page.evaluate(async () => {
+      page.evaluate(async (withIcon) => {
         const registration = await navigator.serviceWorker.ready;
         return (await registration.getNotifications()).map((item) => ({
           title: item.title,
           body: item.body,
           tag: item.tag,
           data: item.data as unknown,
+          ...(withIcon ? { icon: new URL(item.icon).pathname.split('/').pop() } : {}),
         }));
-      }),
+      }, includeIcon),
     click: (tag: string) =>
       worker.evaluate(`(async () => {
         const [item] = await self.registration.getNotifications({ tag: ${JSON.stringify(tag)} });
@@ -119,35 +161,7 @@ test('сервис-воркер: push показывает уведомлени�
   const boris = await apiAs(family, 'adult');
   const flat = await seedObject(boris, family, { title: 'Квартира у парка', audience: 'adults' });
   await signInAs(page, family, 'adult');
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
-  });
-
-  const cdp = await page.context().newCDPSession(page);
-  const registrations: { registrationId: string; scopeURL: string; isDeleted: boolean }[] = [];
-  cdp.on('ServiceWorker.workerRegistrationUpdated', (event) => {
-    registrations.push(...event.registrations);
-  });
-  await cdp.send('ServiceWorker.enable');
-  await expect.poll(() => registrations.some((item) => !item.isDeleted)).toBe(true);
-  const registrationId = registrations.find((item) => !item.isDeleted)?.registrationId ?? '';
-  const push = (data: string) =>
-    cdp.send('ServiceWorker.deliverPushMessage', {
-      origin: family.origin,
-      registrationId,
-      data,
-    });
-  const shown = () =>
-    page.evaluate(async () => {
-      const registration = await navigator.serviceWorker.ready;
-      return (await registration.getNotifications()).map((item) => ({
-        title: item.title,
-        body: item.body,
-        tag: item.tag,
-        data: item.data as unknown,
-        icon: new URL(item.icon).pathname.split('/').pop(),
-      }));
-    });
+  const { worker, push, shown } = await connectWorker(page, family.origin, true);
 
   // Содержимое от сервера: тег по записи, заголовок «HomeCRM», значок приложения.
   const message = { kind: 'deadline', recordId: flat.id, text: 'Подходит срок записи в HomeCRM' };
@@ -183,11 +197,6 @@ test('сервис-воркер: push показывает уведомлени�
   await expectNothingStored(page, ['Проверочный текст push']);
 
   // Нажатие: окно получает маршрут, запись открывается, уведомление закрывается.
-  const worker = page
-    .context()
-    .serviceWorkers()
-    .find((item) => item.url().endsWith('sw.js'));
-  if (!worker) throw new Error('Service worker is not visible to the test');
   await page.goto('#/today');
   await worker.evaluate(`(async () => {
     const [item] = await self.registration.getNotifications({ tag: ${JSON.stringify(`deadline-${flat.id}`)} });
