@@ -503,6 +503,8 @@ test('OFFLINE: настоящие два фото, lost ACK multipart, batch и 
   const batch = (await rows(page)).find((row) => row.operation === 'readings_create');
   expect(await rows(page, 'blobs')).toHaveLength(2);
   await page.reload();
+  // Не меняем IndexedDB и interception, пока новый AuthRoot не открыл сохранённый маршрут.
+  await expect(page.getByRole('heading', { level: 1, name: 'Очередь изменений' })).toBeVisible();
   if (batch) await updateRow(page, batch.id, { nextAttempt: 0 });
   await context.unroute(`**/api/objects/${object.id}/readings`);
   await sync(page);

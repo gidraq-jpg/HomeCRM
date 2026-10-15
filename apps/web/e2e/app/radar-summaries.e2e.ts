@@ -225,13 +225,16 @@ test('смена A → B во время ответа действия очищ�
   await ready;
   const other = await page.context().newPage();
   // Меняем общую cookie настоящим входом, без второго AuthRoot и его фоновой смены identity.
-  await other.route(family.baseURL, (route) =>
+  // Вне scope service worker: он не подменит служебный HTML второй копией приложения.
+  const sessionURL = new URL('/e2e-session.html', family.baseURL).href;
+  await other.route(sessionURL, (route) =>
     route.fulfill({
       contentType: 'text/html',
       body: '<!doctype html><html lang="ru"><title>Смена участника</title></html>',
     }),
   );
-  await other.goto(family.baseURL);
+  await other.goto(sessionURL);
+  await expect(other.locator('script')).toHaveCount(0);
   const child = family.person('child');
   expect(
     await other.evaluate(
