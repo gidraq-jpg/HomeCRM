@@ -1,5 +1,5 @@
 import { test } from '../auth/support/fixtures.ts';
-import { setScope } from '../support/helpers.ts';
+import { openObjectDetails, setScope } from '../support/helpers.ts';
 import {
   deadlinesSection,
   groupItems,
@@ -170,6 +170,7 @@ test('«Дом» на компьютере: список, карточка с в
     'aria-current',
     'page',
   );
+  await openObjectDetails(page);
   await expect(page.getByRole('term').filter({ hasText: 'Площадь' })).toBeVisible();
   await checkApp(page, info, 'desktop-object');
 

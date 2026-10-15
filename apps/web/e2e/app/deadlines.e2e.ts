@@ -1,7 +1,7 @@
 import { mock } from 'node:test';
 import type { Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
-import { plain, setScope } from '../support/helpers.ts';
+import { openObjectDetails, plain, setScope } from '../support/helpers.ts';
 import {
   deadlineForm,
   deadlinesSection,
@@ -700,7 +700,13 @@ test('часовой пояс дома: администратор меняет,
   // Администратор: «Ещё» → «Настройки дома» → Екатеринбург.
   await signInAs(page, family, 'admin');
   await openObjectCard(page, object.id, 'Квартира у парка');
-  const edited = page.locator('.page-heading__eyebrow');
+  await openObjectDetails(page);
+  const edited = page
+    .locator('.facts__item')
+    .filter({
+      has: page.locator('dt').filter({ hasText: /^Изменён$/ }),
+    })
+    .getByRole('definition');
   const stamp = async () => plain(await edited.innerText());
   const beforeStamp = await stamp();
   await page.goto('#/more');
@@ -722,6 +728,7 @@ test('часовой пояс дома: администратор меняет,
 
   // Все даты на экранах пошли по новому поясу: время изменения сдвинулось на два часа.
   await openObjectCard(page, object.id, 'Квартира у парка');
+  await openObjectDetails(page);
   const afterStamp = await stamp();
   expect(afterStamp).not.toBe(beforeStamp);
   const hour = (text: string) => Number(/, (\d{2}):\d{2}$/.exec(text)?.[1]);

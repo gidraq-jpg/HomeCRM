@@ -85,6 +85,12 @@ test('быстрая строка: отступы, длинные чипы, ош
   const section = page.locator('.sheet .section');
   const input = section.getByLabel('Быстрая строка');
   await expect(input).toBeVisible();
+  // Геометрию меряем после входа листа: transform меняет промежутки во время анимации.
+  await page.getByRole('dialog', { name: 'Новое дело', exact: true }).evaluate(async (element) => {
+    await Promise.all(
+      element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+    );
+  });
   const hint = await section.locator('p').first().boundingBox();
   const field = await input.boundingBox();
   const submit = await section

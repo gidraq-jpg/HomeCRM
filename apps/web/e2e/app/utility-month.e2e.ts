@@ -171,6 +171,7 @@ test('аналитика: диаграммы, таблица-дублёр и с�
   await expect(
     page.getByRole('heading', { level: 1, name: 'Квартира у парка', exact: true }),
   ).toBeVisible();
+  await page.getByText('Аналитика объекта', { exact: true }).click();
   const block = page.locator('section.section').filter({
     has: page.getByRole('heading', { level: 2, name: 'Аналитика', exact: true }),
   });
