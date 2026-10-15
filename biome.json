@@ -12,7 +12,8 @@
       "!**/dist",
       "!**/coverage",
       "!pnpm-lock.yaml",
-      "!packages/db/migrations/meta"
+      "!packages/db/migrations/meta",
+      "!docs/design/studio2"
     ]
   },
   "formatter": {

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Быстрое добавление</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#a8492b}a:hover{color:#8a3a21}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #1b1a18; font-family: Onest, 'Segoe UI', system-ui, sans-serif; color: #22201c; font-variant-numeric: tabular-nums">
+
+  <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 318px; bottom: 0; background: #ebe5da; border-radius: 28px 28px 0 0"></div>
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(20, 19, 17, 0.62)"></div>
+
+  <section role="dialog" aria-label="Новое дело" style="position: absolute; left: 0; right: 0; bottom: 0; background: #f8f5ef; border-radius: 28px 28px 0 0; padding: 10px 20px 28px 20px; display: flex; flex-direction: column; gap: 16px">
+    <div aria-hidden="true" style="align-self: center; width: 36px; height: 4px; border-radius: 4px; background: #cfc6b8"></div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <h2 style="margin: 0; font-size: 20px; font-weight: 500">Новое дело</h2>
+      <a href="Main.dc.html" aria-label="Закрыть" style="width: 44px; height: 44px; margin-right: -10px; border-radius: 999px; color: #4a443c; display: grid; place-items: center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </a>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <label for="qa-line" style="font-size: 13px; color: #6b6358">Одной строкой — дату, время, @кого и #где поймём сами</label>
+      <textarea id="qa-line" rows="2" style="box-sizing: border-box; width: 100%; padding: 14px 16px; border: 1.5px solid #a8492b; border-radius: 16px; background: #ffffff; font: 400 17px/1.4 Onest, system-ui, sans-serif; color: #22201c; resize: none; outline: none">завтра в 18:00 позвонить в УК #Садовая @Мария</textarea>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-size: 13px; color: #6b6358">Поняли так · нажмите, чтобы убрать</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <button type="button" aria-label="Убрать дату: завтра, 15 октября" style="min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 12px; border: 0; border-radius: 12px; background: #f3ddd2; color: #6f2d18; font: 500 14px Onest, system-ui, sans-serif; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Завтра, 15 окт.<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        <button type="button" aria-label="Убрать время: 18:00" style="min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 12px; border: 0; border-radius: 12px; background: #f3ddd2; color: #6f2d18; font: 500 14px Onest, system-ui, sans-serif; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>18:00<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        <button type="button" aria-label="Убрать объект: Квартира на Садовой" style="min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 12px; border: 0; border-radius: 12px; background: #e6dfd3; color: #2f2b26; font: 500 14px Onest, system-ui, sans-serif; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V9l8-5 8 5v11"/><path d="M10 20v-6h4v6"/></svg>Квартира на Садовой<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        <button type="button" aria-label="Убрать исполнителя: Мария" style="min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; border: 0; border-radius: 12px; background: #e6dfd3; color: #2f2b26; font: 500 14px Onest, system-ui, sans-serif; cursor: pointer">
+          <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 999px; background: #4a443c; color: #f8f5ef; display: grid; place-items: center; font-size: 12px">М</span>Мария<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+    </div>
+
+    <div style="border-radius: 16px; background: #ebe5da; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px">
+      <div style="font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #6b6358">Получится</div>
+      <div style="font-size: 17px; font-weight: 500">Позвонить в УК</div>
+      <div style="font-size: 13.5px; color: #4a443c">Чт, 15 окт., 18:00 · исполнитель Мария</div>
+    </div>
+
+    <button type="button" style="min-height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border: 1px solid #dcd4c6; border-radius: 16px; background: transparent; font: 400 15px Onest, system-ui, sans-serif; color: #22201c; text-align: left; cursor: pointer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4a443c" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="3.5"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.7 3 2.6 3 5.2"/></svg>
+      <span style="flex: 1"><span style="color: #6b6358">Кто видит:</span> Взрослые</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8f8578" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+    </button>
+
+    <a href="Main.dc.html" style="min-height: 52px; border-radius: 16px; background: #a8492b; color: #ffffff; font-size: 16px; font-weight: 500; text-decoration: none; display: flex; align-items: center; justify-content: center">Добавить дело</a>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
