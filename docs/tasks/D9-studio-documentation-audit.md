@@ -1,0 +1,11 @@
+# D9. Документы Studio для обзора Claude Code
+
+Свежий малый исполнитель gpt-6-luna. Пользователь хочет дать проект на обзор Claude Code, который вёл его с начала, и уточняет, записаны ли решения дизайна. Только чтение/аудит документации и краткий отчёт лиду; код, тесты, commit, push и production не менять. Новый worktree не нужен для read-only проверки primary и git show, никаких правок owner docs.
+
+Текущее состояние: primary/main `9c1eedad8e8418790a0795567261d078418ff50e`; PR56/57/58/59 слиты после зелёных exact-head CI. PR59 e41, CI38673461119 SUCCESS:191файл/1639passed, Linux507passed/1skipped. Автоматический final-main CI38675550366 ещё выполняется. Runtime source770480f7/image6e614289 не менялся после сборки. Прямая команда на production release ещё не дана, productionv0.5.0pilot1. Владелец разрешил временно не требовать cloudbackup; local451 успешно восстановлена80таблиц22699строк65миграций.
+
+Проверить реальные tracked документы итогового main: UI-1…3 в docs/02-prd.md; docs/design/studio.md и approved PNG; ADR-0042 (найти точное имя); docs/screenshots/UI-1/UI-2/UI-3 READMEs и narrow blocker reports; брифы и one-review reports. Сопоставить с кодом принятую Studio основу/Overview hero, крупное «Добрый день,» + настоящее имя, дату/три реальных показателя, логотип, шрифт/палитру, mobile/axe/permissions/data invariants. Не проводить повторное общее code review и не запускать тесты.
+
+Выдать <=15строк: точные пути/строки главных документов, что уже committed в main, что есть только локально (план/бэклог/владелец), существенные противоречия/пробелы либо их отсутствие, компактный список чтения Claude и фокус review. Root напишет отдельный review brief как лид. Не переименовывать и не переписывать документы. Особенно не путать постановку старого prototype с внедрённым дизайном и не объявлять production/реальные Android проверенными.
+
+Primary dirty owner docs CHANGELOG/PRD/plan/backlog и R1d нужно сохранить: пользователь отменял LifeOS импорт, имеет свои pilot/OCR/photo записи. В PRD owner patch уже проверен reverse-check, план отличается от backup только4Studio rows, originalbackloglinesсохранены. Не советовать commit -a/reset/clean/rebase чужихworktrees. Read-only snapshot currentmain достаточен; внешних моделей/чатов не запускать и не отправлять им данные.
