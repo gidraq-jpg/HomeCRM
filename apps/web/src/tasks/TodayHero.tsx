@@ -6,7 +6,8 @@ import { useMyProfile } from '../household/queries.ts';
 import { listScopeOf } from '../notes/queries.ts';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectsList } from '../objects/queries.ts';
-import { formatLongDate, plural, weekdayName } from '../ui/format.ts';
+import { formatLongDate, formatRub, formatShortDate, plural, weekdayName } from '../ui/format.ts';
+
 import type { Today } from './api.ts';
 import { uniqueTasks } from './queries.ts';
 import { metricValue, nearbyDeadlineCount, todayTaskCount } from './today.ts';
@@ -76,6 +77,39 @@ export function TodayHero({
       }`,
     },
   ];
+  const phrases = [
+    tasksValue.value === '—'
+      ? '— дел'
+      : taskCount === 0
+        ? 'дел нет'
+        : `${tasksValue.value} ${plural(taskCount ?? 0, ['дело', 'дела', 'дел'])}`,
+    radarValue.value === '—'
+      ? '— сроков'
+      : deadlineCount === 0
+        ? 'сроков на подходе нет'
+        : `${radarValue.value} ${plural(deadlineCount ?? 0, ['срок', 'срока', 'сроков'])} на подходе`,
+    objectsValue.value === '—'
+      ? '— объектов'
+      : objectCount === 0
+        ? 'объектов под присмотром нет'
+        : `${objectsValue.value} ${plural(objectCount ?? 0, ['объект', 'объекта', 'объектов'])} под присмотром`,
+  ];
+  // Только свежие видимые строки радара; неизвестные суммы и даты не подменяем нулём.
+  const ready = radar.status === 'ready' && !radar.error && !radar.recalculating;
+  const payments = ready
+    ? radar.rows.filter(
+        (row) => row.utility?.kind === 'payment' && ['overdue', 'now', '7days'].includes(row.group),
+      )
+    : [];
+  const knownPayments =
+    payments.length > 0 && payments.every((row) => row.utility?.remainingCents != null);
+  const due = payments.reduce((sum, row) => sum + (row.utility?.remainingCents ?? 0), 0);
+  const windowEnd = ready
+    ? radar.rows
+        .filter((row) => row.utility?.kind === 'readings' && row.group === 'now')
+        .map((row) => row.utility?.endDate)
+        .sort()[0]
+    : undefined;
   return (
     <div className="today-hero">
       <h1 className="visually-hidden">Сегодня</h1>
@@ -86,41 +120,39 @@ export function TodayHero({
             ? 'Не удалось загрузить дату дома'
             : 'Загружаем дату дома…'}
       </p>
-      <p className="today-hero__greeting">
-        <span>Добрый день,</span>
-        <span>{name}.</span>
-      </p>
       <nav className="today-metrics" aria-label="Показатели на сегодня">
-        {metrics.map((metric) => (
-          <Link
-            className="today-metric"
-            key={metric.key}
-            to={metric.to}
-            aria-label={`${metric.value} ${metric.label}${metric.status ? `: ${metric.status}` : ''}`}
-            aria-describedby={`today-metric-${metric.key}`}
-            onClick={
-              metric.key === 'tasks'
-                ? () => document.getElementById('today-panel')?.scrollIntoView({ block: 'start' })
-                : undefined
-            }
-          >
-            <span className="today-metric__value" aria-hidden>
-              {metric.value}
+        <p className="today-hero__greeting">
+          Добрый день, {name}. Сегодня{' '}
+          {metrics.map((metric, index) => (
+            <span key={metric.key}>
+              <Link
+                className="today-metric"
+                to={metric.to}
+                aria-label={`${metric.value} ${metric.label}${metric.status ? `: ${metric.status}` : ''}`}
+                aria-describedby={`today-metric-${metric.key}`}
+                onClick={
+                  metric.key === 'tasks'
+                    ? () =>
+                        document.getElementById('today-panel')?.scrollIntoView({ block: 'start' })
+                    : undefined
+                }
+              >
+                <span aria-hidden>{phrases[index]}</span>
+                <span id={`today-metric-${metric.key}`} className="visually-hidden">
+                  {metric.description}
+                </span>
+              </Link>
+              {index < 2 ? ', ' : '.'}
             </span>
-            <span className="today-metric__label" aria-hidden>
-              {metric.label}
-            </span>
-            {metric.status ? (
-              <span className="today-metric__status" aria-hidden>
-                {metric.status}
-              </span>
-            ) : null}
-            <span id={`today-metric-${metric.key}`} className="visually-hidden">
-              {metric.description}
-            </span>
-          </Link>
-        ))}
+          ))}
+        </p>
       </nav>
+      {(knownPayments && due > 0) || windowEnd ? (
+        <div className="today-hints">
+          {knownPayments && due > 0 ? <span>{formatRub(due)} к оплате</span> : null}
+          {windowEnd ? <span>Показания до {formatShortDate(windowEnd)}</span> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

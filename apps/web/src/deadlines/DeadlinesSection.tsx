@@ -69,7 +69,11 @@ function Upcoming({ item, timeZone }: { item: DeadlineItem; timeZone: string }) 
  * правка и «В корзину» с отменой на 7 секунд. Кто может менять срок, решает `canWriteDeadline`
  * из общего пакета правил доступа; сервер и база проверяют то же самое.
  */
-export function DeadlinesSection({ source, card }: DeadlinesSectionProps) {
+export function DeadlinesSection({
+  source,
+  card,
+  compact = false,
+}: DeadlinesSectionProps & { compact?: boolean }) {
   const { me, householdId } = useHousehold();
   const toast = useToast();
   const refresh = useRefreshDeadlines();
@@ -160,7 +164,7 @@ export function DeadlinesSection({ source, card }: DeadlinesSectionProps) {
           mode.kind === 'add' ? null : (
             <p className="muted">
               Сроков пока нет.
-              {canEdit
+              {canEdit && !compact
                 ? ' Добавьте дату, окно, повтор или срок «через N после события», и он попадёт в радар.'
                 : ''}
             </p>
@@ -251,7 +255,7 @@ export function DeadlinesSection({ source, card }: DeadlinesSectionProps) {
             onSubmit={add}
             onCancel={close}
           />
-        ) : canEdit && mode.kind === 'idle' ? (
+        ) : canEdit && mode.kind === 'idle' && !compact ? (
           <button
             type="button"
             className="btn btn--secondary btn--block deadline-add"
@@ -272,7 +276,16 @@ export function DeadlinesSection({ source, card }: DeadlinesSectionProps) {
     <Section
       title="Сроки"
       aside={
-        query.isSuccess && items.length > 0 ? (
+        compact && canEdit && mode.kind === 'idle' ? (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Добавить срок"
+            onClick={() => setMode({ kind: 'add' })}
+          >
+            <Plus size={20} aria-hidden />
+          </button>
+        ) : query.isSuccess && items.length > 0 ? (
           <span className="muted">{items.length}</span>
         ) : undefined
       }

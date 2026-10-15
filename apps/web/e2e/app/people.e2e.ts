@@ -271,6 +271,7 @@ test('связь с человеком из карточки объекта: «�
   });
   await signInAs(page, family, 'adult');
   await page.goto(`#/home/${flat.id}`);
+  await page.getByRole('button', { name: 'Связать с человеком или организацией' }).click();
   await page.getByRole('button', { name: 'Связать с человеком…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Связать с человеком' });
   await dialog.getByRole('button', { name: /Вымышленная Соседка Мария/ }).click();

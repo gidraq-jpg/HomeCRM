@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
+import { setScope } from '../support/helpers.ts';
 import { homeDate, openRadar, recalc, setHomeZone } from './deadlines-support.ts';
 import {
   addChild,
@@ -31,7 +32,11 @@ test('документ с двумя страницами: серия и ном�
   await openDocuments(page);
   await expect(page.getByRole('region', { name: 'Документов пока нет' })).toBeVisible();
   await checkApp(page, info, 'documents-empty');
-  await page.getByRole('link', { name: 'Добавить документ' }).click();
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /^Документ/ })
+    .click();
 
   // Форма: «Кто видит» над «Сохранить»; документ взрослого по умолчанию личный (PRD 7.2).
   const form = page.locator('form.document-form');
@@ -226,11 +231,11 @@ test('список: фильтры «истекает в 90 дней», «про
   await page.getByLabel('Человек').selectOption('');
 
   // Пространство — общий переключатель: «Общее» оставляет только документ ребёнка для взрослых.
-  await page.getByRole('radio', { name: 'Общее', exact: true }).check();
+  await setScope(page, 'Общее');
   await expect(documentLinks(page)).toHaveCount(1);
-  await page.getByRole('radio', { name: 'Личное', exact: true }).check();
+  await setScope(page, 'Личное');
   await expect(documentLinks(page)).toHaveCount(4);
-  await page.getByRole('radio', { name: 'Всё', exact: true }).check();
+  await setScope(page, 'Всё');
 
   // Поиск находит по названию и по типу (название документа слова «имущества» не содержит).
   await page.getByLabel('Поиск по названию и типу').fill('каско');

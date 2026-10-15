@@ -76,4 +76,5 @@ export async function openObjectTab(page: Page, objectId: string, tab: string, t
   await page.goto('#/more');
   await page.goto(`#/home/${objectId}${tab}`);
   await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+  if (!tab) await page.getByText('Об объекте и свои поля', { exact: true }).click();
 }

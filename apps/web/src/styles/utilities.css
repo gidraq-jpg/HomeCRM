@@ -15,7 +15,7 @@
 .month-switch__label {
   flex: 1;
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
   text-align: center;
 }
 
@@ -69,7 +69,7 @@
 
 .month-account__title {
   min-width: 0;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
   overflow-wrap: anywhere;
 }
 
@@ -95,7 +95,7 @@
 .analytics-block__title {
   margin-bottom: 6px;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: var(--weight-strong, 700);
 }
 
 .chart {
@@ -184,7 +184,7 @@
   align-items: center;
   min-height: var(--tap);
   color: var(--green);
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
   cursor: pointer;
 }
 
@@ -198,7 +198,7 @@
 .data-table caption {
   padding-bottom: 6px;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
   text-align: left;
 }
 
@@ -212,7 +212,7 @@
 
 .data-table th[scope="col"] {
   color: var(--muted);
-  font-weight: 600;
+  font-weight: var(--weight-medium, 600);
 }
 
 .data-table th:first-child,

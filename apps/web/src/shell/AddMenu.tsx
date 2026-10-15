@@ -6,8 +6,10 @@ import {
   ShoppingCart,
   UserPlus,
 } from '@phosphor-icons/react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 
@@ -23,12 +25,23 @@ interface AddMenuProps {
 export function AddMenu({ open, onOpenChange }: AddMenuProps) {
   const { isAdmin } = useHousehold();
   const navigate = useNavigate();
+  const [quick, setQuick] = useState(false);
 
   function go(path: string) {
     onOpenChange(false);
     navigate(path);
   }
 
+  if (quick && open)
+    return (
+      <QuickAddSheet
+        open
+        onOpenChange={(next) => {
+          setQuick(next);
+          if (!next) onOpenChange(false);
+        }}
+      />
+    );
   return (
     <Sheet
       open={open}
@@ -47,7 +60,7 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
           icon={<ListChecks size={22} aria-hidden />}
           title="Дело"
           meta="План, чек-лист, ожидание и повтор"
-          onClick={() => go('/today/new')}
+          onClick={() => setQuick(true)}
         />
         <Row
           icon={<Note size={22} aria-hidden />}

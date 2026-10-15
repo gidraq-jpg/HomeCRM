@@ -53,6 +53,7 @@ function Members() {
               key={member.accountId}
               to={`/people/members/${member.accountId}`}
               icon={<Avatar name={member.displayName} photoFileId={member.photoFileId} />}
+              iconTone="person"
               title={member.accountId === me.id ? `${member.displayName} (вы)` : member.displayName}
               meta={ROLE_LABELS[member.role]}
               badge="household"

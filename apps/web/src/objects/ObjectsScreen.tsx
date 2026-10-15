@@ -1,14 +1,12 @@
-import { Buildings, ListChecks, Plus, Receipt } from '@phosphor-icons/react';
+import { ListChecks, Receipt } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { useScope } from '../access/ScopeContext.tsx';
-import { SCOPE_LABELS } from '../access/scope.ts';
 import { VISIBILITY_LABELS } from '../access/visibility.ts';
 import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
-import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
+import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
 import type { ObjectSummary } from './api.ts';
@@ -72,44 +70,7 @@ export function ObjectRows({
 
 /** Пустой «Дом» объясняет разницу личного и общего и предлагает первое действие — TPL-4, PRD 7.4. */
 function EmptyObjects() {
-  const { scope, setScope } = useScope();
-  return (
-    <EmptyState
-      icon={<Buildings size={24} aria-hidden />}
-      title="Объектов пока нет"
-      actions={
-        <>
-          <Link className="btn btn--primary btn--block" to={NEW_OBJECT}>
-            <Plus size={20} weight="bold" aria-hidden />
-            Добавить объект
-          </Link>
-          <Link className="btn btn--secondary btn--block" to={FROM_TEMPLATE}>
-            <ListChecks size={20} aria-hidden />
-            Создать из шаблона
-          </Link>
-          {scope === 'all' ? null : (
-            <button
-              type="button"
-              className="btn btn--secondary btn--block"
-              onClick={() => setScope('all')}
-            >
-              Показать «{SCOPE_LABELS.all}»
-            </button>
-          )}
-          <Link className="text-button" to="/more/spaces">
-            Как устроены личное и общее
-          </Link>
-        </>
-      }
-    >
-      <p>{EMPTY_SCOPE_EXPLANATION[scope]}</p>
-      <p>
-        Объект — это квартира, дача, машина или техника: к нему можно добавить свои поля, события в
-        ленте и связи с заметками. Недвижимость, машину, технику и другое по умолчанию видят
-        взрослые дома; при создании можно выбрать «Вся семья» или «Только я».
-      </p>
-    </EmptyState>
-  );
+  return <CompactEmptyState title="Объектов пока нет" />;
 }
 
 /** «Дом» (OBJ-1…3): объекты по типам под переключателем «Всё · Общее · Личное». */
@@ -174,10 +135,6 @@ export function ObjectsScreen() {
           ) : null}
           {query.isError ? <ObjectError error={query.error} action="load" /> : null}
 
-          <Link className="btn btn--primary btn--block list-action" to={NEW_OBJECT}>
-            <Plus size={20} weight="bold" aria-hidden />
-            Добавить объект
-          </Link>
           <Link className="btn btn--secondary btn--block list-action" to={FROM_TEMPLATE}>
             <ListChecks size={20} aria-hidden />
             Создать из шаблона

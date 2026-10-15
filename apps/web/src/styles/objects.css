@@ -89,7 +89,7 @@
 
 .timeline__date {
   color: var(--ink);
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
 }
 
 .timeline__text {

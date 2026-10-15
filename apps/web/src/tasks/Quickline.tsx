@@ -1,18 +1,19 @@
 import { type CalendarDate, calendarInstant, parseQuickline, TaskFields } from '@homecrm/shared';
-import { useState } from 'react';
+import { X } from '@phosphor-icons/react';
+import { useId, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
-import { defaultVisibility, type Visibility } from '../access/visibility.ts';
+import { defaultVisibility, VISIBILITY_LABELS, type Visibility } from '../access/visibility.ts';
 import { ApiError } from '../auth/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
-import { formatDateOnly, TextField } from './fields.tsx';
+import { formatDateOnly } from './fields.tsx';
 import { createBody } from './NewTaskScreen.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
-import { MemberPicker, RecordPicker, useOptions, useTaskMembers } from './options.tsx';
+import { useOptions, useTaskMembers } from './options.tsx';
 import { uniqueTasks } from './queries.ts';
 
 const labels = { date: 'Дата', time: 'Время', assignee: 'Исполнитель', object: 'Объект' };
@@ -44,10 +45,12 @@ export function Quickline({
   householdId,
   timeZone,
   today,
+  onCreated,
 }: {
   householdId: string | null;
   timeZone: string;
   today: CalendarDate;
+  onCreated?: () => void;
 }) {
   const { me } = useHousehold();
   const { scope } = useScope();
@@ -57,9 +60,9 @@ export function Quickline({
   const options = uniqueTasks(objects.data?.pages.flat() ?? []);
   const [raw, setRaw] = useState('');
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
-  const [overrides, setOverrides] = useState<Partial<Record<Kind, string>>>({});
-  const [editing, setEditing] = useState<Kind | null>(null);
   const [visibility, setVisibility] = useState<Visibility | null>(null);
+  const [choosingVisibility, setChoosingVisibility] = useState(false);
+  const inputId = useId();
   const result = parseQuickline(raw, {
     now: calendarInstant(today, timeZone),
     timeZone,
@@ -68,14 +71,14 @@ export function Quickline({
       .map((member) => ({ id: member.accountId, name: member.displayName })),
     objects: options.map((object) => ({ id: object.id, name: object.title })),
   });
-  const draft = quickDraft(raw, result, excluded, overrides);
+  const draft = quickDraft(raw, result, excluded, {});
   const object = options.find((object) => object.id === draft.objectId);
   const who =
     visibility ?? defaultVisibility('task', scope, object ? { parent: visibilityOf(object) } : {});
   const operation = useTaskOperation((card) => {
     setRaw('');
     setExcluded(new Set());
-    setOverrides({});
+    onCreated?.();
     navigate(`/today/tasks/${card.id}`);
   });
   return (
@@ -114,78 +117,90 @@ export function Quickline({
         }}
       >
         <fieldset disabled={operation.pending} className="task-form__fields">
-          <TextField
-            label="Быстрая строка"
-            value={raw}
-            maxLength={500}
-            onChange={(value) => {
-              setRaw(value);
-              setExcluded(new Set());
-              setOverrides({});
-            }}
-          />
-          <p className="muted task-quickline__hint">
-            Например: «Позвонить завтра в 10:00 @Борис #Квартира». Неизвестное останется в названии.
-          </p>
+          <div className="field">
+            <label className="visually-hidden" htmlFor={inputId}>
+              Быстрая строка
+            </label>
+            <textarea
+              id={inputId}
+              className="textarea"
+              rows={2}
+              value={raw}
+              maxLength={500}
+              onChange={(event) => {
+                setRaw(event.target.value);
+                setExcluded(new Set());
+              }}
+            />
+          </div>
+          <p className="muted">Поняли так · нажмите, чтобы убрать</p>
           <div className="task-chips">
             {draft.fragments.map((fragment) => (
-              <span className="task-chip" key={fragment.kind}>
+              <span className={`task-chip task-chip--${fragment.kind}`} key={fragment.kind}>
                 <button
                   className="text-button"
                   type="button"
-                  onClick={() => setEditing(fragment.kind)}
-                >
-                  {labels[fragment.kind]}:{' '}
-                  {fragment.kind === 'date'
-                    ? (overrides.date ?? fragment.value)
-                      ? formatDateOnly(overrides.date ?? fragment.value)
-                      : 'Не выбрано'
-                    : fragment.kind === 'assignee' && overrides.assignee !== undefined
-                      ? overrides.assignee === me.id
-                        ? me.displayName
-                        : (members.data?.find((person) => person.accountId === overrides.assignee)
-                            ?.displayName ?? 'Участник недоступен')
-                      : fragment.kind === 'object' && overrides.object !== undefined
-                        ? (options.find((item) => item.id === overrides.object)?.title ??
-                          'Не выбрано')
-                        : (overrides[fragment.kind] ?? fragment.text)}
-                </button>
-                <button
-                  className="icon-button"
-                  type="button"
                   aria-label={`Снять чип: ${labels[fragment.kind]}`}
+                  aria-describedby={`${inputId}-${fragment.kind}`}
                   onClick={() => {
                     setExcluded(
                       (current) => new Set([...current, `${fragment.kind}:${fragment.text}`]),
                     );
-                    setOverrides((current) => {
-                      const next = { ...current };
-                      delete next[fragment.kind];
-                      return next;
-                    });
                   }}
                 >
-                  ×
+                  <span id={`${inputId}-${fragment.kind}`}>
+                    {fragment.kind === 'date'
+                      ? formatDateOnly(fragment.value)
+                      : fragment.kind === 'time'
+                        ? fragment.value
+                        : fragment.text.replace(/^[@#]/, '')}
+                  </span>
+                  <X size={14} aria-hidden />
                 </button>
               </span>
             ))}
           </div>
           {raw ? (
             <>
-              <p className="muted task-quickline__title">
-                Название: {draft.title || 'Укажите название'}
-              </p>
-              <VisibilityPicker
-                value={who}
-                onChange={setVisibility}
-                options={
-                  householdId
-                    ? me.roles.find((role) => role.householdId === householdId)?.role === 'child'
-                      ? ['personal', 'household']
-                      : undefined
-                    : ['personal']
-                }
-              />
+              <div className="quickline-result" aria-live="polite">
+                <span className="muted">Получится</span>
+                <strong>{draft.title || 'Укажите название'}</strong>
+                <span>
+                  {draft.planOn ? formatDateOnly(draft.planOn) : 'Без даты'}
+                  {draft.planTime ? `, ${draft.planTime}` : ''}
+                  {draft.assigneeId
+                    ? ` · исполнитель ${draft.assigneeId === me.id ? me.displayName : (members.data?.find((person) => person.accountId === draft.assigneeId)?.displayName ?? 'участник дома')}`
+                    : ''}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="quickline-visibility"
+                onClick={() => setChoosingVisibility(true)}
+              >
+                Кто видит: {VISIBILITY_LABELS[who]}
+              </button>
+              <Sheet
+                open={choosingVisibility}
+                onOpenChange={setChoosingVisibility}
+                title="Кто видит дело"
+                description="Выберите доступ перед добавлением дела"
+              >
+                <VisibilityPicker
+                  value={who}
+                  onChange={(value) => {
+                    setVisibility(value);
+                    setChoosingVisibility(false);
+                  }}
+                  options={
+                    householdId
+                      ? me.roles.find((role) => role.householdId === householdId)?.role === 'child'
+                        ? ['personal', 'household']
+                        : undefined
+                      : ['personal']
+                  }
+                />
+              </Sheet>
             </>
           ) : null}
           <button type="submit" className="btn btn--primary" disabled={!draft.title}>
@@ -203,45 +218,6 @@ export function Quickline({
         >
           Загрузить ещё объекты для #
         </button>
-      ) : null}
-      {editing ? (
-        <Sheet
-          open
-          onOpenChange={(open) => {
-            if (!open) setEditing(null);
-          }}
-          title={`Править чип: ${labels[editing]}`}
-          description="Значение изменится до сохранения дела."
-        >
-          {editing === 'date' || editing === 'time' ? (
-            <TextField
-              label={labels[editing]}
-              type={editing === 'date' ? 'date' : 'time'}
-              value={String(
-                overrides[editing] ??
-                  draft.fragments.find((fragment) => fragment.kind === editing)?.value ??
-                  '',
-              )}
-              onChange={(value) => setOverrides((current) => ({ ...current, [editing]: value }))}
-            />
-          ) : editing === 'assignee' ? (
-            <MemberPicker
-              householdId={householdId}
-              value={draft.assigneeId ?? me.id}
-              onChange={(value) => setOverrides((current) => ({ ...current, assignee: value }))}
-            />
-          ) : (
-            <RecordPicker
-              kind="object"
-              label="Объект"
-              value={draft.objectId ?? ''}
-              onChange={(value) => setOverrides((current) => ({ ...current, object: value }))}
-            />
-          )}
-          <button type="button" className="btn btn--primary" onClick={() => setEditing(null)}>
-            Готово
-          </button>
-        </Sheet>
       ) : null}
     </Section>
   );

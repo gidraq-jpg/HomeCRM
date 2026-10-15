@@ -8,6 +8,8 @@ import type { ObjectCard } from './api.ts';
 export interface ObjectContext {
   card: ObjectCard;
   abilities: ObjectAbilities;
+  panel: 'edit' | 'more' | null;
+  setPanel: (panel: 'edit' | 'more' | null) => void;
 }
 
 export function useObjectContext(): ObjectContext {

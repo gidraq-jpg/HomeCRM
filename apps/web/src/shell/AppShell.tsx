@@ -2,8 +2,10 @@ import { Plus } from '@phosphor-icons/react';
 import { type ReactNode, useEffect } from 'react';
 import { useLocation } from 'react-router';
 import { ToastRegion } from '../ui/Toast.tsx';
+import { AddActionContext } from './AddAction.tsx';
 import { BottomNav, type ShellSection } from './BottomNav.tsx';
 import { SideNav } from './SideNav.tsx';
+import { isStudio } from './studio.ts';
 import { TopBar } from './TopBar.tsx';
 import { useKeyboardAttribute } from './useKeyboardAttribute.ts';
 
@@ -40,24 +42,28 @@ export function AppShell({
   }, [pathname]);
 
   return (
-    <div className="app">
-      <SideNav sections={sections} />
-      <div className="app__content">
-        <TopBar scopeVisible={scopeVisible} />
-        <main className="main" id="main">
-          {children}
-        </main>
+    <AddActionContext.Provider value={onAdd}>
+      <div className="app">
+        <SideNav sections={sections} />
+        <div className="app__content">
+          <TopBar scopeVisible={scopeVisible} />
+          <main className="main" id="main">
+            {children}
+          </main>
+        </div>
+        <div className="chrome">
+          <aside className="chrome__actions" aria-label="Быстрые действия">
+            <ToastRegion />
+            {!isStudio() ? (
+              <button type="button" className="fab" aria-label="Добавить" onClick={onAdd}>
+                <Plus size={28} weight="bold" aria-hidden />
+              </button>
+            ) : null}
+          </aside>
+          <BottomNav sections={sections} />
+        </div>
+        {overlays}
       </div>
-      <div className="chrome">
-        <aside className="chrome__actions" aria-label="Быстрые действия">
-          <ToastRegion />
-          <button type="button" className="fab" aria-label="Добавить" onClick={onAdd}>
-            <Plus size={28} weight="bold" aria-hidden />
-          </button>
-        </aside>
-        <BottomNav sections={sections} />
-      </div>
-      {overlays}
-    </div>
+    </AddActionContext.Provider>
   );
 }

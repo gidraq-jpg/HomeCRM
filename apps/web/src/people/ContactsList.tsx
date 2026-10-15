@@ -1,8 +1,6 @@
-import { AddressBook, Plus, User } from '@phosphor-icons/react';
+import { AddressBook, Plus } from '@phosphor-icons/react';
 import { useDeferredValue, useId, useState } from 'react';
 import { Link } from 'react-router';
-import { useScope } from '../access/ScopeContext.tsx';
-import { SCOPE_LABELS } from '../access/scope.ts';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { viewerOf, visibilityOf } from '../notes/abilities.ts';
@@ -11,10 +9,10 @@ import { creatableOrganizationVisibilities } from '../organizations/abilities.ts
 import { useCanCreateOrganization } from '../organizations/CreateOrganization.tsx';
 import { ORGANIZATION_TYPE_LABELS } from '../organizations/form.ts';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
-import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
+import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
 import type { ContactFilters, PersonCategory } from './api.ts';
-import { CATEGORY_FILTER_LABELS, categoriesLabel, contactCount } from './labels.ts';
+import { CATEGORY_FILTER_LABELS, categoriesLabel } from './labels.ts';
 import { useContactsList } from './queries.ts';
 import type { AnyContact } from './schema.ts';
 
@@ -70,7 +68,8 @@ function ContactRow({ contact }: { contact: AnyContact }) {
   return (
     <Row
       to={`/people/contacts/${contact.id}`}
-      icon={<User size={22} aria-hidden />}
+      icon={<span aria-hidden>{contact.title.slice(0, 1).toLocaleUpperCase('ru')}</span>}
+      iconTone="person"
       title={contact.title}
       meta={meta}
       badge={visibility}
@@ -84,7 +83,6 @@ function ContactRow({ contact }: { contact: AnyContact }) {
  */
 export function ContactsList() {
   const { me, householdId } = useHousehold();
-  const { scope, setScope } = useScope();
   const [choice, setChoice] = useState<Choice>('all');
   const [text, setText] = useState('');
   const deferred = useDeferredValue(text);
@@ -99,12 +97,6 @@ export function ContactsList() {
 
   const add = (
     <div className="btn-row">
-      {canCreatePerson ? (
-        <Link className="btn btn--primary" to={NEW_PERSON}>
-          <Plus size={20} weight="bold" aria-hidden />
-          Добавить человека
-        </Link>
-      ) : null}
       {canCreatePerson ? (
         <Link className="btn btn--secondary" to="/people/import">
           Импорт из файла
@@ -125,7 +117,11 @@ export function ContactsList() {
         <h2 className="section__title" id={`${searchId}-title`}>
           Контакты
         </h2>
-        {items.length > 0 ? <span className="muted">{contactCount(items.length)}</span> : null}
+        {canCreatePerson ? (
+          <Link className="icon-button" to={NEW_PERSON} aria-label="Добавить человека">
+            <Plus size={22} aria-hidden />
+          </Link>
+        ) : null}
       </div>
 
       <div className="field">
@@ -160,45 +156,20 @@ export function ContactsList() {
       ) : null}
 
       {query.data && items.length === 0 ? (
-        <EmptyState
-          icon={<AddressBook size={24} aria-hidden />}
-          title={searching ? 'Ничего не нашлось' : 'Контактов пока нет'}
-          actions={
-            <>
-              {searching ? (
-                <button
-                  type="button"
-                  className="btn btn--secondary btn--block"
-                  onClick={() => {
-                    setText('');
-                    setChoice('all');
-                  }}
-                >
-                  Сбросить поиск и фильтр
-                </button>
-              ) : (
-                add
-              )}
-              {scope === 'all' ? null : (
-                <button
-                  type="button"
-                  className="btn btn--secondary btn--block"
-                  onClick={() => setScope('all')}
-                >
-                  Показать «{SCOPE_LABELS.all}»
-                </button>
-              )}
-            </>
-          }
-        >
-          <p>{EMPTY_SCOPE_EXPLANATION[scope]}</p>
-          {searching ? null : (
-            <p>
-              Здесь мастера, врачи, соседи и организации: телефон под рукой, звонок в одно касание.
-              Личные контакты видите только вы, а мастеров по умолчанию видит вся семья.
-            </p>
-          )}
-        </EmptyState>
+        <CompactEmptyState title={searching ? 'Ничего не нашлось' : 'Контактов пока нет'}>
+          {searching ? (
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setText('');
+                setChoice('all');
+              }}
+            >
+              Сбросить поиск и фильтр
+            </button>
+          ) : null}
+        </CompactEmptyState>
       ) : null}
 
       {items.length > 0 ? (

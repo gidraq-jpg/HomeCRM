@@ -48,7 +48,7 @@
 }
 
 .expiry-note__title {
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
 }
 
 /* Предупреждения документа: правка в карточке (DOC-3) */

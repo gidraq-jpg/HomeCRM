@@ -1,5 +1,5 @@
 import { canWrite, canWriteLink, type RecordFacts } from '@homecrm/shared';
-import { AddressBook, Check, Plus, User } from '@phosphor-icons/react';
+import { AddressBook, Check, Plus, User, X } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
 import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
@@ -67,7 +67,8 @@ function PersonItem({
       {canRemove ? (
         <button
           type="button"
-          className="btn btn--secondary"
+          className="icon-button"
+          aria-label="Убрать связь"
           disabled={state.disabled}
           onClick={() =>
             void state.run(async () => {
@@ -88,7 +89,7 @@ function PersonItem({
             })
           }
         >
-          {state.pending ? 'Убираем…' : 'Убрать связь'}
+          <X size={18} aria-hidden />
         </button>
       ) : null}
       <ObjectError error={state.error} action="link" />
@@ -280,7 +281,7 @@ function LinkContactSheet({
 /** Блок «Люди и организации» карточки объекта: связанные люди и организации с подписью роли. */
 export function PeopleBlock({ card }: { card: ObjectCard }) {
   const { me } = useHousehold();
-  const [open, setOpen] = useState<'organization' | 'person' | null>(null);
+  const [open, setOpen] = useState<'choose' | 'organization' | 'person' | null>(null);
   const viewer = viewerOf(me);
   const objectFacts = factsOf(card, viewer, 'object');
   const items = card.peopleAndOrganizations;
@@ -305,13 +306,19 @@ export function PeopleBlock({ card }: { card: ObjectCard }) {
         <h2 className="section__title" id={`people-${card.id}`}>
           Люди и организации
         </h2>
-        {items.length > 0 ? <span className="muted">{items.length}</span> : null}
+        {canLink ? (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Связать с человеком или организацией"
+            onClick={() => setOpen('choose')}
+          >
+            <Plus size={20} aria-hidden />
+          </button>
+        ) : null}
       </div>
       {items.length === 0 ? (
-        <p className="muted">
-          Пока никого нет. Свяжите, например, управляющую компанию, аварийную службу или мастера: их
-          телефоны будут под рукой.
-        </p>
+        <p className="muted">Пока никого нет</p>
       ) : (
         <RowList label="Люди и организации">
           {items.map((item) => (
@@ -319,8 +326,15 @@ export function PeopleBlock({ card }: { card: ObjectCard }) {
           ))}
         </RowList>
       )}
-      {canLink ? (
-        <>
+      {canLink && open === 'choose' ? (
+        <Sheet
+          open
+          onOpenChange={(next) => {
+            if (!next) setOpen(null);
+          }}
+          title="Связать"
+          description="Выберите вид контакта"
+        >
           <button
             type="button"
             className="btn btn--secondary btn--block list-action"
@@ -337,9 +351,9 @@ export function PeopleBlock({ card }: { card: ObjectCard }) {
             <Plus size={20} weight="bold" aria-hidden />
             Связать с человеком…
           </button>
-        </>
+        </Sheet>
       ) : null}
-      {open ? (
+      {open && open !== 'choose' ? (
         <LinkContactSheet
           kind={open}
           card={card}

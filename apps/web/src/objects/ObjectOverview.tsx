@@ -1,7 +1,6 @@
 import { ArrowCounterClockwise, Gauge, PencilSimple, Trash } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
 import { DeadlinesSection } from '../deadlines/DeadlinesSection.tsx';
@@ -12,6 +11,7 @@ import { factsOf, newPlacement, viewerOf, visibilityOf } from '../notes/abilitie
 import { PropertyFacts } from '../property/PropertyFacts.tsx';
 import { propertyDraft } from '../property/property.ts';
 import { ResponsibleField } from '../tasks/ResponsibleField.tsx';
+import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { ObjectAnalytics } from '../utilities/ObjectAnalytics.tsx';
 import { assigneeChoices, creatableObjectVisibilities } from './abilities.ts';
@@ -20,8 +20,8 @@ import { ObjectError } from './components.tsx';
 import { useObjectContext, usePersonName } from './context.ts';
 import { isStaleVersion } from './errors.ts';
 import { fromCard, withoutIds } from './fields.ts';
-import { ObjectAccess } from './ObjectAccess.tsx';
 import { ObjectForm, type ObjectValues } from './ObjectForm.tsx';
+import { ObjectSummaryLists } from './ObjectSummaryLists.tsx';
 import { PeopleBlock } from './PeopleBlock.tsx';
 import { useRefreshObjects } from './queries.ts';
 import { OBJECT_TYPE_LABELS } from './types.ts';
@@ -37,7 +37,7 @@ function copyTitle(title: string): string {
 
 /** «Обзор»: тип, свои поля, автор, ответственный, «Кто видит», связи, правка и корзина. */
 export function ObjectOverview() {
-  const { card, abilities } = useObjectContext();
+  const { card, abilities, panel, setPanel } = useObjectContext();
   const { me, householdId } = useHousehold();
   const navigate = useNavigate();
   const toast = useToast();
@@ -46,8 +46,10 @@ export function ObjectOverview() {
   const nameOf = usePersonName();
   const quick = useAction();
   const save = useAction();
-  const [editing, setEditing] = useState(false);
+  const editing = panel === 'edit';
+  const setEditing = (value: boolean) => setPanel(value ? 'edit' : null);
   const [conflict, setConflict] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const viewer = viewerOf(me);
   const visibility = visibilityOf(card);
@@ -182,10 +184,6 @@ export function ObjectOverview() {
 
   return (
     <>
-      <p className="property-meta">
-        <AccessBadge visibility={visibility} showLabel />
-      </p>
-
       {trashed ? (
         <Notice>
           <strong>Объект в корзине.</strong>{' '}
@@ -195,124 +193,144 @@ export function ObjectOverview() {
         </Notice>
       ) : null}
 
-      <dl className="facts">
-        <div className="facts__item">
-          <dt>Тип</dt>
-          <dd>{OBJECT_TYPE_LABELS[card.objectType]}</dd>
-        </div>
-        {card.objectType === 'property' ? <PropertyFacts data={card.typeData} /> : null}
-        <div className="facts__item">
-          <dt>Ответственный</dt>
-          <dd>{nameOf(card.assigneeId ?? card.authorId)}</dd>
-        </div>
-        <div className="facts__item">
-          <dt>Автор</dt>
-          <dd>{nameOf(card.authorId)}</dd>
-        </div>
-        <div className="facts__item">
-          <dt>Создан</dt>
-          <dd>{formatDay(card.createdAt, me.timeZone)}</dd>
-        </div>
-        <div className="facts__item">
-          <dt>Изменён</dt>
-          <dd>{formatMoment(card.updatedAt, me.timeZone)}</dd>
-        </div>
-      </dl>
+      {!trashed ? <PeopleBlock card={card} /> : null}
+      {!trashed ? <ObjectSummaryLists card={card} /> : null}
+      <details
+        className="object-details"
+        open={detailsOpen}
+        onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
+      >
+        <summary>Об объекте и свои поля</summary>
+        <dl className="facts">
+          <div className="facts__item">
+            <dt>Тип</dt>
+            <dd>{OBJECT_TYPE_LABELS[card.objectType]}</dd>
+          </div>
+          {card.objectType === 'property' ? <PropertyFacts data={card.typeData} /> : null}
+          <div className="facts__item">
+            <dt>Ответственный</dt>
+            <dd>{nameOf(card.assigneeId ?? card.authorId)}</dd>
+          </div>
+          <div className="facts__item">
+            <dt>Автор</dt>
+            <dd>{nameOf(card.authorId)}</dd>
+          </div>
+          <div className="facts__item">
+            <dt>Создан</dt>
+            <dd>{formatDay(card.createdAt, me.timeZone)}</dd>
+          </div>
+          <div className="facts__item">
+            <dt>Изменён</dt>
+            <dd>{formatMoment(card.updatedAt, me.timeZone)}</dd>
+          </div>
+        </dl>
 
-      <section className="section" aria-labelledby={`fields-${card.id}`}>
-        <div className="section__head">
-          <h2 className="section__title" id={`fields-${card.id}`}>
-            Свои поля
-          </h2>
-          {fields.length > 0 ? <span className="muted">{fields.length}</span> : null}
-        </div>
-        {fields.length === 0 ? (
-          <p className="muted">
-            Своих полей пока нет.
-            {abilities.edit && !trashed
-              ? ' Нажмите «Править», чтобы добавить, например, «Площадь — 54 м²».'
-              : ''}
-          </p>
-        ) : (
-          <dl className="facts facts--fields">
-            {fields.map((field) => (
-              <div className="facts__item" key={field.key}>
-                <dt>{field.name}</dt>
-                <dd>{field.value === '' ? '—' : field.value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      </section>
+        <section className="section" aria-labelledby={`fields-${card.id}`}>
+          <div className="section__head">
+            <h2 className="section__title" id={`fields-${card.id}`}>
+              Свои поля
+            </h2>
+            {fields.length > 0 ? <span className="muted">{fields.length}</span> : null}
+          </div>
+          {fields.length === 0 ? (
+            <p className="muted">
+              Своих полей пока нет.
+              {abilities.edit && !trashed
+                ? ' Нажмите «Править», чтобы добавить, например, «Площадь — 54 м²».'
+                : ''}
+            </p>
+          ) : (
+            <dl className="facts facts--fields">
+              {fields.map((field) => (
+                <div className="facts__item" key={field.key}>
+                  <dt>{field.name}</dt>
+                  <dd>{field.value === '' ? '—' : field.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </section>
+
+        {!trashed && card.objectType === 'property' ? (
+          <Link
+            className="btn btn--secondary btn--block list-action"
+            to={`/home/${card.id}/readings`}
+          >
+            <Gauge size={20} aria-hidden />
+            Показания
+          </Link>
+        ) : null}
+      </details>
+
+      {!trashed ? <DeadlinesSection source="objects" card={card} compact /> : null}
 
       {!trashed && card.objectType === 'property' ? (
-        <Link
-          className="btn btn--secondary btn--block list-action"
-          to={`/home/${card.id}/readings`}
-        >
-          <Gauge size={20} aria-hidden />
-          Показания
-        </Link>
+        <details className="object-details">
+          <summary>Аналитика объекта</summary>
+          <ObjectAnalytics objectId={card.id} />
+        </details>
       ) : null}
-
-      {!trashed ? <PeopleBlock card={card} /> : null}
-
-      {!trashed ? (
-        <ResponsibleField
-          kind="objects"
-          key={card.id}
-          householdId={card.spaceKind === 'household' ? card.spaceId : null}
-          id={card.id}
-          assigneeId={card.assigneeId}
-          canEdit={abilities.edit}
-        />
-      ) : null}
-      {!trashed ? <DeadlinesSection source="objects" card={card} /> : null}
-
-      {!trashed && card.objectType === 'property' ? <ObjectAnalytics objectId={card.id} /> : null}
 
       <LinksSection
+        compact
         record={{ type: 'object', id: card.id }}
         facts={factsOf(card, viewer, 'object')}
       />
 
-      <ObjectError error={quick.error} action={trashed ? 'restore' : 'trash'} />
-      {!trashed ? (
-        <div className="btn-row">
-          {abilities.edit ? (
-            <button type="button" className="btn btn--primary" onClick={() => setEditing(true)}>
-              <PencilSimple size={20} aria-hidden />
-              Править
-            </button>
-          ) : (
-            <p className="muted">Этот объект могут править только взрослые участники дома.</p>
-          )}
-          {abilities.trash ? (
+      <Sheet
+        open={panel === 'more'}
+        onOpenChange={(open) => {
+          if (!open) setPanel(null);
+        }}
+        title="Ещё"
+        description="Действия с объектом"
+      >
+        {!trashed ? (
+          <ResponsibleField
+            kind="objects"
+            key={card.id}
+            householdId={card.spaceKind === 'household' ? card.spaceId : null}
+            id={card.id}
+            assigneeId={card.assigneeId}
+            canEdit={abilities.edit}
+          />
+        ) : null}
+        <ObjectError error={quick.error} action={trashed ? 'restore' : 'trash'} />
+        {!trashed ? (
+          <div className="btn-row">
+            {abilities.edit ? (
+              <button type="button" className="btn btn--primary" onClick={() => setEditing(true)}>
+                <PencilSimple size={20} aria-hidden />
+                Править
+              </button>
+            ) : (
+              <p className="muted">Этот объект могут править только взрослые участники дома.</p>
+            )}
+            {abilities.trash ? (
+              <button
+                type="button"
+                className="btn btn--secondary"
+                disabled={quick.disabled}
+                onClick={trash}
+              >
+                <Trash size={20} aria-hidden />В корзину
+              </button>
+            ) : null}
+          </div>
+        ) : abilities.restore ? (
+          <div className="btn-row">
             <button
               type="button"
-              className="btn btn--secondary"
+              className="btn btn--primary"
               disabled={quick.disabled}
-              onClick={trash}
+              onClick={restore}
             >
-              <Trash size={20} aria-hidden />В корзину
+              <ArrowCounterClockwise size={20} aria-hidden />
+              Восстановить
             </button>
-          ) : null}
-        </div>
-      ) : abilities.restore ? (
-        <div className="btn-row">
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={quick.disabled}
-            onClick={restore}
-          >
-            <ArrowCounterClockwise size={20} aria-hidden />
-            Восстановить
-          </button>
-        </div>
-      ) : null}
-
-      {!trashed ? <ObjectAccess card={card} abilities={abilities} /> : null}
+          </div>
+        ) : null}
+      </Sheet>
     </>
   );
 }

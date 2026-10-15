@@ -9,6 +9,16 @@ interface EmptyStateProps {
   actions?: ReactNode;
 }
 
+/** Studio 2: пустой список занимает одну строку; добавление остаётся в заголовке. */
+export function CompactEmptyState({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <section className="studio-empty" aria-label={title}>
+      <h2 className="studio-empty__title">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 export function EmptyState({ icon, title, children, actions }: EmptyStateProps) {
   return (
     <section className="empty-state" aria-label={title}>

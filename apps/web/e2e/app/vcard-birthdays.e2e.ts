@@ -1,4 +1,5 @@
 import { test } from '../auth/support/fixtures.ts';
+import { setScope } from '../support/helpers.ts';
 import { homeDate, openRadar, recalc, setHomeZone } from './deadlines-support.ts';
 import { seedDocument } from './documents-support.ts';
 import { makePng } from './files-support.ts';
@@ -443,11 +444,11 @@ test('остаток начисления и отмена ровно по paymen
   const objects = page.getByRole('list', { name: 'Объекты за месяц' });
   await expect(objects).toContainText('Общая Квартира');
   await expect(objects).toContainText('Личная Квартира');
-  await page.getByRole('radio', { name: 'Личное', exact: true }).check();
+  await setScope(page, 'Личное');
   await expect(objects).not.toContainText('Общая Квартира');
   await expect(objects).toContainText('Личная Квартира');
   await checkApp(page, info, 'r1b4b-month-personal');
-  await page.getByRole('radio', { name: 'Общее', exact: true }).check();
+  await setScope(page, 'Общее');
   await expect(objects).toContainText('Общая Квартира');
   await expect(objects).not.toContainText('Личная Квартира');
   await checkApp(page, info, 'r1b4b-month-shared');

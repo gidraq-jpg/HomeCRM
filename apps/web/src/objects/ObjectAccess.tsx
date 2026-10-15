@@ -29,7 +29,15 @@ type SheetName = 'share' | 'audience' | 'personal';
 
 const SHARE_OPTIONS: readonly Visibility[] = ['adults', 'household'];
 
-function ShareSheet({ card, onClose }: { card: ObjectCard; onClose: () => void }) {
+function ShareSheet({
+  card,
+  onClose,
+  onSuccess,
+}: {
+  card: ObjectCard;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
   const { householdId } = useHousehold();
   const { scope, setScope } = useScope();
   const refresh = useRefreshObjects();
@@ -66,7 +74,7 @@ function ShareSheet({ card, onClose }: { card: ObjectCard; onClose: () => void }
             await shareObject(card.id, householdId, choice);
             await refresh();
             toast.show(accessToast('Объект стал общим', choice, scope, () => setScope('all')));
-            onClose();
+            onSuccess();
           })
         }
       >
@@ -79,7 +87,15 @@ function ShareSheet({ card, onClose }: { card: ObjectCard; onClose: () => void }
   );
 }
 
-function AudienceSheet({ card, onClose }: { card: ObjectCard; onClose: () => void }) {
+function AudienceSheet({
+  card,
+  onClose,
+  onSuccess,
+}: {
+  card: ObjectCard;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
   const { scope, setScope } = useScope();
   const refresh = useRefreshObjects();
   const toast = useToast();
@@ -142,7 +158,7 @@ function AudienceSheet({ card, onClose }: { card: ObjectCard; onClose: () => voi
                 () => setScope('all'),
               ),
             );
-            onClose();
+            onSuccess();
           })
         }
       >
@@ -159,10 +175,12 @@ function PersonalSheet({
   card,
   people,
   onClose,
+  onSuccess,
 }: {
   card: ObjectCard;
   people: readonly { displayName: string }[] | undefined;
   onClose: () => void;
+  onSuccess: () => void;
 }) {
   const { scope, setScope } = useScope();
   const refresh = useRefreshObjects();
@@ -197,7 +215,7 @@ function PersonalSheet({
             await makeObjectPersonal(card.id);
             await refresh();
             toast.show(accessToast('Объект стал личным', 'personal', scope, () => setScope('all')));
-            onClose();
+            onSuccess();
           })
         }
       >
@@ -213,13 +231,14 @@ function PersonalSheet({
 interface ObjectAccessProps {
   card: ObjectCard;
   abilities: ObjectAbilities;
+  onComplete?: () => void;
 }
 
 /**
  * «Кто видит» в карточке и действия по правилам 7.3 (SPACE-7). Недоступное действие не
  * показывается; если «Сделать личным…» закрыто чужим вкладом, сказано почему.
  */
-export function ObjectAccess({ card, abilities }: ObjectAccessProps) {
+export function ObjectAccess({ card, abilities, onComplete }: ObjectAccessProps) {
   const [sheet, setSheet] = useState<SheetName | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
@@ -228,6 +247,10 @@ export function ObjectAccess({ card, abilities }: ObjectAccessProps) {
   const probe = useObjectMakePersonalProbe(card.id, card.updatedAt, abilities.makePersonal);
   const visibility = visibilityOf(card);
   const close = () => setSheet(null);
+  const complete = () => {
+    close();
+    onComplete?.();
+  };
 
   const showMakePersonal = abilities.makePersonal && !probe.pending && !probe.blocked;
   const blocked = abilities.makePersonal && probe.blocked;
@@ -285,6 +308,7 @@ export function ObjectAccess({ card, abilities }: ObjectAccessProps) {
                   void copying.run(async () => {
                     const copy = await copyObjectToPersonal(card.id);
                     await refresh();
+                    onComplete?.();
                     toast.show({
                       message: 'Копия сохранена в личном',
                       detail: 'Кто видит копию: только вы',
@@ -304,10 +328,17 @@ export function ObjectAccess({ card, abilities }: ObjectAccessProps) {
         ) : null}
         <ObjectError error={copying.error} action="copy" />
       </div>
-      {sheet === 'share' ? <ShareSheet card={card} onClose={close} /> : null}
-      {sheet === 'audience' ? <AudienceSheet card={card} onClose={close} /> : null}
+      {sheet === 'share' ? <ShareSheet card={card} onClose={close} onSuccess={complete} /> : null}
+      {sheet === 'audience' ? (
+        <AudienceSheet card={card} onClose={close} onSuccess={complete} />
+      ) : null}
       {sheet === 'personal' ? (
-        <PersonalSheet card={card} people={probe.preview?.losesAccess} onClose={close} />
+        <PersonalSheet
+          card={card}
+          people={probe.preview?.losesAccess}
+          onClose={close}
+          onSuccess={complete}
+        />
       ) : null}
     </>
   );

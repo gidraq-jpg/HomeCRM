@@ -11,7 +11,7 @@
   margin-bottom: 48px;
   color: var(--green);
   font-size: 1.3rem;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
 }
 .auth-heading {
   margin-bottom: 28px;
@@ -37,7 +37,7 @@
 .auth-field {
   display: grid;
   gap: 8px;
-  font-weight: 600;
+  font-weight: var(--weight-medium, 600);
 }
 .auth-field input,
 .auth-field select,
@@ -180,7 +180,7 @@
 .authenticator h2,
 .recovery-codes h2 {
   font-size: 1.15rem;
-  font-weight: 650;
+  font-weight: var(--weight-medium, 650);
 }
 .authenticator img {
   max-width: 100%;

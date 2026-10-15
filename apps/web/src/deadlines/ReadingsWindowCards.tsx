@@ -49,6 +49,7 @@ function WindowCard({ card }: { card: WindowCardData }) {
         <h3 className="window-card__title">{card.title}</h3>
         {card.status ? <PropertyStatusBadge status={card.status} /> : null}
       </div>
+      <span className="studio-label studio-label--open">Окно открыто</span>
       <p className="window-card__until">{untilText(end, today)}</p>
       {note ? <p className="window-card__note">{note}</p> : null}
       {ready.length > 0 ? (

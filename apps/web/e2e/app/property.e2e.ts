@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
-import { setScope } from '../support/helpers.ts';
+import { openObjectActions, openObjectDetails, setScope } from '../support/helpers.ts';
 import { apiAs, expectNothingStored, objectLinks, openAs, openHome } from './notes-support.ts';
 import {
   openObjectTab,
@@ -70,7 +70,8 @@ test('S1: первая квартира, три лицевых счёта, дв�
   const heading = page.getByRole('heading', { level: 1, name: 'Квартира у парка', exact: true });
   await expect(heading).toBeVisible();
   await expect(page.locator('.page-heading').getByText('Живём')).toBeVisible();
-  await expect(page.getByText(/54,3\s*м²/)).toBeVisible();
+  await expect(page.getByText(/54,3\s*м²/).first()).toBeVisible();
+  await openObjectDetails(page);
   await expect(page.getByText('66:41:0101001:123')).toBeVisible();
   await checkApp(page, info, 'property-card');
   const objectId = page.url().split('/home/')[1]?.split('/')[0] ?? '';
@@ -167,6 +168,7 @@ test('S1: первая квартира, три лицевых счёта, дв�
     .getByRole('link', { name: 'Обзор' })
     .click();
   await expect(page.getByRole('heading', { level: 2, name: 'Люди и организации' })).toBeVisible();
+  await page.getByRole('button', { name: 'Связать с человеком или организацией' }).click();
   await page.getByRole('button', { name: 'Связать с организацией…' }).click();
   const linkDialog = page.getByRole('dialog', { name: 'Связать с организацией' });
   await expect(linkDialog.getByRole('button', { name: 'Связать', exact: true })).toBeDisabled();
@@ -250,7 +252,8 @@ test('недвижимость: статус рядом с названием в
 
   await row.click();
   await expect(page.locator('.page-heading').getByText('Сдаётся')).toBeVisible();
-  await expect(page.getByText(/57,31\s*м²/)).toBeVisible();
+  await expect(page.getByText(/57,31\s*м²/).first()).toBeVisible();
+  await openObjectDetails(page);
   await expect(page.getByText('Квартира', { exact: true })).toBeVisible();
 
   // Правка: статус и площадь; остальное сохраняется.
@@ -262,7 +265,7 @@ test('недвижимость: статус рядом с названием в
   await objectForm(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Объект сохранён');
   await expect(page.locator('.page-heading').getByText('Пустует')).toBeVisible();
-  await expect(page.getByText(/60,5\s*м²/)).toBeVisible();
+  await expect(page.getByText(/60,5\s*м²/).first()).toBeVisible();
 
   const stored = await family.database.admin.query('SELECT type_data FROM objects WHERE id = $1', [
     object.id,
@@ -476,6 +479,7 @@ test('организации: только название, правка, ко�
   await expect(page.getByRole('list', { name: 'Телефоны' })).not.toContainText('Аварийный');
 
   // Корзина с отменой 7 секунд.
+  await openObjectActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
   await expect(toast(page)).toContainText('Организация в корзине');
   await toast(page).getByRole('button', { name: 'Отменить' }).click();
@@ -484,6 +488,7 @@ test('организации: только название, правка, ко�
   await expect(page.getByRole('link', { name: /Вымышленная школа/ })).toBeVisible();
 
   await page.getByRole('link', { name: /Вымышленная школа/ }).click();
+  await openObjectActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
   await expect(page.getByRole('region', { name: 'Организаций пока нет' })).toBeVisible();
   await page.goto('#/more/trash');
@@ -541,6 +546,7 @@ test('лицевой счёт: корзина с отменой, «Корзин�
     .getByRole('navigation', { name: 'Разделы объекта' })
     .getByRole('link', { name: 'Обзор' })
     .click();
+  await openObjectActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Дом', exact: true })).toBeVisible();
 

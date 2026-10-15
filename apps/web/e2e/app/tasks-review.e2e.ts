@@ -11,6 +11,8 @@ import {
   expectAccessible,
   expectNoHorizontalScroll,
   expectTouchTargets,
+  openObjectActions,
+  openQuick,
 } from '../support/helpers.ts';
 import { seedDeadline } from './deadlines-support.ts';
 import { seedDocument } from './documents-support.ts';
@@ -190,12 +192,12 @@ test('B1: быстрая строка, чипы и задержанный отв
   family,
 }, info) => {
   await signInAs(page, family, 'adult');
+  await openQuick(page);
   await page.getByLabel('Быстрая строка').fill('Личный текст A завтра в 10:00');
   await refocus(page);
   await expect(page.getByLabel('Быстрая строка')).toHaveValue('Личный текст A завтра в 10:00');
-  await page.getByRole('button', { name: /Дата:/ }).click();
+  await page.getByRole('button', { name: 'Снять чип: Время' }).click();
   await check(page, info, 'b1-quickline-chip');
-  await page.getByRole('button', { name: 'Готово', exact: true }).click();
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -213,6 +215,7 @@ test('B1: быстрая строка, чипы и задержанный отв
     await page.getByRole('button', { name: 'Добавить дело', exact: true }).click();
     await expect.poll(() => oldFinished).toBe(true);
     await switchToChild(page, family);
+    await openQuick(page);
     await expect(page.getByLabel('Быстрая строка')).toHaveValue('');
     const late = page.waitForResponse(
       (response) =>
@@ -384,7 +387,10 @@ test('B4: объект, документ и ручной срок H2 испол�
     [`/documents/${doc.id}`, `documents/${doc.id}`],
   ]) {
     await page.goto(`#${path}`);
-    const field = page.locator('.task-responsible').first();
+    if (endpoint?.startsWith('objects')) await openObjectActions(page);
+    const field = endpoint?.startsWith('objects')
+      ? page.getByRole('dialog', { name: 'Ещё', exact: true }).locator('.task-responsible')
+      : page.locator('.task-responsible').first();
     await expect(field.getByLabel('Ответственный')).toBeVisible();
     await expect(field.locator('option', { hasText: 'Участник второго дома' })).toHaveCount(1);
     await expect(field.locator(`option[value="${family.person('admin').id}"]`)).toHaveCount(0);
@@ -395,6 +401,7 @@ test('B4: объект, документ и ручной срок H2 испол�
       .toMatchObject({ assigneeId: member.id });
     await expect(field.getByRole('button', { name: 'Сменить ответственного' })).toBeDisabled();
     await check(page, info, endpoint?.startsWith('objects') ? 'b4-object-h2' : 'b4-document-h2');
+    if (endpoint?.startsWith('objects')) await page.keyboard.press('Escape');
   }
   await api.post(`deadlines/${deadline}/assignee`, { assigneeId: family.person('adult').id });
   await page.goto(`#/home/${object.id}`);
@@ -581,16 +588,19 @@ test('A5: быстрый ввод двух домов в разных пояса
       timeZone: string;
     };
     expect(context.timeZone).toBe(zone);
+    await openQuick(page);
     await expect(page.getByLabel('Быстрая строка')).toHaveValue('');
     await page.getByLabel('Быстрая строка').fill('Позвонить завтра в 10:00');
-    await page.getByRole('button', { name: /Дата:/ }).click();
-    await expect(page.getByRole('dialog').getByLabel('Дата', { exact: true })).toHaveValue(
-      shiftTaskDate(context.today, 1),
+    await expect(page.getByRole('button', { name: 'Снять чип: Дата' })).toContainText(
+      new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
+        new Date(`${shiftTaskDate(context.today, 1)}T12:00:00Z`),
+      ),
     );
-    await page.getByRole('button', { name: 'Готово', exact: true }).click();
     await check(page, info, house === second ? 'a5-second-zone' : 'a5-first-zone');
+    await page.keyboard.press('Escape');
   }
   await page.getByLabel('Выбранный дом').selectOption(second);
+  await openQuick(page);
   await page.getByLabel('Быстрая строка').fill('Сохранить завтра в 10:00');
   await page.getByRole('button', { name: 'Добавить дело', exact: true }).click();
   await expect(page).toHaveURL(/tasks\/[a-f0-9-]+$/);

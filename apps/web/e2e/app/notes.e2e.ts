@@ -43,7 +43,7 @@ test('пустой раздел объясняет разницу личного
   await setScope(page, 'Общее');
   await expect(empty).toContainText('Здесь только общие записи дома');
   await empty.getByRole('button', { name: 'Показать «Всё»' }).click();
-  await expect(page.getByRole('radio', { name: 'Всё', exact: true })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
   await empty.getByRole('link', { name: 'Записать заметку' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Новая заметка' })).toBeVisible();
 });
@@ -224,7 +224,7 @@ test('режим «Общее» создаёт общую заметку; реб
   await form(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Режим «Личное» её не показывает');
   await toast(page).getByRole('button', { name: 'Показать всё' }).click();
-  await expect(page.getByRole('radio', { name: 'Всё', exact: true })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
 
   // Ребёнок: общие заметки создают взрослые (PRD 6.2), поэтому остаётся одно значение.
   const vera = await openAs(browser, family, info, 'child');
