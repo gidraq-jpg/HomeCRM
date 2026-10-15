@@ -53,6 +53,7 @@ Ignored stdout/list/exit: `test-results/d7/final.log`, `final-list.log`, `final-
 
 Использованы собственные `homecrm-test-d7-*` контейнеры/сеть: PG18 tmpfs/random host port, `SHOW max_locks_per_transaction=512`; runner `homecrm-test-ui-1-studio:e2e-linux` (Node24.21.0, pnpm12.9.1, Playwright1.63.0).
 Готовый image `sha256:6e614289891fa119b3066ccf423744fc7ed7bf38327be5d0832af83611172b84`, dist/index.html SHA256 `cfee229f4f2c85875fb9b59c775abaaafcd15a24f00c857e52311dced59ebf5d`, runtime source770 переиспользован без build.
-Новых fullcheck/fullvisual/push/PR пока нет: HOLD до одного свежего ревью/приёмки. После принятия — доставка в existing PR59 одним штатным hook/push по команде ведущего.
+Одно [свежее статическое ревью](d7-push-review.md) exact7ff1d1c завершено: блокеров нет; root принял кандидат и разрешил доставку в existing PR59 одним штатным hook/push.
+Неблокирующее замечание cleanup при закрытом worker передано root в бэклог без расширения кода. Следующий шаг — один pre-push/fullcheck со своим PG; фактические SHA/counts/CI будут в PR59 и отчёте ведущему. Fullvisual, target14 и build не повторяются.
 Реальные Android/PWA/push и полный CI здесь не проверены; рабочее окружение, owner data, 8300/8301/8309 и чужие worktree не затронуты.
 Собственные временные D7 runner/PG и сеть удалены после финальной проверки; выборки контейнеров/сетей homecrm-test-d7 пустые.
