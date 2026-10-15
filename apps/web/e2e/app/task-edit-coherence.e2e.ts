@@ -126,8 +126,7 @@ test('TASK-5: быстрый Edit после PATCH получает точный
   await signInAs(page, family, 'adult');
   await page.goto(`#/today/tasks/${row.id}`);
   await expect(page.getByRole('heading', { level: 1, name: row.title, exact: true })).toBeVisible();
-  await page.clock.install();
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 10));
+  await page.clock.pauseAt(new Date());
   let release!: () => void;
   const gate = new Promise<void>((ok) => {
     release = ok;
@@ -226,8 +225,7 @@ for (const moment of ['after-unmount', 'after-clear-before-unmount'] as const) {
     await expect(
       page.getByRole('heading', { level: 1, name: row.title, exact: true }),
     ).toBeVisible();
-    await page.clock.install();
-    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 10));
+    await page.clock.pauseAt(new Date());
     try {
       await page.getByRole('button', { name: 'Править дело' }).click();
       await page.getByLabel('Название дела').fill('Первое успешное изменение');
@@ -423,8 +421,7 @@ test('TASK-5: ошибка autosave активной формы видна, сл
   await signInAs(page, family, 'adult');
   await page.goto(`#/today/tasks/${row.id}`);
   await expect(page.getByRole('heading', { level: 1, name: row.title, exact: true })).toBeVisible();
-  await page.clock.install();
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 10));
+  await page.clock.pauseAt(new Date());
   await page.getByRole('button', { name: 'Править дело' }).click();
   await page.getByLabel('Название дела').fill('Ввод остаётся при quota');
   await page.evaluate(() => {

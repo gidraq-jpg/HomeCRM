@@ -28,6 +28,7 @@ export function widthOf(testInfo: TestInfo): number {
 
 /** Нет горизонтальной прокрутки страницы — на 360 px это требование PRD. */
 export async function expectNoHorizontalScroll(page: Page): Promise<void> {
+  await settle(page);
   const overflow = await page.evaluate(() => {
     const root = document.documentElement;
     return { scrollWidth: root.scrollWidth, clientWidth: root.clientWidth };
@@ -69,6 +70,7 @@ export async function expectTouchTargets(page: Page, root = 'body'): Promise<voi
 
 /** axe: серьёзных и критичных замечаний нет; остальные печатаются, чтобы их было видно. */
 export async function expectAccessible(page: Page, label: string): Promise<void> {
+  await settle(page);
   // Одинаковая начальная позиция снимка: липкая шапка не обрезает цели в середине прокрутки.
   await page.evaluate(() => window.scrollTo(0, 0));
   const results = await new AxeBuilder({ page })
@@ -133,6 +135,7 @@ interface CheckOptions {
 /** Ждёт конца анимаций: пока панель выезжает и проявляется, цвета смешаны и контраст не тот. */
 export async function settle(page: Page): Promise<void> {
   await page.evaluate(async () => {
+    await document.fonts.ready;
     await Promise.allSettled(document.getAnimations().map((animation) => animation.finished));
   });
 }

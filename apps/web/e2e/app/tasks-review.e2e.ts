@@ -181,8 +181,11 @@ for (const view of ['all', 'card'] as const) {
       expect(undoRequests).toBe(1);
     } finally {
       release();
-      await page.unroute('**/api/tasks**', routeHandler);
-      await Promise.all([...pendingRouteCallbacks]);
+      try {
+        await Promise.all([...pendingRouteCallbacks]);
+      } finally {
+        await page.unroute('**/api/tasks**', routeHandler);
+      }
     }
   });
 }

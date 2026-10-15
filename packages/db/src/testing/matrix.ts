@@ -536,8 +536,15 @@ export async function runMatrix(
   types: readonly RecordType[] = RECORD_TYPES,
 ): Promise<MatrixReport> {
   if (operation === 'list') return listMismatches(db, family, types);
-  const attempts = attemptsFor(family, operation, types);
-  const results = await runAll(attempts, db, 8);
+  // Каскад родителя и UPDATE его детей не конкурируют за одни строки в разном порядке.
+  // Все попытки и восемь соединений сохранены; последовательно идут только виды корзины.
+  const groups =
+    operation === 'trash' || operation === 'restore'
+      ? types.map((type) => attemptsFor(family, operation, [type]))
+      : [attemptsFor(family, operation, types)];
+  const attempts = groups.flat();
+  const results: boolean[] = [];
+  for (const group of groups) results.push(...(await runAll(group, db, 8)));
   const mismatches = attempts.flatMap((attempt, index) =>
     results[index] === attempt.expected
       ? []

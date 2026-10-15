@@ -4,10 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 # Бесплатный тариф даёт 2000 минут в месяц: устаревшие прогоны отменяются.
 concurrency:
-  group: ci-${{ github.ref }}
+  # Явно запрошенные независимые прогоны не отменяют друг друга.
+  group: ci-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'latest' }}
   cancel-in-progress: true
 
 permissions:

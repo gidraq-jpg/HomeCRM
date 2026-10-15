@@ -99,6 +99,8 @@ async function shell(page: Page) {
   });
 }
 async function queue(page: Page) {
+  // После reload HashRouter должен подписаться на переходы до смены hash.
+  await expect(page.getByRole('navigation', { name: 'Основные разделы' })).toBeVisible();
   await page.goto('#/more/offline');
   await expect(page.getByRole('heading', { level: 1, name: 'Очередь изменений' })).toBeVisible();
 }

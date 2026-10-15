@@ -8,7 +8,7 @@ import {
   RadarResponse,
   shiftTaskDate,
 } from '@homecrm/shared';
-import type { Page, Response, TestInfo } from '@playwright/test';
+import type { APIResponse, Page, Response, TestInfo } from '@playwright/test';
 import { scheduleSummaries } from '../../../server/src/notifications/summaries.ts';
 import { expect, test } from '../auth/support/fixtures.ts';
 import {
@@ -216,6 +216,7 @@ test('смена A → B во время ответа действия очищ�
   });
   await page.route('**/api/deadlines/occurrences/*/action', async (route) => {
     const response = await route.fetch();
+    expect(response.status()).toBe(200);
     started();
     await held;
     await route.fulfill({ response });
@@ -260,7 +261,16 @@ test('смена A → B во время ответа действия очищ�
     expect(RadarResponse.parse(snapshot.data).items).toEqual([]);
   }
   const radarB = page.waitForResponse(defaultRadar);
-  const updated = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/me');
+  // Отменённый focus-refetch может потерять CDP body: сохраняем настоящий ответ сервера.
+  let receivedMe!: (response: APIResponse) => void;
+  const updated = new Promise<APIResponse>((resolve) => {
+    receivedMe = resolve;
+  });
+  await page.route('**/api/me', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response });
+    receivedMe(response);
+  });
   await page.bringToFront();
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
