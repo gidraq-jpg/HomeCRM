@@ -455,7 +455,12 @@ test('OFFLINE: настоящие два фото, lost ACK multipart, batch и 
   expect(await rows(page, 'blobs')).toHaveLength(2);
   await check(page, info, 'offline-reading');
   await page.reload();
-  await queue(page);
+  // После reload ждём готовый интерфейс с тремя сохранёнными намерениями.
+  await page.getByRole('link', { name: 'Очередь изменений · 3', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Очередь изменений' })).toBeVisible();
+  expect(await page.evaluate(() => navigator.onLine)).toBe(false);
+  expect(await rows(page)).toHaveLength(3);
+  expect(await rows(page, 'blobs')).toHaveLength(2);
   let lost = false;
   await context.route(`**/api/objects/${object.id}/files`, async (route) => {
     if (!lost) {
