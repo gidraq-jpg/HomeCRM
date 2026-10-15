@@ -49,9 +49,23 @@ async function refocus(page: Page) {
   });
   await response;
 }
-async function switchToChild(page: Page, family: Family) {
+async function sessionTab(page: Page, family: Family) {
   const other = await page.context().newPage();
-  await other.goto(family.baseURL);
+  // Настоящий вход меняет общую cookie; второй AuthRoot не должен менять identity параллельно.
+  // Вне scope service worker: он не подменит служебный HTML второй копией приложения.
+  const sessionURL = new URL('/e2e-session.html', family.baseURL).href;
+  await other.route(sessionURL, (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><html lang="ru"><title>Смена участника</title></html>',
+    }),
+  );
+  await other.goto(sessionURL);
+  await expect(other.locator('script')).toHaveCount(0);
+  return other;
+}
+async function switchToChild(page: Page, family: Family) {
+  const other = await sessionTab(page, family);
   const person = family.person('child');
   expect(
     await other.evaluate(
@@ -87,8 +101,7 @@ test('B1: A → B в соседней вкладке сбрасывает лич
   });
   await same;
   await expect(page.getByLabel('Название дела')).toHaveValue('Личный черновик A');
-  const other = await page.context().newPage();
-  await other.goto(family.baseURL);
+  const other = await sessionTab(page, family);
   const person = family.person('child');
   expect(
     await other.evaluate(async (person) => {
@@ -181,8 +194,11 @@ for (const view of ['all', 'card'] as const) {
       expect(undoRequests).toBe(1);
     } finally {
       release();
-      await page.unroute('**/api/tasks**', routeHandler);
-      await Promise.all([...pendingRouteCallbacks]);
+      try {
+        await Promise.all([...pendingRouteCallbacks]);
+      } finally {
+        await page.unroute('**/api/tasks**', routeHandler);
+      }
     }
   });
 }

@@ -8,7 +8,7 @@ import {
   RadarResponse,
   shiftTaskDate,
 } from '@homecrm/shared';
-import type { Page, Response, TestInfo } from '@playwright/test';
+import type { APIResponse, Page, Response, TestInfo } from '@playwright/test';
 import { scheduleSummaries } from '../../../server/src/notifications/summaries.ts';
 import { expect, test } from '../auth/support/fixtures.ts';
 import {
@@ -216,6 +216,7 @@ test('смена A → B во время ответа действия очищ�
   });
   await page.route('**/api/deadlines/occurrences/*/action', async (route) => {
     const response = await route.fetch();
+    expect(response.status()).toBe(200);
     started();
     await held;
     await route.fulfill({ response });
@@ -224,13 +225,16 @@ test('смена A → B во время ответа действия очищ�
   await ready;
   const other = await page.context().newPage();
   // Меняем общую cookie настоящим входом, без второго AuthRoot и его фоновой смены identity.
-  await other.route(family.baseURL, (route) =>
+  // Вне scope service worker: он не подменит служебный HTML второй копией приложения.
+  const sessionURL = new URL('/e2e-session.html', family.baseURL).href;
+  await other.route(sessionURL, (route) =>
     route.fulfill({
       contentType: 'text/html',
       body: '<!doctype html><html lang="ru"><title>Смена участника</title></html>',
     }),
   );
-  await other.goto(family.baseURL);
+  await other.goto(sessionURL);
+  await expect(other.locator('script')).toHaveCount(0);
   const child = family.person('child');
   expect(
     await other.evaluate(
@@ -260,7 +264,16 @@ test('смена A → B во время ответа действия очищ�
     expect(RadarResponse.parse(snapshot.data).items).toEqual([]);
   }
   const radarB = page.waitForResponse(defaultRadar);
-  const updated = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/me');
+  // Отменённый focus-refetch может потерять CDP body: сохраняем настоящий ответ сервера.
+  let receivedMe!: (response: APIResponse) => void;
+  const updated = new Promise<APIResponse>((resolve) => {
+    receivedMe = resolve;
+  });
+  await page.route('**/api/me', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response });
+    receivedMe(response);
+  });
   await page.bringToFront();
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });

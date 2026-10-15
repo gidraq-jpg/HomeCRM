@@ -347,8 +347,7 @@ test('серия: область правки, выполнение и отме�
     await page.getByLabel('Название дела').fill('Только этот экземпляр');
     await saved(page, 'Только этот экземпляр');
     stage = 'restore-following-draft';
-    await page.clock.install();
-    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 10));
+    await page.clock.pauseAt(new Date());
     // Пока чтение draft задержано, ввод не должен быть перезаписан поздним восстановлением.
     await page.evaluate(() => {
       const original = IDBObjectStore.prototype.get;

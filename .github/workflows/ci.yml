@@ -4,10 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 # Бесплатный тариф даёт 2000 минут в месяц: устаревшие прогоны отменяются.
 concurrency:
-  group: ci-${{ github.ref }}
+  # Явно запрошенные независимые прогоны не отменяют друг друга.
+  group: ci-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'latest' }}
   cancel-in-progress: true
 
 permissions:
@@ -48,7 +50,7 @@ jobs:
   auth-screens:
     name: Вход · 360 и 412 px · axe
     runs-on: ubuntu-latest
-    # Полный набор: 494 сценария; подготовка контейнера тоже входит в этот предел.
+    # Полный набор: 526 выполняемых и 2 ранее пропущенных сценария; подготовка контейнера тоже входит в этот предел.
     timeout-minutes: 35
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
