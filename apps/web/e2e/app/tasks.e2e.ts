@@ -202,15 +202,15 @@ test('быстрая строка: снятие чипа, транспортны
   await openQuick(page);
   const input = page.getByLabel('Быстрая строка');
   await input.fill('Написать завтра в 10:00 @Вера');
-  await expect(page.getByRole('button', { name: 'Снять чип: Дата' })).toBeVisible();
-  await page.getByRole('button', { name: 'Снять чип: Дата' }).click();
-  await expect(page.getByRole('button', { name: 'Снять чип: Дата' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Убрать дату:/ })).toBeVisible();
+  await page.getByRole('button', { name: /^Убрать дату:/ }).click();
+  await expect(page.getByRole('button', { name: /^Убрать дату:/ })).toHaveCount(0);
   await expect(input).toHaveValue('Написать завтра в 10:00 @Вера');
   // Без даты время нельзя сохранить: снятие даты сохраняет распознанное время в исходном тексте.
-  await page.getByRole('button', { name: 'Снять чип: Время' }).click();
-  await page.getByRole('button', { name: 'Снять чип: Исполнитель' }).click();
+  await page.getByRole('button', { name: /^Убрать время:/ }).click();
+  await page.getByRole('button', { name: /^Убрать исполнителя:/ }).click();
   await input.fill('Написать завтра в 10:00');
-  await expect(page.getByRole('button', { name: 'Снять чип: Дата' })).toHaveText(/\d{1,2} [а-я]/);
+  await expect(page.getByRole('button', { name: /^Изменить дату:/ })).toHaveText(/\d{1,2} [а-я]/);
   await check(page, info, 'quickline-chips');
   const requests: Record<string, unknown>[] = [];
   let lose = true;
@@ -229,7 +229,7 @@ test('быстрая строка: снятие чипа, транспортны
   await page.getByRole('button', { name: 'Добавить дело', exact: true }).click();
   await expect(page.getByText(/Не удалось связаться с сервером/)).toBeVisible();
   await expect(input).toHaveValue('Написать завтра в 10:00');
-  await expect(page.getByRole('button', { name: 'Снять чип: Дата' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Убрать дату:/ })).toBeVisible();
   await page.getByRole('button', { name: 'Добавить дело', exact: true }).click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Написать', exact: true }),

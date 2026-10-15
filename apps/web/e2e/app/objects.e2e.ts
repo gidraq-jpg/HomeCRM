@@ -438,8 +438,11 @@ test('четыре действия: «Поделиться…», «Кто ви�
     await page.goto(`#/home/${dacha.id}`);
     await openObjectDetails(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Дача' })).toBeVisible();
+    await openObjectAccess(page);
+    const initialAccess = page.getByRole('dialog', { name: 'Доступ к объекту', exact: true });
+    await expect(initialAccess).toBeVisible();
     for (const hidden of ['Кто видит…', 'Сделать личным…', 'Скопировать в личное']) {
-      await expect(page.getByRole('button', { name: hidden }), hidden).toHaveCount(0);
+      await expect(initialAccess.getByRole('button', { name: hidden }), hidden).toHaveCount(0);
     }
 
     // «Поделиться…»: личный объект становится общим для всей семьи.
@@ -459,18 +462,22 @@ test('четыре действия: «Поделиться…», «Кто ви�
     await openHome(vera.page);
     await expect(objectLinks(vera.page)).toHaveCount(1);
     await openCard(vera.page, 'Дача');
-    for (const hidden of [
-      'Править',
-      'В корзину',
-      'Сделать личным…',
-      'Кто видит…',
-      'Поделиться…',
-      'Добавить поле',
-    ]) {
+    for (const hidden of ['Править', 'Добавить поле']) {
       await expect(vera.page.getByRole('button', { name: hidden }), hidden).toHaveCount(0);
     }
+    await openObjectActions(vera.page);
+    const childMore = vera.page.getByRole('dialog', { name: 'Ещё', exact: true });
+    await expect(childMore).toBeVisible();
+    await expect(childMore.getByText('могут править только взрослые')).toBeVisible();
+    await expect(childMore.getByRole('button', { name: 'Править', exact: true })).toHaveCount(0);
+    await expect(childMore.getByRole('button', { name: 'В корзину', exact: true })).toHaveCount(0);
+    await vera.page.keyboard.press('Escape');
     await openObjectAccess(vera.page);
-    await expect(vera.page.getByRole('button', { name: 'Скопировать в личное' })).toBeVisible();
+    const childAccess = vera.page.getByRole('dialog', { name: 'Доступ к объекту', exact: true });
+    await expect(childAccess).toBeVisible();
+    for (const hidden of ['Сделать личным…', 'Кто видит…', 'Поделиться…'])
+      await expect(childAccess.getByRole('button', { name: hidden }), hidden).toHaveCount(0);
+    await expect(childAccess.getByRole('button', { name: 'Скопировать в личное' })).toBeVisible();
 
     await checkApp(vera.page, info, 'objects-card-child');
 

@@ -133,7 +133,7 @@ export function TaskRows({
                   </span>
                   <div>
                     <p className="focus__access">
-                      {objectTitle ? `${objectTitle} · ` : ''}
+                      {objectTitle && objectTitle !== card.title ? `${objectTitle} · ` : ''}
                       <AccessBadge visibility={visibilityOf(card)} showLabel />
                     </p>
                     <h3 className="focus__title">{card.title}</h3>

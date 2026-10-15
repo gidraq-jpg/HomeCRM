@@ -59,8 +59,14 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
         <Row
           icon={<ListChecks size={22} aria-hidden />}
           title="Дело"
-          meta="План, чек-лист, ожидание и повтор"
+          meta="Одной строкой: дата, время, исполнитель и объект"
           onClick={() => setQuick(true)}
+        />
+        <Row
+          icon={<ListChecks size={22} aria-hidden />}
+          title="Новое дело"
+          meta="Полная форма: план, чек-лист, ожидание и повтор"
+          onClick={() => go('/today/new')}
         />
         <Row
           icon={<Note size={22} aria-hidden />}

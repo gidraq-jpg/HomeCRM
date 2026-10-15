@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkZone,
+  formatReading,
   fromUnits,
   normalizeDecimal,
   problemText,
@@ -11,6 +12,15 @@ import {
 const DIGITS = { integerDigits: 5, fractionDigits: 3 };
 
 describe('десятичные значения счётчиков', () => {
+  it('показания в списке с разрядами, без лишних нулей и округления', () => {
+    expect(formatReading('1245.300')).toBe('1\u00a0245,3');
+    expect(formatReading('1000.000')).toBe('1\u00a0000');
+    expect(formatReading('0.005')).toBe('0,005');
+    expect(formatReading('12345678901234567890.123400')).toBe(
+      '12\u00a0345\u00a0678\u00a0901\u00a0234\u00a0567\u00a0890,1234',
+    );
+    expect(showDecimal('1245.300')).toBe('1245,300');
+  });
   it('запятая и точка равны, лишнее отбрасывается', () => {
     expect(normalizeDecimal('123,4')).toBe('123.4');
     expect(normalizeDecimal(' 123.4 ')).toBe('123.4');

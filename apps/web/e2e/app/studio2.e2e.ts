@@ -224,7 +224,7 @@ test('Studio 2: объект, четыре чипа, снятие и созда�
   await expect(page.locator('.task-chip')).toHaveCount(4);
   await expect(page.getByRole('button', { name: 'Добавить дело', exact: true })).toBeInViewport();
   await check(page, info, 'quick-four-chips');
-  await page.getByRole('button', { name: 'Снять чип: Время' }).click();
+  await page.getByRole('button', { name: 'Убрать время: 18:00' }).click();
   await expect(page.locator('.task-chip')).toHaveCount(3);
   await expect(page.locator('.quickline-result')).toContainText('в 18:00');
   await check(page, info, 'quick-three-chips');
@@ -298,6 +298,29 @@ test('Studio 2: ребёнку не раскрываются личные и в�
   const api = await apiAs(family, 'adult');
   const secret = await seedObject(api, family, { title: 'Скрытая техника' });
   const adult = await seedProperty(api, family, { title: 'Квартира взрослых', audience: 'adults' });
+  const account = await seedAccount(api, adult.id, {
+    title: 'Вода взрослых',
+    data: {
+      readingRule: {
+        kind: 'repeat',
+        anchor: '2026-01-01',
+        repeat: { unit: 'month', day: Number(homeDate(0).slice(8)) },
+      },
+    },
+  });
+  expect(
+    await api.post(`accounts/${account.id}/charges`, {
+      period: homeDate(0).slice(0, 7),
+      totalCents: 742913,
+      dueOn: homeDate(0),
+    }),
+  ).toMatchObject({ status: 201 });
+  await seedMeter(api, adult.id, {
+    title: 'Счётчик взрослых',
+    utilityAccountId: account.id,
+    data: { resource: 'cold_water', serialNumber: 'TEST-D12-PRIVATE' },
+    initial: { occurredOn: homeDate(-1), values: ['9876.5'] },
+  });
   const common = await seedObject(api, family, { title: 'Общая техника', audience: 'household' });
   for (const object of [secret, adult, common])
     await seedDeadline(api, 'objects', object.id, { kind: 'date', date: homeDate(3) });
@@ -321,12 +344,15 @@ test('Studio 2: ребёнку не раскрываются личные и в�
   ])
     await expect(page.getByText(hidden, { exact: false })).toHaveCount(0);
   await expect(page.locator('.today-hints')).toHaveCount(0);
+  await expect(page.getByText(/к оплате|Показания до|7\s429,13|9\s876,5/)).toHaveCount(0);
   await check(page, info, 'today-child');
   const adultPage = await openAs(browser, family, info, 'adult');
   try {
     await expect(
       adultPage.page.getByRole('link', { name: '3 дела сегодня', exact: true }),
     ).toBeVisible();
+    await expect(adultPage.page.locator('.today-hints')).toContainText(/7\s429,13\s₽ к оплате/);
+    await expect(adultPage.page.locator('.today-hints')).toContainText('Показания до');
   } finally {
     await adultPage.close();
   }
