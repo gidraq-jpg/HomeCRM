@@ -1,5 +1,5 @@
 import { type CalendarDate, calendarInstant, parseQuickline, TaskFields } from '@homecrm/shared';
-import { X } from '@phosphor-icons/react';
+import { CalendarBlank, CaretRight, Clock, House, Users, X } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
@@ -10,13 +10,14 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
-import { formatDateOnly } from './fields.tsx';
+import { formatDateOnly, TextField } from './fields.tsx';
 import { createBody } from './NewTaskScreen.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
-import { useOptions, useTaskMembers } from './options.tsx';
+import { MemberPicker, RecordPicker, useOptions, useTaskMembers } from './options.tsx';
 import { uniqueTasks } from './queries.ts';
 
 const labels = { date: 'Дата', time: 'Время', assignee: 'Исполнитель', object: 'Объект' };
+const actions = { date: 'дату', time: 'время', assignee: 'исполнителя', object: 'объект' };
 type Kind = keyof typeof labels;
 export function quickDraft(
   raw: string,
@@ -60,6 +61,8 @@ export function Quickline({
   const options = uniqueTasks(objects.data?.pages.flat() ?? []);
   const [raw, setRaw] = useState('');
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [overrides, setOverrides] = useState<Partial<Record<Kind, string>>>({});
+  const [editing, setEditing] = useState<Kind | null>(null);
   const [visibility, setVisibility] = useState<Visibility | null>(null);
   const [choosingVisibility, setChoosingVisibility] = useState(false);
   const inputId = useId();
@@ -71,13 +74,18 @@ export function Quickline({
       .map((member) => ({ id: member.accountId, name: member.displayName })),
     objects: options.map((object) => ({ id: object.id, name: object.title })),
   });
-  const draft = quickDraft(raw, result, excluded, {});
+  const draft = quickDraft(raw, result, excluded, overrides);
   const object = options.find((object) => object.id === draft.objectId);
+  const assignee =
+    draft.assigneeId === me.id
+      ? me.displayName
+      : members.data?.find((person) => person.accountId === draft.assigneeId)?.displayName;
   const who =
     visibility ?? defaultVisibility('task', scope, object ? { parent: visibilityOf(object) } : {});
   const operation = useTaskOperation((card) => {
     setRaw('');
     setExcluded(new Set());
+    setOverrides({});
     onCreated?.();
     navigate(`/today/tasks/${card.id}`);
   });
@@ -130,35 +138,65 @@ export function Quickline({
               onChange={(event) => {
                 setRaw(event.target.value);
                 setExcluded(new Set());
+                setOverrides({});
               }}
             />
           </div>
-          <p className="muted">Поняли так · нажмите, чтобы убрать</p>
+          <p className="muted">Поняли так · нажмите, чтобы изменить</p>
           <div className="task-chips">
-            {draft.fragments.map((fragment) => (
-              <span className={`task-chip task-chip--${fragment.kind}`} key={fragment.kind}>
-                <button
-                  className="text-button"
-                  type="button"
-                  aria-label={`Снять чип: ${labels[fragment.kind]}`}
-                  aria-describedby={`${inputId}-${fragment.kind}`}
-                  onClick={() => {
-                    setExcluded(
-                      (current) => new Set([...current, `${fragment.kind}:${fragment.text}`]),
-                    );
-                  }}
-                >
-                  <span id={`${inputId}-${fragment.kind}`}>
-                    {fragment.kind === 'date'
-                      ? formatDateOnly(fragment.value)
-                      : fragment.kind === 'time'
-                        ? fragment.value
-                        : fragment.text.replace(/^[@#]/, '')}
-                  </span>
-                  <X size={14} aria-hidden />
-                </button>
-              </span>
-            ))}
+            {draft.fragments.map((fragment) => {
+              const value = overrides[fragment.kind] ?? fragment.value;
+              const text =
+                fragment.kind === 'date'
+                  ? value
+                    ? formatDateOnly(value)
+                    : 'Не выбрано'
+                  : fragment.kind === 'assignee'
+                    ? (assignee ?? 'Участник недоступен')
+                    : fragment.kind === 'object'
+                      ? (object?.title ?? 'Не выбрано')
+                      : value || 'Не выбрано';
+              return (
+                <span className={`task-chip task-chip--${fragment.kind}`} key={fragment.kind}>
+                  <button
+                    className="text-button"
+                    type="button"
+                    aria-label={`Изменить ${actions[fragment.kind]}: ${text}`}
+                    onClick={() => setEditing(fragment.kind)}
+                  >
+                    {fragment.kind === 'date' ? (
+                      <CalendarBlank size={16} aria-hidden />
+                    ) : fragment.kind === 'time' ? (
+                      <Clock size={16} aria-hidden />
+                    ) : fragment.kind === 'object' ? (
+                      <House size={16} aria-hidden />
+                    ) : (
+                      <span className="task-chip__avatar" aria-hidden>
+                        {text.slice(0, 1)}
+                      </span>
+                    )}
+                    <span>{text}</span>
+                  </button>
+                  <button
+                    className="icon-button"
+                    type="button"
+                    aria-label={`Убрать ${actions[fragment.kind]}: ${text}`}
+                    onClick={() => {
+                      setExcluded(
+                        (current) => new Set([...current, `${fragment.kind}:${fragment.text}`]),
+                      );
+                      setOverrides((current) => {
+                        const next = { ...current };
+                        delete next[fragment.kind];
+                        return next;
+                      });
+                    }}
+                  >
+                    <X size={14} aria-hidden />
+                  </button>
+                </span>
+              );
+            })}
           </div>
           {raw ? (
             <>
@@ -168,9 +206,8 @@ export function Quickline({
                 <span>
                   {draft.planOn ? formatDateOnly(draft.planOn) : 'Без даты'}
                   {draft.planTime ? `, ${draft.planTime}` : ''}
-                  {draft.assigneeId
-                    ? ` · исполнитель ${draft.assigneeId === me.id ? me.displayName : (members.data?.find((person) => person.accountId === draft.assigneeId)?.displayName ?? 'участник дома')}`
-                    : ''}
+                  {draft.assigneeId ? ` · исполнитель ${assignee ?? 'участник дома'}` : ''}
+                  {object ? ` · ${object.title}` : ''}
                 </span>
               </div>
               <button
@@ -178,7 +215,9 @@ export function Quickline({
                 className="quickline-visibility"
                 onClick={() => setChoosingVisibility(true)}
               >
-                Кто видит: {VISIBILITY_LABELS[who]}
+                <Users size={20} aria-hidden />
+                <span>Кто видит: {VISIBILITY_LABELS[who]}</span>
+                <CaretRight size={18} aria-hidden />
               </button>
               <Sheet
                 open={choosingVisibility}
@@ -218,6 +257,45 @@ export function Quickline({
         >
           Загрузить ещё объекты для #
         </button>
+      ) : null}
+      {editing ? (
+        <Sheet
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditing(null);
+          }}
+          title={`Править чип: ${labels[editing]}`}
+          description="Значение изменится до сохранения дела."
+        >
+          {editing === 'date' || editing === 'time' ? (
+            <TextField
+              label={labels[editing]}
+              type={editing === 'date' ? 'date' : 'time'}
+              value={String(
+                overrides[editing] ??
+                  draft.fragments.find((fragment) => fragment.kind === editing)?.value ??
+                  '',
+              )}
+              onChange={(value) => setOverrides((current) => ({ ...current, [editing]: value }))}
+            />
+          ) : editing === 'assignee' ? (
+            <MemberPicker
+              householdId={householdId}
+              value={draft.assigneeId ?? me.id}
+              onChange={(value) => setOverrides((current) => ({ ...current, assignee: value }))}
+            />
+          ) : (
+            <RecordPicker
+              kind="object"
+              label="Объект"
+              value={draft.objectId ?? ''}
+              onChange={(value) => setOverrides((current) => ({ ...current, object: value }))}
+            />
+          )}
+          <button type="button" className="btn btn--primary" onClick={() => setEditing(null)}>
+            Готово
+          </button>
+        </Sheet>
       ) : null}
     </Section>
   );

@@ -20,19 +20,19 @@ import {
 import { Status } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { createMeter, type MeterListItem, patchMeter } from './api.ts';
-import { showDecimal } from './decimal.ts';
+import { formatReading } from './decimal.ts';
 import { meterCount, RESOURCE_LABELS, RESOURCE_UNITS, STATE_LABELS } from './labels.ts';
 import { CreateMeterForm, EditMeterForm, ReplaceSheet } from './MeterForms.tsx';
 import { useMeters, useRefreshMeters } from './queries.ts';
 
-/** Показание по зонам одной строкой: «123,456» или «День 100,0 · Ночь 50,0». */
+/** Показание по зонам одной строкой: «1 245,3» или «День 100 · Ночь 50». */
 export function readingText(item: MeterListItem): string | null {
   const reading = item.previousReading;
   if (reading === null) return null;
   const unit = item.data.unit ?? RESOURCE_UNITS[item.data.resource];
   const values = reading.values.map((value, index) => {
     const zone = item.data.zones.length > 1 ? `${item.data.zones[index] ?? ''} ` : '';
-    return `${zone}${showDecimal(value)}`;
+    return `${zone}${formatReading(value)}`;
   });
   return `${values.join(' · ')} ${unit}`;
 }

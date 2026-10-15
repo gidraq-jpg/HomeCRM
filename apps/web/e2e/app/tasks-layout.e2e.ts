@@ -105,7 +105,7 @@ test('быстрая строка: отступы, длинные чипы, ош
   const title = 'ПроверитьДокументы'.repeat(8);
   const raw = `${title} завтра в 10:00 @Борис #${object.title}`;
   await input.fill(raw);
-  await expect(page.getByRole('button', { name: 'Снять чип: Объект' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Убрать объект:/ })).toBeVisible();
   await check(page, `quickline-chips-${info.project.use.viewport?.width}`);
   const sentBodies: string[] = [];
   context.on('request', (request) => {

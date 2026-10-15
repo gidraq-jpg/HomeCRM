@@ -49,6 +49,14 @@ export function showDecimal(text: string): string {
   return text.replace('.', ',');
 }
 
+/** Для списков: разряды и значимая дробная часть, без потери точности. */
+export function formatReading(text: string): string {
+  const [integer = '0', fraction = ''] = text.split('.');
+  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  const trimmed = fraction.replace(/0+$/, '');
+  return trimmed ? `${grouped},${trimmed}` : grouped;
+}
+
 /** Значение с единицей: «123,456 м³». */
 export function showWithUnit(text: string, unit: string): string {
   return `${showDecimal(text)}${NBSP}${unit}`;

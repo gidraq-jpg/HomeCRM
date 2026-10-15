@@ -23,6 +23,30 @@ html[data-design="studio"] .studio-empty__title {
 }
 html[data-design="studio"] .task-chip > button {
   font-size: 0.875rem;
+  min-width: 44px;
+  min-height: 44px;
+}
+html[data-design="studio"] .task-chip > .text-button {
+  min-width: 44px;
+  padding-inline: 12px 0;
+  flex: 1;
+}
+html[data-design="studio"] .task-chip > .text-button > span:not(.task-chip__avatar) {
+  overflow-wrap: anywhere;
+}
+html[data-design="studio"] .task-chip svg {
+  flex-shrink: 0;
+}
+html[data-design="studio"] .task-chip__avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #4a443c;
+  color: var(--surface);
+  font-size: 0.75rem;
 }
 html[data-design="studio"] .main:has(> .object-page) {
   background: var(--charcoal);
@@ -186,6 +210,9 @@ html[data-design="studio"] .today-hero__greeting > span {
   display: inline;
 }
 html[data-design="studio"] .quickline-visibility {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-height: 52px;
   width: 100%;
   padding: 10px 14px;
@@ -193,6 +220,12 @@ html[data-design="studio"] .quickline-visibility {
   border-radius: 16px;
   background: transparent;
   text-align: left;
+}
+html[data-design="studio"] .quickline-visibility > span {
+  flex: 1;
+}
+html[data-design="studio"] .quickline-visibility > svg {
+  flex-shrink: 0;
 }
 html[data-design="studio"] .task-quickline .textarea {
   background: #fff;

@@ -371,7 +371,7 @@ test('вкладка «Счётчики»: создание с начальны�
   const list = page.getByRole('list', { name: 'Счётчики' });
   const card = list.getByRole('listitem').first();
   await expect(card.getByRole('heading', { level: 3 })).toHaveText('ГВС, Санузел');
-  await expect(card).toContainText('12,500 м³');
+  await expect(card).toContainText('12,5 м³');
   await expect(card).toContainText('15 дек. 2026');
   await expect(card).toContainText('Вода и свет, TEST-777');
   await card.getByRole('button', { name: 'Скопировать заводской номер' }).click();

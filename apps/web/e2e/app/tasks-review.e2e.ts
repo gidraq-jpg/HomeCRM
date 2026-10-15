@@ -196,7 +196,7 @@ test('B1: быстрая строка, чипы и задержанный отв
   await page.getByLabel('Быстрая строка').fill('Личный текст A завтра в 10:00');
   await refocus(page);
   await expect(page.getByLabel('Быстрая строка')).toHaveValue('Личный текст A завтра в 10:00');
-  await page.getByRole('button', { name: 'Снять чип: Время' }).click();
+  await page.getByRole('button', { name: /^Убрать время:/ }).click();
   await check(page, info, 'b1-quickline-chip');
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -591,7 +591,7 @@ test('A5: быстрый ввод двух домов в разных пояса
     await openQuick(page);
     await expect(page.getByLabel('Быстрая строка')).toHaveValue('');
     await page.getByLabel('Быстрая строка').fill('Позвонить завтра в 10:00');
-    await expect(page.getByRole('button', { name: 'Снять чип: Дата' })).toContainText(
+    await expect(page.getByRole('button', { name: /^Изменить дату:/ })).toContainText(
       new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
         new Date(`${shiftTaskDate(context.today, 1)}T12:00:00Z`),
       ),
