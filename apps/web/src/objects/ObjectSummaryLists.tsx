@@ -101,9 +101,14 @@ export function ObjectSummaryLists({ card }: { card: ObjectCard }) {
           </Link>
         }
       >
-        <QueryNotice query={tasks} />
-        {tasks.data ? (
+        {tasks.error ? <QueryNotice query={tasks} /> : null}
+        {/* Загрузка и пустой ответ занимают одинаковую строку: факты ниже не прыгают. */}
+        {tasks.isPending ? (
+          <p className="muted studio-empty">Загружаем дела…</p>
+        ) : tasks.data?.pages.some((page) => page.length > 0) ? (
           <TaskRows tasks={uniqueTasks(tasks.data.pages.flat())} label="Дела объекта" />
+        ) : tasks.data ? (
+          <p className="muted studio-empty">Дел пока нет</p>
         ) : null}
         <LoadMore query={tasks} label="Показать ещё дела объекта" />
       </Section>
