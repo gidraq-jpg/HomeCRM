@@ -53,8 +53,13 @@ test('пустые ленты: исходный фокус, подписи и о
   const width = info.project.use.viewport?.width;
   for (const view of ['today', 'plan', 'all'] as const) {
     await openFeed(page, view);
-    await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Пригласить участника' })).toBeVisible();
+    if (view === 'plan') {
+      await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('link', { name: 'Пригласить участника' })).toHaveCount(0);
+    } else {
+      await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Пригласить участника' })).toBeVisible();
+    }
     if (view === 'today') {
       await expect(page.getByRole('heading', { name: 'Что сегодня важнее всего?' })).toBeVisible();
       await expect(page.locator('.page-heading__eyebrow')).toContainText(
@@ -64,7 +69,7 @@ test('пустые ленты: исходный фокус, подписи и о
     }
     if (view === 'all')
       await expect(page.locator('.page-heading__eyebrow')).toHaveText('Дела дома и ваши личные');
-    await expectGap(page, '.task-actions > a', '.task-actions__help', 8);
+    if (view !== 'plan') await expectGap(page, '.task-actions > a', '.task-actions__help', 8);
     await check(page, `empty-${view}-${width}`);
   }
 });
@@ -176,6 +181,7 @@ test('заполненные ленты: главное перед вводом,
     .toBe('open');
   for (const view of ['plan', 'all'] as const) {
     await openFeed(page, view);
+    if (view === 'plan') await page.locator('.plan-undated summary').click();
     await expect(
       page.getByRole('link', { name: /Разобрать вымышленные бумаги без даты/ }),
     ).toBeVisible();

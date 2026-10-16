@@ -120,7 +120,8 @@ test('три агрегированные ленты, главное, крайн
   await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
   await expect.poll(async () => (await current(api, main.id)).isMain).toBe(false);
   await page.goto('#/today/plan');
-  await expect(page.getByRole('heading', { level: 1, name: 'План', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'План', exact: true })).toHaveCount(1);
+  await page.locator('.plan-undated summary').click();
   await expect(page.getByRole('list', { name: 'Дела без даты' }).getByRole('link')).toHaveCount(52);
   await page.getByRole('button', { name: 'Показать следующие дни' }).click();
   await expect(page.getByRole('link', { name: /План позже, срок прошёл/ })).toBeVisible();
