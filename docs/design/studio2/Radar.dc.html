@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Радар</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#a8492b}a:hover{color:#8a3a21}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #1b1a18; font-family: Onest, 'Segoe UI', system-ui, sans-serif; color: #efe9df; font-variant-numeric: tabular-nums">
+
+  <header style="padding: 54px 20px 0 20px; display: flex; flex-direction: column">
+    <div style="display: flex; align-items: center; gap: 4px">
+      <a href="Main.dc.html" style="min-height: 44px; display: flex; align-items: center; gap: 4px; margin-left: -8px; padding: 0 8px; color: #cfc7ba; text-decoration: none; font-size: 15px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>Сегодня</a>
+      <div style="flex: 1"></div>
+      <div role="group" aria-label="Чьё" style="display: flex; padding: 3px; border-radius: 999px; background: #262420">
+        <button type="button" aria-pressed="{{mine}}" style="min-height: 38px; padding: 0 14px; border: 0; border-radius: 999px; background: {{mineBg}}; color: {{mineFg}}; font: 500 13.5px Onest, system-ui, sans-serif; cursor: pointer">Моё</button>
+        <button type="button" aria-pressed="{{house}}" style="min-height: 38px; padding: 0 14px; border: 0; border-radius: 999px; background: {{houseBg}}; color: {{houseFg}}; font: 500 13.5px Onest, system-ui, sans-serif; cursor: pointer">Весь дом</button>
+      </div>
+    </div>
+
+    <div style="margin-top: 14px; font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: #a39b8f">Сроки</div>
+    <h1 style="margin: 6px 0 0 0; font-size: 28px; line-height: 1.15; font-weight: 300; letter-spacing: -0.015em">Радар</h1>
+    <div role="group" aria-label="Фильтр" style="margin-top: 12px; display: flex; gap: 8px">
+      <button type="button" style="min-height: 36px; padding: 0 12px 0 14px; border-radius: 999px; border: 1px solid #3a3732; background: transparent; color: #efe9df; font: 400 13.5px Onest, system-ui, sans-serif; display: flex; align-items: center; gap: 4px; cursor: pointer">Объект<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a39b8f" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <button type="button" style="min-height: 36px; padding: 0 12px 0 14px; border-radius: 999px; border: 1px solid #3a3732; background: transparent; color: #efe9df; font: 400 13.5px Onest, system-ui, sans-serif; display: flex; align-items: center; gap: 4px; cursor: pointer">Человек<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a39b8f" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    </div>
+  </header>
+
+  <section aria-label="Сроки по группам" style="position: absolute; left: 0; right: 0; top: 262px; bottom: 0; background: #ebe5da; border-radius: 28px 28px 0 0; padding: 10px 16px 0 16px; display: flex; flex-direction: column">
+    <div aria-hidden="true" style="align-self: center; width: 36px; height: 4px; border-radius: 4px; background: #cfc6b8"></div>
+
+    <h2 style="margin: 14px 4px 8px 4px; font-size: 13px; font-weight: 500; color: #8a3a21">Просрочено · 1</h2>
+    <ul style="list-style: none; margin: 0; padding: 0; background: #f8f5ef; border-radius: 20px">
+      <li style="display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 12px">
+        <div aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 13px; background: #dde8ee; color: #2c5a73; display: grid; place-items: center">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></svg>
+        </div>
+        <div style="flex: 1; min-width: 0">
+          <div style="font-size: 15px; color: #22201c">Поверка горячей воды</div>
+          <div style="margin-top: 3px; font-size: 13px; color: #6b6358">3 дня назад · Дача</div>
+        </div>
+        <button type="button" style="flex: none; min-height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #a8492b; color: #ffffff; font: 500 13.5px Onest, system-ui, sans-serif; cursor: pointer">В работу</button>
+        <button type="button" aria-label="Ещё действия: поверка горячей воды" style="flex: none; width: 36px; height: 44px; border: 0; background: transparent; color: #6b6358; display: grid; place-items: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="18.5" r="1.6"/></svg></button>
+      </li>
+    </ul>
+
+    <h2 style="margin: 18px 4px 8px 4px; font-size: 13px; font-weight: 500; color: #6b6358">Сейчас · 2</h2>
+    <ul style="list-style: none; margin: 0; padding: 0; background: #f8f5ef; border-radius: 20px">
+      <li style="display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 12px; border-bottom: 1px solid #ebe5da">
+        <div aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 13px; background: #dde8ee; color: #2c5a73; display: grid; place-items: center">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>
+        </div>
+        <div style="flex: 1; min-width: 0">
+          <div style="font-size: 15px; color: #22201c">Показания воды</div>
+          <div style="margin-top: 3px; font-size: 13px; color: #6b6358">окно до 25 окт. · Садовая</div>
+        </div>
+        <button type="button" style="flex: none; min-height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #ebe5da; color: #22201c; font: 500 13.5px Onest, system-ui, sans-serif; cursor: pointer">Внести</button>
+        <button type="button" aria-label="Ещё действия: показания воды" style="flex: none; width: 36px; height: 44px; border: 0; background: transparent; color: #6b6358; display: grid; place-items: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="18.5" r="1.6"/></svg></button>
+      </li>
+      <li style="display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 12px">
+        <div aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 13px; background: #f3ddd2; color: #a8492b; display: grid; place-items: center">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>
+        </div>
+        <div style="flex: 1; min-width: 0">
+          <div style="font-size: 15px; color: #22201c">Коммуналка, сентябрь</div>
+          <div style="margin-top: 3px; font-size: 13px; color: #6b6358">сегодня · 3 860 ₽</div>
+        </div>
+        <button type="button" style="flex: none; min-height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #ebe5da; color: #22201c; font: 500 13.5px Onest, system-ui, sans-serif; cursor: pointer">Оплачено</button>
+        <button type="button" aria-label="Ещё действия: коммуналка, сентябрь" style="flex: none; width: 36px; height: 44px; border: 0; background: transparent; color: #6b6358; display: grid; place-items: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="18.5" r="1.6"/></svg></button>
+      </li>
+    </ul>
+
+    <h2 style="margin: 18px 4px 8px 4px; font-size: 13px; font-weight: 500; color: #6b6358">7 дней · 1</h2>
+    <ul style="list-style: none; margin: 0; padding: 0; background: #f8f5ef; border-radius: 20px">
+      <li style="display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 12px">
+        <div aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 13px; background: #e6dfd3; color: #4a443c; display: grid; place-items: center; font-size: 15px; font-weight: 500">М</div>
+        <div style="flex: 1; min-width: 0">
+          <div style="font-size: 15px; color: #22201c">День рождения Марии</div>
+          <div style="margin-top: 3px; font-size: 13px; color: #6b6358">вс, 19 окт. · 41 год</div>
+        </div>
+        <button type="button" aria-label="Ещё действия: день рождения Марии" style="flex: none; width: 36px; height: 44px; border: 0; background: transparent; color: #6b6358; display: grid; place-items: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="18.5" r="1.6"/></svg></button>
+      </li>
+    </ul>
+
+    <a href="#" style="margin: 14px 4px 0 4px; min-height: 44px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; color: #22201c; text-decoration: none; border-top: 1px solid #dcd4c6">
+      <span>30 дней · 2 <span style="color: #6b6358">· паспорт, страховка</span></span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8f8578" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </a>
+  </section>
+
+  <nav aria-label="Разделы" style="position: absolute; left: 12px; right: 12px; bottom: 18px; height: 68px; padding: 0 6px; border-radius: 26px; background: #1b1a18; box-shadow: 0 10px 30px rgba(27, 26, 24, 0.35); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center">
+    <a href="Main.dc.html" aria-current="page" style="height: 56px; margin: 0 2px; border-radius: 20px; background: #ebe5da; color: #1b1a18; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 500">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Сегодня</a>
+    <a href="Object.dc.html" style="height: 56px; color: #cfc7ba; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V9l8-5 8 5v11"/><path d="M10 20v-6h4v6"/></svg>Дом</a>
+    <a href="#" style="height: 56px; color: #cfc7ba; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h4"/></svg>Документы</a>
+    <a href="#" style="height: 56px; color: #cfc7ba; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3.5"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.7 3 2.6 3 5.2"/></svg>Люди</a>
+    <a href="#" style="height: 56px; color: #cfc7ba; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/></svg>Ещё</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"scope":{"editor":"enum","default":"Весь дом","options":["Моё","Весь дом"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mine = (this.props.scope ?? 'Весь дом') === 'Моё';
+    return {
+      mine: String(mine),
+      house: String(!mine),
+      mineBg: mine ? '#efe9df' : 'transparent',
+      mineFg: mine ? '#1b1a18' : '#cfc7ba',
+      houseBg: mine ? 'transparent' : '#efe9df',
+      houseFg: mine ? '#cfc7ba' : '#1b1a18'
+    };
+  }
+}
+</script>
+</body>
+</html>
