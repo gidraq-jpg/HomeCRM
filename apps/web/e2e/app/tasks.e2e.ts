@@ -128,13 +128,20 @@ test('три агрегированные ленты, главное, крайн
   await expect(page.getByRole('list', { name: 'Дела без даты' }).getByRole('link')).toHaveCount(52);
   await check(page, info, 'plan');
   await page.goto('#/today/all');
-  await page.getByLabel('Фильтр дел', { exact: true }).selectOption('undated');
-  await expect(page.getByRole('list', { name: 'Все дела' }).getByRole('link')).toHaveCount(50);
+  await page.getByRole('button', { name: 'Без даты', exact: true }).click();
+  await expect(
+    page.getByRole('list', { name: 'Без даты', exact: true }).getByRole('link'),
+  ).toHaveCount(50);
   await page.getByRole('button', { name: 'Показать ещё дела' }).click();
-  await expect(page.getByRole('list', { name: 'Все дела' }).getByRole('link')).toHaveCount(53);
+  await expect(
+    page.getByRole('list', { name: 'Без даты', exact: true }).getByRole('link'),
+  ).toHaveCount(53);
   await check(page, info, 'all');
+  await page.locator('.studio-list-options > summary').filter({ hasText: 'Статус дел' }).click();
   await page.getByLabel('Статус дел').selectOption('done');
-  await expect(page.getByRole('list', { name: 'Все дела' }).getByRole('link')).toHaveCount(1);
+  await expect(
+    page.getByRole('list', { name: 'Без даты', exact: true }).getByRole('link'),
+  ).toHaveCount(1);
   expect((await current(api, completed.id)).status).toBe('done');
   expect((await current(api, overdue.id)).planOn).toBeNull();
 });
@@ -808,7 +815,7 @@ test('поиск и уведомление открывают дело; рада
   expect(occurrence).toBeTruthy();
   await page.goto('#/more/radar');
   const item = page.getByRole('listitem').filter({ hasText: 'Срок из заметки' });
-  await item.getByRole('button', { name: 'Взять в работу' }).click();
+  await item.getByRole('button', { name: 'В работу' }).click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Срок из заметки', exact: true }),
   ).toBeVisible();
@@ -817,7 +824,7 @@ test('поиск и уведомление открывают дело; рада
   await page
     .getByRole('listitem')
     .filter({ hasText: 'Срок из заметки' })
-    .getByRole('button', { name: 'Взять в работу' })
+    .getByRole('button', { name: 'В работу' })
     .click();
   await expect(page).toHaveURL(new RegExp(`/today/tasks/${taskId}$`));
   await check(page, info, 'from-radar');
@@ -1039,7 +1046,7 @@ test('производный срок: отдельная смена ответ�
   await signInAs(page, family, 'adult');
   await page.goto('#/more/radar');
   const item = page.getByRole('listitem').filter({ hasText: doc.title });
-  await item.getByRole('link', { name: /Ответственный — в карточке источника/ }).click();
+  await item.getByRole('link', { name: new RegExp(`^${doc.title}`) }).click();
   await expect(page).toHaveURL(new RegExp(`/documents/${doc.id}$`));
   await expect(page.getByRole('heading', { level: 1, name: doc.title })).toBeVisible();
   await check(page, info, 'derived-source');

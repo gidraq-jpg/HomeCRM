@@ -12,6 +12,7 @@ import {
   expectTouchTargets,
   SCREENSHOT_DIR,
   screenshot,
+  setScope,
   widthOf,
 } from '../support/helpers.ts';
 import { makePng } from './files-support.ts';
@@ -158,14 +159,15 @@ test('SHOP: прототип списка, real quickline/bought/undo/trash/rest
   await expect(page.getByRole('link', { name: /Личный рюкзак/ })).toBeVisible();
   await check(page, info, 'shopping-real');
   await page.getByLabel('Добавить одной строкой').fill('Хлеб вымышленной семьи');
-  await page.getByRole('button', { name: 'Добавить покупку', exact: true }).click();
+  await page.getByLabel('Добавить одной строкой').press('Enter');
   await expect(page.getByRole('link', { name: /Хлеб вымышленной семьи/ })).toBeVisible();
   await page.getByRole('checkbox', { name: 'Семейное молоко' }).click();
-  await expect(page.getByText('Куплено · 1')).toBeVisible();
+  await expect(page.locator('.shopping-bought > summary')).toContainText('Куплено · 1');
   await page.getByRole('button', { name: 'Отменить', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: 'Семейное молоко' })).not.toBeChecked();
   await page.goto(`#/more/shopping/${id}`);
   await page.getByRole('button', { name: 'В корзину', exact: true }).click();
+  await page.locator('.shopping-tools > summary').click();
   await page.getByRole('button', { name: 'Корзина покупок' }).click();
   await page.getByRole('link', { name: /Семейное молоко/ }).click();
   await page.getByRole('button', { name: 'Восстановить' }).click();
@@ -178,9 +180,69 @@ test('SHOP: прототип списка, real quickline/bought/undo/trash/rest
   await child.goto('#/more/shopping');
   await expect(child.getByRole('link', { name: /Личный рюкзак/ })).toHaveCount(0);
   await child.getByLabel('Добавить одной строкой').fill('Сок от ребёнка');
-  await child.getByRole('button', { name: 'Добавить покупку', exact: true }).click();
+  await child.getByLabel('Добавить одной строкой').press('Enter');
   await expect(child.getByRole('link', { name: /Сок от ребёнка/ })).toBeVisible();
   await context.close();
+});
+
+test('SHOP: локальный выбор списка сохраняет глобальное пространство и оба списка в «Всё»', async ({
+  page,
+  family,
+}, info) => {
+  const api = await apiAs(family, 'adult');
+  expect((await api.post('shopping', { title: 'Личная вымышленная покупка' })).status).toBe(201);
+  expect(
+    (
+      await api.post('shopping', {
+        title: 'Общая вымышленная покупка',
+        placement: { spaceId: family.houseId, audience: 'household' },
+      })
+    ).status,
+  ).toBe(201);
+  await signInAs(page, family, 'adult');
+  await page.goto('#/more/shopping');
+  const shared = page.getByRole('button', { name: 'Вся семья', exact: true });
+  const personal = page.getByRole('button', { name: 'Личный', exact: true });
+  const personalItem = page.getByRole('link', { name: 'Личная вымышленная покупка', exact: true });
+  const sharedItem = page.getByRole('link', { name: 'Общая вымышленная покупка', exact: true });
+  const storedScope = await page.evaluate(() => localStorage.getItem('homecrm.scope'));
+  await expect(shared).toHaveAttribute('aria-pressed', 'true');
+  await expect(personalItem).toBeVisible();
+  await expect(sharedItem).toBeVisible();
+  for (const segment of [personal, shared]) {
+    await segment.click();
+    await expect(segment).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      page.getByRole('button', { name: 'Пространство: Всё', exact: true }),
+    ).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('homecrm.scope'))).toBe(storedScope);
+    await expect(personalItem).toBeVisible();
+    await expect(sharedItem).toBeVisible();
+  }
+  await check(page, info, 'shopping-local-scope');
+  await page
+    .getByRole('navigation', { name: 'Ленты дел' })
+    .getByRole('link', { name: 'Сегодня', exact: true })
+    .click();
+  await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
+  await page.goto('#/more/shopping');
+  await setScope(page, 'Общее');
+  await expect(shared).toHaveAttribute('aria-pressed', 'true');
+  await expect(personal).toBeDisabled();
+  await expect(personalItem).toHaveCount(0);
+  await expect(sharedItem).toBeVisible();
+  await setScope(page, 'Личное');
+  await expect(personal).toHaveAttribute('aria-pressed', 'true');
+  await expect(shared).toBeDisabled();
+  await expect(sharedItem).toHaveCount(0);
+  await expect(personalItem).toBeVisible();
+  await page.reload();
+  await expect(personal).toHaveAttribute('aria-pressed', 'true');
+  await setScope(page, 'Всё');
+  await expect(shared).toBeEnabled();
+  await expect(personal).toBeEnabled();
+  await expect(personalItem).toBeVisible();
+  await expect(sharedItem).toBeVisible();
 });
 test('OFFLINE: reload → durable note → reload → create/edit chain → один эффект', async ({
   page,

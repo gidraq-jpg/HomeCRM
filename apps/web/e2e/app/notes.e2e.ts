@@ -22,7 +22,7 @@ async function openCard(page: Page, title: string) {
   await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
 }
 
-test('пустой раздел объясняет разницу личного и общего в каждом режиме', async ({
+test('пустой раздел Studio 2 объясняет пространство одной строкой', async ({
   page,
   family,
 }, info) => {
@@ -33,8 +33,7 @@ test('пустой раздел объясняет разницу личного
   await page.getByRole('link', { name: /^Заметки/ }).click();
   const empty = page.getByRole('region', { name: 'Заметок пока нет' });
   await expect(empty).toBeVisible();
-  await expect(empty).toContainText('Личную заметку видите только вы');
-  await expect(empty).toContainText('«Поделиться…»');
+  await expect(empty.locator('p')).toHaveCount(1);
   await checkApp(page, info, 'notes-empty');
 
   await setScope(page, 'Личное');
@@ -42,9 +41,9 @@ test('пустой раздел объясняет разницу личного
   await checkApp(page, info, 'notes-empty-personal');
   await setScope(page, 'Общее');
   await expect(empty).toContainText('Здесь только общие записи дома');
-  await empty.getByRole('button', { name: 'Показать «Всё»' }).click();
+  await setScope(page, 'Всё');
   await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
-  await empty.getByRole('link', { name: 'Записать заметку' }).click();
+  await page.getByRole('link', { name: 'Новая заметка', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Новая заметка' })).toBeVisible();
 });
 
@@ -140,14 +139,14 @@ test('правка: чек-лист отмечается на карточке, 
   await signInAs(page, family, 'adult');
   await openNotes(page);
 
-  // Закреплённые сверху, у каждой значок и подпись «Кто видит».
-  await expect(page.getByText('3 заметки')).toBeVisible();
+  // Закреплённые сверху, у каждой подпись аудитории.
+  await expect(page.getByRole('status', { name: '3 заметки', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Закреплённые' })).toBeVisible();
   const pinned = page.getByRole('list', { name: 'Закреплённые заметки' });
   await expect(pinned.getByRole('link')).toHaveCount(1);
   await expect(pinned).toContainText('Идеи на отпуск');
   await expect(pinned).toContainText('Только я');
-  await expect(pinned.getByRole('img', { name: 'Кто видит: Только я' })).toBeVisible();
+  await expect(pinned.getByText('Только я', { exact: true })).toBeVisible();
   await expect(noteLinks(page)).toHaveCount(3);
   await checkApp(page, info, 'notes-list');
 
@@ -156,7 +155,9 @@ test('правка: чек-лист отмечается на карточке, 
   await expect(noteLinks(page)).toHaveCount(1);
   expect(page.url()).not.toContain('ремонт');
   await page.getByLabel('Найти по заголовку').fill('такого нет');
-  await expect(page.getByRole('region', { name: 'Ничего не нашли' })).toBeVisible();
+  await expect(
+    page.getByText('Ничего не нашли среди загруженных заметок.', { exact: true }),
+  ).toBeVisible();
   await checkApp(page, info, 'notes-list-filter-empty');
   await page.getByLabel('Найти по заголовку').fill('');
   await expect(noteLinks(page)).toHaveCount(3);

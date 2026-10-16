@@ -4,9 +4,11 @@ import { OperationNotice, useTaskOperation } from './operation.tsx';
 export function TakeFromRadar({
   occurrenceId,
   assigneeId,
+  label = 'Взять в работу',
 }: {
   occurrenceId: string;
   assigneeId: string;
+  label?: string;
 }) {
   const { me, role } = useHousehold();
   const navigate = useNavigate();
@@ -20,7 +22,7 @@ export function TakeFromRadar({
         disabled={operation.pending}
         onClick={() => void operation.run({ path: 'tasks/from-radar', body: { occurrenceId } })}
       >
-        Взять в работу
+        {label}
       </button>
       <OperationNotice operation={operation} />
     </>

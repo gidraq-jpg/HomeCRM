@@ -122,7 +122,7 @@ export async function openAs(
 
 /** Список заметок на экране «Заметки»: ссылки по названию. */
 export const noteLinks = (page: Page) =>
-  page.getByRole('main').getByRole('link', { name: /Кто видит:/ });
+  page.getByRole('main').locator('.row[href^="#/more/notes/"], .notes-pinned__card');
 
 export async function openNotes(page: Page) {
   // Сначала в другой раздел: тот же адрес не пересоздаёт экран, а нужны свежие данные сервера.

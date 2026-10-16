@@ -438,7 +438,10 @@ test('радар: группы по времени дома, «Моё · Вес�
   await expect(page.getByText('Загружаем радар…')).toHaveCount(0);
 
   // «Моё»: шесть пунктов, пять групп; гаража Анны нет.
-  await expect(page.getByRole('radio', { name: 'Моё', exact: true })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Моё', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect
     .poll(() => radarSummary(page))
     .toEqual({
@@ -448,7 +451,7 @@ test('радар: группы по времени дома, «Моё · Вес�
       '30 дней': 1,
       '90 дней': 1,
     });
-  await expect(page.getByText('6 пунктов', { exact: true })).toBeVisible();
+  await expect(page.getByRole('list', { name: '7 дней', exact: true })).toBeVisible();
   await expect(
     page.getByRole('heading', { level: 2, name: 'Просрочено', exact: true }),
   ).toBeVisible();
@@ -474,9 +477,9 @@ test('радар: группы по времени дома, «Моё · Вес�
   await checkApp(page, info, 'radar-groups');
 
   // «Весь дом»: добавляется гараж Анны.
-  await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(groupItems(page, '7 дней')).toHaveCount(3);
-  await expect(page.getByText('7 пунктов', { exact: true })).toBeVisible();
+  await expect(groupItems(page, '7 дней')).toHaveCount(3);
   await expect(groupItems(page, '7 дней').filter({ hasText: 'Гараж' })).toContainText(
     'через 4 дня',
   );
@@ -492,11 +495,13 @@ test('радар: группы по времени дома, «Моё · Вес�
   await expect(groupItems(page, '7 дней').filter({ hasText: 'Заметка о лекарствах' })).toHaveCount(
     0,
   );
-  await expect(page.getByText('6 пунктов', { exact: true })).toBeVisible();
+  await expect(groupItems(page, '7 дней')).toHaveCount(2);
   await setScope(page, 'Всё');
 
   // Переход в карточку записи.
-  await groupItems(page, 'Просрочено').getByRole('link').click();
+  await groupItems(page, 'Просрочено')
+    .getByRole('link', { name: /^Квартира у парка/ })
+    .click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Квартира у парка', exact: true }),
   ).toBeVisible();
@@ -518,8 +523,7 @@ test('радар: пустые состояния (TPL-4) — нет сроко�
   await setHomeZone(family);
   await signInAs(page, family, 'adult');
   await openRadar(page);
-  const empty = page.getByRole('region', { name: 'Сроков пока нет' });
-  await expect(empty).toContainText('нажмите «Добавить срок»');
+  await expect(page.getByText('Сроков пока нет', { exact: true })).toBeVisible();
   await expect(page.getByText('Срочного нет')).toHaveCount(0);
   await checkApp(page, info, 'radar-empty');
 
@@ -531,15 +535,12 @@ test('радар: пустые состояния (TPL-4) — нет сроко�
 
   // Срок есть, но за него отвечает Анна: в «Моём» пусто, кнопка ведёт в «Весь дом».
   await openRadar(page);
-  const mine = page.getByRole('region', { name: 'У вас сроков нет' });
-  await expect(mine).toContainText('«Моё» показывает только то, за что отвечаете вы');
+  await expect(page.getByText('У вас сроков нет', { exact: true })).toBeVisible();
   await checkApp(page, info, 'radar-empty-mine');
   await setScope(page, 'Личное');
-  await expect(page.getByRole('region', { name: 'У вас сроков нет' })).toContainText(
-    'Здесь только ваши записи',
-  );
-  await page.getByRole('button', { name: 'Показать «Всё»' }).click();
-  await mine.getByRole('button', { name: 'Показать «Весь дом»' }).click();
+  await expect(page.getByText('У вас сроков нет', { exact: true })).toBeVisible();
+  await setScope(page, 'Всё');
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(groupItems(page, '7 дней')).toContainText('Гараж');
 
   // «Сегодня»: срочного нет, но это не пустой экран.
@@ -581,9 +582,9 @@ test('срок скрыт вместе с записью: ребёнок не в
   const child = await openAs(browser, family, info, 'child');
   try {
     await openRadar(child.page);
-    await child.page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+    await child.page.getByRole('button', { name: 'Весь дом', exact: true }).click();
     await expect.poll(() => radarSummary(child.page)).toEqual({ '7 дней': 1 });
-    await expect(child.page.getByText('1 пункт', { exact: true })).toBeVisible();
+    await expect.poll(() => radarSummary(child.page)).toEqual({ '7 дней': 1 });
     const text = await child.page.locator('main').innerText();
     for (const hidden of ['Счета на квартиру', 'Подарок на юбилей', 'Просрочено'])
       expect(text, `«${hidden}» в радаре ребёнка`).not.toContain(hidden);
@@ -602,14 +603,14 @@ test('срок скрыт вместе с записью: ребёнок не в
   const anna = await openAs(browser, family, info, 'admin');
   try {
     await openRadar(anna.page);
-    await anna.page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+    await anna.page.getByRole('button', { name: 'Весь дом', exact: true }).click();
     await expect(anna.page.getByRole('link', { name: /Счета на квартиру/ }).first()).toBeVisible();
     await expect(anna.page.getByRole('link', { name: /Правила дома/ })).toBeVisible();
     await expect(anna.page.getByText('Подарок на юбилей')).toHaveCount(0);
     await expect.poll(() => radarSummary(anna.page)).toEqual({ Просрочено: 1, '7 дней': 2 });
     await setScope(anna.page, 'Личное');
     await expect(
-      anna.page.getByRole('region', { name: 'Под выбранный режим сроков нет' }),
+      anna.page.getByText('Под выбранный режим сроков нет', { exact: true }),
     ).toBeVisible();
     const status = await anna.page.evaluate(
       async (id) => (await fetch(`/api/notes/${id}/deadlines`)).status,
@@ -629,8 +630,11 @@ test('срок скрыт вместе с записью: ребёнок не в
       expect((await (await changed).json()).roles[0].role).toBe('child');
       await expect(anna.page.getByText('Счета на квартиру')).toHaveCount(0);
       // B1: локальный режим прежнего участника сбрасывается вместе с интерфейсом.
-      await expect(anna.page.getByRole('radio', { name: 'Моё', exact: true })).toBeChecked();
-      await anna.page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+      await expect(anna.page.getByRole('button', { name: 'Моё', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await anna.page.getByRole('button', { name: 'Весь дом', exact: true }).click();
       await expect(anna.page.getByRole('link', { name: /Правила дома/ })).toBeVisible();
       await expect.poll(() => radarSummary(anna.page)).toEqual({ '7 дней': 1 });
     } finally {
@@ -736,13 +740,13 @@ test('часовой пояс дома: администратор меняет,
 
   // До пересчёта прежние моменты показаны с явным признаком пересчёта.
   await openRadar(page);
-  await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(page.getByText('Идёт пересчёт', { exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Сроков пока нет' })).toHaveCount(0);
   await checkApp(page, info, 'radar-recalculating');
   await recalc(family);
   await openRadar(page);
-  await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(groupItems(page, '7 дней')).toContainText('Квартира у парка');
   expect(plain(await groupItems(page, '7 дней').innerText())).toContain(', 9:00');
   const [yekaterinburg] = await startsAt();
@@ -772,7 +776,7 @@ test('названия записей и сроков не попадают в �
   await openNoteCard(page, note.id, 'Страховка дачи');
   await openRadar(page);
   await expect(page.getByText('Страховка дачи').first()).toBeVisible();
-  await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await page.goto('#/today');
   await expect(page.getByRole('heading', { level: 2, name: 'Срочное из радара' })).toBeVisible();
   await expectNothingStored(page, ['Квартира у парка', 'Страховка дачи']);

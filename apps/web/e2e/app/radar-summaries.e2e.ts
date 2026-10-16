@@ -16,7 +16,15 @@ import {
   expectNoHorizontalScroll,
   expectTouchTargets,
 } from '../support/helpers.ts';
-import { homeDate, openRadar, recalc, seedDeadline, setHomeZone } from './deadlines-support.ts';
+import {
+  homeDate,
+  openRadar,
+  openRadarMenu,
+  recalc,
+  seedDeadline,
+  selectRadarState,
+  setHomeZone,
+} from './deadlines-support.ts';
 import { apiAs, seedNote } from './notes-support.ts';
 import { signInAs } from './support.ts';
 
@@ -51,8 +59,12 @@ test('радар: причина, настоящий 409 с сохранение
   const row = page
     .getByRole('listitem')
     .filter({ has: page.getByRole('link', { name: /^Вымышленная проверка радара/ }) });
-  await row.getByRole('button', { name: 'Не актуально', exact: true }).click();
-  await row.getByLabel('Причина', { exact: true }).fill('Вымышленная причина сохранена');
+  await openRadarMenu(page, row);
+  await page.getByRole('dialog').getByRole('button', { name: 'Не актуально', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByLabel('Причина', { exact: true })
+    .fill('Вымышленная причина сохранена');
   await check(page, info, 'radar-dismiss-form');
   const result = await api.get('deadlines?from=0001-01-01&to=9999-12-31');
   const item = (result.body as { items: { id: string; calendarKey: string }[] }).items[0];
@@ -68,31 +80,39 @@ test('радар: причина, настоящий 409 с сохранение
       })
     ).status,
   ).toBe(200);
-  await row.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await expect(row.getByRole('alert')).toContainText('Текущая версия: 1');
-  await expect(row.getByRole('textbox', { name: 'Причина', exact: true })).toHaveValue(
-    'Вымышленная причина сохранена',
-  );
+  await page.getByRole('dialog').getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Текущая версия: 1');
+  await expect(
+    page.getByRole('dialog').getByRole('textbox', { name: 'Причина', exact: true }),
+  ).toHaveValue('Вымышленная причина сохранена');
   await check(page, info, 'radar-conflict');
-  await row.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(row).toHaveCount(0);
-  await page.getByRole('combobox', { name: 'Состояние', exact: true }).selectOption('dismissed');
+  await selectRadarState(page, 'dismissed');
   await expect(row).toContainText('Вымышленная причина сохранена');
   await check(page, info, 'radar-dismissed');
-  await row.getByRole('button', { name: 'Вернуть в радар', exact: true }).click();
+  await openRadarMenu(page, row);
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Вернуть в радар', exact: true })
+    .click();
   await expect(row).toHaveCount(0);
-  await page.getByRole('combobox', { name: 'Состояние', exact: true }).selectOption('active');
-  await row.getByRole('button', { name: 'Отложить до…', exact: true }).click();
-  await row.getByLabel('Дата · Europe/Moscow', { exact: true }).fill(homeDate(2));
-  await row.getByLabel('Время дома', { exact: true }).fill('09:30');
+  await selectRadarState(page, 'active');
+  await openRadarMenu(page, row);
+  await page.getByRole('dialog').getByRole('button', { name: 'Отложить до…', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByLabel('Дата · Europe/Moscow', { exact: true })
+    .fill(homeDate(2));
+  await page.getByRole('dialog').getByLabel('Время дома', { exact: true }).fill('09:30');
   await check(page, info, 'radar-snooze-form');
-  await row.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(row).toHaveCount(0);
-  await page.getByRole('combobox', { name: 'Состояние', exact: true }).selectOption('snoozed');
+  await selectRadarState(page, 'snoozed');
   await expect(row).toContainText('Отложено до');
   await page.reload();
   await expect(row).toHaveCount(0);
-  await page.getByRole('combobox', { name: 'Состояние', exact: true }).selectOption('snoozed');
+  await selectRadarState(page, 'snoozed');
   await expect(row).toContainText('Отложено до');
   await check(page, info, 'radar-snoozed');
 });
@@ -203,7 +223,8 @@ test('смена A → B во время ответа действия очищ�
   await recalc(family);
   await signInAs(page, family, 'adult');
   await openRadar(page);
-  await page.getByRole('combobox', { name: 'Состояние', exact: true }).selectOption('all');
+  await selectRadarState(page, 'all');
+  await page.getByRole('button', { name: /^Ещё действия:/ }).click();
   await page.getByRole('button', { name: 'Не актуально', exact: true }).click();
   await page.getByLabel('Причина', { exact: true }).fill('Личная причина A');
   let release: () => void = () => {};
@@ -286,9 +307,11 @@ test('смена A → B во время ответа действия очищ�
   expect((await meB.json()).id).toBe(child.id);
   await expectRadarB(await radarB);
   await expect(page.getByLabel('Причина', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Ещё фильтры', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Состояние', exact: true })).toHaveValue(
     'active',
   );
+  await page.getByRole('button', { name: 'Готово', exact: true }).click();
   // Старый ответ A доставляем уже после загрузки радара B и ждём вызванного им обновления.
   const afterAction = page.waitForResponse(defaultRadar);
   release();
@@ -297,7 +320,9 @@ test('смена A → B во время ответа действия очищ�
   await expect(page).toHaveURL(/#\/more\/radar$/);
   await expect(page.getByText('Личный срок участника A', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Личная причина A', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Ещё фильтры', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Состояние', exact: true })).toHaveValue(
     'active',
   );
+  await page.getByRole('button', { name: 'Готово', exact: true }).click();
 });

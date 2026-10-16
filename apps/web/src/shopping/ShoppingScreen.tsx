@@ -1,8 +1,7 @@
 import { canRestore, canTrash, canWrite } from '@homecrm/shared';
-import { Plus, ShoppingCart } from '@phosphor-icons/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { type FormEvent, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
@@ -18,9 +17,11 @@ import {
   visibilityOf,
 } from '../notes/abilities.ts';
 import { uuid } from '../offline/store.ts';
+import { AddActionContext } from '../shell/AddAction.tsx';
 import { RecordPicker } from '../tasks/options.tsx';
+import { TaskTabs } from '../tasks/TaskTabs.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
-import { EmptyState } from '../ui/EmptyState.tsx';
+import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
@@ -33,6 +34,8 @@ import {
   shoppingAction,
 } from './api.ts';
 import { ShoppingLinks } from './ShoppingLinks.tsx';
+import '../tasks/today.css';
+import '../styles/studio2-lists.css';
 
 function ShoppingError({ error }: { error: unknown }) {
   if (!error) return null;
@@ -49,13 +52,24 @@ export function ShoppingScreen() {
   const { scope } = useScope();
   const client = useQueryClient();
   const toast = useToast();
-  const [house, setHouse] = useState(householdId ?? '');
+  const [params] = useSearchParams();
+  const [house, setHouse] = useState(() =>
+    me.roles.some((role) => role.householdId === params.get('householdId'))
+      ? (params.get('householdId') ?? '')
+      : (householdId ?? ''),
+  );
   const [trash, setTrash] = useState(false);
   const [title, setTitle] = useState('');
+  const [listChoice, setListChoice] = useState<'household' | 'personal'>(
+    scope === 'personal' ? 'personal' : 'household',
+  );
+  const selectedList =
+    scope === 'all' ? listChoice : scope === 'personal' ? 'personal' : 'household';
   const [place, setPlace] = useState<Visibility>(
     scope === 'personal' || !house ? 'personal' : 'household',
   );
   const [details, setDetails] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
   const state = useAction();
   const action = useAction();
   const key = useOperationKey();
@@ -75,6 +89,7 @@ export function ShoppingScreen() {
   const options = creatableVisibilities(viewer, house || null, 'shopping_item');
   function add(event: FormEvent) {
     event.preventDefault();
+    if (state.disabled) return;
     const value = title.trim();
     if (!value) return;
     const placement = newPlacement(place, house || null);
@@ -125,16 +140,12 @@ export function ShoppingScreen() {
             <Link className="task-row__body shopping-row-link" to={`/more/shopping/${card.id}`}>
               <span className="row__title">{card.title}</span>
               <span className="row__meta">
-                {[
-                  card.quantity,
-                  card.data.store,
-                  card.data.category,
-                  card.boughtAt ? 'Куплено' : null,
-                ]
+                {[card.data.note, card.data.store, card.boughtAt ? 'Куплено' : null]
                   .filter(Boolean)
                   .join(' · ')}
               </span>
             </Link>
+            {card.quantity ? <span className="shopping-quantity">{card.quantity}</span> : null}
             <AccessBadge visibility={visibilityOf(card)} />
           </li>
         ))}
@@ -146,10 +157,24 @@ export function ShoppingScreen() {
     const bought = items.filter((card) => !!card.boughtAt);
     return (
       <>
-        {open.length ? rows(open) : <p className="muted">В списке пусто.</p>}
+        {open.length ? (
+          [...Map.groupBy(open, (card) => card.data.category || card.data.store || 'Список')].map(
+            ([category, items]) => (
+              <Section
+                key={category}
+                title={category}
+                aside={<span className="muted">{items.length}</span>}
+              >
+                {rows(items)}
+              </Section>
+            ),
+          )
+        ) : (
+          <p className="muted">В списке пусто.</p>
+        )}
         {bought.length ? (
           <details className="shopping-bought">
-            <summary>Куплено · {bought.length}</summary>
+            <summary>Куплено · {bought.length} · уберём через 7 дней</summary>
             {rows(bought)}
             <p className="muted">
               Через 7 дней купленное перейдёт в корзину. В корзине хранится ещё 30 дней.
@@ -160,137 +185,188 @@ export function ShoppingScreen() {
     );
   }
   return (
-    <Page title="Покупки" back={{ to: '/more', label: 'Ещё' }}>
-      {me.roles.length > 1 ? (
-        <label className="field">
-          Дом
-          <select
-            aria-label="Дом"
-            className="input"
-            value={house}
-            onChange={(event) => {
-              setHouse(event.target.value);
-              setPlace(scope === 'personal' ? 'personal' : 'household');
-            }}
-          >
-            {me.roles.map((role, index) => (
-              <option key={role.householdId} value={role.householdId}>
-                Дом {index + 1}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-      <div className="btn-row">
-        <button
-          type="button"
-          className="btn btn--secondary"
-          aria-pressed={!trash}
-          onClick={() => setTrash(false)}
-        >
-          Список
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary"
-          aria-pressed={trash}
-          onClick={() => setTrash(true)}
-        >
-          Корзина покупок
-        </button>
-      </div>
-      {!trash ? (
-        <form className="shopping-quick" onSubmit={add}>
-          <label className="field__label" htmlFor="shopping-quick-title">
-            Добавить одной строкой
-          </label>
-          <div className="shopping-quick__line">
-            <input
-              id="shopping-quick-title"
-              className="input"
-              value={title}
-              maxLength={200}
-              placeholder="Что купить?"
-              required
-              onChange={(event) => setTitle(event.target.value)}
-            />
-            <button
-              type="submit"
-              className="icon-button"
-              aria-label="Добавить покупку"
-              disabled={state.disabled}
-            >
-              <Plus size={22} aria-hidden />
-            </button>
+    <AddActionContext.Provider
+      value={() => {
+        setTrash(false);
+        requestAnimationFrame(() => input.current?.focus());
+      }}
+    >
+      <Page
+        title="Покупки"
+        className="studio-list-page shopping-page"
+        heading={
+          <div className="studio-list-hero">
+            <h1 className="visually-hidden">Покупки</h1>
+            <fieldset className="studio-segments" aria-label="Список покупок">
+              <button
+                type="button"
+                aria-pressed={selectedList === 'household'}
+                disabled={scope === 'personal'}
+                onClick={() => {
+                  setListChoice('household');
+                  setPlace('household');
+                }}
+              >
+                Вся семья
+              </button>
+              <button
+                type="button"
+                aria-pressed={selectedList === 'personal'}
+                disabled={scope === 'shared'}
+                onClick={() => {
+                  setListChoice('personal');
+                  setPlace('personal');
+                }}
+              >
+                Личный
+              </button>
+            </fieldset>
+            {query.data && !query.error && !query.hasNextPage ? (
+              <p className="studio-list-summary">
+                {selectedList === 'personal' ? 'В личном списке' : 'В общем списке'}{' '}
+                {countWord(
+                  all.filter((card) => !card.boughtAt && card.spaceKind === selectedList).length,
+                  ['покупка', 'покупки', 'покупок'],
+                )}
+              </p>
+            ) : null}
           </div>
-          <VisibilityPicker
-            value={options.includes(place) ? place : 'personal'}
-            options={options}
-            onChange={setPlace}
-          />
-          <button type="button" className="text-button" onClick={() => setDetails(true)}>
-            Количество, заметка и связи
-          </button>
-          <ShoppingError error={state.error} />
-        </form>
-      ) : null}
-      {query.isPending ? (
-        <Notice>Загружаем покупки…</Notice>
-      ) : query.isError ? (
-        <>
-          <ShoppingError error={query.error} />
-          <button className="btn btn--secondary" type="button" onClick={() => void query.refetch()}>
-            Повторить загрузку
-          </button>
-        </>
-      ) : all.length === 0 ? (
-        <EmptyState
-          icon={<ShoppingCart size={24} aria-hidden />}
-          title={trash ? 'Корзина покупок пуста' : 'В списке пусто'}
-        >
-          <p>
-            Общий список видит вся семья, и дети тоже могут в него писать. Личный список — только
-            вы.
-          </p>
-        </EmptyState>
-      ) : (
-        <>
-          {scope !== 'personal' ? (
-            <Section title="Общий список" aside={<span className="muted">Вся семья</span>}>
-              {list(all.filter((card) => card.spaceKind === 'household'))}
-            </Section>
+        }
+      >
+        <div className="studio-panel studio-list-panel">
+          <TaskTabs houseQuery={house && house !== householdId ? `?householdId=${house}` : ''} />
+          {me.roles.length > 1 ? (
+            <label className="field">
+              Дом
+              <select
+                aria-label="Дом"
+                className="input"
+                value={house}
+                onChange={(event) => {
+                  setHouse(event.target.value);
+                  setPlace(selectedList);
+                }}
+              >
+                {me.roles.map((role, index) => (
+                  <option key={role.householdId} value={role.householdId}>
+                    Дом {index + 1}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : null}
-          {scope !== 'shared' ? (
-            <Section title="Мой список">
-              {list(all.filter((card) => card.spaceKind === 'personal'))}
-            </Section>
+          {!trash ? (
+            <form className="shopping-quick" onSubmit={add}>
+              <label className="field__label" htmlFor="shopping-quick-title">
+                Добавить одной строкой
+              </label>
+              <div className="shopping-quick__line">
+                <input
+                  ref={input}
+                  id="shopping-quick-title"
+                  className="input"
+                  value={title}
+                  maxLength={200}
+                  placeholder="Что купить?"
+                  required
+                  enterKeyHint="done"
+                  readOnly={state.disabled}
+                  onChange={(event) => setTitle(event.target.value)}
+                />
+              </div>
+              <details className="studio-list-options">
+                <summary>Параметры покупки</summary>
+                <VisibilityPicker
+                  value={options.includes(place) ? place : 'personal'}
+                  options={options}
+                  onChange={setPlace}
+                />
+                <button type="button" className="text-button" onClick={() => setDetails(true)}>
+                  Количество, заметка и связи
+                </button>
+              </details>
+              <ShoppingError error={state.error} />
+            </form>
           ) : null}
-        </>
-      )}
-      <ShoppingError error={action.error} />
-      {query.hasNextPage ? (
-        <button
-          type="button"
-          className="btn btn--secondary btn--block"
-          disabled={query.isFetchingNextPage}
-          onClick={() => void query.fetchNextPage()}
-        >
-          Ещё покупки
-        </button>
-      ) : null}
-      {details ? (
-        <ShoppingEditor
-          initialTitle={title}
-          house={house || null}
-          onClose={() => setDetails(false)}
-          onSaved={async () => {
-            setDetails(false);
-            setTitle('');
-            await refresh();
-          }}
-        />
-      ) : null}
-    </Page>
+          {query.isPending ? (
+            <Notice>Загружаем покупки…</Notice>
+          ) : query.isError ? (
+            <>
+              <ShoppingError error={query.error} />
+              <button
+                className="btn btn--secondary"
+                type="button"
+                onClick={() => void query.refetch()}
+              >
+                Повторить загрузку
+              </button>
+            </>
+          ) : all.length === 0 ? (
+            <p className="muted">{trash ? 'Корзина покупок пуста' : 'В списке пусто'}</p>
+          ) : (
+            <>
+              {scope !== 'personal' ? (
+                <section aria-label="Общий список">
+                  {list(all.filter((card) => card.spaceKind === 'household'))}
+                </section>
+              ) : null}
+              {scope !== 'shared' ? (
+                <section aria-label="Мой список">
+                  {list(all.filter((card) => card.spaceKind === 'personal'))}
+                </section>
+              ) : null}
+            </>
+          )}
+          <ShoppingError error={action.error} />
+          <details className="studio-list-options shopping-tools">
+            <summary>Ещё</summary>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn--secondary"
+                aria-pressed={!trash}
+                onClick={() => setTrash(false)}
+              >
+                Список
+              </button>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                aria-pressed={trash}
+                onClick={() => setTrash(true)}
+              >
+                Корзина покупок
+              </button>
+            </div>
+          </details>
+          {state.disabled && !state.pending ? (
+            <p className="muted">Без сети покупки доступны только для чтения.</p>
+          ) : null}
+          {query.hasNextPage ? (
+            <button
+              type="button"
+              className="btn btn--secondary btn--block"
+              disabled={query.isFetchingNextPage}
+              onClick={() => void query.fetchNextPage()}
+            >
+              Ещё покупки
+            </button>
+          ) : null}
+          {details ? (
+            <ShoppingEditor
+              initialTitle={title}
+              house={house || null}
+              onClose={() => setDetails(false)}
+              onSaved={async () => {
+                setDetails(false);
+                setTitle('');
+                await refresh();
+              }}
+            />
+          ) : null}
+        </div>
+      </Page>
+    </AddActionContext.Provider>
   );
 }
 export function ShoppingCardScreen() {

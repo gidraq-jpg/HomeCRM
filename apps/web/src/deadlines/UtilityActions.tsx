@@ -279,9 +279,11 @@ function VerifyButton({
 export function UtilityActions({
   utility,
   withOpen = true,
+  compact = false,
 }: {
   utility: UtilityRow;
   withOpen?: boolean;
+  compact?: boolean;
 }) {
   const { action } = utility;
   let primary = null;
@@ -303,14 +305,14 @@ export function UtilityActions({
         className="btn btn--primary btn--block"
         to={readingsPath(action.objectId ?? utility.objectId)}
       >
-        {action.label || FALLBACK.enter_readings}
+        {compact ? 'Внести' : action.label || FALLBACK.enter_readings}
       </Link>
     );
   } else if (action?.kind === 'mark_payment' && action.occurrenceId) {
     primary = (
       <MarkPaymentButton
         occurrenceId={action.occurrenceId}
-        label={action.label || FALLBACK.mark_payment}
+        label={compact ? 'Оплачено' : action.label || FALLBACK.mark_payment}
       />
     );
   } else if (action?.kind === 'verify_meter' && action.meterId) {

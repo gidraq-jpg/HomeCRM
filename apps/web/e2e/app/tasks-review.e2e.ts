@@ -144,7 +144,9 @@ for (const view of ['all', 'card'] as const) {
     const id = (created.body as { id: string }).id;
     await signInAs(page, family, 'adult');
     await page.goto(view === 'all' ? '#/today/all' : `#/today/tasks/${id}`);
-    await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }),
+    ).toBeVisible();
     let completed = false;
     let undoRequests = 0;
     let refetchStarted = false;
@@ -178,7 +180,7 @@ for (const view of ['all', 'card'] as const) {
     };
     await page.route('**/api/tasks**', routeHandler);
     try {
-      await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
+      await page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }).click();
       await expect.poll(() => refetchStarted).toBe(true);
       const undo = page.getByRole('button', {
         name: view === 'all' ? 'Отменить' : /Отменить выполнение/,
@@ -190,7 +192,9 @@ for (const view of ['all', 'card'] as const) {
       await expect
         .poll(async () => (await api.get(`tasks/${id}`)).body)
         .toMatchObject({ status: 'open', nextTaskId: null });
-      await expect(page.getByRole('button', { name: 'Выполнить', exact: true })).toBeEnabled();
+      await expect(
+        page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }),
+      ).toBeEnabled();
       expect(undoRequests).toBe(1);
     } finally {
       release();
@@ -264,7 +268,7 @@ for (const surface of ['confirmation', 'undo'] as const) {
       await expect(page.getByRole('dialog', { name: 'Подтвердите доступ' })).toBeVisible();
     } else {
       await page.goto('#/today/all');
-      await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
+      await page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }).click();
       await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toBeVisible();
     }
     await switchToChild(page, family);
@@ -450,8 +454,9 @@ test('B2/A3: отказ отмены виден после ухода строк
   const id = (created.body as { id: string }).id;
   await signInAs(page, family, 'adult');
   await page.goto('#/today/all');
+  await page.locator('.studio-list-options > summary').filter({ hasText: 'Статус дел' }).click();
   await page.getByLabel('Статус дел').selectOption('open');
-  await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
+  await page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }).click();
   await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toBeVisible();
   const completed = (await api.get(`tasks/${id}`)).body as { nextTaskId: string };
   expect(
@@ -530,7 +535,7 @@ for (const code of ['UNDO_EXPIRED', 'COMPLETION_CHANGED'] as const)
     };
     await signInAs(page, family, 'adult');
     await page.goto('#/today/all');
-    await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
+    await page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }).click();
     await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toBeVisible();
     if (code === 'UNDO_EXPIRED')
       await family.database.admin.query(
@@ -562,7 +567,7 @@ test('A3: неизвестный CONFLICT отмены сохраняет общ
   };
   await signInAs(page, family, 'adult');
   await page.goto('#/today/all');
-  await page.getByRole('button', { name: 'Выполнить', exact: true }).click();
+  await page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }).click();
   await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toBeVisible();
   // Только неизвестный отказ контролируется HTTP-ответом; три точных кода выше проверены настоящим API.
   await page.route(`**/api/tasks/${row.id}/undo`, (route) =>
@@ -677,7 +682,11 @@ test('A2: сроки дела и коммуналки отвечают EDIT_SOUR
       .getByRole('listitem')
       .filter({ hasText: title ?? '' })
       .first();
-    await item.getByRole('link', { name: /Ответственный — в карточке источника/ }).click();
+    await item.getByRole('button', { name: /^Ещё действия:/ }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('link', { name: /Ответственный — в карточке источника/ })
+      .click();
     expect(new URL(page.url()).hash).toContain(source);
   }
   await check(page, info, 'a2-utility-source');

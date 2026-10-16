@@ -281,7 +281,7 @@ test('дни рождения с годом и без: радар, Сегодн�
   const child = await openAs(browser, family, info, 'child');
   try {
     await openRadar(child.page);
-    await child.page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+    await child.page.getByRole('button', { name: 'Весь дом', exact: true }).click();
     await expect(child.page.getByRole('link', { name: /Вымышленная Именинница/ })).toBeVisible();
     await expect(child.page.getByText('Скрытый Именинник')).toHaveCount(0);
     await openPeople(child.page);
@@ -418,7 +418,7 @@ test('остаток начисления и отмена ровно по paymen
   await recalc(family);
   await signInAs(page, family, 'adult');
   await openRadar(page);
-  const row = page.locator('.radar-utility').filter({ hasText: 'Общая Квартира' });
+  const row = page.locator('.studio-radar-row').filter({ hasText: 'Общая Квартира' });
   await expect(row).toContainText(/осталось 1\s840,50\s₽/);
   await checkApp(page, info, 'r1b4b-radar-remaining');
   let listRequests = 0;
@@ -429,7 +429,7 @@ test('остаток начисления и отмена ровно по paymen
   const markedResponse = page.waitForResponse((response) =>
     response.url().includes('/complete-payment'),
   );
-  await row.getByRole('button', { name: 'Отметить оплату' }).click();
+  await row.getByRole('button', { name: 'Оплачено', exact: true }).click();
   const marked = (await (await markedResponse).json()) as { paymentId: string };
   expect(marked.paymentId).toBeTruthy();
   const cancellation = page.waitForRequest((request) =>

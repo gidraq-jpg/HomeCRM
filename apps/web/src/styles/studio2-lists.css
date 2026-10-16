@@ -1,0 +1,259 @@
+/* UI-5: четыре списка на общем тёплом листе Studio 2. */
+html[data-design="studio"] .main:has(> .studio-list-page) {
+  background: var(--charcoal);
+}
+html[data-design="studio"] .main:has(> .studio-list-page) > .offline-status:not(:empty) {
+  background: var(--paper);
+}
+html[data-design="studio"] .studio-list-page {
+  padding: 0;
+  background: var(--charcoal);
+}
+html[data-design="studio"] .studio-list-page > .back-link {
+  margin: 0 20px;
+  color: var(--muted-on-dark);
+}
+html[data-design="studio"] .studio-list-page > .page-heading {
+  margin: 0;
+  color: var(--on-dark);
+}
+html[data-design="studio"] .studio-list-hero {
+  padding: 12px 20px 20px;
+}
+html[data-design="studio"] .studio-list-hero h1 {
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1.2;
+}
+html[data-design="studio"] .studio-list-count {
+  color: var(--muted-on-dark);
+}
+html[data-design="studio"] .studio-list-summary {
+  margin-top: 12px;
+  font-size: 1.25rem;
+  font-weight: 300;
+  line-height: 1.45;
+}
+html[data-design="studio"] .studio-list-summary .text-button {
+  display: inline-block;
+  min-height: 44px;
+  color: var(--accent-on-dark);
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+}
+html[data-design="studio"] .studio-list-panel {
+  position: relative;
+  min-height: 60vh;
+  padding: 24px 16px calc(var(--nav-height) + 40px + env(safe-area-inset-bottom));
+}
+html[data-design="studio"] .studio-list-panel::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: calc(50% - 18px);
+  width: 36px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--line);
+}
+html[data-design="studio"] .today-tabs .tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html[data-design="studio"] .today-tabs .tabs::-webkit-scrollbar,
+html[data-design="studio"] .studio-filters::-webkit-scrollbar {
+  display: none;
+}
+html[data-design="studio"] .today-tabs .tabs__list {
+  flex-wrap: nowrap;
+  width: max-content;
+}
+html[data-design="studio"] .today-tabs .tabs__list > li,
+html[data-design="studio"] .today-tabs > .studio-add {
+  flex: none;
+}
+html[data-design="studio"] .today-tabs .tabs__link {
+  white-space: nowrap;
+}
+html[data-design="studio"] .studio-filters {
+  display: flex;
+  gap: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-block: 4px;
+  margin-block: 8px;
+  border: 0;
+  padding-inline: 0;
+  min-width: 0;
+}
+html[data-design="studio"] .studio-filter {
+  flex: none;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.84375rem;
+  white-space: nowrap;
+}
+html[data-design="studio"] .studio-filter[aria-pressed="true"] {
+  background: var(--charcoal);
+  border-color: var(--charcoal);
+  color: var(--on-dark);
+}
+html[data-design="studio"] .studio-list-options > summary,
+html[data-design="studio"] .studio-radar-fold > summary,
+html[data-design="studio"] .shopping-bought > summary {
+  min-height: 44px;
+  padding-block: 12px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+html[data-design="studio"] .studio-radar-fold {
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+}
+html[data-design="studio"] .studio-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px;
+  border-radius: 24px;
+  background: #302c25;
+  margin-block: 12px;
+  border: 0;
+  min-width: 0;
+}
+html[data-design="studio"] .studio-segments > button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: var(--muted-on-dark);
+  font-size: 0.84375rem;
+}
+html[data-design="studio"] .studio-segments > button[aria-pressed="true"] {
+  background: var(--on-dark);
+  color: var(--charcoal);
+}
+html[data-design="studio"] .studio-list-panel .section__title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+html[data-design="studio"] .radar-page .section:has(.studio-radar-overdue) .section__title {
+  color: #8a3a21;
+}
+html[data-design="studio"] .studio-radar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 6px;
+}
+html[data-design="studio"] .studio-radar-row__record {
+  flex: 1 1 130px;
+  min-width: 0;
+  padding: 6px;
+}
+html[data-design="studio"] .studio-radar-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  max-width: 100%;
+}
+html[data-design="studio"] .studio-radar-access {
+  display: inline-flex;
+  margin-inline-start: 6px;
+  vertical-align: middle;
+}
+html[data-design="studio"] .studio-radar-row__actions .radar-actions {
+  margin: 0;
+}
+html[data-design="studio"] .studio-radar-row__actions .btn {
+  width: auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 0.84375rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+html[data-design="studio"] .studio-radar-row--overdue .studio-radar-row__actions .btn {
+  background: var(--accent);
+  color: #fff;
+}
+html[data-design="studio"] .shopping-page .task-list {
+  padding: 0 4px;
+  background: var(--surface);
+  border-radius: 20px;
+}
+html[data-design="studio"] .shopping-page .task-row {
+  padding: 8px 6px;
+  gap: 6px;
+  border: 0;
+}
+html[data-design="studio"] .shopping-page .task-row + .task-row {
+  border-top: 1px solid var(--paper);
+}
+html[data-design="studio"] .shopping-page .check-toggle__circle {
+  border-radius: 6px;
+}
+html[data-design="studio"] .shopping-quantity {
+  max-width: 30%;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+html[data-design="studio"] .shopping-page .shopping-quick__line > .input {
+  width: 100%;
+}
+html[data-design="studio"] .notes-pinned {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+html[data-design="studio"] .notes-pinned__item {
+  min-width: 0;
+}
+html[data-design="studio"] .notes-pinned__card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 120px;
+  height: 100%;
+  padding: 14px;
+  background: var(--surface);
+  border-radius: 20px;
+  text-decoration: none;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+html[data-design="studio"] .notes-pinned__title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+html[data-design="studio"] .notes-pinned__meta {
+  margin-top: auto;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+@media (min-width: 960px) {
+  html[data-design="studio"] .studio-list-hero,
+  html[data-design="studio"] .studio-list-panel {
+    padding-inline: 32px;
+  }
+}

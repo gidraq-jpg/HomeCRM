@@ -79,17 +79,30 @@ export async function openRadar(page: Page) {
   await expect(page.getByText('Загружаем радар…')).toHaveCount(0);
 }
 
+/** Studio 2: фильтры и действия вынесены в листы. */
+export async function selectRadarState(page: Page, state: string) {
+  await page.getByRole('button', { name: 'Ещё фильтры', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Состояние', exact: true }).selectOption(state);
+  await page.getByRole('button', { name: 'Готово', exact: true }).click();
+}
+export async function openRadarMenu(page: Page, row: Locator) {
+  await row.getByRole('button', { name: /^Ещё действия:/ }).click();
+  return page.getByRole('dialog');
+}
+
 /** Пункты радара одной группы: ссылки по названию записи. */
 export const groupItems = (page: Page, group: string): Locator =>
-  page.getByRole('list', { name: group, exact: true }).getByRole('listitem');
+  page
+    .getByRole('list', { name: group, exact: true, includeHidden: true })
+    .getByRole('listitem', { includeHidden: true });
 
 /** Подписи всех пунктов радара, по группам; пустые группы не показываются. */
 export async function radarSummary(page: Page): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
   for (const group of ['Просрочено', 'Сейчас', '7 дней', '30 дней', '90 дней']) {
     const count = await page
-      .getByRole('list', { name: group, exact: true })
-      .getByRole('listitem')
+      .getByRole('list', { name: group, exact: true, includeHidden: true })
+      .getByRole('listitem', { includeHidden: true })
       .count();
     if (count > 0) result[group] = count;
   }
