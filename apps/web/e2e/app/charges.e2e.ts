@@ -161,13 +161,16 @@ test('две оплаты закрывают срок в радаре, отме�
       .getByRole('listitem')
       .filter({ hasText: 'Оплата' });
   await openRadar(page);
-  await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(radarPayment()).toHaveCount(1);
-  await expect(radarPayment().getByRole('link', { name: 'Открыть счёт' })).toHaveAttribute(
-    'href',
-    `#/home/${flat.id}/accounts/${account.id}/charges`,
-  );
+  await radarPayment()
+    .getByRole('button', { name: /^Ещё действия:/ })
+    .click();
+  await expect(
+    page.getByRole('dialog').getByRole('link', { name: 'Открыть счёт' }),
+  ).toHaveAttribute('href', `#/home/${flat.id}/accounts/${account.id}/charges`);
   await checkApp(page, info, 'charges-radar');
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
 
   // Первая оплата — частично: срок остаётся.
   await addCharge(page, flat.id);
@@ -185,7 +188,7 @@ test('две оплаты закрывают срок в радаре, отме�
     card.locator('.charge-card__status').getByText('Частично', { exact: true }),
   ).toBeVisible();
   await openRadar(page);
-  await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(radarPayment()).toHaveCount(1);
 
   // Вторая оплата — на остаток: срок закрыт.
@@ -199,7 +202,7 @@ test('две оплаты закрывают срок в радаре, отме�
     chargeCard(page).locator('.charge-card__status').getByText('Оплачено', { exact: true }),
   ).toBeVisible();
   await openRadar(page);
-  await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(radarPayment()).toHaveCount(0);
 
   // Отмена первой оплаты требует причины и снова открывает срок; оплата остаётся зачёркнутой.
@@ -223,11 +226,11 @@ test('две оплаты закрывают срок в радаре, отме�
   ).toBeVisible();
   await checkApp(page, info, 'payment-cancelled');
   await openRadar(page);
-  await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(radarPayment()).toHaveCount(1);
 
   // «Отметить оплату» в радаре создаёт оплату на остаток, «Отменить» в уведомлении — отменяет её.
-  await radarPayment().getByRole('button', { name: 'Отметить оплату' }).click();
+  await radarPayment().getByRole('button', { name: 'Оплачено', exact: true }).click();
   await expect(toast(page)).toContainText('Оплата отмечена');
   await expect(radarPayment()).toHaveCount(0);
   const live = await family.database.admin.query<{ n: number; total: string }>(

@@ -12,6 +12,7 @@ import {
   expectTouchTargets,
   SCREENSHOT_DIR,
   screenshot,
+  setScope,
   widthOf,
 } from '../support/helpers.ts';
 import { makePng } from './files-support.ts';
@@ -155,17 +156,20 @@ test('SHOP: прототип списка, real quickline/bought/undo/trash/rest
   await signInAs(page, family, 'adult');
   await shell(page);
   await page.goto('#/more/shopping');
+  await page.getByRole('button', { name: 'Личный', exact: true }).click();
   await expect(page.getByRole('link', { name: /Личный рюкзак/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Вся семья', exact: true }).click();
   await check(page, info, 'shopping-real');
   await page.getByLabel('Добавить одной строкой').fill('Хлеб вымышленной семьи');
-  await page.getByRole('button', { name: 'Добавить покупку', exact: true }).click();
+  await page.getByLabel('Добавить одной строкой').press('Enter');
   await expect(page.getByRole('link', { name: /Хлеб вымышленной семьи/ })).toBeVisible();
   await page.getByRole('checkbox', { name: 'Семейное молоко' }).click();
-  await expect(page.getByText('Куплено · 1')).toBeVisible();
+  await expect(page.locator('.shopping-bought > summary')).toContainText('Куплено · 1');
   await page.getByRole('button', { name: 'Отменить', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: 'Семейное молоко' })).not.toBeChecked();
   await page.goto(`#/more/shopping/${id}`);
   await page.getByRole('button', { name: 'В корзину', exact: true }).click();
+  await page.locator('.shopping-tools > summary').click();
   await page.getByRole('button', { name: 'Корзина покупок' }).click();
   await page.getByRole('link', { name: /Семейное молоко/ }).click();
   await page.getByRole('button', { name: 'Восстановить' }).click();
@@ -178,7 +182,7 @@ test('SHOP: прототип списка, real quickline/bought/undo/trash/rest
   await child.goto('#/more/shopping');
   await expect(child.getByRole('link', { name: /Личный рюкзак/ })).toHaveCount(0);
   await child.getByLabel('Добавить одной строкой').fill('Сок от ребёнка');
-  await child.getByRole('button', { name: 'Добавить покупку', exact: true }).click();
+  await child.getByLabel('Добавить одной строкой').press('Enter');
   await expect(child.getByRole('link', { name: /Сок от ребёнка/ })).toBeVisible();
   await context.close();
 });
@@ -945,7 +949,9 @@ test('SHOP: два дома, личный список, настоящее по�
   await page.getByLabel('Дом', { exact: true }).selectOption(second);
   await expect(page.getByRole('link', { name: 'Дом два яблоки' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Дом один яблоки' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Личный', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Личные яблоки' })).toBeVisible();
+  await setScope(page, 'Всё');
   await page.goto('#/search');
   await page.getByLabel('Что найти').fill('Дом два яблоки');
   await page.getByRole('link', { name: /Дом два яблоки/ }).click();

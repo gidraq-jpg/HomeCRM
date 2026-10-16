@@ -9,7 +9,15 @@ import { fetchRadar, saveRadarAction } from './api.ts';
 import { useRefreshDeadlines } from './queries.ts';
 import type { RadarRow } from './radar.ts';
 
-export function OccurrenceActions({ row }: { row: RadarRow }) {
+export function OccurrenceActions({
+  row,
+  menuOnly = false,
+  onSaved,
+}: {
+  row: RadarRow;
+  menuOnly?: boolean;
+  onSaved?: () => void;
+}) {
   const item = row.item;
   const [mode, setMode] = useState<'snooze' | 'dismiss' | null>(null);
   const [date, setDate] = useState(''),
@@ -49,6 +57,7 @@ export function OccurrenceActions({ row }: { row: RadarRow }) {
       await refresh();
       setMode(null);
       attempt.current = null;
+      onSaved?.();
     } catch (caught) {
       setError(
         caught instanceof ApiError && caught.status === 409
@@ -93,12 +102,12 @@ export function OccurrenceActions({ row }: { row: RadarRow }) {
           ) : null}
         </p>
       ) : null}
-      {item.primaryAction?.kind === 'renew_document' && item.documentId && !hidden ? (
+      {!menuOnly && item.primaryAction?.kind === 'renew_document' && item.documentId && !hidden ? (
         <Link className="btn btn--primary" to={`/documents/${item.documentId}?action=renew`}>
           Продлить
         </Link>
       ) : null}
-      {item.taskId && !hidden ? (
+      {!menuOnly && item.taskId && !hidden ? (
         <Link className="text-button" to={`/today/tasks/${item.taskId}`}>
           Открыть дело
         </Link>

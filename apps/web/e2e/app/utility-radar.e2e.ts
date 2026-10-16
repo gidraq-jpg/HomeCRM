@@ -131,7 +131,7 @@ test('радар: окно, оплата с отменой и поверка —
   const { flat, dacha, electricity } = await family3(family);
   await signInAs(page, family, 'adult');
   await openRadar(page);
-  await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
 
   // Окно показаний: название объекта и статус первыми, затем лицевой счёт с номером.
   const now = group(page, 'Сейчас');
@@ -140,14 +140,15 @@ test('радар: окно, оплата с отменой и поверка —
     .filter({ hasText: 'Квартира у парка' });
   await expect(windowItem).toContainText('Живём');
   await expect(windowItem).toContainText('Электроэнергия · № TEST-123');
-  await expect(windowItem.getByRole('link', { name: 'Внести показания' })).toHaveAttribute(
+  await expect(windowItem.getByRole('link', { name: 'Внести', exact: true })).toHaveAttribute(
     'href',
     `#/home/${flat.id}/readings`,
   );
-  await expect(windowItem.getByRole('link', { name: 'Открыть счёт' })).toHaveAttribute(
-    'href',
-    `#/home/${flat.id}/accounts`,
-  );
+  await windowItem.getByRole('button', { name: /^Ещё действия:/ }).click();
+  await expect(
+    page.getByRole('dialog').getByRole('link', { name: 'Открыть счёт' }),
+  ).toHaveAttribute('href', `#/home/${flat.id}/accounts`);
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   // Управляемый срок не правится из радара.
   await expect(windowItem.getByRole('button', { name: /Править|Удалить|В корзину/ })).toHaveCount(
     0,
@@ -167,7 +168,7 @@ test('радар: окно, оплата с отменой и поверка —
   await expect(payment).toHaveCount(1);
   await expect(payment).toContainText('Квартира у парка');
   await checkApp(page, info, 'utility-radar');
-  await payment.getByRole('button', { name: 'Отметить оплату' }).click();
+  await payment.getByRole('button', { name: 'Оплачено', exact: true }).click();
   await expect(toast(page)).toContainText('Оплата отмечена');
   await expect(now.filter({ hasText: 'Оплата' })).toHaveCount(0);
   const marked = await family.database.admin.query(
@@ -185,11 +186,11 @@ test('радар: окно, оплата с отменой и поверка —
   const verification = group(page, '7 дней').filter({ hasText: 'Поверка счётчика' });
   await expect(verification).toContainText('Квартира у парка');
   await expect(verification).toContainText('Электросчётчик');
-  await expect(verification.getByRole('link', { name: 'Открыть счётчик' })).toHaveAttribute(
-    'href',
-    `#/home/${flat.id}/meters`,
-  );
-  await verification.getByRole('button', { name: 'Поверка проведена' }).click();
+  await verification.getByRole('button', { name: /^Ещё действия:/ }).click();
+  await expect(
+    page.getByRole('dialog').getByRole('link', { name: 'Открыть счётчик' }),
+  ).toHaveAttribute('href', `#/home/${flat.id}/meters`);
+  await page.getByRole('dialog').getByRole('button', { name: 'Поверка проведена' }).click();
   const sheet = page.getByRole('dialog', { name: 'Поверка проведена' });
   await expect(sheet.getByLabel('Дата поверки')).toHaveValue(homeDate(0));
   await expect(sheet.getByLabel('Следующая поверка')).not.toHaveValue('');
@@ -239,7 +240,7 @@ test('ребёнок не видит коммунальные сроки объ�
   await checkApp(page, info, 'utility-today-child');
 
   await openRadar(page);
-  await page.getByRole('radio', { name: 'Весь дом', exact: true }).check();
+  await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(page.getByRole('main')).toContainText('Семейный дом');
   await expect(page.getByRole('main')).not.toContainText('Квартира у парка');
   await expect(page.getByRole('main')).not.toContainText('Дача у озера');

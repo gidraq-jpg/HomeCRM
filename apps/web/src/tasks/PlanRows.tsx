@@ -3,11 +3,13 @@ import { Clock } from '@phosphor-icons/react';
 import { Link, useLocation } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
-import type { FeedTaskCard } from './api.ts';
+import type { FeedTaskCard, TaskCard } from './api.ts';
+import { formatDateOnly } from './fields.tsx';
 import { useTaskMembers } from './options.tsx';
+import { STATUS_LABELS } from './TaskForm.tsx';
 import { taskPath } from './TaskRows.tsx';
 
-export function PlanRows({
+export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] }>({
   tasks,
   label,
   today,
@@ -15,33 +17,43 @@ export function PlanRows({
   move,
   complete,
   remember,
+  dates = false,
 }: {
-  tasks: readonly FeedTaskCard[];
+  tasks: readonly T[];
   label: string;
   today: string;
   pending: boolean;
-  move: (card: FeedTaskCard) => void;
-  complete: (card: FeedTaskCard) => void;
-  remember: () => void;
+  move?: (card: T) => void;
+  complete: (card: T) => void;
+  remember?: () => void;
+  dates?: boolean;
 }) {
   const location = useLocation();
   const { me, householdId } = useHousehold();
   const members = useTaskMembers(
     tasks.find((card) => card.householdId)?.householdId ?? householdId,
-    tasks.some((card) => !!card.assigneeId && card.assigneeId !== me.id),
+    !dates && tasks.some((card) => !!card.assigneeId && card.assigneeId !== me.id),
   );
   const viewer = viewerOf(me);
   return (
     <ul className="plan-rows" aria-label={label}>
       {tasks.map((card) => {
-        const editable = canWrite(viewer, factsOf(card, viewer, 'task'));
+        const editable =
+          ['open', 'waiting'].includes(card.status) &&
+          canWrite(viewer, factsOf(card, viewer, 'task'));
         const visibility =
           card.spaceKind === 'personal'
             ? 'Личное'
             : card.audience === 'adults'
               ? 'Взрослые'
               : 'Вся семья';
-        const metadata = [card.planTime, card.object?.title, visibility]
+        const metadata = [
+          dates && card.planOn ? formatDateOnly(card.planOn) : null,
+          card.planTime,
+          card.object?.title,
+          visibility,
+          dates && !['open', 'waiting'].includes(card.status) ? STATUS_LABELS[card.status] : null,
+        ]
           .filter(Boolean)
           .join(' · ');
         const other = card.assigneeId && card.assigneeId !== me.id;
@@ -74,7 +86,7 @@ export function PlanRows({
               <Link
                 className="plan-row__title"
                 to={taskPath(card.id)}
-                state={{ fromPlan: `${location.pathname}${location.search}` }}
+                state={dates ? undefined : { fromPlan: `${location.pathname}${location.search}` }}
                 onClick={remember}
               >
                 {card.title}
@@ -89,7 +101,8 @@ export function PlanRows({
                 ) : null}
                 {metadata}
               </p>
-              {other ? (
+              {other &&
+              (!dates || members.data?.some((person) => person.accountId === card.assigneeId)) ? (
                 <p className="plan-row__meta">
                   →{' '}
                   {members.data?.find((person) => person.accountId === card.assigneeId)
@@ -99,11 +112,17 @@ export function PlanRows({
               {card.status === 'waiting' ? (
                 <span className="studio-label studio-label--waiting">Жду</span>
               ) : null}
+              {dates && card.status === 'waiting' ? (
+                <p className="plan-row__meta">
+                  Жду: {card.waitingFrom?.title ?? 'адресат недоступен'} · проверить{' '}
+                  {card.checkOn ? formatDateOnly(card.checkOn) : '—'}
+                </p>
+              ) : null}
               {card.dueOn && card.dueOn < today ? (
                 <span className="studio-label studio-label--overdue">Просрочено</span>
               ) : null}
             </div>
-            {editable ? (
+            {editable && move ? (
               <button
                 className="icon-button"
                 type="button"
