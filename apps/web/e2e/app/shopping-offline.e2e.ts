@@ -156,9 +156,7 @@ test('SHOP: прототип списка, real quickline/bought/undo/trash/rest
   await signInAs(page, family, 'adult');
   await shell(page);
   await page.goto('#/more/shopping');
-  await page.getByRole('button', { name: 'Личный', exact: true }).click();
   await expect(page.getByRole('link', { name: /Личный рюкзак/ })).toBeVisible();
-  await page.getByRole('button', { name: 'Вся семья', exact: true }).click();
   await check(page, info, 'shopping-real');
   await page.getByLabel('Добавить одной строкой').fill('Хлеб вымышленной семьи');
   await page.getByLabel('Добавить одной строкой').press('Enter');
@@ -185,6 +183,66 @@ test('SHOP: прототип списка, real quickline/bought/undo/trash/rest
   await child.getByLabel('Добавить одной строкой').press('Enter');
   await expect(child.getByRole('link', { name: /Сок от ребёнка/ })).toBeVisible();
   await context.close();
+});
+
+test('SHOP: локальный выбор списка сохраняет глобальное пространство и оба списка в «Всё»', async ({
+  page,
+  family,
+}, info) => {
+  const api = await apiAs(family, 'adult');
+  expect((await api.post('shopping', { title: 'Личная вымышленная покупка' })).status).toBe(201);
+  expect(
+    (
+      await api.post('shopping', {
+        title: 'Общая вымышленная покупка',
+        placement: { spaceId: family.houseId, audience: 'household' },
+      })
+    ).status,
+  ).toBe(201);
+  await signInAs(page, family, 'adult');
+  await page.goto('#/more/shopping');
+  const shared = page.getByRole('button', { name: 'Вся семья', exact: true });
+  const personal = page.getByRole('button', { name: 'Личный', exact: true });
+  const personalItem = page.getByRole('link', { name: 'Личная вымышленная покупка', exact: true });
+  const sharedItem = page.getByRole('link', { name: 'Общая вымышленная покупка', exact: true });
+  const storedScope = await page.evaluate(() => localStorage.getItem('homecrm.scope'));
+  await expect(shared).toHaveAttribute('aria-pressed', 'true');
+  await expect(personalItem).toBeVisible();
+  await expect(sharedItem).toBeVisible();
+  for (const segment of [personal, shared]) {
+    await segment.click();
+    await expect(segment).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      page.getByRole('button', { name: 'Пространство: Всё', exact: true }),
+    ).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('homecrm.scope'))).toBe(storedScope);
+    await expect(personalItem).toBeVisible();
+    await expect(sharedItem).toBeVisible();
+  }
+  await check(page, info, 'shopping-local-scope');
+  await page
+    .getByRole('navigation', { name: 'Ленты дел' })
+    .getByRole('link', { name: 'Сегодня', exact: true })
+    .click();
+  await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
+  await page.goto('#/more/shopping');
+  await setScope(page, 'Общее');
+  await expect(shared).toHaveAttribute('aria-pressed', 'true');
+  await expect(personal).toBeDisabled();
+  await expect(personalItem).toHaveCount(0);
+  await expect(sharedItem).toBeVisible();
+  await setScope(page, 'Личное');
+  await expect(personal).toHaveAttribute('aria-pressed', 'true');
+  await expect(shared).toBeDisabled();
+  await expect(sharedItem).toHaveCount(0);
+  await expect(personalItem).toBeVisible();
+  await page.reload();
+  await expect(personal).toHaveAttribute('aria-pressed', 'true');
+  await setScope(page, 'Всё');
+  await expect(shared).toBeEnabled();
+  await expect(personal).toBeEnabled();
+  await expect(personalItem).toBeVisible();
+  await expect(sharedItem).toBeVisible();
 });
 test('OFFLINE: reload → durable note → reload → create/edit chain → один эффект', async ({
   page,
@@ -949,9 +1007,7 @@ test('SHOP: два дома, личный список, настоящее по�
   await page.getByLabel('Дом', { exact: true }).selectOption(second);
   await expect(page.getByRole('link', { name: 'Дом два яблоки' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Дом один яблоки' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Личный', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Личные яблоки' })).toBeVisible();
-  await setScope(page, 'Всё');
   await page.goto('#/search');
   await page.getByLabel('Что найти').fill('Дом два яблоки');
   await page.getByRole('link', { name: /Дом два яблоки/ }).click();

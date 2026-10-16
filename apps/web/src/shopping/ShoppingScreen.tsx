@@ -49,7 +49,7 @@ function ShoppingError({ error }: { error: unknown }) {
 }
 export function ShoppingScreen() {
   const { me, householdId } = useHousehold();
-  const { scope, setScope } = useScope();
+  const { scope } = useScope();
   const client = useQueryClient();
   const toast = useToast();
   const [params] = useSearchParams();
@@ -60,6 +60,11 @@ export function ShoppingScreen() {
   );
   const [trash, setTrash] = useState(false);
   const [title, setTitle] = useState('');
+  const [listChoice, setListChoice] = useState<'household' | 'personal'>(
+    scope === 'personal' ? 'personal' : 'household',
+  );
+  const selectedList =
+    scope === 'all' ? listChoice : scope === 'personal' ? 'personal' : 'household';
   const [place, setPlace] = useState<Visibility>(
     scope === 'personal' || !house ? 'personal' : 'household',
   );
@@ -195,9 +200,10 @@ export function ShoppingScreen() {
             <fieldset className="studio-segments" aria-label="Список покупок">
               <button
                 type="button"
-                aria-pressed={scope !== 'personal'}
+                aria-pressed={selectedList === 'household'}
+                disabled={scope === 'personal'}
                 onClick={() => {
-                  setScope('shared');
+                  setListChoice('household');
                   setPlace('household');
                 }}
               >
@@ -205,9 +211,10 @@ export function ShoppingScreen() {
               </button>
               <button
                 type="button"
-                aria-pressed={scope === 'personal'}
+                aria-pressed={selectedList === 'personal'}
+                disabled={scope === 'shared'}
                 onClick={() => {
-                  setScope('personal');
+                  setListChoice('personal');
                   setPlace('personal');
                 }}
               >
@@ -216,13 +223,9 @@ export function ShoppingScreen() {
             </fieldset>
             {query.data && !query.error && !query.hasNextPage ? (
               <p className="studio-list-summary">
-                {scope === 'personal' ? 'В личном списке' : 'В общем списке'}{' '}
+                {selectedList === 'personal' ? 'В личном списке' : 'В общем списке'}{' '}
                 {countWord(
-                  all.filter(
-                    (card) =>
-                      !card.boughtAt &&
-                      card.spaceKind === (scope === 'personal' ? 'personal' : 'household'),
-                  ).length,
+                  all.filter((card) => !card.boughtAt && card.spaceKind === selectedList).length,
                   ['покупка', 'покупки', 'покупок'],
                 )}
               </p>
@@ -241,7 +244,7 @@ export function ShoppingScreen() {
                 value={house}
                 onChange={(event) => {
                   setHouse(event.target.value);
-                  setPlace(scope === 'personal' ? 'personal' : 'household');
+                  setPlace(selectedList);
                 }}
               >
                 {me.roles.map((role, index) => (
@@ -307,7 +310,7 @@ export function ShoppingScreen() {
                   {list(all.filter((card) => card.spaceKind === 'household'))}
                 </section>
               ) : null}
-              {scope === 'personal' ? (
+              {scope !== 'shared' ? (
                 <section aria-label="Мой список">
                   {list(all.filter((card) => card.spaceKind === 'personal'))}
                 </section>
