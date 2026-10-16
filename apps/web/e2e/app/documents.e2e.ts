@@ -270,6 +270,9 @@ test('радар: срок документа ведёт в карточку, п
   await recalc(family);
   await signInAs(page, family, 'adult');
   await openRadar(page);
+  const soonGroup = page.locator('.studio-radar-fold').filter({ hasText: '30 дней' });
+  await expect(soonGroup).not.toHaveAttribute('open');
+  await soonGroup.locator('summary').click();
   const soonRow = page
     .getByRole('listitem')
     .filter({ hasText: 'ОСАГО Субару' })

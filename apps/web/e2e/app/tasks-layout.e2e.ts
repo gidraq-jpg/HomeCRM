@@ -53,7 +53,7 @@ test('пустые ленты: исходный фокус, подписи и о
   const width = info.project.use.viewport?.width;
   for (const view of ['today', 'plan', 'all'] as const) {
     await openFeed(page, view);
-    if (view === 'plan') {
+    if (view !== 'today') {
       await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toHaveCount(0);
       await expect(page.getByRole('link', { name: 'Пригласить участника' })).toHaveCount(0);
     } else {
@@ -67,9 +67,16 @@ test('пустые ленты: исходный фокус, подписи и о
       );
       await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
     }
-    if (view === 'all')
-      await expect(page.locator('.page-heading__eyebrow')).toHaveText('Дела дома и ваши личные');
-    if (view !== 'plan') await expectGap(page, '.task-actions > a', '.task-actions__help', 8);
+    if (view === 'all') {
+      await expect(page.getByText('Дел под выбранные условия нет.', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Добавить', exact: true }).click();
+      const add = page.getByRole('dialog', { name: 'Добавить', exact: true });
+      await expect(add).toBeVisible();
+      await expect(add.getByRole('button', { name: /^Новое дело/ })).toBeVisible();
+      await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+    }
+    if (view === 'today') await expectGap(page, '.task-actions > a', '.task-actions__help', 8);
     await check(page, `empty-${view}-${width}`);
   }
 });
