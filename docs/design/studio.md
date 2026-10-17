@@ -46,7 +46,7 @@ Studio включается только рабочим `src/main.tsx`: `html[da
 | `--font-serif` | совместимый алиас `--font-sans` в Studio |
 | `--tap`, `--gutter`, `--column` | `44px`, `22px`, `680px` |
 
-Иконки остаются Phosphor. Логотип — точная геометрия Radix `HomeIcon`, надпись `homecrm` и терракотовая точка. Источник и лицензия знака: [Radix Icons](https://github.com/radix-ui/icons), MIT, Copyright (c) 2022 WorkOS; сохранённый текст лицензии — [radix-icons-LICENSE.txt](radix-icons-LICENSE.txt). PNG-иконки PWA используют тот же знак на угольном фоне. Roboto поставляется через `@fontsource/roboto`: локальные WOFF2, без внешних запросов; начертания 300, 400, 500 и две письменности. Лицензия пакета — OFL-1.1 (SIL Open Font License).
+Иконки остаются Phosphor. Логотип — точная геометрия Radix `HomeIcon`, надпись `homecrm` и терракотовая точка. Источник и лицензия знака: [Radix Icons](https://github.com/radix-ui/icons), MIT, Copyright (c) 2022 WorkOS; сохранённый текст лицензии — [radix-icons-LICENSE.txt](radix-icons-LICENSE.txt). PNG-иконки PWA используют тот же знак на угольном фоне. Шрифт — Onest (Studio 2, п. 1; заменил Roboto UI-1 15 октября 2026): локальные WOFF2 через `@fontsource/onest`, без внешних запросов; начертания 300, 400, 500 и две письменности. Лицензия — OFL-1.1 (SIL Open Font License).
 
 ## Контракт компонентов и область D2/D3
 
