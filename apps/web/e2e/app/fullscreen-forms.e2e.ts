@@ -83,6 +83,13 @@ async function checkForm(page: Page, info: TestInfo, name: string, percent: numb
     await expectTouchTargets(page);
     if (info.project.name === 'desktop') {
       await expect(page.locator('.side-nav')).toBeVisible();
+      const submitHeight = await page
+        .locator('form button[type="submit"]')
+        .evaluate((button) => button.getBoundingClientRect().height);
+      const barHeight = await page
+        .locator('.form-submit-bar')
+        .evaluate((bar) => bar.getBoundingClientRect().height);
+      expect(barHeight, 'нет пустого flex-отступа у кнопки').toBeLessThanOrEqual(submitHeight + 1);
     } else {
       await expect(page.locator('.topbar')).toBeHidden();
       await expect(page.locator('.bottom-nav')).toBeHidden();
@@ -248,7 +255,7 @@ test('UI-7: поля входа, быстрого добавления и фор
     expect(heights.length).toBeGreaterThan(0);
     for (const height of heights) expect(height).toBe(48);
   };
-  await checkHeight('.auth-field input');
+  await checkHeight('.auth-field input, .password-field');
   await signInAs(page, family, 'adult');
   await page.goto('#/today/new');
   await ready(page);
