@@ -9,7 +9,6 @@ import {
   FileText,
   ImageSquare,
   Note,
-  Trash,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -55,10 +54,11 @@ import { useContactsList } from '../people/queries.ts';
 import { TrashPeople } from '../people/TrashPeople.tsx';
 import { useTaskList } from '../tasks/queries.ts';
 import { TrashTasks } from '../tasks/TrashTasks.tsx';
-import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
+import { CompactEmptyState, EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
 import { RowContent } from '../ui/Row.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { noteAbilities, viewerOf, visibilityOf } from './abilities.ts';
 import { type NoteSummary, restoreNote } from './api.ts';
@@ -497,14 +497,14 @@ export function TrashScreen() {
 
   if (notesQuery.isPending || objectsQuery.isPending || filesQuery.isPending) {
     return (
-      <Page title="Корзина" back={BACK}>
+      <Page service title="Корзина" back={BACK}>
         <Notice>Загружаем корзину…</Notice>
       </Page>
     );
   }
   if (notesQuery.data === undefined && objectsQuery.data === undefined) {
     return (
-      <Page title="Корзина" back={BACK}>
+      <Page service title="Корзина" back={BACK}>
         <NoteError error={notesQuery.error} action="load" />
         <button
           className="text-button"
@@ -558,7 +558,12 @@ export function TrashScreen() {
     peopleQuery.isError;
 
   return (
-    <Page title="Корзина" back={BACK} {...(total > 0 ? { eyebrow: recordCount(total) } : {})}>
+    <Page
+      service
+      title="Корзина"
+      back={BACK}
+      {...(total > 0 ? { eyebrow: recordCount(total) } : {})}
+    >
       <TrashTasks />
       <TrashPeople query={peopleQuery} />
       {deadlinesQuery.isPending ? <Notice>Загружаем удалённые сроки…</Notice> : null}
@@ -612,12 +617,8 @@ export function TrashScreen() {
       ) : null}
 
       {total === 0 && !failed ? (
-        <EmptyState icon={<Trash size={24} aria-hidden />} title="В корзине пусто">
-          <p>
-            Удалённые заметки, объекты, документы и файлы хранятся здесь 30 дней, потом исчезают
-            навсегда. Пока ничего не удалено.
-          </p>
-          <p>{EMPTY_SCOPE_EXPLANATION[scope]}</p>
+        <CompactEmptyState title="В корзине пусто">
+          {scope !== 'all' ? <p>{EMPTY_SCOPE_EXPLANATION[scope]}</p> : null}
           {scope === 'all' ? null : (
             <button
               type="button"
@@ -627,13 +628,13 @@ export function TrashScreen() {
               Показать «{SCOPE_LABELS.all}»
             </button>
           )}
-        </EmptyState>
+        </CompactEmptyState>
       ) : null}
 
-      {total > 0 ? (
+      {!failed ? (
         <p className="muted trash-lead">
-          Удалённое хранится {RETENTION_DAYS} дней, потом исчезает навсегда. Менять его нельзя,
-          можно только вернуть.
+          Удалённые заметки, объекты, документы и файлы хранятся здесь {RETENTION_DAYS} дней, потом
+          исчезают навсегда. Менять их нельзя, можно только вернуть.
         </p>
       ) : null}
 

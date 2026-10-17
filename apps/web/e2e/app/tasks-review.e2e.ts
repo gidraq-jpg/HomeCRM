@@ -265,7 +265,6 @@ for (const surface of ['confirmation', 'undo'] as const) {
       await page.goto(`#/today/tasks/${id}`);
       await openRecordActions(page);
       await page.getByRole('button', { name: 'Передать…', exact: true }).click();
-      await closeRecordActions(page);
       await page.getByLabel('Исполнитель', { exact: true }).selectOption(family.person('child').id);
       await page.getByRole('button', { name: 'Передать выбранному', exact: true }).click();
       await expect(page.getByRole('dialog', { name: 'Подтвердите доступ' })).toBeVisible();
@@ -305,7 +304,6 @@ test('B3/A4: имена теряющих доступ, отказ, перено�
   expect((await api.get(`tasks/${id}`)).body).toMatchObject({ audience: 'household' });
   await openRecordActions(page);
   await page.getByRole('button', { name: 'Сделать личной', exact: true }).click();
-  await closeRecordActions(page);
   await expect(page.getByText(/Потеряют доступ:/)).toContainText('Анна');
   await expect(page.getByText(/Потеряют доступ:/)).toContainText('Вера');
   await check(page, info, 'a4-personal-confirm');

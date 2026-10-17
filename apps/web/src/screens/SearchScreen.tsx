@@ -1,11 +1,10 @@
-import { MagnifyingGlass } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
 import { Results } from '../search/Results.tsx';
 import { useSearch } from '../search/useSearch.ts';
-import { EmptyState } from '../ui/EmptyState.tsx';
-import { Page } from '../ui/Page.tsx';
+import { CompactEmptyState } from '../ui/EmptyState.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import '../search/search.css';
 
 export function SearchScreen() {
@@ -18,7 +17,7 @@ export function SearchScreen() {
     input.current?.focus();
   }, []);
   return (
-    <Page title="Поиск">
+    <Page service backHistory title="Поиск">
       <div className="field search-field">
         <label className="field__label" htmlFor="search-input">
           Что найти
@@ -38,12 +37,7 @@ export function SearchScreen() {
         <p className="field__hint">Ищем в режиме «{SCOPE_LABELS[scope]}».</p>
       </div>
       {q.length === 0 ? (
-        <EmptyState icon={<MagnifyingGlass size={24} aria-hidden />} title="Поиск по вашим записям">
-          <p>
-            Найдите заметку, объект или событие по названию, слову или части номера. Личное видите
-            только вы.
-          </p>
-        </EmptyState>
+        <CompactEmptyState title="Поиск по вашим записям" />
       ) : q.length < 3 ? (
         <p role="status" className="muted">
           Введите хотя бы 3 символа.
@@ -55,9 +49,7 @@ export function SearchScreen() {
       ) : result.error ? (
         <p role="alert">Не удалось выполнить поиск. Проверьте подключение и попробуйте ещё раз.</p>
       ) : result.data?.total === 0 ? (
-        <EmptyState icon={<MagnifyingGlass size={24} aria-hidden />} title="Ничего не найдено">
-          <p>Попробуйте другое слово или часть номера. Проверьте режим «Всё · Общее · Личное».</p>
-        </EmptyState>
+        <CompactEmptyState title="Ничего не найдено" />
       ) : result.data ? (
         <Results data={result.data} />
       ) : null}

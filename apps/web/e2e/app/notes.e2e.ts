@@ -99,9 +99,7 @@ test('создание личной заметки: «Кто видит» над
 
   await form(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Заметка сохранена');
-  await closeRecordActions(page);
   await expect(toast(page)).toContainText('Кто видит: Только я');
-  await closeRecordActions(page);
   await expect(
     page.getByRole('heading', { level: 1, name: 'Ремонт кухни', exact: true }),
   ).toBeVisible();
@@ -177,7 +175,6 @@ test('правка: чек-лист отмечается на карточке, 
   // Закрепление с карточки: заметка поднимается в «Закреплённые».
   await openRecordActions(page);
   await page.getByRole('button', { name: 'Закрепить', exact: true }).click();
-  await closeRecordActions(page);
   await openRecordActions(page);
   await expect(page.getByRole('button', { name: 'Открепить' })).toBeVisible();
   await closeRecordActions(page);
@@ -196,7 +193,6 @@ test('правка: чек-лист отмечается на карточке, 
   await checkApp(page, info, 'notes-edit');
   await form(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Заметка сохранена');
-  await closeRecordActions(page);
   await expect(
     page.getByRole('heading', { level: 1, name: 'Ремонт кухни: этап 2', exact: true }),
   ).toBeVisible();
@@ -218,7 +214,6 @@ test('режим «Общее» создаёт общую заметку; реб
   await page.getByLabel('Заголовок').fill('Договор с управляющей компанией');
   await form(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Кто видит: Взрослые');
-  await closeRecordActions(page);
   await expect(page.getByText('Взрослые', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('term').filter({ hasText: 'Автор' })).toBeVisible();
   await expect(page.getByRole('definition').filter({ hasText: 'Вы' })).toBeVisible();
@@ -233,7 +228,6 @@ test('режим «Общее» создаёт общую заметку; реб
   await page.getByLabel('Заголовок').fill('Список для всей семьи');
   await form(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Режим «Личное» её не показывает');
-  await closeRecordActions(page);
   await toast(page).getByRole('button', { name: 'Показать всё' }).click();
   await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
 
@@ -294,16 +288,13 @@ test('личная заметка не видна второму взросло�
     await openCard(page, 'Подарок Анне на юбилей');
     await openRecordActions(page);
     await page.getByRole('button', { name: 'Поделиться…' }).click();
-    await closeRecordActions(page);
     const dialog = page.getByRole('dialog', { name: 'Поделиться заметкой' });
     await expect(dialog.getByRole('radio', { name: 'Взрослые' })).toBeChecked();
     await dialog.getByRole('radio', { name: 'Вся семья' }).check();
     await checkApp(page, info, 'notes-share');
     await dialog.getByRole('button', { name: 'Поделиться', exact: true }).click();
     await expect(toast(page)).toContainText('Заметка стала общей');
-    await closeRecordActions(page);
     await expect(toast(page)).toContainText('Кто видит: Вся семья');
-    await closeRecordActions(page);
     await expect(dialog).toHaveCount(0);
     await expect(page.getByText('Вся семья', { exact: true }).first()).toBeVisible();
     await openRecordActions(page);
@@ -379,7 +370,6 @@ test('«Сделать личной» и «Кто видит…»: предпр�
     // Сужение до «Взрослых»: сначала сказано, что потеряет Вера, потом подтверждение.
     await openRecordActions(page);
     await page.getByRole('button', { name: 'Кто видит…' }).click();
-    await closeRecordActions(page);
     const audience = page.getByRole('dialog', { name: 'Кто видит заметку' });
     await expect(audience.getByRole('radio', { name: 'Взрослые' })).toBeChecked();
     await expect(audience.getByRole('alert')).toContainText('Доступ потеряют: Вера');
@@ -391,7 +381,6 @@ test('«Сделать личной» и «Кто видит…»: предпр�
     await audience.getByRole('radio', { name: 'Взрослые' }).check();
     await audience.getByRole('button', { name: 'Сузить доступ' }).click();
     await expect(toast(page)).toContainText('Заметку видят взрослые');
-    await closeRecordActions(page);
     await expect(audience).toHaveCount(0);
     const narrowed = await family.database.admin.query('SELECT audience FROM notes');
     expect(narrowed.rows).toEqual([{ audience: 'adults' }]);
@@ -401,18 +390,15 @@ test('«Сделать личной» и «Кто видит…»: предпр�
     // Расширение обратно — без предпросмотра.
     await openRecordActions(page);
     await page.getByRole('button', { name: 'Кто видит…' }).click();
-    await closeRecordActions(page);
     await audience.getByRole('radio', { name: 'Вся семья' }).check();
     await audience.getByRole('button', { name: 'Сохранить', exact: true }).click();
     await expect(toast(page)).toContainText('Заметку видит вся семья');
-    await closeRecordActions(page);
     await openNotes(vera.page);
     await expect(noteLinks(vera.page)).toHaveCount(1);
 
     // «Сделать личной»: подтверждение с теми, кто потеряет доступ, — Вера.
     await openRecordActions(page);
     await page.getByRole('button', { name: 'Сделать личной…' }).click();
-    await closeRecordActions(page);
     const personal = page.getByRole('dialog', { name: 'Сделать заметку личной' });
     await expect(personal.getByRole('alert')).toContainText('Доступ потеряют: Анна, Вера');
     await checkApp(page, info, 'notes-personal-preview');
@@ -423,11 +409,9 @@ test('«Сделать личной» и «Кто видит…»: предпр�
 
     await openRecordActions(page);
     await page.getByRole('button', { name: 'Сделать личной…' }).click();
-    await closeRecordActions(page);
     await personal.getByRole('button', { name: 'Сделать личной', exact: true }).click();
 
     await expect(toast(page)).toContainText('Заметка стала личной');
-    await closeRecordActions(page);
     await openRecordActions(page);
     await expect(page.getByRole('button', { name: 'Поделиться…' })).toBeVisible();
     await closeRecordActions(page);
@@ -495,9 +479,7 @@ test('чужой вклад закрывает «Сделать личной»: 
   // Копия в личное: новая заметка только у Бориса, исходная остаётся общей.
   await openRecordActions(page);
   await page.getByRole('button', { name: 'Скопировать в личное' }).click();
-  await closeRecordActions(page);
   await expect(toast(page)).toContainText('Копия сохранена в личном');
-  await closeRecordActions(page);
   await toast(page).getByRole('button', { name: 'Открыть' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Список дел на даче' })).toBeVisible();
   await expect(page.locator('.object-hero__meta')).toContainText('Только я');
@@ -527,9 +509,7 @@ test('читатель общей заметки копирует её в лич
   await openCard(page, 'Правила дома');
   await openRecordActions(page);
   await page.getByRole('button', { name: 'Скопировать в личное' }).click();
-  await closeRecordActions(page);
   await expect(toast(page)).toContainText('Копия сохранена в личном');
-  await closeRecordActions(page);
   await checkApp(page, info, 'notes-copy-toast');
   await setScope(page, 'Личное');
   await expect(noteLinks(page)).toHaveCount(0);
@@ -596,7 +576,6 @@ test('конфликт правки: «обновить» или «сохран�
   // «Сохранить мою версию как копию»: свежая версия не тронута, моя — отдельной заметкой.
   await panel.getByRole('button', { name: 'Сохранить мою версию как копию' }).click();
   await expect(toast(page)).toContainText('Ваша версия сохранена отдельной заметкой');
-  await closeRecordActions(page);
   await expect(
     page.getByRole('heading', { level: 1, name: 'Список покупок (моя версия)', exact: true }),
   ).toBeVisible();
@@ -658,26 +637,20 @@ test('корзина: отмена за 7 секунд, восстановлен
   await openCard(page, 'Старый список');
   await openRecordActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
-  await closeRecordActions(page);
   await expect(page.getByRole('heading', { level: 1, name: 'Заметки' })).toBeVisible();
   await expect(toast(page)).toContainText('Заметка в корзине');
-  await closeRecordActions(page);
   await expect(toast(page)).toContainText('Хранится 30 дней');
-  await closeRecordActions(page);
   await expect(page.getByRole('region', { name: 'Заметок пока нет' })).toBeVisible();
   // Отмена в течение 7 секунд возвращает заметку на место.
   await toast(page).getByRole('button', { name: 'Отменить' }).click();
   await expect(toast(page)).toContainText('Заметка возвращена');
-  await closeRecordActions(page);
   await expect(noteLinks(page)).toHaveCount(1);
 
   // Второй раз — не отменяем: заметка остаётся в корзине.
   await openCard(page, 'Старый список');
   await openRecordActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
-  await closeRecordActions(page);
   await expect(toast(page)).toContainText('Заметка в корзине');
-  await closeRecordActions(page);
   const stored = await family.database.admin.query(
     'SELECT deleted_at IS NOT NULL AS trashed FROM notes',
   );
@@ -692,7 +665,6 @@ test('корзина: отмена за 7 секунд, восстановлен
   await row.getByRole('button', { name: 'Восстановить' }).click();
 
   await expect(toast(page)).toContainText('Заметка возвращена');
-  await closeRecordActions(page);
   await expect(page.getByRole('region', { name: 'В корзине пусто' })).toBeVisible();
   await page.goto('#/more/notes');
   await expect(noteLinks(page)).toHaveCount(1);
@@ -715,7 +687,6 @@ test('общую заметку взрослый, не автор, убирае�
     await anna.page.goto(`#/more/notes/${note.id}`);
     await openRecordActions(anna.page);
     await anna.page.getByRole('button', { name: 'В корзину' }).click();
-    await closeRecordActions(anna.page);
     await expect(toast(anna.page)).toContainText('Заметка в корзине');
     await expect(toast(anna.page).getByRole('button', { name: 'Отменить' })).toBeVisible();
   } finally {

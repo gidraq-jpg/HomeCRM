@@ -6,7 +6,7 @@ import { fetchDocument } from '../documents/api.ts';
 import { fetchNote } from '../notes/api.ts';
 import { fetchObject } from '../objects/api.ts';
 import { fetchTask } from '../tasks/api.ts';
-import { Page } from '../ui/Page.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 
 /** Экраны объекта, куда ведут уведомления: показания, лицевые счета, счётчики. */
 const SCREENS: readonly string[] = ['readings', 'accounts', 'meters'];
@@ -63,7 +63,7 @@ export function OpenRecordScreen() {
 
   if (target.kind === 'found') return <Navigate to={target.to} replace />;
   return (
-    <Page title="Открываем запись">
+    <Page service backHistory title="Открываем запись">
       {target.kind === 'loading' ? <Notice>Открываем запись…</Notice> : null}
       {target.kind === 'error' ? (
         <Notice error>Не удалось открыть запись. Проверьте подключение и повторите.</Notice>

@@ -168,7 +168,6 @@ export function OrganizationView({
       more={
         <>
           {' '}
-          <ObjectError error={quick.error} action="contact" />
           {!trashed ? (
             <div className="btn-row">
               {!abilities.edit ? (
@@ -203,6 +202,7 @@ export function OrganizationView({
         </>
       }
     >
+      <ObjectError error={quick.error} action="contact" />
       {trashed ? (
         <Notice>
           <strong>Организация в корзине.</strong>{' '}

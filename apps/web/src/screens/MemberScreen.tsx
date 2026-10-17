@@ -10,8 +10,9 @@ import { useMembers } from '../household/queries.ts';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { type DateOnly, formatFullDate, toTelHref } from '../ui/format.ts';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
 import { Status } from '../ui/Row.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { AdminActions } from './AdminActions.tsx';
 
 /** Дата рождения приходит как `YYYY-MM-DD`; всё остальное считаем отсутствием даты. */
@@ -30,14 +31,14 @@ export function MemberScreen() {
 
   if (query.isPending) {
     return (
-      <Page title="Участник" back={back}>
+      <Page service title="Участник" back={back}>
         <Notice>Загружаем участника…</Notice>
       </Page>
     );
   }
   if (query.isError) {
     return (
-      <Page title="Участник" back={back}>
+      <Page service title="Участник" back={back}>
         <ActionError error={query.error} action="load" />
         <button className="text-button" type="button" onClick={() => void query.refetch()}>
           Повторить загрузку
@@ -48,7 +49,7 @@ export function MemberScreen() {
   const member = query.data.find((item) => item.accountId === accountId);
   if (member === undefined) {
     return (
-      <Page title="Участник не найден" back={back}>
+      <Page service title="Участник не найден" back={back}>
         <EmptyState title="Такого участника нет">
           <p>Возможно, он ушёл из дома, а ссылка устарела.</p>
         </EmptyState>
@@ -59,7 +60,7 @@ export function MemberScreen() {
   const isMe = member.accountId === me.id;
   const birth = birthDateText(member.birthDate);
   return (
-    <Page title={member.displayName} {...(isMe ? { eyebrow: 'Это вы' } : {})} back={back}>
+    <Page service title={member.displayName} {...(isMe ? { eyebrow: 'Это вы' } : {})} back={back}>
       <div className="member-head">
         <Avatar name={member.displayName} large photoFileId={member.photoFileId} />
         <div className="member-head__text">

@@ -1,4 +1,5 @@
 import { SummaryMetadata, SummaryResponse } from '@homecrm/shared';
+import { CalendarBlank } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
 import { z } from 'zod';
@@ -10,7 +11,9 @@ import { buildRows } from '../deadlines/radar.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
 import { type DateOnly, formatShortDate } from '../ui/format.ts';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
+import { Row, RowList } from '../ui/Row.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 
 export function SummariesScreen() {
   const { me } = useHousehold(),
@@ -36,26 +39,27 @@ export function SummariesScreen() {
       locate: () => undefined,
     });
   return (
-    <Page title="Сводки" back={{ to: '/more/notifications', label: 'Уведомления' }}>
+    <Page service title="Сводки" back={{ to: '/more/notifications', label: 'Уведомления' }}>
       {(summaryId ? selected : list).isPending ? <Notice>Загружаем сводки…</Notice> : null}
       {(summaryId ? selected : list).isError ? (
         <Notice error>Сводка недоступна или не удалось её загрузить.</Notice>
       ) : null}
       {!summaryId ? (
         <>
-          {list.data?.length === 0 ? (
-            <p>
-              Сводок пока нет. Утренняя готовится в 08:00 дома, недельная — в воскресенье в 19:00.
-            </p>
+          {list.data?.length === 0 ? <p>Сводок пока нет.</p> : null}
+          {list.data?.length ? (
+            <RowList label="Сводки">
+              {list.data.map((s) => (
+                <Row
+                  key={s.id}
+                  to={`/more/summaries/${s.id}`}
+                  icon={<CalendarBlank size={22} aria-hidden />}
+                  title={s.kind === 'morning' ? 'Утренняя' : 'Недельная'}
+                  meta={`${s.householdName ?? 'Дом'} · ${formatShortDate(s.localDate as DateOnly, todayIn(s.timeZone))} · ${s.timeZone}`}
+                />
+              ))}
+            </RowList>
           ) : null}
-          {list.data?.map((s) => (
-            <p key={s.id}>
-              <Link className="text-button" to={`/more/summaries/${s.id}`}>
-                {s.kind === 'morning' ? 'Утренняя' : 'Недельная'} · {s.householdName ?? 'Дом'} ·{' '}
-                {formatShortDate(s.localDate as DateOnly, todayIn(s.timeZone))} · {s.timeZone}
-              </Link>
-            </p>
-          ))}
         </>
       ) : data ? (
         <>

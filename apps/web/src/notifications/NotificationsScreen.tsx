@@ -9,8 +9,9 @@ import { zoneLabel } from '../household/zones.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { NoHousehold } from '../screens/PeopleScreen.tsx';
 import { CheckLine } from '../ui/CheckLine.tsx';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { type PushDevice, removeDevice, type SettingsPatch, saveSettings } from './api.ts';
 import {
@@ -466,13 +467,13 @@ export function NotificationsScreen() {
   const { householdId } = useHousehold();
   if (householdId === null) {
     return (
-      <Page title="Уведомления" back={BACK}>
+      <Page service title="Уведомления" back={BACK}>
         <NoHousehold />
       </Page>
     );
   }
   return (
-    <Page title="Уведомления" back={BACK}>
+    <Page service title="Уведомления" back={BACK}>
       <ThisDevice />
       <Devices />
       <Settings />

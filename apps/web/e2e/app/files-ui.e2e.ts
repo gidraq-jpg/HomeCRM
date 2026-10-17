@@ -347,7 +347,10 @@ test('пустая «Корзина» говорит и про файлы', asyn
   await signInAs(page, family, 'adult');
   await page.goto('#/more/trash');
   const empty = page.getByRole('region', { name: 'В корзине пусто' });
-  await expect(empty).toContainText('Удалённые заметки, объекты, документы и файлы');
+  await expect(empty).toBeVisible();
+  await expect(
+    page.getByText('Удалённые заметки, объекты, документы и файлы хранятся здесь 30 дней'),
+  ).toBeVisible();
   await checkApp(page, info, 'trash-empty');
 });
 test('подготовка фото: WebP не теряет прозрачность, а если уменьшенное не меньше — уходит исходное', async ({

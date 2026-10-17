@@ -9,7 +9,7 @@ import {
   seedOrganization,
   seedProperty,
 } from './property-support.ts';
-import { closeRecordActions, openRecordActions } from './record-actions.ts';
+import { openRecordActions } from './record-actions.ts';
 import { checkApp, expect, signInAs } from './support.ts';
 
 // Недвижимость, лицевые счета, организации (R1a.1b): UTIL-1, UTIL-2, CONT-2, CONT-3, OBJ-5, сценарий S1.
@@ -67,7 +67,6 @@ test('S1: первая квартира, три лицевых счёта, дв�
   await checkApp(page, info, 'property-form');
   await objectForm(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Объект сохранён');
-  await closeRecordActions(page);
 
   const heading = page.getByRole('heading', { level: 1, name: 'Квартира у парка', exact: true });
   await expect(heading).toBeVisible();
@@ -112,7 +111,6 @@ test('S1: первая квартира, три лицевых счёта, дв�
   await checkApp(page, info, 'account-form');
   await accountForm(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Лицевой счёт сохранён');
-  await closeRecordActions(page);
 
   // Второй счёт: тот же поставщик, передача по ссылке.
   await page.getByRole('button', { name: 'Добавить лицевой счёт' }).click();
@@ -180,7 +178,6 @@ test('S1: первая квартира, три лицевых счёта, дв�
   await checkApp(page, info, 'people-link-sheet');
   await linkDialog.getByRole('button', { name: 'Связать', exact: true }).click();
   await expect(toast(page)).toContainText('Организация связана с объектом');
-  await closeRecordActions(page);
   const people = page.getByRole('list', { name: 'Люди и организации' });
   await expect(people).toContainText('Вымышленная УК');
   await expect(people).toContainText('УК');
@@ -214,7 +211,6 @@ test('S1: первая квартира, три лицевых счёта, дв�
   );
   await phones.getByRole('button', { name: 'Скопировать номер телефона' }).click();
   await expect(toast(page)).toContainText('Скопировано: номер телефона');
-  await closeRecordActions(page);
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('+7 000 123-45-67');
   await checkApp(page, info, 'organization-card');
 
@@ -269,7 +265,6 @@ test('недвижимость: статус рядом с названием в
   await objectForm(page).getByLabel('Площадь, м²').fill('60.5');
   await objectForm(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Объект сохранён');
-  await closeRecordActions(page);
   await expect(page.locator('.page-heading').getByText('Пустует')).toBeVisible();
   await expect(page.getByText(/60,5\s*м²/).first()).toBeVisible();
 
@@ -387,7 +382,6 @@ test('ребёнок: не видит «Счета» объекта «Взрос
     .getByRole('button', { name: 'Сохранить', exact: true })
     .click();
   await expect(toast(page)).toContainText('Организация сохранена');
-  await closeRecordActions(page);
   const placed = await family.database.admin.query(
     "SELECT space_id, space_kind FROM contacts WHERE title = 'Вымышленная секция'",
   );
@@ -458,7 +452,6 @@ test('организации: только название, правка, ко�
     .getByRole('button', { name: 'Сохранить', exact: true })
     .click();
   await expect(toast(page)).toContainText('Организация сохранена');
-  await closeRecordActions(page);
   await expect(
     page.getByRole('heading', { level: 1, name: 'Вымышленная школа', exact: true }),
   ).toBeVisible();
@@ -483,7 +476,6 @@ test('организации: только название, правка, ко�
     .getByRole('button', { name: 'Сохранить', exact: true })
     .click();
   await expect(toast(page)).toContainText('Организация сохранена');
-  await closeRecordActions(page);
   await expect(page.getByRole('list', { name: 'Телефоны' })).toContainText('8 (000) 555-00-11');
   await expect(page.getByRole('list', { name: 'Телефоны' })).not.toContainText('Аварийный');
 
@@ -491,12 +483,9 @@ test('организации: только название, правка, ко�
   await openObjectActions(page);
   await openRecordActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
-  await closeRecordActions(page);
   await expect(toast(page)).toContainText('Организация в корзине');
-  await closeRecordActions(page);
   await toast(page).getByRole('button', { name: 'Отменить' }).click();
   await expect(toast(page)).toContainText('Организация возвращена');
-  await closeRecordActions(page);
   await page.goto('#/more/organizations');
   await expect(page.getByRole('link', { name: /Вымышленная школа/ })).toBeVisible();
 
@@ -504,7 +493,6 @@ test('организации: только название, правка, ко�
   await openObjectActions(page);
   await openRecordActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
-  await closeRecordActions(page);
   await expect(page.getByRole('region', { name: 'Организаций пока нет' })).toBeVisible();
   await page.goto('#/more/trash');
   const trash = page.getByRole('list', { name: 'Удалённые организации' });
@@ -513,7 +501,6 @@ test('организации: только название, правка, ко�
   await trash.getByRole('button', { name: 'Восстановить' }).click();
 
   await expect(toast(page)).toContainText('Организация возвращена');
-  await closeRecordActions(page);
   await expect(page.getByRole('list', { name: 'Удалённые организации' })).toHaveCount(0);
 });
 
@@ -544,16 +531,13 @@ test('лицевой счёт: корзина с отменой, «Корзин�
     .getByRole('button', { name: 'В корзину' })
     .click();
   await expect(toast(page)).toContainText('Лицевой счёт в корзине');
-  await closeRecordActions(page);
   await toast(page).getByRole('button', { name: 'Отменить' }).click();
   await expect(toast(page)).toContainText('Лицевой счёт возвращён');
-  await closeRecordActions(page);
   await expect(list.getByRole('listitem')).toHaveCount(2);
 
   // Номер копируется одним касанием.
   await list.getByRole('button', { name: 'Скопировать номер лицевого счёта' }).first().click();
   await expect(toast(page)).toContainText('Скопировано: номер лицевого счёта');
-  await closeRecordActions(page);
 
   // Счёт «Газ» удалён отдельно; счёт «Электроэнергия» уйдёт вместе с объектом.
   await list
@@ -569,7 +553,6 @@ test('лицевой счёт: корзина с отменой, «Корзин�
   await openObjectActions(page);
   await openRecordActions(page);
   await page.getByRole('button', { name: 'В корзину' }).click();
-  await closeRecordActions(page);
   await expect(page.getByRole('heading', { level: 1, name: 'Дом', exact: true })).toBeVisible();
 
   await page.goto('#/more/trash');
@@ -580,7 +563,6 @@ test('лицевой счёт: корзина с отменой, «Корзин�
   await objects.getByRole('button', { name: 'Восстановить' }).click();
 
   await expect(toast(page)).toContainText('Объект возвращён');
-  await closeRecordActions(page);
 
   const accounts = page.getByRole('list', { name: 'Удалённые лицевые счета' });
   await expect(accounts).toContainText('Газ');
@@ -590,7 +572,6 @@ test('лицевой счёт: корзина с отменой, «Корзин�
   await accounts.getByRole('button', { name: 'Восстановить' }).click();
 
   await expect(toast(page)).toContainText('Лицевой счёт возвращён');
-  await closeRecordActions(page);
 
   await openObjectTab(page, object.id, '/accounts', 'Квартира у парка');
   await expect(page.getByRole('list', { name: 'Лицевые счета' }).getByRole('listitem')).toHaveCount(

@@ -686,7 +686,6 @@ test('прекращение повтора, корзина и восстано�
   await openTask(page, row.id, row.title);
   await openRecordActions(page);
   await page.getByRole('button', { name: 'В корзину всю серию' }).click();
-  await closeRecordActions(page);
   await openRecordActions(page);
   await expect(page.getByRole('button', { name: 'Восстановить серию' })).toBeVisible();
   await closeRecordActions(page);
@@ -699,7 +698,6 @@ test('прекращение повтора, корзина и восстано�
   );
   await openRecordActions(page);
   await page.getByRole('button', { name: 'Восстановить серию' }).click();
-  await closeRecordActions(page);
   await request;
   await expect(page.getByRole('button', { name: 'Править дело' })).toBeVisible();
   await page.getByRole('button', { name: 'Править дело' }).click();
@@ -764,7 +762,6 @@ test('передача снимает главное; личное взросл�
   await openTask(page, shared.id, shared.title);
   await openRecordActions(page);
   await page.getByRole('button', { name: 'Передать…' }).click();
-  await closeRecordActions(page);
   await page
     .getByRole('dialog')
     .getByLabel('Исполнитель', { exact: true })

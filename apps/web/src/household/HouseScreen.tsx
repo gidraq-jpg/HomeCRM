@@ -4,7 +4,8 @@ import { saveTimeZone } from '../deadlines/api.ts';
 import { DeadlineError } from '../deadlines/components.tsx';
 import { useRefreshDeadlines } from '../deadlines/queries.ts';
 import { NoHousehold } from '../screens/PeopleScreen.tsx';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useHousehold } from './HouseholdContext.tsx';
 import { HOME_ZONES, zoneLabel } from './zones.ts';
@@ -25,7 +26,7 @@ export function HouseScreen() {
 
   if (householdId === null) {
     return (
-      <Page title="Настройки дома" back={BACK}>
+      <Page service title="Настройки дома" back={BACK}>
         <NoHousehold />
       </Page>
     );
@@ -50,7 +51,7 @@ export function HouseScreen() {
   }
 
   return (
-    <Page title="Настройки дома" back={BACK}>
+    <Page service title="Настройки дома" back={BACK}>
       <Section title="Часовой пояс дома">
         <p className="muted">
           По нему считаются сроки и радар, и в нём показываются даты и время на всех экранах.

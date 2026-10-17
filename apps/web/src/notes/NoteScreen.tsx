@@ -1,5 +1,5 @@
 import { ArrowCounterClockwise, PushPin, PushPinSlash, Trash } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
@@ -83,6 +83,8 @@ function NoteView({ card }: { card: NoteCard }) {
   const members = useMembers();
   const quick = useAction(true);
   const save = useAction(true);
+  const recordActions = useRef<HTMLButtonElement>(null);
+  const [accessActive, setAccessActive] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editBase, setEditBase] = useState(card.updatedAt);
   const [conflict, setConflict] = useState(false);
@@ -215,166 +217,177 @@ function NoteView({ card }: { card: NoteCard }) {
   }
 
   return (
-    <RecordPage
-      editing={editing}
-      title={card.title}
-      documentTitle={TAB_TITLE}
-      type={trashed ? 'Заметка · в корзине' : 'Заметка'}
-      subtitle={`Изменена ${formatMoment(card.updatedAt, me.timeZone)}`}
-      back={BACK}
-      visibility={visibility}
-      onEdit={
-        abilities.edit && !trashed && !editing
-          ? () => {
-              setEditBase(card.updatedAt);
-              setEditing(true);
-            }
-          : undefined
-      }
-      facts={[
-        { label: 'Автор', value: author === 'вы' ? 'Вы' : author },
-        { label: 'Создана', value: formatDay(card.createdAt, me.timeZone) },
-        ...(items.length ? [{ label: 'Чек-лист', value: `${done.done}/${done.total}` }] : []),
-      ]}
-      more={
-        <>
-          <NoteError error={quick.error} action="toggle" />{' '}
-          {!trashed ? (
-            <div className="btn-row">
-              {abilities.edit ? (
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  aria-pressed={card.pinned}
-                  disabled={quick.disabled}
-                  onClick={() => void quick.run(() => patch({ pinned: !card.pinned }))}
-                >
-                  {card.pinned ? (
-                    <PushPinSlash size={20} aria-hidden />
-                  ) : (
-                    <PushPin size={20} aria-hidden />
-                  )}
-                  {card.pinned ? 'Открепить' : 'Закрепить'}
-                </button>
-              ) : (
-                <p className="muted">Эту заметку могут править только взрослые участники дома.</p>
-              )}
-              {abilities.trash ? (
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  disabled={quick.disabled}
-                  onClick={trash}
-                >
-                  <Trash size={20} aria-hidden />В корзину
-                </button>
-              ) : null}
-            </div>
-          ) : abilities.restore ? (
-            <div className="btn-row">
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={quick.disabled}
-                onClick={restore}
-              >
-                <ArrowCounterClockwise size={20} aria-hidden />
-                Восстановить
-              </button>
-            </div>
-          ) : null}
-        </>
-      }
-      access={!trashed ? <NoteAccess card={card} abilities={abilities} /> : undefined}
+    <NoteAccess
+      card={card}
+      abilities={abilities}
+      active={accessActive}
+      returnFocusRef={recordActions}
     >
-      {editing ? (
-        <NoteForm
-          draft={{ title: card.title, body: card.body, pinned: card.pinned, checklist: items }}
-          submitLabel="Сохранить"
-          pendingLabel="Сохраняем…"
-          action="save"
-          state={save}
-          onSubmit={saveEdited}
-          base={{ id: card.id, updatedAt: editBase }}
-          onCancel={() => {
-            save.setError(null);
-            setConflict(false);
-            setEditing(false);
-          }}
-          {...(conflict ? { conflict: { onReload: reload, onSaveCopy: saveAsCopy } } : {})}
-        />
-      ) : (
-        <>
-          <p className="property-meta">
-            {card.pinned ? (
-              <span className="access-badge access-badge--labeled">
-                <PushPin size={18} weight="fill" aria-hidden />
-                <span>Закреплена</span>
-              </span>
-            ) : null}
-          </p>
-
-          {trashed ? (
-            <Notice>
-              <strong>Заметка в корзине.</strong>{' '}
-              {abilities.restore
-                ? 'Её можно вернуть: менять заметку в корзине нельзя.'
-                : 'Вернуть её сможет автор-взрослый или администратор. Менять заметку в корзине нельзя.'}
-            </Notice>
-          ) : null}
-
-          {card.body.trim() === '' ? (
-            <p className="muted">Текста нет.</p>
+      {(access) => (
+        <RecordPage
+          actionsRef={recordActions}
+          onActionsOpenChange={setAccessActive}
+          editing={editing}
+          title={card.title}
+          documentTitle={TAB_TITLE}
+          type={trashed ? 'Заметка · в корзине' : 'Заметка'}
+          subtitle={`Изменена ${formatMoment(card.updatedAt, me.timeZone)}`}
+          back={BACK}
+          visibility={visibility}
+          onEdit={
+            abilities.edit && !trashed && !editing
+              ? () => {
+                  setEditBase(card.updatedAt);
+                  setEditing(true);
+                }
+              : undefined
+          }
+          facts={[
+            { label: 'Автор', value: author === 'вы' ? 'Вы' : author },
+            { label: 'Создана', value: formatDay(card.createdAt, me.timeZone) },
+            ...(items.length ? [{ label: 'Чек-лист', value: `${done.done}/${done.total}` }] : []),
+          ]}
+          more={
+            !trashed ? (
+              <div className="btn-row">
+                {abilities.edit ? (
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    aria-pressed={card.pinned}
+                    disabled={quick.disabled}
+                    onClick={() => void quick.run(() => patch({ pinned: !card.pinned }))}
+                  >
+                    {card.pinned ? (
+                      <PushPinSlash size={20} aria-hidden />
+                    ) : (
+                      <PushPin size={20} aria-hidden />
+                    )}
+                    {card.pinned ? 'Открепить' : 'Закрепить'}
+                  </button>
+                ) : (
+                  <p className="muted">Эту заметку могут править только взрослые участники дома.</p>
+                )}
+                {abilities.trash ? (
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    disabled={quick.disabled}
+                    onClick={trash}
+                  >
+                    <Trash size={20} aria-hidden />В корзину
+                  </button>
+                ) : null}
+              </div>
+            ) : abilities.restore ? (
+              <div className="btn-row">
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  disabled={quick.disabled}
+                  onClick={restore}
+                >
+                  <ArrowCounterClockwise size={20} aria-hidden />
+                  Восстановить
+                </button>
+              </div>
+            ) : null
+          }
+          access={!trashed ? access : undefined}
+        >
+          {editing ? (
+            <NoteForm
+              draft={{ title: card.title, body: card.body, pinned: card.pinned, checklist: items }}
+              submitLabel="Сохранить"
+              pendingLabel="Сохраняем…"
+              action="save"
+              state={save}
+              onSubmit={saveEdited}
+              base={{ id: card.id, updatedAt: editBase }}
+              onCancel={() => {
+                save.setError(null);
+                setConflict(false);
+                setEditing(false);
+              }}
+              {...(conflict ? { conflict: { onReload: reload, onSaveCopy: saveAsCopy } } : {})}
+            />
           ) : (
-            <Markdown source={card.body} />
-          )}
+            <>
+              <p className="property-meta">
+                {card.pinned ? (
+                  <span className="access-badge access-badge--labeled">
+                    <PushPin size={18} weight="fill" aria-hidden />
+                    <span>Закреплена</span>
+                  </span>
+                ) : null}
+              </p>
 
-          {items.length > 0 ? (
-            <Section
-              title="Чек-лист"
-              aside={
-                <span className="muted">
-                  Выполнено {done.done} из {done.total}
-                </span>
-              }
-            >
-              <ul className="task-list">
-                {items.map((item) => (
-                  <li key={item.key} className={item.done ? 'task-row task-row--done' : 'task-row'}>
-                    <CheckToggle
-                      checked={item.done}
-                      label={item.title}
-                      disabled={!abilities.edit || quick.disabled}
-                      onChange={() => toggleItem(item.key)}
-                    />
-                    <span className="task-row__body task-row__body--static">
-                      <span className="row__title">{item.title}</span>
+              {trashed ? (
+                <Notice>
+                  <strong>Заметка в корзине.</strong>{' '}
+                  {abilities.restore
+                    ? 'Её можно вернуть: менять заметку в корзине нельзя.'
+                    : 'Вернуть её сможет автор-взрослый или администратор. Менять заметку в корзине нельзя.'}
+                </Notice>
+              ) : null}
+
+              {card.body.trim() === '' ? (
+                <p className="muted">Текста нет.</p>
+              ) : (
+                <Markdown source={card.body} />
+              )}
+
+              {items.length > 0 ? (
+                <Section
+                  title="Чек-лист"
+                  aside={
+                    <span className="muted">
+                      Выполнено {done.done} из {done.total}
                     </span>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          ) : null}
+                  }
+                >
+                  <ul className="task-list">
+                    {items.map((item) => (
+                      <li
+                        key={item.key}
+                        className={item.done ? 'task-row task-row--done' : 'task-row'}
+                      >
+                        <CheckToggle
+                          checked={item.done}
+                          label={item.title}
+                          disabled={!abilities.edit || quick.disabled}
+                          onChange={() => toggleItem(item.key)}
+                        />
+                        <span className="task-row__body task-row__body--static">
+                          <span className="row__title">{item.title}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              ) : null}
 
-          <NoteError error={quick.error} action="toggle" />
+              <NoteError error={quick.error} action="toggle" />
 
-          {!trashed ? <DeadlinesSection compact source="notes" card={card} /> : null}
+              {!trashed ? <DeadlinesSection compact source="notes" card={card} /> : null}
 
-          <FilesSection
-            compact
-            parent={{ kind: 'note', id: card.id }}
-            card={card}
-            canAdd={abilities.edit}
-            refresh={refresh}
-          />
+              <FilesSection
+                compact
+                parent={{ kind: 'note', id: card.id }}
+                card={card}
+                canAdd={abilities.edit}
+                refresh={refresh}
+              />
 
-          <LinksSection
-            compact
-            record={{ type: 'note', id: card.id }}
-            facts={factsOf(card, viewer, 'note')}
-          />
-        </>
+              <LinksSection
+                compact
+                record={{ type: 'note', id: card.id }}
+                facts={factsOf(card, viewer, 'note')}
+              />
+            </>
+          )}
+        </RecordPage>
       )}
-    </RecordPage>
+    </NoteAccess>
   );
 }

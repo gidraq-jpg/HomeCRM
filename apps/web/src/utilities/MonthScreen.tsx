@@ -7,10 +7,11 @@ import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { todayIn } from '../objects/dates.ts';
-import { EmptyState } from '../ui/EmptyState.tsx';
+import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { countWord, formatRub } from '../ui/format.ts';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
 import { Status } from '../ui/Row.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import type { MonthObject, MonthOverview } from './api.ts';
 import { isMonth, monthName, monthOf, STATUS_LABELS, STATUS_TONES, shiftMonth } from './months.ts';
 import { useMonth } from './queries.ts';
@@ -51,13 +52,20 @@ function ObjectMonth({ object }: { object: MonthObject }) {
         remainingCents={object.remainingCents}
       />
       {object.accounts.length === 0 ? (
-        <div className="month-object__empty">
-          <p className="muted">Лицевых счетов нет: начислять и вводить показания пока не к чему.</p>
-          <Link className="btn btn--secondary" to={`/home/${object.id}/accounts`}>
-            <Plus size={20} aria-hidden />
-            Добавить лицевой счёт
-          </Link>
-        </div>
+        <Section
+          title="Лицевые счета"
+          aside={
+            <Link
+              className="icon-button"
+              aria-label="Добавить лицевой счёт"
+              to={`/home/${object.id}/accounts`}
+            >
+              <Plus size={20} aria-hidden />
+            </Link>
+          }
+        >
+          <p className="muted">Лицевых счетов нет</p>
+        </Section>
       ) : (
         <ul className="month-accounts" aria-label={`Лицевые счета: ${object.title}`}>
           {object.accounts.map((account) => (
@@ -143,7 +151,7 @@ export function MonthScreen() {
 
   if (query.isPending) {
     return (
-      <Page title="Коммуналка за месяц" back={BACK}>
+      <Page service title="Коммуналка за месяц" back={BACK}>
         {switcher}
         <Notice>Загружаем месяц…</Notice>
       </Page>
@@ -151,7 +159,7 @@ export function MonthScreen() {
   }
   if (query.isError) {
     return (
-      <Page title="Коммуналка за месяц" back={BACK}>
+      <Page service title="Коммуналка за месяц" back={BACK}>
         {switcher}
         <Notice error>
           {query.error instanceof ApiError && query.error.status === 400
@@ -180,46 +188,40 @@ export function MonthScreen() {
   const firstAccount = first?.accounts[0];
 
   return (
-    <Page title="Коммуналка за месяц" back={BACK}>
+    <Page service title="Коммуналка за месяц" back={BACK}>
       {switcher}
       {toCurrent}
 
       {objects.length === 0 ? (
-        <EmptyState icon={<Receipt size={24} aria-hidden />} title="Объектов пока нет">
-          <p>
-            Коммуналка считается по лицевым счетам недвижимости. Добавьте квартиру или дом, затем
-            лицевой счёт — и здесь появятся начисления и оплаты.
-          </p>
-          <div className="empty-state__actions">
-            <Link className="btn btn--primary btn--block" to="/home/new">
-              <Plus size={20} weight="bold" aria-hidden />
-              Добавить объект
+        <Section
+          title="Объекты"
+          aside={
+            <Link className="icon-button" aria-label="Добавить объект" to="/home/new">
+              <Plus size={20} aria-hidden />
             </Link>
-          </div>
-        </EmptyState>
+          }
+        >
+          <CompactEmptyState title="Объектов пока нет" />
+        </Section>
       ) : (
         <>
           {nothing ? (
-            <EmptyState
-              icon={<Receipt size={24} aria-hidden />}
-              title={`За ${label.toLocaleLowerCase('ru')} начислений нет`}
-              actions={
+            <Section
+              title={`За ${label.toLocaleLowerCase('ru')}`}
+              aside={
                 first && firstAccount ? (
                   <Link
-                    className="btn btn--primary btn--block"
+                    className="icon-button"
+                    aria-label="Добавить начисление"
                     to={`/home/${first.id}/accounts/${firstAccount.id}/charges`}
                   >
-                    <Plus size={20} weight="bold" aria-hidden />
-                    Добавить начисление
+                    <Plus size={20} aria-hidden />
                   </Link>
                 ) : null
               }
             >
-              <p>
-                Начисление — это квитанция за расчётный месяц. Добавьте его в лицевом счёте, и оно
-                попадёт сюда вместе с оплатами.
-              </p>
-            </EmptyState>
+              <CompactEmptyState title={`За ${label.toLocaleLowerCase('ru')} начислений нет`} />
+            </Section>
           ) : null}
 
           <Section title="Всего">

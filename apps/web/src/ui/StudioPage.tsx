@@ -1,9 +1,9 @@
 import { CaretLeft } from '@phosphor-icons/react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { AddAction } from '../shell/AddAction.tsx';
 import { Page } from './Page.tsx';
 
-/** Общая композиция списков и полных форм D16a; маршруты и содержимое остаются у экрана. */
+/** Общая композиция списков, полных форм и служебных экранов; маршруты и содержимое остаются у экрана. */
 export function StudioPage({
   children,
   back,
@@ -13,26 +13,34 @@ export function StudioPage({
   heading,
   className,
   form = false,
+  service = false,
+  backHistory = false,
   ...props
-}: Parameters<typeof Page>[0] & { form?: boolean }) {
+}: Parameters<typeof Page>[0] & { form?: boolean; service?: boolean; backHistory?: boolean }) {
+  const navigate = useNavigate();
   return (
     <Page
       {...props}
       title={title}
-      className={`studio-list-page ui6-page ${form ? 'ui6-form-page' : ''} ${className ?? ''}`}
+      className={`studio-list-page ui6-page ${form ? 'ui6-form-page' : ''} ${service ? 'ui6-service-page' : ''} ${className ?? ''}`}
       heading={
         heading ?? (
           <div className="studio-list-hero">
-            {back ? (
-              <Link className="back-link" to={back.to}>
+            {backHistory ? (
+              <button className="back-link" type="button" onClick={() => void navigate(-1)}>
                 <CaretLeft size={20} aria-hidden />
-                {back.label}
+                {back?.label ?? 'Назад'}
+              </button>
+            ) : back || service ? (
+              <Link className="back-link" to={back?.to ?? '/more'}>
+                <CaretLeft size={20} aria-hidden />
+                {back?.label ?? 'Назад'}
               </Link>
             ) : null}
             <div className="page-heading__line">
               <h1>{title}</h1>
               {status}
-              {!form ? <AddAction /> : null}
+              {!form && !service ? <AddAction /> : null}
             </div>
             {eyebrow ? <p className="studio-list-count">{eyebrow}</p> : null}
           </div>

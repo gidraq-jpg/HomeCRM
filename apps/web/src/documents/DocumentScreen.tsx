@@ -276,38 +276,35 @@ function DocumentView({ card }: { card: DocumentCard }) {
         { label: 'Ответственный', value: nameOf(card.assigneeId ?? card.authorId) },
       ]}
       more={
-        <>
-          <DocumentError error={quick.error} action={trashed ? 'restore' : 'trash'} />
-          {!trashed ? (
-            <div className="btn-row">
-              {!canChange && valid ? (
-                <p className="muted">Этот документ могут править только взрослые участники дома.</p>
-              ) : null}
-              {abilities.trash ? (
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  disabled={quick.disabled}
-                  onClick={trash}
-                >
-                  <Trash size={20} aria-hidden />В корзину
-                </button>
-              ) : null}
-            </div>
-          ) : abilities.restore ? (
-            <div className="btn-row">
+        !trashed ? (
+          <div className="btn-row">
+            {!canChange && valid ? (
+              <p className="muted">Этот документ могут править только взрослые участники дома.</p>
+            ) : null}
+            {abilities.trash ? (
               <button
                 type="button"
-                className="btn btn--primary"
+                className="btn btn--secondary"
                 disabled={quick.disabled}
-                onClick={restore}
+                onClick={trash}
               >
-                <ArrowCounterClockwise size={20} aria-hidden />
-                Восстановить
+                <Trash size={20} aria-hidden />В корзину
               </button>
-            </div>
-          ) : null}
-        </>
+            ) : null}
+          </div>
+        ) : abilities.restore ? (
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={quick.disabled}
+              onClick={restore}
+            >
+              <ArrowCounterClockwise size={20} aria-hidden />
+              Восстановить
+            </button>
+          </div>
+        ) : null
       }
       access={
         !trashed && valid && abilities.share && householdId !== null ? (
@@ -334,6 +331,7 @@ function DocumentView({ card }: { card: DocumentCard }) {
         ) : undefined
       }
     >
+      <DocumentError error={quick.error} action={trashed ? 'restore' : 'trash'} />
       {canChange ? (
         <div className="ui6-primary">
           {' '}
