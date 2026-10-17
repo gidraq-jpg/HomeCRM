@@ -402,20 +402,18 @@ export function FilesSection({
             }}
           />
           {!compact ? (
-            <>
-              <button
-                type="button"
-                className="btn btn--primary btn--block"
-                onClick={() => picker.current?.click()}
-              >
-                <Plus size={20} aria-hidden />
-                Добавить файл
-              </button>
-              <p className="field__hint file-hint">
-                Фото (JPEG, PNG, WebP, HEIC) и PDF до 25 МБ. Файл увидят те же люди, что и запись.
-              </p>
-            </>
+            <button
+              type="button"
+              className="btn btn--primary btn--block"
+              onClick={() => picker.current?.click()}
+            >
+              <Plus size={20} aria-hidden />
+              Добавить файл
+            </button>
           ) : null}
+          <p className="field__hint file-hint">
+            Фото (JPEG, PNG, WebP, HEIC) и PDF до 25 МБ. Файл увидят те же люди, что и запись.
+          </p>
         </>
       ) : null}
 

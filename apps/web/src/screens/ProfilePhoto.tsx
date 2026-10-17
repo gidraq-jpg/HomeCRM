@@ -156,7 +156,7 @@ export function ProfilePhoto({ photoFileId }: { photoFileId: string | null }) {
       <div className="btn-row">
         <button
           type="button"
-          className="btn btn--primary"
+          className="btn btn--secondary"
           disabled={busy || quick.disabled}
           onClick={() => picker.current?.click()}
         >

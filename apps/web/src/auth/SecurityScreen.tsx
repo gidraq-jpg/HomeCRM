@@ -4,7 +4,8 @@ import { Link } from 'react-router';
 import * as z from 'zod';
 import { prepareLogout } from '../offline/logout.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { ApiError, action, api, BackupCodes, Events, isAdmin, type Me } from './api.ts';
 import {
   AuthForm,
@@ -279,7 +280,7 @@ export function SecurityScreen({
 }) {
   const state = useAction();
   return (
-    <Page title="Настройки" eyebrow={me.displayName} back={{ to: '/more', label: 'Ещё' }}>
+    <Page service title="Настройки" eyebrow={me.displayName} back={{ to: '/more', label: 'Ещё' }}>
       <Section title="Учётная запись">
         <p>
           {me.username}

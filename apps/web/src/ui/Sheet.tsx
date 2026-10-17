@@ -1,6 +1,6 @@
 import { X } from '@phosphor-icons/react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { type ReactNode, useRef } from 'react';
+import { type ReactNode, type RefObject, useRef } from 'react';
 
 // Нижняя панель на основе Radix Dialog: фокус не уходит за панель, Esc закрывает,
 // заголовок и описание читаются как у диалога (WCAG 2.2 AA).
@@ -16,6 +16,8 @@ interface SheetProps {
   role?: 'dialog' | 'alertdialog';
   /** Панель на весь экран: для просмотра сканов документов (DOC-6). */
   fullScreen?: boolean;
+  /** Устойчивый триггер для цепочки листов, когда предыдущая кнопка уже исчезла. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
 export function Sheet({
@@ -26,6 +28,7 @@ export function Sheet({
   children,
   role,
   fullScreen = false,
+  returnFocusRef,
 }: SheetProps) {
   // Панели открываются не через Dialog.Trigger, поэтому Radix не знает, куда вернуть фокус:
   // запоминаем элемент, с которого панель открыли, и возвращаем фокус на него при закрытии.
@@ -44,7 +47,15 @@ export function Sheet({
           }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            if (opener.current?.isConnected) opener.current.focus();
+            // Следующий лист уже открыт: его фокус не должен возвращаться под модальный слой.
+            if (
+              document.querySelector(
+                '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]',
+              )
+            )
+              return;
+            const target = returnFocusRef?.current ?? opener.current;
+            if (target?.isConnected) target.focus();
           }}
         >
           <div className="sheet__header">

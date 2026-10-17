@@ -13,8 +13,9 @@ import { useMyProfile, useRefresh } from '../household/queries.ts';
 import { CheckLine } from '../ui/CheckLine.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { type DateOnly, formatFullDate, toTelHref } from '../ui/format.ts';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { ProfilePhoto } from './ProfilePhoto.tsx';
 
@@ -195,14 +196,14 @@ export function ProfileScreen() {
 
   if (query.isPending) {
     return (
-      <Page title="Обо мне" back={back}>
+      <Page service title="Обо мне" back={back}>
         <Notice>Загружаем профиль…</Notice>
       </Page>
     );
   }
   if (query.isError) {
     return (
-      <Page title="Обо мне" back={back}>
+      <Page service title="Обо мне" back={back}>
         <ActionError error={query.error} action="load" />
         <button className="text-button" type="button" onClick={() => void query.refetch()}>
           Повторить загрузку профиля
@@ -222,7 +223,7 @@ export function ProfileScreen() {
   const birth = birthDateText(profile.birthDate);
 
   return (
-    <Page title="Обо мне" back={back}>
+    <Page service title="Обо мне" back={back}>
       <div className="member-head">
         <Avatar name={profile.displayName} large photoFileId={profile.photoFileId} />
         <div className="member-head__text">

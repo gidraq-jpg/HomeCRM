@@ -1,3 +1,6 @@
+html[data-design="studio"] .ui6-service-section > :where(.section__head) {
+  flex-wrap: wrap;
+}
 /* Studio 2: композиция из утверждённого макета, только рабочий entry. */
 html[data-design="studio"] .task-quickline button[type="submit"] {
   width: 100%;
@@ -769,4 +772,202 @@ html[data-design="studio"] :is(.ui6-page, .ui6-record-page) .ui6-panel .section_
 html[data-design="studio"] .ui6-panel .section__title {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* UI-6 D16b: служебные группы на общем листе; запросы и операции принадлежат экранам. */
+html[data-design="studio"] .ui6-service-page .studio-list-hero h1 {
+  overflow-wrap: anywhere;
+}
+html[data-design="studio"] .ui6-service-page .ui6-panel > .section,
+html[data-design="studio"] .ui6-service-page .notif-form > .section {
+  padding: 12px;
+  border-radius: var(--studio-group-radius);
+  background: var(--surface);
+}
+html[data-design="studio"]
+  .ui6-service-page
+  :is(
+    .security-list,
+    .log-list,
+    .device-list,
+    .trash-list,
+    .spaces-list,
+    .visibility-list,
+    .facts
+  ) {
+  border: 0;
+  border-radius: var(--studio-group-radius);
+  background: var(--surface);
+  overflow: hidden;
+  margin-block: 12px;
+  gap: 0;
+}
+html[data-design="studio"]
+  .ui6-service-page
+  :is(
+    .security-list > li,
+    .log-item,
+    .device,
+    .trash-list > li,
+    .spaces-list > li,
+    .visibility-list > li,
+    .facts__item
+  ) {
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+html[data-design="studio"]
+  .ui6-service-page
+  :is(
+    .security-list > li,
+    .log-item,
+    .device,
+    .trash-list > li,
+    .spaces-list > li,
+    .visibility-list > li,
+    .facts__item
+  )
+  + * {
+  border-top: 1px solid var(--paper);
+}
+html[data-design="studio"]
+  .ui6-service-page
+  :is(
+    .facts dd,
+    .facts dt,
+    .security-list p,
+    .log-item__kind,
+    .log-item__device,
+    .visibility-list p,
+    .spaces-list p
+  ) {
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+html[data-design="studio"] .ui6-service-page .facts dd {
+  font-size: 0.9375rem;
+  text-align: start;
+}
+html[data-design="studio"] .ui6-service-page .facts__item {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+html[data-design="studio"] .ui6-service-page .check-line {
+  min-height: 52px;
+  padding: 10px 0;
+}
+html[data-design="studio"] .ui6-service-page .check-line + .check-line {
+  border-top: 1px solid var(--paper);
+}
+html[data-design="studio"] .ui6-service-page .check-line strong {
+  font-size: 0.9375rem;
+  font-weight: 400;
+}
+html[data-design="studio"] .ui6-service-page .check-hint {
+  font-size: 0.8125rem;
+}
+html[data-design="studio"] .ui6-service-page :is(.card, .notif-help, .auth-confirm, .choice__body) {
+  border-radius: var(--studio-group-radius);
+  background: var(--surface);
+  box-shadow: none;
+}
+html[data-design="studio"] .ui6-service-page :is(.card, .notif-help) {
+  border: 0;
+}
+html[data-design="studio"] .ui6-service-page .section .card {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+html[data-design="studio"]
+  .ui6-service-page
+  :is(.auth-field input, .auth-field select, .auth-field textarea) {
+  border-radius: var(--studio-field-radius);
+  font-family: var(--font-sans);
+  font-weight: 400;
+}
+html[data-design="studio"] .ui6-service-page :is(.auth-hint, .auth-field, .choice__hint) {
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+html[data-design="studio"] .ui6-service-page .choice-group {
+  gap: 0;
+  border-radius: var(--studio-group-radius);
+  background: var(--surface);
+}
+html[data-design="studio"] .ui6-service-page .choice__body {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+html[data-design="studio"] .ui6-service-page .choice + .choice {
+  border-top: 1px solid var(--paper);
+}
+html[data-design="studio"] .ui6-service-page .choice input:checked + .choice__body {
+  background: var(--soft);
+  box-shadow: none;
+}
+html[data-design="studio"] .ui6-service-page .start-steps ol {
+  display: flex;
+  flex-wrap: wrap;
+}
+html[data-design="studio"] .ui6-service-page .start-steps__item {
+  flex: 1 1 110px;
+  padding: 8px 0;
+}
+html[data-design="studio"] .ui6-service-page .notif-time {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+}
+html[data-design="studio"] :is(.ui6-service-page, .ui6-service-section) .empty-state {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: start;
+}
+html[data-design="studio"] :is(.ui6-service-page, .ui6-service-section) .empty-state__icon {
+  display: none;
+}
+html[data-design="studio"] :is(.ui6-service-page, .ui6-service-section) .empty-state__title {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+html[data-design="studio"]
+  :is(.ui6-service-page, .ui6-service-section)
+  :is(.month-object, .charge-card) {
+  border: 0;
+  border-radius: var(--studio-group-radius);
+  background: var(--surface);
+  padding: 12px;
+  box-shadow: none;
+}
+html[data-design="studio"] .ui6-service-section .card-list {
+  gap: 12px;
+}
+html[data-design="studio"] .ui6-service-section .facts {
+  border: 0;
+}
+html[data-design="studio"] .ui6-service-section .facts__item {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  border-color: var(--paper);
+}
+html[data-design="studio"] .ui6-service-section .btn--secondary {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent-strong);
+}
+
+html[data-design="studio"] .ui6-page.ui6-service-page {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+html[data-design="studio"] .ui6-service-page > .ui6-panel {
+  flex: 1;
 }

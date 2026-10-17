@@ -1,8 +1,8 @@
 import { Notice } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { Page } from '../ui/Page.tsx';
 import { Status } from '../ui/Row.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import type { Delivery } from './api.ts';
 import { kindLabel, notificationError, resultInfo } from './labels.ts';
 import { useDeliveries, useDevices } from './queries.ts';
@@ -53,12 +53,7 @@ export function DeliveriesScreen() {
       </>
     );
   else if (deliveries.data.length === 0)
-    body = (
-      <p className="muted">
-        Попыток отправки пока не было. Они появятся, когда подойдёт срок записи и на устройство
-        уйдёт уведомление.
-      </p>
-    );
+    body = <p className="muted">Попыток отправки пока не было.</p>;
   else
     body = (
       <ul className="log-list" aria-label="Попытки отправки">
@@ -74,7 +69,7 @@ export function DeliveriesScreen() {
     );
 
   return (
-    <Page title="Журнал доставки" back={BACK}>
+    <Page service title="Журнал доставки" back={BACK}>
       <p className="muted">
         Последние 100 попыток отправить уведомление на ваши устройства. «Принято службой push»
         значит, что служба взяла сообщение; прочитал ли его человек, журнал не знает. Названий

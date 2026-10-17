@@ -54,6 +54,7 @@ function TaskView({ card }: { card: TimedTask }) {
   const facts = factsOf(card, viewerOf(me), 'task');
   const viewer = viewerOf(me);
   const targetHouse = card.householdId ?? householdId;
+  const recordActions = useRef<HTMLButtonElement>(null);
   const [editing, setEditing] = useState<TaskCard | null>(null);
   const [editPending, setEditPending] = useState(false);
   const editRequest = useRef<AbortController | null>(null);
@@ -167,6 +168,7 @@ function TaskView({ card }: { card: TimedTask }) {
   });
   return (
     <RecordPage
+      actionsRef={recordActions}
       editing={editing !== null}
       title={card.title}
       documentTitle="Дело"
@@ -205,8 +207,6 @@ function TaskView({ card }: { card: TimedTask }) {
       ]}
       more={
         <>
-          {operation.error ? <Notice error>{taskError(operation.error)}</Notice> : null}
-          {seriesError ? <Notice error>{taskError(seriesError)}</Notice> : null}{' '}
           <div className="btn-row">
             {active ? (
               ['open', 'waiting'].includes(card.status) ? (
@@ -486,6 +486,7 @@ function TaskView({ card }: { card: TimedTask }) {
       )}
       {transfer ? (
         <Sheet
+          returnFocusRef={recordActions}
           open
           onOpenChange={(open) => {
             if (!open) setTransfer(false);
@@ -533,6 +534,7 @@ function TaskView({ card }: { card: TimedTask }) {
       ) : null}
       {moving ? (
         <Sheet
+          returnFocusRef={recordActions}
           open
           onOpenChange={(open) => {
             if (!open) setMoving(false);

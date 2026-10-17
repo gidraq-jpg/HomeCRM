@@ -9,8 +9,9 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useInvitations, useRefresh } from '../household/queries.ts';
 import { RoleChoice } from '../household/RoleChoice.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
 function PendingInvitations() {
@@ -81,7 +82,7 @@ export function InviteScreen() {
 
   if (!isAdmin || householdId === null) {
     return (
-      <Page title="Приглашение" back={back}>
+      <Page service title="Приглашение" back={back}>
         <EmptyState icon={<UserPlus size={24} aria-hidden />} title="Приглашает администратор">
           <p>Пригласить нового участника в дом может только администратор дома.</p>
         </EmptyState>
@@ -90,7 +91,7 @@ export function InviteScreen() {
   }
 
   return (
-    <Page title="Пригласить участника" back={back}>
+    <Page service title="Пригласить участника" back={back}>
       {issued ? (
         <Section title={`Приглашение: ${ROLE_LABELS[issued.role]}`}>
           <Notice>

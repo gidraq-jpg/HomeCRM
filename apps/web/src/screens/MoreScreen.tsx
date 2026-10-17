@@ -13,13 +13,13 @@ import {
   Trash,
   UserCircle,
 } from '@phosphor-icons/react';
-import { Page } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 
 /** «Ещё»: то, что в приложении уже работает. Покупки — позже. */
 export function MoreScreen() {
   return (
-    <Page title="Ещё" eyebrow="Под рукой">
+    <Page service title="Ещё" eyebrow="Под рукой" back={{ to: '/today', label: 'Сегодня' }}>
       <RowList label="Разделы">
         <Row
           to="/more/shopping"

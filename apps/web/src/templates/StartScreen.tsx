@@ -13,7 +13,7 @@ import { useRefresh } from '../household/queries.ts';
 import { RoleChoice } from '../household/RoleChoice.tsx';
 import { HOME_ZONES, zoneLabel } from '../household/zones.ts';
 import { EmptyState } from '../ui/EmptyState.tsx';
-import { Page } from '../ui/Page.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { TemplateRows } from './NewFromTemplateScreen.tsx';
 import { useOnboarding, useRefreshAfterTemplate, useTemplates } from './queries.ts';
@@ -256,7 +256,12 @@ function InviteStep() {
 
 function Wizard({ step }: { step: Step }) {
   return (
-    <Page title={STEP_TITLES[step]} eyebrow="Первый запуск" back={{ to: FINISH, label: 'Сегодня' }}>
+    <Page
+      service
+      title={STEP_TITLES[step]}
+      eyebrow="Первый запуск"
+      back={{ to: FINISH, label: 'Сегодня' }}
+    >
       <Progress step={step} />
       {step === 'house' ? <HouseStep /> : null}
       {step === 'template' ? <TemplateStep /> : null}
@@ -278,7 +283,7 @@ export function StartScreen({ fixedStep }: { fixedStep?: Step }) {
 
   if (!isAdmin) {
     return (
-      <Page title="Первый запуск" back={{ to: FINISH, label: 'Сегодня' }}>
+      <Page service title="Первый запуск" back={{ to: FINISH, label: 'Сегодня' }}>
         <EmptyState title="Настраивает дом администратор">
           <p>Первый объект и приглашения создаёт администратор дома.</p>
           <Link className="text-button" to="/home/from-template">
@@ -291,7 +296,7 @@ export function StartScreen({ fixedStep }: { fixedStep?: Step }) {
   if (isStep(step)) return <Wizard step={step} />;
   if (onboarding.isPending) {
     return (
-      <Page title="Первый запуск" back={{ to: FINISH, label: 'Сегодня' }}>
+      <Page service title="Первый запуск" back={{ to: FINISH, label: 'Сегодня' }}>
         <Notice>Загружаем…</Notice>
       </Page>
     );

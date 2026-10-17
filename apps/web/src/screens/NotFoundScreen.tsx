@@ -1,12 +1,12 @@
 import { MagnifyingGlass } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { EmptyState } from '../ui/EmptyState.tsx';
-import { Page } from '../ui/Page.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 
 /** Адрес, по которому ничего нет. */
 export function NotFoundScreen() {
   return (
-    <Page title="Страница не найдена">
+    <Page service title="Страница не найдена">
       <EmptyState icon={<MagnifyingGlass size={24} aria-hidden />} title="Не нашли">
         <p>Возможно, ссылка устарела или раздел ещё не готов.</p>
       </EmptyState>

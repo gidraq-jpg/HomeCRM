@@ -1,8 +1,11 @@
 import { ExportHistoryItem, type ExportScope } from '@homecrm/shared';
+import { DownloadSimple } from '@phosphor-icons/react';
 import { useEffect, useId, useState } from 'react';
 import { z } from 'zod';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
+import { Row, RowList } from '../ui/Row.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { ApiError, api } from './api.ts';
 import {
   AuthForm,
@@ -106,7 +109,7 @@ export function ExportScreen() {
     };
   }, [revision]);
   return (
-    <Page title="Мои данные" back={{ to: '/more', label: 'Ещё' }}>
+    <Page service title="Мои данные" back={{ to: '/more', label: 'Ещё' }}>
       <p>
         ZIP-архив содержит JSON и файлы без шифрования, включая корзину. Храните его в безопасном
         месте.
@@ -152,21 +155,27 @@ export function ExportScreen() {
         ) : history.length === 0 ? (
           <p className="muted">Выгрузок пока нет.</p>
         ) : (
-          <ul>
+          <RowList label="История выгрузок">
             {history.map((event) => (
-              <li key={event.id}>
-                {event.kind === 'personal' ? 'Моё личное' : 'Общее дома'} ·{' '}
-                {event.account_id === me.id ? 'Вы' : (event.actor_name ?? 'Участник дома')} ·{' '}
-                {new Intl.DateTimeFormat('ru-RU', {
-                  day: 'numeric',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  timeZone: me.timeZone,
-                }).format(new Date(event.created_at))}
-              </li>
+              <Row
+                key={event.id}
+                icon={<DownloadSimple size={22} aria-hidden />}
+                title={event.kind === 'personal' ? 'Моё личное' : 'Общее дома'}
+                meta={
+                  <>
+                    {event.account_id === me.id ? 'Вы' : (event.actor_name ?? 'Участник дома')} ·{' '}
+                    {new Intl.DateTimeFormat('ru-RU', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      timeZone: me.timeZone,
+                    }).format(new Date(event.created_at))}
+                  </>
+                }
+              />
             ))}
-          </ul>
+          </RowList>
         )}
       </Section>
     </Page>

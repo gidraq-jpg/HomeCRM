@@ -1,11 +1,12 @@
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { VISIBILITIES, VISIBILITY_HINTS, VISIBILITY_LABELS } from '../access/visibility.ts';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 
 /** Короткое объяснение разницы личного и общего — PRD, разделы 7.4 и 7.5. */
 export function SpacesScreen() {
   return (
-    <Page title="Как устроены личное и общее" back={{ to: '/more', label: 'Ещё' }}>
+    <Page service title="Как устроены личное и общее" back={{ to: '/more', label: 'Ещё' }}>
       <p className="muted">
         У каждого участника есть личное пространство, у семьи — общее пространство дома. Любая
         запись лежит ровно в одном из них.

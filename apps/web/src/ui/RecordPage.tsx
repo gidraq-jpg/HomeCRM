@@ -1,5 +1,5 @@
 import { CaretLeft, DotsThree, PencilSimple } from '@phosphor-icons/react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, type RefObject, useState } from 'react';
 import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
@@ -21,6 +21,8 @@ interface RecordPageProps {
   editing?: boolean;
   access?: ReactNode;
   onAccess?: () => void;
+  actionsRef?: RefObject<HTMLButtonElement | null>;
+  onActionsOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }
 
@@ -40,9 +42,15 @@ export function RecordPage({
   more,
   access,
   onAccess,
+  onActionsOpenChange,
+  actionsRef,
   children,
 }: RecordPageProps) {
   const [panel, setPanel] = useState<'more' | 'access' | null>(null);
+  const changePanel = (next: 'more' | 'access' | null) => {
+    onActionsOpenChange?.(next !== null);
+    setPanel(next);
+  };
   const badge = <AccessBadge visibility={visibility} showLabel />;
   return (
     <Page
@@ -64,7 +72,7 @@ export function RecordPage({
                 disabled={editPending}
                 aria-busy={editPending}
                 onClick={() => {
-                  setPanel(null);
+                  changePanel(null);
                   onEdit();
                 }}
               >
@@ -74,9 +82,10 @@ export function RecordPage({
             <button
               className="icon-button"
               type="button"
+              ref={actionsRef}
               aria-label="Ещё: действия с записью"
               disabled={editing}
-              onClick={() => setPanel('more')}
+              onClick={() => changePanel('more')}
             >
               <DotsThree size={24} aria-hidden />
             </button>
@@ -93,7 +102,7 @@ export function RecordPage({
                 disabled={editing}
                 onClick={() => {
                   if (onAccess) onAccess();
-                  else setPanel('access');
+                  else changePanel('access');
                 }}
               >
                 {badge}
@@ -117,14 +126,28 @@ export function RecordPage({
     >
       <div className="studio-panel studio-list-panel ui6-panel ui6-record-panel">{children}</div>
       <Sheet
+        returnFocusRef={actionsRef}
         open={panel !== null}
         onOpenChange={(open) => {
-          if (!open) setPanel(null);
+          if (!open) changePanel(null);
         }}
         title={panel === 'access' ? 'Кто видит' : 'Ещё'}
         description={panel === 'access' ? 'Доступ к записи' : 'Действия с записью'}
       >
-        <div className="ui6-actions">
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: делегируем активацию настоящих кнопок и ссылок, включая клавиатурный click. */}
+        {/* biome-ignore lint/a11y/useKeyWithClickEvents: клавиатура обрабатывается самими кнопками и ссылками. */}
+        <div
+          className="ui6-actions"
+          onClick={(event) => {
+            const target = event.target;
+            if (
+              target instanceof Element &&
+              event.currentTarget.contains(target) &&
+              target.closest('button, a')
+            )
+              changePanel(null);
+          }}
+        >
           {panel === 'more' ? more : null}
           {access}
         </div>

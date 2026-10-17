@@ -1,4 +1,4 @@
-import { CaretLeft, Plus, Receipt } from '@phosphor-icons/react';
+import { CaretLeft, Plus } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAccounts } from '../accounts/queries.ts';
@@ -6,7 +6,7 @@ import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useObjectContext } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
-import { EmptyState } from '../ui/EmptyState.tsx';
+import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { type ChargeInput, createCharge } from './api.ts';
@@ -71,13 +71,23 @@ export function ChargesScreen() {
   const charges = [...(query.data ?? [])].sort((a, b) => b.period.localeCompare(a.period));
 
   return (
-    <section className="section" aria-labelledby={`charges-${accountId}`}>
+    <section className="section ui6-service-section" aria-labelledby={`charges-${accountId}`}>
       {back}
       <div className="section__head">
         <h2 className="section__title" id={`charges-${accountId}`}>
           Начисления: {account.title}
         </h2>
         {charges.length > 0 ? <span className="muted">{chargeCount(charges.length)}</span> : null}
+        {canAdd && !adding ? (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Добавить начисление"
+            onClick={() => setAdding(true)}
+          >
+            <Plus size={20} aria-hidden />
+          </button>
+        ) : null}
       </div>
 
       {trashed ? (
@@ -114,28 +124,7 @@ export function ChargesScreen() {
       ) : null}
 
       {query.data && charges.length === 0 && !adding ? (
-        <EmptyState
-          icon={<Receipt size={24} aria-hidden />}
-          title="Начислений пока нет"
-          actions={
-            canAdd ? (
-              <button
-                type="button"
-                className="btn btn--primary btn--block"
-                onClick={() => setAdding(true)}
-              >
-                <Plus size={20} weight="bold" aria-hidden />
-                Добавить начисление
-              </button>
-            ) : null
-          }
-        >
-          <p>
-            Начисление — это квитанция за месяц: итог, срок оплаты и, если нужно, строки по услугам
-            и перерасчёт. К нему добавляются оплаты; ошибочную оплату можно отменить, удалить
-            нельзя.
-          </p>
-        </EmptyState>
+        <CompactEmptyState title="Начислений пока нет" />
       ) : null}
 
       {charges.length > 0 ? (
@@ -144,17 +133,6 @@ export function ChargesScreen() {
             <ChargeItem key={charge.id} charge={charge} card={card} />
           ))}
         </ul>
-      ) : null}
-
-      {canAdd && !adding && charges.length > 0 ? (
-        <button
-          type="button"
-          className="btn btn--primary btn--block list-action"
-          onClick={() => setAdding(true)}
-        >
-          <Plus size={20} weight="bold" aria-hidden />
-          Добавить начисление
-        </button>
       ) : null}
     </section>
   );

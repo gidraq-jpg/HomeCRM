@@ -28,7 +28,7 @@ import {
   seedDevice,
   thisDevice,
 } from './notifications-support.ts';
-import { closeRecordActions, openRecordActions } from './record-actions.ts';
+import { openRecordActions } from './record-actions.ts';
 import { checkApp, expect, seedProfiles, signInAs } from './support.ts';
 
 // Компьютер (PRD, раздел 14): боковое меню со всеми разделами; переключатель пространств и
@@ -137,7 +137,6 @@ test('заметки на компьютере: список, карточка �
   await noteLinks(page).filter({ hasText: 'Правила дома' }).click();
   await openRecordActions(page);
   await page.getByRole('button', { name: 'Кто видит…' }).click();
-  await closeRecordActions(page);
   await expect(page.getByRole('dialog', { name: 'Кто видит заметку' })).toBeVisible();
   await checkApp(page, info, 'desktop-note-audience');
 });

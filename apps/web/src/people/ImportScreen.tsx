@@ -12,7 +12,8 @@ import {
 import { CheckLine } from '../ui/CheckLine.tsx';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
 import { countWord } from '../ui/format.ts';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
+import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
 import { fetchContact } from './api.ts';
 import {
@@ -159,7 +160,7 @@ export function ImportScreen() {
     }) ?? [];
   const unconfirmed = broaderMerges.some((item) => !confirmed[item.index]);
   return (
-    <Page title="Импорт из файла" back={PEOPLE_BACK}>
+    <Page service title="Импорт из файла" back={PEOPLE_BACK}>
       <p className="muted">
         Выберите vCard 3.0 или 4.0 (.vcf): до 512 КиБ, не больше 500 контактов. Фото пропускаются.
       </p>

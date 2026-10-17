@@ -180,7 +180,6 @@ function PersonView({ card }: { card: PersonCard }) {
       more={
         <>
           {' '}
-          <ObjectError error={quick.error} action="person" />
           {!trashed ? (
             <div className="btn-row">
               {!abilities.edit ? (
@@ -213,6 +212,7 @@ function PersonView({ card }: { card: PersonCard }) {
         </>
       }
     >
+      <ObjectError error={quick.error} action="person" />
       {trashed ? (
         <Notice>
           <strong>Контакт в корзине.</strong>{' '}

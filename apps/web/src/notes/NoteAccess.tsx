@@ -1,6 +1,6 @@
 import { Copy, LockSimple, ShareNetwork, UsersThree } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { type ReactNode, type RefObject, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { AccessCaption } from '../access/AccessBadge.tsx';
 import { useScope } from '../access/ScopeContext.tsx';
@@ -52,7 +52,13 @@ export function LosesAccess({
   );
 }
 
-function ShareSheet({ card, onClose }: { card: NoteCard; onClose: () => void }) {
+interface AccessSheetProps {
+  card: NoteCard;
+  onClose: () => void;
+  returnFocusRef?: RefObject<HTMLElement | null>;
+}
+
+function ShareSheet({ card, onClose, returnFocusRef }: AccessSheetProps) {
   const { householdId } = useHousehold();
   const { scope, setScope } = useScope();
   const refresh = useRefreshNotes();
@@ -62,6 +68,7 @@ function ShareSheet({ card, onClose }: { card: NoteCard; onClose: () => void }) 
 
   return (
     <Sheet
+      returnFocusRef={returnFocusRef}
       open
       onOpenChange={(next) => {
         if (!next) onClose();
@@ -102,7 +109,7 @@ function ShareSheet({ card, onClose }: { card: NoteCard; onClose: () => void }) 
   );
 }
 
-function AudienceSheet({ card, onClose }: { card: NoteCard; onClose: () => void }) {
+function AudienceSheet({ card, onClose, returnFocusRef }: AccessSheetProps) {
   const { scope, setScope } = useScope();
   const refresh = useRefreshNotes();
   const toast = useToast();
@@ -119,6 +126,7 @@ function AudienceSheet({ card, onClose }: { card: NoteCard; onClose: () => void 
 
   return (
     <Sheet
+      returnFocusRef={returnFocusRef}
       open
       onOpenChange={(next) => {
         if (!next) onClose();
@@ -181,10 +189,12 @@ function PersonalSheet({
   card,
   people,
   onClose,
+  returnFocusRef,
 }: {
   card: NoteCard;
   people: readonly { displayName: string }[] | undefined;
   onClose: () => void;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const { scope, setScope } = useScope();
   const refresh = useRefreshNotes();
@@ -193,6 +203,7 @@ function PersonalSheet({
 
   return (
     <Sheet
+      returnFocusRef={returnFocusRef}
       open
       onOpenChange={(next) => {
         if (!next) onClose();
@@ -236,19 +247,28 @@ function PersonalSheet({
 interface NoteAccessProps {
   card: NoteCard;
   abilities: NoteAbilities;
+  active?: boolean;
+  returnFocusRef?: RefObject<HTMLElement | null>;
+  children?: (controls: ReactNode) => ReactNode;
 }
 
 /**
  * «Кто видит» в карточке и действия по правилам 7.3 (SPACE-7). Недоступное действие не
  * показывается; если «Сделать личной» закрыто чужим вкладом, сказано почему.
  */
-export function NoteAccess({ card, abilities }: NoteAccessProps) {
+export function NoteAccess({
+  card,
+  abilities,
+  children,
+  active = true,
+  returnFocusRef,
+}: NoteAccessProps) {
   const [sheet, setSheet] = useState<SheetName | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
   const refresh = useRefreshNotes();
   const copying = useAction();
-  const probe = useMakePersonalProbe(card.id, card.updatedAt, abilities.makePersonal);
+  const probe = useMakePersonalProbe(card.id, card.updatedAt, active && abilities.makePersonal);
   const visibility = visibilityOf(card);
   const close = () => setSheet(null);
 
@@ -256,81 +276,89 @@ export function NoteAccess({ card, abilities }: NoteAccessProps) {
   const blocked = abilities.makePersonal && probe.blocked;
   const anyAction = abilities.share || abilities.audience || showMakePersonal || abilities.copy;
 
+  const controls = (
+    <div className="access-card">
+      <h2 className="access-card__title">Кто видит</h2>
+      <AccessCaption visibility={visibility} />
+      {blocked ? (
+        <p className="muted access-card__note">
+          Сделать заметку личной нельзя: в ней есть правки других участников. Можно скопировать её в
+          личное.
+        </p>
+      ) : null}
+      {anyAction ? (
+        <div className="btn-row">
+          {abilities.share ? (
+            <button type="button" className="btn btn--secondary" onClick={() => setSheet('share')}>
+              <ShareNetwork size={20} aria-hidden />
+              Поделиться…
+            </button>
+          ) : null}
+          {abilities.audience ? (
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setSheet('audience')}
+            >
+              <UsersThree size={20} aria-hidden />
+              Кто видит…
+            </button>
+          ) : null}
+          {showMakePersonal ? (
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setSheet('personal')}
+            >
+              <LockSimple size={20} aria-hidden />
+              Сделать личной…
+            </button>
+          ) : null}
+          {abilities.copy ? (
+            <button
+              type="button"
+              className="btn btn--secondary"
+              disabled={copying.disabled}
+              onClick={() =>
+                void copying.run(async () => {
+                  const copy = await copyToPersonal(card.id);
+                  await refresh();
+                  toast.show({
+                    message: 'Копия сохранена в личном',
+                    detail: 'Кто видит копию: только вы',
+                    action: {
+                      label: 'Открыть',
+                      onClick: () => navigate(`/more/notes/${copy.id}`),
+                    },
+                  });
+                })
+              }
+            >
+              <Copy size={20} aria-hidden />
+              {copying.pending ? 'Копируем…' : 'Скопировать в личное'}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
   return (
     <>
-      <div className="access-card">
-        <h2 className="access-card__title">Кто видит</h2>
-        <AccessCaption visibility={visibility} />
-        {blocked ? (
-          <p className="muted access-card__note">
-            Сделать заметку личной нельзя: в ней есть правки других участников. Можно скопировать её
-            в личное.
-          </p>
-        ) : null}
-        {anyAction ? (
-          <div className="btn-row">
-            {abilities.share ? (
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={() => setSheet('share')}
-              >
-                <ShareNetwork size={20} aria-hidden />
-                Поделиться…
-              </button>
-            ) : null}
-            {abilities.audience ? (
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={() => setSheet('audience')}
-              >
-                <UsersThree size={20} aria-hidden />
-                Кто видит…
-              </button>
-            ) : null}
-            {showMakePersonal ? (
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={() => setSheet('personal')}
-              >
-                <LockSimple size={20} aria-hidden />
-                Сделать личной…
-              </button>
-            ) : null}
-            {abilities.copy ? (
-              <button
-                type="button"
-                className="btn btn--secondary"
-                disabled={copying.disabled}
-                onClick={() =>
-                  void copying.run(async () => {
-                    const copy = await copyToPersonal(card.id);
-                    await refresh();
-                    toast.show({
-                      message: 'Копия сохранена в личном',
-                      detail: 'Кто видит копию: только вы',
-                      action: {
-                        label: 'Открыть',
-                        onClick: () => navigate(`/more/notes/${copy.id}`),
-                      },
-                    });
-                  })
-                }
-              >
-                <Copy size={20} aria-hidden />
-                {copying.pending ? 'Копируем…' : 'Скопировать в личное'}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-        <NoteError error={copying.error} action="copy" />
-      </div>
-      {sheet === 'share' ? <ShareSheet card={card} onClose={close} /> : null}
-      {sheet === 'audience' ? <AudienceSheet card={card} onClose={close} /> : null}
+      {children ? children(controls) : controls}
+      <NoteError error={copying.error} action="copy" />
+      {sheet === 'share' ? (
+        <ShareSheet returnFocusRef={returnFocusRef} card={card} onClose={close} />
+      ) : null}
+      {sheet === 'audience' ? (
+        <AudienceSheet returnFocusRef={returnFocusRef} card={card} onClose={close} />
+      ) : null}
       {sheet === 'personal' ? (
-        <PersonalSheet card={card} people={probe.preview?.losesAccess} onClose={close} />
+        <PersonalSheet
+          returnFocusRef={returnFocusRef}
+          card={card}
+          people={probe.preview?.losesAccess}
+          onClose={close}
+        />
       ) : null}
     </>
   );

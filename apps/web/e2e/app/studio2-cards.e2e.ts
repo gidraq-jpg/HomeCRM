@@ -299,7 +299,10 @@ test('UI-6: файлы, версии и взаимодействия в груп
   }
 });
 
-test('UI-6: ошибка закрепления видна внутри листа Ещё', async ({ page, family }) => {
+test('UI-6: после выбора Ещё закрывается, ошибка закрепления видна один раз', async ({
+  page,
+  family,
+}) => {
   test.skip(phase === 'before', 'Исходная съёмка выполнена отдельно.');
   const api = await apiAs(family, 'adult');
   const note = await seedNote(api, family, { title: 'Вымышленная заметка с отказом' });
@@ -318,9 +321,9 @@ test('UI-6: ошибка закрепления видна внутри лист
   await page.getByRole('button', { name: 'Ещё: действия с записью' }).click();
   const more = page.getByRole('dialog', { name: 'Ещё', exact: true });
   await more.getByRole('button', { name: 'Закрепить', exact: true }).click();
-  await expect(more.getByRole('alert')).toBeVisible();
+  await expect(more).toHaveCount(0);
+  await expect(page.getByRole('alert')).toHaveCount(1);
   await expectAccessible(page, 'note-action-error');
   await expectTouchTargets(page);
-  await closeRecordActions(page);
   await expect(page.getByRole('alert')).toBeVisible();
 });
