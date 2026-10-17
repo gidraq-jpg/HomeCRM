@@ -5,6 +5,7 @@ import type { Visibility } from '../access/visibility.ts';
 import type { useAction } from '../auth/components.tsx';
 import { ObjectError } from '../objects/components.tsx';
 import { CheckLine } from '../ui/CheckLine.tsx';
+import { FormSubmitBar } from '../ui/FormSubmitBar.tsx';
 import {
   MAX_LABEL,
   MAX_NOTE,
@@ -122,6 +123,7 @@ export function OrganizationForm({
         </label>
         <input
           id={id('title')}
+          placeholder="Например: УК „Наш дом“"
           className="input"
           value={title}
           maxLength={MAX_TITLE}
@@ -314,9 +316,11 @@ export function OrganizationForm({
 
       <ObjectError error={state.error} action="contact" />
       <div className="btn-row">
-        <button type="submit" className="btn btn--primary" disabled={state.disabled}>
-          {state.pending ? pendingLabel : submitLabel}
-        </button>
+        <FormSubmitBar>
+          <button type="submit" className="btn btn--primary" disabled={state.disabled}>
+            {state.pending ? pendingLabel : submitLabel}
+          </button>
+        </FormSubmitBar>
         <button type="button" className="btn btn--secondary" onClick={onCancel}>
           Отмена
         </button>

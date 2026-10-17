@@ -3,6 +3,7 @@ import { type ReactNode, type RefObject, useState } from 'react';
 import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
+import { FormHeading } from './FormHeading.tsx';
 import { Page } from './Page.tsx';
 import { Sheet } from './Sheet.tsx';
 
@@ -56,72 +57,76 @@ export function RecordPage({
     <Page
       title={title}
       documentTitle={documentTitle}
-      className="ui6-record-page"
+      className={`ui6-record-page ${editing ? 'ui7-fullscreen-form' : ''}`}
       heading={
-        <div className="object-hero">
-          <div className="object-hero__actions">
-            <Link className="back-link" to={back.to}>
-              <CaretLeft size={20} aria-hidden />
-              {back.label}
-            </Link>
-            {onEdit ? (
+        editing ? (
+          <FormHeading title={title} back={back} />
+        ) : (
+          <div className="object-hero">
+            <div className="object-hero__actions">
+              <Link className="back-link" to={back.to}>
+                <CaretLeft size={20} aria-hidden />
+                {back.label}
+              </Link>
+              {onEdit ? (
+                <button
+                  className="icon-button"
+                  type="button"
+                  aria-label={editLabel}
+                  disabled={editPending}
+                  aria-busy={editPending}
+                  onClick={() => {
+                    changePanel(null);
+                    onEdit();
+                  }}
+                >
+                  <PencilSimple size={22} aria-hidden />
+                </button>
+              ) : null}
               <button
                 className="icon-button"
                 type="button"
-                aria-label={editLabel}
-                disabled={editPending}
-                aria-busy={editPending}
-                onClick={() => {
-                  changePanel(null);
-                  onEdit();
-                }}
-              >
-                <PencilSimple size={22} aria-hidden />
-              </button>
-            ) : null}
-            <button
-              className="icon-button"
-              type="button"
-              ref={actionsRef}
-              aria-label="Ещё: действия с записью"
-              disabled={editing}
-              onClick={() => changePanel('more')}
-            >
-              <DotsThree size={24} aria-hidden />
-            </button>
-          </div>
-          <p className="object-hero__type">{type}</p>
-          <h1>{title}</h1>
-          <div className="object-hero__meta">
-            {subtitle ? <span>{subtitle}</span> : null}
-            {access || onAccess ? (
-              <button
-                className="object-access-trigger"
-                type="button"
-                aria-label="Кто видит запись"
+                ref={actionsRef}
+                aria-label="Ещё: действия с записью"
                 disabled={editing}
-                onClick={() => {
-                  if (onAccess) onAccess();
-                  else changePanel('access');
-                }}
+                onClick={() => changePanel('more')}
               >
-                {badge}
+                <DotsThree size={24} aria-hidden />
               </button>
-            ) : (
-              badge
-            )}
+            </div>
+            <p className="object-hero__type">{type}</p>
+            <h1>{title}</h1>
+            <div className="object-hero__meta">
+              {subtitle ? <span>{subtitle}</span> : null}
+              {access || onAccess ? (
+                <button
+                  className="object-access-trigger"
+                  type="button"
+                  aria-label="Кто видит запись"
+                  disabled={editing}
+                  onClick={() => {
+                    if (onAccess) onAccess();
+                    else changePanel('access');
+                  }}
+                >
+                  {badge}
+                </button>
+              ) : (
+                badge
+              )}
+            </div>
+            {facts.length ? (
+              <dl className="object-facts">
+                {facts.slice(0, 3).map((fact) => (
+                  <div key={fact.label}>
+                    <dt>{fact.label}</dt>
+                    <dd>{fact.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
           </div>
-          {facts.length ? (
-            <dl className="object-facts">
-              {facts.slice(0, 3).map((fact) => (
-                <div key={fact.label}>
-                  <dt>{fact.label}</dt>
-                  <dd>{fact.value}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
-        </div>
+        )
       }
     >
       <div className="studio-panel studio-list-panel ui6-panel ui6-record-panel">{children}</div>

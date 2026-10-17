@@ -2,6 +2,7 @@ import { DOCUMENT_LABELS, documentWarnings } from '@homecrm/shared';
 import { type FormEvent, type ReactNode, useId, useState } from 'react';
 import { Notice, type useAction } from '../auth/components.tsx';
 import { CheckLine } from '../ui/CheckLine.tsx';
+import { FormSubmitBar } from '../ui/FormSubmitBar.tsx';
 import {
   type DocumentCard,
   MAX_ISSUED_BY,
@@ -101,6 +102,7 @@ export function DocumentForm({
         </label>
         <input
           id={id(field)}
+          placeholder={field === 'title' ? 'Например: полис ОСАГО' : undefined}
           className="input"
           value={values[field]}
           maxLength={options.maxLength}
@@ -246,9 +248,11 @@ export function DocumentForm({
       )}
 
       <div className="btn-row">
-        <button type="submit" className="btn btn--primary" disabled={state.disabled}>
-          {state.pending ? pendingLabel : submitLabel}
-        </button>
+        <FormSubmitBar>
+          <button type="submit" className="btn btn--primary" disabled={state.disabled}>
+            {state.pending ? pendingLabel : submitLabel}
+          </button>
+        </FormSubmitBar>
         <button type="button" className="btn btn--secondary" onClick={onCancel}>
           Отмена
         </button>
