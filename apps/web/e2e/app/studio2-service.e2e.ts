@@ -70,6 +70,7 @@ test('UI-6 D16b: служебные экраны, данные и пустые �
       }
       await page.evaluate(() => document.fonts.ready);
       if (phase === 'after') {
+        await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(0);
         await expectNoHorizontalScroll(page);
         await expectAccessible(page, name);
         await expectTouchTargets(page);
@@ -83,6 +84,27 @@ test('UI-6 D16b: служебные экраны, данные и пустые �
   }
   await page.goto(`#/open/${note.id}`);
   await expect(page).toHaveURL(new RegExp(`/more/notes/${note.id}$`));
+});
+
+test('UI-6 D16b: Назад служебных экранов возвращает по истории', async ({ page, family }) => {
+  await signInAs(page, family, 'adult');
+  const screens = [
+    ['/today', '/search'],
+    ['/home', '/unknown-service'],
+    ['/people', `/open/${crypto.randomUUID()}`],
+  ] as const;
+  for (const [origin, destination] of screens) {
+    await page.goto(`#${origin}`);
+    await expect(page.locator('h1')).toBeVisible();
+    if (origin === '/home')
+      await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(1);
+    await page.goto(`#${destination}`);
+    const back = page.getByRole('button', { name: 'Назад', exact: true });
+    await expect(back).toBeVisible();
+    await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(0);
+    await back.click();
+    await expect(page).toHaveURL(new RegExp(`#${origin}$`));
+  }
 });
 
 async function capture(page: Page, info: TestInfo, name: string) {

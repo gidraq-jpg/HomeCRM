@@ -6,7 +6,7 @@ import { StudioPage as Page } from '../ui/StudioPage.tsx';
 /** Адрес, по которому ничего нет. */
 export function NotFoundScreen() {
   return (
-    <Page service title="Страница не найдена">
+    <Page service backHistory title="Страница не найдена">
       <EmptyState icon={<MagnifyingGlass size={24} aria-hidden />} title="Не нашли">
         <p>Возможно, ссылка устарела или раздел ещё не готов.</p>
       </EmptyState>

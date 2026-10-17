@@ -63,7 +63,7 @@ export function OpenRecordScreen() {
 
   if (target.kind === 'found') return <Navigate to={target.to} replace />;
   return (
-    <Page service title="Открываем запись">
+    <Page service backHistory title="Открываем запись">
       {target.kind === 'loading' ? <Notice>Открываем запись…</Notice> : null}
       {target.kind === 'error' ? (
         <Notice error>Не удалось открыть запись. Проверьте подключение и повторите.</Notice>

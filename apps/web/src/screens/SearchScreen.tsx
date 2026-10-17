@@ -17,7 +17,7 @@ export function SearchScreen() {
     input.current?.focus();
   }, []);
   return (
-    <Page service title="Поиск">
+    <Page service backHistory title="Поиск">
       <div className="field search-field">
         <label className="field__label" htmlFor="search-input">
           Что найти

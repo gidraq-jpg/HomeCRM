@@ -1,5 +1,5 @@
 import { CaretLeft } from '@phosphor-icons/react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { AddAction } from '../shell/AddAction.tsx';
 import { Page } from './Page.tsx';
 
@@ -14,8 +14,10 @@ export function StudioPage({
   className,
   form = false,
   service = false,
+  backHistory = false,
   ...props
-}: Parameters<typeof Page>[0] & { form?: boolean; service?: boolean }) {
+}: Parameters<typeof Page>[0] & { form?: boolean; service?: boolean; backHistory?: boolean }) {
+  const navigate = useNavigate();
   return (
     <Page
       {...props}
@@ -24,7 +26,12 @@ export function StudioPage({
       heading={
         heading ?? (
           <div className="studio-list-hero">
-            {back || service ? (
+            {backHistory ? (
+              <button className="back-link" type="button" onClick={() => void navigate(-1)}>
+                <CaretLeft size={20} aria-hidden />
+                {back?.label ?? 'Назад'}
+              </button>
+            ) : back || service ? (
               <Link className="back-link" to={back?.to ?? '/more'}>
                 <CaretLeft size={20} aria-hidden />
                 {back?.label ?? 'Назад'}
@@ -33,7 +40,7 @@ export function StudioPage({
             <div className="page-heading__line">
               <h1>{title}</h1>
               {status}
-              {!form ? <AddAction /> : null}
+              {!form && !service ? <AddAction /> : null}
             </div>
             {eyebrow ? <p className="studio-list-count">{eyebrow}</p> : null}
           </div>

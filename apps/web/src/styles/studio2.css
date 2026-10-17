@@ -550,6 +550,8 @@ html[data-design="studio"] .ui6-record-page h1 {
 }
 html[data-design="studio"] .ui6-page .studio-list-hero > .back-link {
   margin: 0 0 8px;
+  border: 0;
+  background: transparent;
   color: var(--muted-on-dark);
 }
 html[data-design="studio"] .ui6-page .studio-add {
