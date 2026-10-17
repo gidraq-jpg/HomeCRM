@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Notice, useOnline } from '../auth/components.tsx';
 import { todayIn } from '../objects/dates.ts';
 import { Sheet } from '../ui/Sheet.tsx';
-import type { FeedTaskCard } from './api.ts';
+import type { TaskCard } from './api.ts';
 import { taskError } from './errors.ts';
 import { TextField } from './fields.tsx';
 import { nextWeekday } from './plan.ts';
@@ -16,7 +16,7 @@ export function MoveTaskSheet({
   close,
   move,
 }: {
-  card: FeedTaskCard;
+  card: TaskCard;
   timeZone: string;
   pending: boolean;
   error: unknown;

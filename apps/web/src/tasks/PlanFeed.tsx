@@ -1,17 +1,17 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
-import { useToast } from '../ui/Toast.tsx';
-import { FeedTaskCard, type TimedTask, type Today } from './api.ts';
+import type { FeedTaskCard, Today } from './api.ts';
 import { MoveTaskSheet } from './MoveTaskSheet.tsx';
-import { OperationNotice, type TaskOperation, useTaskOperation } from './operation.tsx';
+import { OperationNotice } from './operation.tsx';
 import { PlanRows } from './PlanRows.tsx';
 import { emptyDays, overdueLabel, planDay } from './plan.ts';
 import { uniqueTasks, usePlan } from './queries.ts';
 import { LoadMore, QueryNotice } from './TasksScreen.tsx';
+import { useFeedActions } from './useFeedActions.ts';
 
 export function PlanFeed({ house }: { house: string | null }) {
   const { me } = useHousehold();
@@ -33,15 +33,6 @@ export function PlanFeed({ house }: { house: string | null }) {
     cachedToday.data?.tasks.filter(
       (card) => (card.planOn && card.planOn < today) || (card.dueOn && card.dueOn < today),
     ).length ?? 0;
-  const [moving, setMoving] = useState<FeedTaskCard | null>(null);
-  const last = useRef<{
-    original: FeedTaskCard;
-    date: string | null;
-    scope: 'this' | 'following';
-    undo?: boolean;
-    complete?: boolean;
-  } | null>(null);
-  const toast = useToast();
   const sentinel = useRef<HTMLDivElement>(null);
   const armed = useRef(false);
   useLayoutEffect(() => {
@@ -80,66 +71,8 @@ export function PlanFeed({ house }: { house: string | null }) {
         : data,
     );
   };
-  function finished(result?: TimedTask, queued?: TaskOperation) {
-    const action = last.current;
-    if (!action) return;
-    const card = FeedTaskCard.strip().parse({
-      ...action.original,
-      ...(queued?.body ?? {}),
-      ...(result ?? {}),
-    });
-    apply(card);
-    setMoving(null);
-    if (action.undo) {
-      toast.show({ message: action.complete ? 'Выполнение отменено' : 'Перенос отменён' });
-      return;
-    }
-    const until = action.complete && result ? result.undoUntil : performance.now() + 7000;
-    toast.show({
-      message: action.complete
-        ? 'Дело выполнено'
-        : card.planOn
-          ? `Перенесено на ${planDay(card.planOn).replace(/^./, (letter) => letter.toLowerCase())}`
-          : 'Перенесено в «Без даты»',
-      ...(result ? {} : { detail: 'Сохранено на устройстве. Отправим при появлении сети.' }),
-      durationMs: Math.max(1, until - performance.now()),
-      ...(!action.complete || (result?.completionEventId && until > performance.now())
-        ? {
-            action: {
-              label: 'Отменить',
-              onClick: () => {
-                if (performance.now() >= until) return;
-                last.current = {
-                  ...action,
-                  original: card,
-                  undo: true,
-                  date: action.original.planOn,
-                };
-                void operation.run(
-                  action.complete
-                    ? {
-                        path: `tasks/${card.id}/undo`,
-                        body: { eventId: result?.completionEventId },
-                      }
-                    : {
-                        path: `tasks/${card.id}`,
-                        method: 'PATCH',
-                        keyed: true,
-                        body: {
-                          planOn: action.original.planOn,
-                          planTime: action.original.planTime,
-                          repeatScope: action.scope,
-                          expectedUpdatedAt: card.updatedAt,
-                        },
-                      },
-                );
-              },
-            },
-          }
-        : {}),
-    });
-  }
-  const operation = useTaskOperation(finished, (request) => finished(undefined, request));
+  const actions = useFeedActions(apply);
+  const { operation, moving } = actions;
   useEffect(() => {
     // Изменение высоты страницы тоже порождает scroll: оно не должно загружать месяцы пустых дней.
     let nearEnd = false;
@@ -196,19 +129,9 @@ export function PlanFeed({ house }: { house: string | null }) {
       label={label}
       today={today}
       pending={operation.pending}
-      move={(card) => {
-        operation.setError(null);
-        setMoving(card);
-      }}
+      move={actions.startMove}
       remember={remember}
-      complete={(card) => {
-        last.current = { original: card, date: card.planOn, scope: 'this', complete: true };
-        void operation.run({
-          path: `tasks/${card.id}/status`,
-          body: { status: 'done', expectedUpdatedAt: card.updatedAt },
-          keyed: true,
-        });
-      }}
+      complete={actions.complete}
     />
   );
   const hasDated = groups.some((group) => group.tasks.length);
@@ -254,21 +177,8 @@ export function PlanFeed({ house }: { house: string | null }) {
           timeZone={query.data?.pages[0]?.timeZone ?? me.timeZone}
           pending={operation.pending}
           error={operation.error}
-          close={() => setMoving(null)}
-          move={(date, repeatScope) => {
-            last.current = { original: moving, date, scope: repeatScope };
-            void operation.run({
-              path: `tasks/${moving.id}`,
-              method: 'PATCH',
-              keyed: true,
-              body: {
-                planOn: date,
-                ...(date ? {} : { planTime: null }),
-                repeatScope,
-                expectedUpdatedAt: moving.updatedAt,
-              },
-            });
-          }}
+          close={actions.close}
+          move={actions.move}
         />
       ) : null}
     </>
