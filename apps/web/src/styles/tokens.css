@@ -34,6 +34,7 @@
 :root[data-design="studio"] {
   --studio-group-radius: 20px;
   --studio-field-radius: 16px;
+  --studio-field-height: 48px;
   --studio-tile-radius: 13px;
   --charcoal: #1b1a18;
   --paper: #ebe5da;

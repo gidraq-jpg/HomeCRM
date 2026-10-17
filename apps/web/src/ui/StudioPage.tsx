@@ -1,6 +1,7 @@
 import { CaretLeft } from '@phosphor-icons/react';
 import { Link, useNavigate } from 'react-router';
 import { AddAction } from '../shell/AddAction.tsx';
+import { FormHeading } from './FormHeading.tsx';
 import { Page } from './Page.tsx';
 
 /** Общая композиция списков, полных форм и служебных экранов; маршруты и содержимое остаются у экрана. */
@@ -22,9 +23,12 @@ export function StudioPage({
     <Page
       {...props}
       title={title}
-      className={`studio-list-page ui6-page ${form ? 'ui6-form-page' : ''} ${service ? 'ui6-service-page' : ''} ${className ?? ''}`}
+      className={`studio-list-page ui6-page ${form ? 'ui6-form-page ui7-fullscreen-form' : ''} ${service ? 'ui6-service-page' : ''} ${className ?? ''}`}
       heading={
-        heading ?? (
+        heading ??
+        (form ? (
+          <FormHeading title={title} back={back} backHistory={backHistory} />
+        ) : (
           <div className="studio-list-hero">
             {backHistory ? (
               <button className="back-link" type="button" onClick={() => void navigate(-1)}>
@@ -44,7 +48,7 @@ export function StudioPage({
             </div>
             {eyebrow ? <p className="studio-list-count">{eyebrow}</p> : null}
           </div>
-        )
+        ))
       }
     >
       <div className="studio-panel studio-list-panel ui6-panel">{children}</div>

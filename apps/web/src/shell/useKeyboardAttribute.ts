@@ -26,17 +26,19 @@ export function useKeyboardAttribute(): void {
       else delete root.dataset.keyboard;
     };
     // При повороте экрана «самая высокая» высота — другая.
-    const orientation = window.matchMedia('(orientation: portrait)');
+    // media query меняется и от клавиатуры, когда высота становится меньше ширины.
+    // Сбрасываем базовую высоту только при настоящем повороте устройства.
+    const orientation = window.screen.orientation;
     const onOrientation = () => {
       tallest = height();
       update();
     };
 
     target.addEventListener('resize', update);
-    orientation.addEventListener('change', onOrientation);
+    orientation?.addEventListener('change', onOrientation);
     return () => {
       target.removeEventListener('resize', update);
-      orientation.removeEventListener('change', onOrientation);
+      orientation?.removeEventListener('change', onOrientation);
       delete root.dataset.keyboard;
     };
   }, []);

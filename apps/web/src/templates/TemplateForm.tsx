@@ -9,6 +9,7 @@ import { viewerOf } from '../notes/abilities.ts';
 import { creatableObjectVisibilities } from '../objects/abilities.ts';
 import { todayIn } from '../objects/dates.ts';
 import { CheckLine } from '../ui/CheckLine.tsx';
+import { FormSubmitBar } from '../ui/FormSubmitBar.tsx';
 import { countWord } from '../ui/format.ts';
 import { applyTemplate, TAX_REGIMES, type TaxRegime, type Template } from './api.ts';
 import { templateErrorMessage } from './errors.ts';
@@ -141,6 +142,7 @@ export function TemplateForm({
         </label>
         <input
           id={id('title')}
+          placeholder="Например: квартира на Лесной"
           className="input"
           type="text"
           maxLength={MAX_TITLE}
@@ -364,9 +366,11 @@ export function TemplateForm({
 
       {state.error ? <Notice error>{templateErrorMessage(state.error)}</Notice> : null}
       <div className="btn-row">
-        <button type="submit" className="btn btn--primary" disabled={state.disabled}>
-          {state.pending ? 'Создаём…' : submitLabel}
-        </button>
+        <FormSubmitBar>
+          <button type="submit" className="btn btn--primary" disabled={state.disabled}>
+            {state.pending ? 'Создаём…' : submitLabel}
+          </button>
+        </FormSubmitBar>
         {onSkip ? (
           <button type="button" className="btn btn--secondary" onClick={onSkip}>
             Пропустить

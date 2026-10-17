@@ -787,3 +787,17 @@ html[data-design="studio"] .sheet__title {
     padding: 24px 32px calc(var(--fab-size) + 56px);
   }
 }
+
+/* UI-7: один признак формы скрывает оболочку всех экранов до desktop-порога. */
+@media (width < 1024px) {
+  html[data-design="studio"] .app:has(.ui7-fullscreen-form) {
+    display: block;
+    max-width: var(--column);
+  }
+  html[data-design="studio"] .app:has(.ui7-fullscreen-form) :is(.topbar, .bottom-nav, .side-nav) {
+    display: none;
+  }
+  html[data-design="studio"] .app:has(.ui7-fullscreen-form) .chrome {
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+}

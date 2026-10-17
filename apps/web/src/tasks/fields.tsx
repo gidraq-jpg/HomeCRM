@@ -14,6 +14,7 @@ export function TextField({
   type = 'text',
   required = false,
   maxLength,
+  placeholder,
   disabled = false,
 }: {
   label: string;
@@ -22,6 +23,7 @@ export function TextField({
   type?: string;
   required?: boolean;
   maxLength?: number;
+  placeholder?: string;
   disabled?: boolean;
 }) {
   const id = useId();
@@ -37,6 +39,7 @@ export function TextField({
         value={value}
         required={required}
         maxLength={maxLength}
+        placeholder={placeholder}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         autoComplete="off"

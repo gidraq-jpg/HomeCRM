@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import type { Family } from '../auth/support/family.ts';
 import { test } from '../auth/support/fixtures.ts';
+import { expectVisibilityBeforeSubmit } from '../support/helpers.ts';
 import { expectNothingStored } from './notes-support.ts';
 import { checkApp, expect, signInAs } from './support.ts';
 
@@ -123,11 +124,7 @@ test('«Сдаваемая квартира» со снятыми галочка
   // «Кто видит» над «Создать»; недвижимость — «Взрослые».
   const visibility = form(page).getByRole('group', { name: 'Кто видит' });
   await expect(visibility.getByRole('radio', { name: 'Взрослые' })).toBeChecked();
-  const box = await visibility.boundingBox();
-  const submit = await form(page)
-    .getByRole('button', { name: 'Создать', exact: true })
-    .boundingBox();
-  expect(box && submit && box.y < submit.y).toBe(true);
+  await expectVisibilityBeforeSubmit(form(page));
   await checkApp(page, info, 'template-form');
 
   // Первый ответ теряется уже после создания: повтор с тем же ключом вернёт тот же объект.

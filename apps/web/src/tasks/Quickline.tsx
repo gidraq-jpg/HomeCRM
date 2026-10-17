@@ -132,7 +132,7 @@ export function Quickline({
             <textarea
               id={inputId}
               className="textarea"
-              rows={2}
+              rows={1}
               value={raw}
               maxLength={500}
               onChange={(event) => {

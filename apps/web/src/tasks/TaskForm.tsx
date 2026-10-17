@@ -16,6 +16,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { creatableVisibilities, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import type { DraftBase } from '../offline/draft-data.ts';
 import { useDurableDraft } from '../offline/drafts.ts';
+import { FormSubmitBar } from '../ui/FormSubmitBar.tsx';
 import type { TaskCard } from './api.ts';
 import { ChecklistEditor } from './ChecklistEditor.tsx';
 import { SelectField, TextField } from './fields.tsx';
@@ -131,6 +132,7 @@ export function TaskForm({
       <fieldset disabled={pending || !localDraft.ready} className="task-form__fields">
         <TextField
           label="Название дела"
+          placeholder="Например: заменить картридж фильтра"
           value={draft.title}
           required
           maxLength={200}
@@ -143,6 +145,7 @@ export function TaskForm({
           <textarea
             className="input"
             id={descriptionId}
+            placeholder="Детали, артикулы, ссылки"
             maxLength={20000}
             value={draft.description}
             onChange={(event) => update('description', event.target.value)}
@@ -322,13 +325,15 @@ export function TaskForm({
         ) : null}
         {invalid ? <Notice error>{invalid}</Notice> : null}
         <div className="btn-row">
-          <button
-            type="submit"
-            className="btn btn--primary"
-            disabled={!localDraft.ready || localDraft.needsDecision}
-          >
-            {pending ? 'Сохраняем…' : 'Сохранить'}
-          </button>
+          <FormSubmitBar>
+            <button
+              type="submit"
+              className="btn btn--primary"
+              disabled={!localDraft.ready || localDraft.needsDecision}
+            >
+              {pending ? 'Сохраняем…' : 'Сохранить'}
+            </button>
+          </FormSubmitBar>
           <button type="button" className="btn btn--secondary" onClick={onCancel}>
             Отмена
           </button>
