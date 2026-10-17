@@ -15,11 +15,11 @@ import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
-import { useToast } from '../ui/Toast.tsx';
-import type { TaskFilters, Today } from './api.ts';
+import type { TaskCard, TaskFilters, Today } from './api.ts';
 import { taskError } from './errors.ts';
 import { SelectField } from './fields.tsx';
-import { OperationNotice, useTaskOperation } from './operation.tsx';
+import { MoveTaskSheet } from './MoveTaskSheet.tsx';
+import { OperationNotice } from './operation.tsx';
 import { RecordPicker } from './options.tsx';
 import { PlanFeed } from './PlanFeed.tsx';
 import { PlanRows } from './PlanRows.tsx';
@@ -28,6 +28,7 @@ import { STATUS_LABELS } from './TaskForm.tsx';
 import { TaskRows } from './TaskRows.tsx';
 import { TaskTabs } from './TaskTabs.tsx';
 import { TodayHero } from './TodayHero.tsx';
+import { useFeedActions } from './useFeedActions.ts';
 import './today.css';
 
 type View = 'today' | 'plan' | 'all';
@@ -267,7 +268,12 @@ function AllFeed({ house }: { house: string | null }) {
       )
     : openOnly
       ? active
-      : tasks;
+      : tasks.filter(
+          (task) =>
+            filters.status ||
+            ['open', 'waiting'].includes(task.status) ||
+            (timeZone && todayIn(timeZone, new Date(task.updatedAt)) >= today),
+        );
   const groups = [
     { title: 'Просрочено', tasks: selected.filter((task) => task.planOn && task.planOn < today) },
     {
@@ -277,32 +283,21 @@ function AllFeed({ house }: { house: string | null }) {
     { title: 'Позже', tasks: selected.filter((task) => task.planOn && task.planOn > end) },
     { title: 'Без даты', tasks: selected.filter((task) => !task.planOn) },
   ];
-  const toast = useToast();
-  const operation = useTaskOperation((card) => {
-    if (card.status !== 'done') {
-      toast.show({ message: 'Дело обновлено' });
-      return;
-    }
-    const duration = card.undoUntil - performance.now();
-    toast.show({
-      message: 'Дело выполнено',
-      ...(duration > 0 && card.completionEventId
-        ? {
-            durationMs: duration,
-            action: {
-              label: 'Отменить',
-              onClick: () => {
-                if (performance.now() < card.undoUntil)
-                  void operation.run({
-                    path: `tasks/${card.id}/undo`,
-                    body: { eventId: card.completionEventId },
-                  });
-              },
-            },
-          }
-        : {}),
-    });
+  const actions = useFeedActions<TaskCard>((card) => {
+    client.setQueriesData<{ pages: TaskCard[][]; pageParams: unknown[] }>(
+      { queryKey: ['tasks', me.id, house, 'all'] },
+      (data) =>
+        data
+          ? {
+              ...data,
+              pages: data.pages.map((page) =>
+                page.map((task) => (task.id === card.id ? card : task)),
+              ),
+            }
+          : data,
+    );
   });
+  const { operation, moving } = actions;
   const unfiltered = !filters.filter && !filters.status && !filters.objectId;
   const summary = query.data && !query.error && !query.hasNextPage && unfiltered;
   const rows = (items: typeof tasks, title: string) => (
@@ -312,13 +307,9 @@ function AllFeed({ house }: { house: string | null }) {
       today={today}
       pending={operation.pending}
       dates
-      complete={(card) =>
-        void operation.run({
-          path: `tasks/${card.id}/status`,
-          body: { status: 'done', expectedUpdatedAt: card.updatedAt },
-          keyed: true,
-        })
-      }
+      complete={actions.complete}
+      resume={actions.resume}
+      move={timeZone ? actions.startMove : undefined}
     />
   );
   return (
@@ -432,7 +423,7 @@ function AllFeed({ house }: { house: string | null }) {
         </Sheet>
       ) : null}
       <QueryNotice query={query} />
-      <OperationNotice operation={operation} />
+      {!moving ? <OperationNotice operation={operation} /> : null}
       {query.data && !selected.length ? (
         <p className="muted">Дел под выбранные условия нет.</p>
       ) : null}
@@ -442,7 +433,11 @@ function AllFeed({ house }: { house: string | null }) {
               <Section
                 key={group.title}
                 title={group.title}
-                aside={<span className="muted">{group.tasks.length}</span>}
+                aside={
+                  <span className="muted">
+                    {group.tasks.filter((task) => ['open', 'waiting'].includes(task.status)).length}
+                  </span>
+                }
               >
                 {rows(group.tasks, group.title)}
               </Section>
@@ -450,6 +445,17 @@ function AllFeed({ house }: { house: string | null }) {
           )
         : rows(selected, 'Все дела')}
       <LoadMore query={query} label="Показать ещё дела" />
+      {moving && timeZone ? (
+        <MoveTaskSheet
+          key={moving.id}
+          card={moving}
+          timeZone={timeZone}
+          pending={operation.pending}
+          error={operation.error}
+          close={actions.close}
+          move={actions.move}
+        />
+      ) : null}
     </TasksPage>
   );
 }

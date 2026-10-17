@@ -1,5 +1,5 @@
 import { canWrite } from '@homecrm/shared';
-import { Clock } from '@phosphor-icons/react';
+import { Check, Clock } from '@phosphor-icons/react';
 import { Link, useLocation } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
@@ -16,6 +16,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   pending,
   move,
   complete,
+  resume,
   remember,
   dates = false,
 }: {
@@ -25,6 +26,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   pending: boolean;
   move?: (card: T) => void;
   complete: (card: T) => void;
+  resume?: (card: T) => void;
   remember?: () => void;
   dates?: boolean;
 }) {
@@ -38,9 +40,23 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   return (
     <ul className="plan-rows" aria-label={label}>
       {tasks.map((card) => {
-        const editable =
-          ['open', 'waiting'].includes(card.status) &&
-          canWrite(viewer, factsOf(card, viewer, 'task'));
+        const active = ['open', 'waiting'].includes(card.status);
+        const editable = canWrite(viewer, factsOf(card, viewer, 'task'));
+        const closed = !active;
+        const circle = (
+          <span
+            className={
+              closed
+                ? 'plan-circle plan-circle--done'
+                : card.status === 'waiting'
+                  ? 'plan-circle plan-circle--waiting'
+                  : 'plan-circle'
+            }
+            aria-hidden
+          >
+            {closed ? <Check size={16} weight="bold" /> : null}
+          </span>
+        );
         const visibility =
           card.spaceKind === 'personal'
             ? 'Личное'
@@ -58,33 +74,28 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
           .join(' · ');
         const other = card.assigneeId && card.assigneeId !== me.id;
         return (
-          <li className="plan-row" key={card.id}>
-            {editable ? (
+          <li className={closed ? 'plan-row plan-row--closed' : 'plan-row'} key={card.id}>
+            {editable && (active || resume) ? (
               <button
                 className="icon-button plan-row__done"
                 type="button"
-                aria-label={`Отметить сделанным: ${card.title}`}
+                aria-label={`${closed ? 'Возобновить' : 'Отметить сделанным'}: ${card.title}`}
                 disabled={pending}
-                onClick={() => complete(card)}
+                onClick={() => (closed ? resume?.(card) : complete(card))}
               >
-                <span
-                  className={
-                    card.status === 'waiting' ? 'plan-circle plan-circle--waiting' : 'plan-circle'
-                  }
-                />
+                {circle}
               </button>
             ) : (
               <span className="plan-row__readonly" aria-hidden>
-                <span
-                  className={
-                    card.status === 'waiting' ? 'plan-circle plan-circle--waiting' : 'plan-circle'
-                  }
-                />
+                {circle}
               </span>
             )}
             <div className="plan-row__body">
               <Link
                 className="plan-row__title"
+                aria-label={
+                  closed ? `${card.title} · ${STATUS_LABELS[card.status].toLowerCase()}` : undefined
+                }
                 to={taskPath(card.id)}
                 state={dates ? undefined : { fromPlan: `${location.pathname}${location.search}` }}
                 onClick={remember}
@@ -118,11 +129,11 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
                   {card.checkOn ? formatDateOnly(card.checkOn) : '—'}
                 </p>
               ) : null}
-              {card.dueOn && card.dueOn < today ? (
+              {active && card.dueOn && card.dueOn < today ? (
                 <span className="studio-label studio-label--overdue">Просрочено</span>
               ) : null}
             </div>
-            {editable && move ? (
+            {editable && active && move ? (
               <button
                 className="icon-button"
                 type="button"

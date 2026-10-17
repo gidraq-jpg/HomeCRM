@@ -199,6 +199,16 @@ html[data-design="studio"] .plan-page {
 .plan-circle--waiting {
   border-style: dashed;
 }
+.plan-circle--done {
+  display: grid;
+  place-items: center;
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--surface);
+}
+.plan-row--closed .plan-row__title {
+  text-decoration: line-through;
+}
 .plan-empty-days {
   margin: 18px 4px;
   font-size: 0.8125rem;
