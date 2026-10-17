@@ -10,7 +10,7 @@ import { useMembers } from '../household/queries.ts';
 import { creatableVisibilities, viewerOf } from '../notes/abilities.ts';
 import { accessToast } from '../notes/toasts.ts';
 import { assigneeChoices } from '../objects/abilities.ts';
-import { Page } from '../ui/Page.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {
   defaultDocumentVisibility,
@@ -96,7 +96,7 @@ export function NewDocumentScreen() {
   }
 
   return (
-    <Page title="Новый документ" back={BACK}>
+    <StudioPage form title="Новый документ" back={BACK}>
       <DocumentForm
         draft={EMPTY_DOCUMENT}
         mode="create"
@@ -143,6 +143,6 @@ export function NewDocumentScreen() {
           </p>
         ) : null}
       </DocumentForm>
-    </Page>
+    </StudioPage>
   );
 }

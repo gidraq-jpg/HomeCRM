@@ -217,6 +217,19 @@ export function InteractionsSection({
           Взаимодействия
         </h2>
         {items.length > 0 ? <span className="muted">{interactionCount(items.length)}</span> : null}
+        {canAdd && !formOpen ? (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Добавить взаимодействие"
+            onClick={() => {
+              setEditingId(null);
+              setFormOpen(true);
+            }}
+          >
+            <Plus size={20} weight="bold" aria-hidden />
+          </button>
+        ) : null}
       </div>
 
       {canAdd ? (
@@ -233,19 +246,7 @@ export function InteractionsSection({
               setFormOpen(false);
             }}
           />
-        ) : (
-          <button
-            type="button"
-            className="btn btn--secondary btn--block"
-            onClick={() => {
-              setEditingId(null);
-              setFormOpen(true);
-            }}
-          >
-            <Plus size={20} weight="bold" aria-hidden />
-            Добавить взаимодействие
-          </button>
-        )
+        ) : null
       ) : null}
 
       {query.isPending ? <Notice>Загружаем взаимодействия…</Notice> : null}
@@ -257,12 +258,7 @@ export function InteractionsSection({
           </button>
         </>
       ) : null}
-      {query.data && items.length === 0 ? (
-        <p className="muted">
-          Пока ничего нет. Записывайте звонки, визиты и работы: дату, что было, сколько стоило и
-          стоит ли звать снова.
-        </p>
-      ) : null}
+      {query.data && items.length === 0 ? <p className="muted">Пока ничего нет.</p> : null}
       {items.length > 0 ? (
         <ul className="timeline" aria-label="Взаимодействия">
           {items.map((item) => (

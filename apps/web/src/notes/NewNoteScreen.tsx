@@ -6,7 +6,7 @@ import { useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { clearDraft } from '../offline/drafts.ts';
 import { changed, LocalSaved } from '../offline/identity.ts';
-import { Page } from '../ui/Page.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { creatableVisibilities, newPlacement, viewerOf } from './abilities.ts';
 import { createNote, type NoteInput } from './api.ts';
@@ -52,7 +52,7 @@ export function NewNoteScreen() {
   }
 
   return (
-    <Page title="Новая заметка" back={{ to: '/more/notes', label: 'Заметки' }}>
+    <StudioPage form title="Новая заметка" back={{ to: '/more/notes', label: 'Заметки' }}>
       <NoteForm
         draft={EMPTY_DRAFT}
         submitLabel="Сохранить"
@@ -72,6 +72,6 @@ export function NewNoteScreen() {
           ) : null
         }
       />
-    </Page>
+    </StudioPage>
   );
 }

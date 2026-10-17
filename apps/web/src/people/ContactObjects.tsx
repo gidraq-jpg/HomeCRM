@@ -251,15 +251,20 @@ export function ContactObjects({
           Объекты
         </h2>
         {items.length > 0 ? <span className="muted">{items.length}</span> : null}
+        {canLink ? (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Связать с объектом…"
+            onClick={() => setOpen(true)}
+          >
+            <Plus size={20} weight="bold" aria-hidden />
+          </button>
+        ) : null}
       </div>
       {links.isPending ? <Notice>Загружаем связи…</Notice> : null}
       {links.isError ? <ObjectError error={links.error} action="load" /> : null}
-      {links.data && items.length === 0 ? (
-        <p className="muted">
-          Пока ни с чем не связан. Свяжите контакт с квартирой, домом или машиной: он появится в
-          блоке «Люди и организации» этого объекта.
-        </p>
-      ) : null}
+      {links.data && items.length === 0 ? <p className="muted">Пока ни с чем не связан.</p> : null}
       {items.length > 0 ? (
         <RowList label="Объекты контакта">
           {items.map((link) => (
@@ -267,16 +272,7 @@ export function ContactObjects({
           ))}
         </RowList>
       ) : null}
-      {canLink ? (
-        <button
-          type="button"
-          className="btn btn--secondary btn--block list-action"
-          onClick={() => setOpen(true)}
-        >
-          <Plus size={20} weight="bold" aria-hidden />
-          Связать с объектом…
-        </button>
-      ) : null}
+
       {open ? (
         <LinkObjectSheet
           contactId={contactId}

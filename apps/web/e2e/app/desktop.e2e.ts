@@ -28,6 +28,7 @@ import {
   seedDevice,
   thisDevice,
 } from './notifications-support.ts';
+import { closeRecordActions, openRecordActions } from './record-actions.ts';
 import { checkApp, expect, seedProfiles, signInAs } from './support.ts';
 
 // Компьютер (PRD, раздел 14): боковое меню со всеми разделами; переключатель пространств и
@@ -78,11 +79,22 @@ test('боковое меню вместо нижнего, переключат�
   await setScope(page, 'Всё');
   await checkApp(page, info, 'desktop-people');
 
-  // Кнопка «+» не закрывает содержимое и остаётся у края окна.
+  // Studio 2, п. 4: «+» в заголовке раздела, рядом с названием, без перекрытия текста.
   const add = page.getByRole('button', { name: 'Добавить', exact: true });
   await expect(add).toBeVisible();
   const box = await add.boundingBox();
-  expect(box && box.x + box.width).toBeGreaterThan(1200);
+  const headingBox = await page
+    .getByRole('heading', { level: 1, name: 'Люди', exact: true })
+    .boundingBox();
+  expect(box).not.toBeNull();
+  expect(headingBox).not.toBeNull();
+  expect(box && headingBox && box.x).toBeGreaterThanOrEqual(
+    headingBox ? headingBox.x + headingBox.width : 0,
+  );
+  expect(box && box.x + box.width).toBeLessThanOrEqual(1280);
+  expect(
+    box && headingBox && Math.abs(box.y + box.height / 2 - headingBox.y - headingBox.height / 2),
+  ).toBeLessThan(24);
 });
 
 test('заметки на компьютере: список, карточка и «Кто видит» рядом с боковым меню', async ({
@@ -123,7 +135,9 @@ test('заметки на компьютере: список, карточка �
 
   await page.goto('#/more/notes');
   await noteLinks(page).filter({ hasText: 'Правила дома' }).click();
+  await openRecordActions(page);
   await page.getByRole('button', { name: 'Кто видит…' }).click();
+  await closeRecordActions(page);
   await expect(page.getByRole('dialog', { name: 'Кто видит заметку' })).toBeVisible();
   await checkApp(page, info, 'desktop-note-audience');
 });

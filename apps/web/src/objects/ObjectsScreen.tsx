@@ -7,8 +7,9 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import type { ObjectSummary } from './api.ts';
 import { ObjectError } from './components.tsx';
 import { useObjectsList } from './queries.ts';
@@ -79,19 +80,19 @@ export function ObjectsScreen() {
 
   if (query.isPending) {
     return (
-      <Page title="Дом">
+      <StudioPage title="Дом">
         <Notice>Загружаем объекты…</Notice>
-      </Page>
+      </StudioPage>
     );
   }
   if (query.data === undefined) {
     return (
-      <Page title="Дом">
+      <StudioPage title="Дом">
         <ObjectError error={query.error} action="load" />
         <button className="text-button" type="button" onClick={() => void query.refetch()}>
           Повторить загрузку объектов
         </button>
-      </Page>
+      </StudioPage>
     );
   }
 
@@ -102,7 +103,7 @@ export function ObjectsScreen() {
   ]).filter(([, items]) => items.length > 0);
 
   return (
-    <Page title="Дом" {...(all.length > 0 ? { eyebrow: objectCount(all.length) } : {})}>
+    <StudioPage title="Дом" {...(all.length > 0 ? { eyebrow: objectCount(all.length) } : {})}>
       {all.length === 0 ? (
         <EmptyObjects />
       ) : (
@@ -141,6 +142,6 @@ export function ObjectsScreen() {
           </Link>
         </>
       )}
-    </Page>
+    </StudioPage>
   );
 }

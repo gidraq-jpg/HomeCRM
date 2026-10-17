@@ -1,15 +1,15 @@
 import { AddressBook, Plus } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { matchesScope, SCOPE_LABELS } from '../access/scope.ts';
 import { Notice } from '../auth/components.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
-import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
+import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
-import { Page } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import type { ContactCard, OrganizationType } from './api.ts';
 import { useCanCreateOrganization } from './CreateOrganization.tsx';
 import { ORGANIZATION_TYPE_LABELS } from './form.ts';
@@ -65,7 +65,6 @@ export function OrganizationsScreen() {
   const query = useOrganizationsList(false, type === '' ? null : type);
   const { scope, setScope } = useScope();
   const canCreate = useCanCreateOrganization();
-  const navigate = useNavigate();
   const typeId = useId();
 
   const filter = (
@@ -93,81 +92,52 @@ export function OrganizationsScreen() {
 
   if (query.isPending) {
     return (
-      <Page title="Организации" back={BACK}>
+      <StudioPage title="Организации" back={BACK}>
         <Notice>Загружаем организации…</Notice>
-      </Page>
+      </StudioPage>
     );
   }
   if (query.data === undefined) {
     return (
-      <Page title="Организации" back={BACK}>
+      <StudioPage title="Организации" back={BACK}>
         <ObjectError error={query.error} action="load" />
         <button className="text-button" type="button" onClick={() => void query.refetch()}>
           Повторить загрузку организаций
         </button>
-      </Page>
+      </StudioPage>
     );
   }
 
   const all = query.data.pages.flat().filter((item) => matchesScope(visibilityOf(item), scope));
-  const addButton = canCreate ? (
-    <Link className="btn btn--primary btn--block list-action" to={NEW_ORGANIZATION}>
-      <Plus size={20} weight="bold" aria-hidden />
-      Добавить организацию
-    </Link>
-  ) : null;
 
   return (
-    <Page
+    <StudioPage
       title="Организации"
       back={BACK}
       {...(all.length > 0 ? { eyebrow: organizationCount(all.length) } : {})}
     >
+      <div className="section__head">
+        <h2 className="section__title">Организации</h2>
+        {canCreate ? (
+          <Link className="icon-button" to={NEW_ORGANIZATION} aria-label="Добавить организацию">
+            <Plus size={20} aria-hidden />
+          </Link>
+        ) : null}
+      </div>
       {filter}
       {all.length === 0 ? (
-        <EmptyState
-          icon={<AddressBook size={24} aria-hidden />}
-          title={type === '' ? 'Организаций пока нет' : 'Таких организаций нет'}
-          actions={
-            <>
-              {canCreate ? (
-                <button
-                  type="button"
-                  className="btn btn--primary btn--block"
-                  onClick={() => navigate(NEW_ORGANIZATION)}
-                >
-                  <Plus size={20} weight="bold" aria-hidden />
-                  Добавить организацию
-                </button>
-              ) : null}
-              {scope === 'all' ? null : (
-                <button
-                  type="button"
-                  className="btn btn--secondary btn--block"
-                  onClick={() => setScope('all')}
-                >
-                  Показать «{SCOPE_LABELS.all}»
-                </button>
-              )}
-              {type === '' ? null : (
-                <button
-                  type="button"
-                  className="btn btn--secondary btn--block"
-                  onClick={() => setType('')}
-                >
-                  Показать все типы
-                </button>
-              )}
-            </>
-          }
-        >
-          <p>{EMPTY_SCOPE_EXPLANATION[scope]}</p>
-          <p>
-            Организация — это УК, поставщик коммунальных услуг, аварийная служба, банк или школа.
-            Номера телефонов видны сразу и копируются одним касанием; по умолчанию организации видит
-            вся семья.
-          </p>
-        </EmptyState>
+        <CompactEmptyState title={type === '' ? 'Организаций пока нет' : 'Таких организаций нет'}>
+          {scope === 'all' ? null : (
+            <button type="button" className="text-button" onClick={() => setScope('all')}>
+              Показать «{SCOPE_LABELS.all}»
+            </button>
+          )}
+          {type === '' ? null : (
+            <button type="button" className="text-button" onClick={() => setType('')}>
+              Показать все типы
+            </button>
+          )}{' '}
+        </CompactEmptyState>
       ) : (
         <>
           <OrganizationRows organizations={all} label="Организации" />
@@ -182,9 +152,8 @@ export function OrganizationsScreen() {
             </button>
           ) : null}
           {query.isError ? <ObjectError error={query.error} action="load" /> : null}
-          {addButton}
         </>
       )}
-    </Page>
+    </StudioPage>
   );
 }

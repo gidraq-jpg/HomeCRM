@@ -7,7 +7,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { newPlacement, visibilityOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { useObjectCard } from '../objects/queries.ts';
-import { Page } from '../ui/Page.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
 import { type TaskDraft, TaskForm } from './TaskForm.tsx';
@@ -59,7 +59,7 @@ export function NewTaskScreen() {
   };
   if (objectId && !object.data)
     return (
-      <Page title="Новое дело" back={{ to: '/today', label: 'Сегодня' }}>
+      <StudioPage form title="Новое дело" back={{ to: '/today', label: 'Сегодня' }}>
         {object.error ? (
           <>
             <ObjectError error={object.error} action="load" />
@@ -70,10 +70,10 @@ export function NewTaskScreen() {
         ) : (
           <Notice>Загружаем объект…</Notice>
         )}
-      </Page>
+      </StudioPage>
     );
   return (
-    <Page title="Новое дело" back={{ to: '/today', label: 'Сегодня' }}>
+    <StudioPage form title="Новое дело" back={{ to: '/today', label: 'Сегодня' }}>
       <OperationNotice operation={operation} />
       <TaskForm
         initial={initial}
@@ -88,6 +88,6 @@ export function NewTaskScreen() {
         }
         onCancel={() => navigate('/today')}
       />
-    </Page>
+    </StudioPage>
   );
 }

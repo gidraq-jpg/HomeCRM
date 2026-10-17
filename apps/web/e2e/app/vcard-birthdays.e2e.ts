@@ -12,6 +12,7 @@ import {
   seedPerson,
 } from './people-support.ts';
 import { seedAccount, seedProperty } from './property-support.ts';
+import { closeRecordActions, openRecordActions } from './record-actions.ts';
 import { checkApp, expect, signInAs } from './support.ts';
 
 const toast = (page: Parameters<typeof checkApp>[0]) => page.locator('.toast-region');
@@ -186,8 +187,11 @@ test('vCard: три карточки, совпадение, повтор пос�
   await expect(found).toBeVisible();
   await checkApp(page, info, 'r1b4b-search-contact');
   await found.click();
+  await openRecordActions(page);
   await page.getByRole('button', { name: 'В корзину', exact: true }).click();
+  await closeRecordActions(page);
   await expect(toast(page)).toContainText('Контакт в корзине');
+  await closeRecordActions(page);
   await page.goto('#/more/trash');
   const deleted = page
     .getByRole('list', { name: 'Удалённые люди' })
@@ -196,7 +200,9 @@ test('vCard: три карточки, совпадение, повтор пос�
   await expect(deleted).toBeVisible();
   await checkApp(page, info, 'r1b4b-trash-person');
   await deleted.getByRole('button', { name: 'Восстановить' }).click();
+
   await expect(toast(page)).toContainText('Запись возвращена');
+  await closeRecordActions(page);
   await openPeople(page);
   await expect(page.getByRole('link', { name: /Вымышленная Подруга/ })).toBeVisible();
 });
@@ -276,6 +282,7 @@ test('дни рождения с годом и без: радар, Сегодн�
   await page.getByRole('checkbox', { name: 'Напоминать о дне рождения' }).uncheck();
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Контакт сохранён');
+  await closeRecordActions(page);
   await openRadar(page);
   await expect(page.getByRole('link', { name: /Вымышленный Юбиляр/ })).toHaveCount(0);
   const child = await openAs(browser, family, info, 'child');
@@ -308,6 +315,7 @@ test('Обо мне: напоминание сохраняется и откры
   await checkApp(page, info, 'r1b4b-profile-birthday-form');
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Профиль сохранён');
+  await closeRecordActions(page);
   await recalc(family);
   await openRadar(page);
   const profile = page.locator(`a[href="#/people/members/${family.person('adult').id}"]`);
@@ -340,7 +348,10 @@ test('правка контакта и взаимодействия сохран
   });
   await signInAs(page, family, 'admin');
   await openContact(page, person.id, 'Общий Контакт');
-  await page.getByRole('button', { name: 'Править', exact: true }).last().click();
+  await page
+    .locator('.object-hero__actions')
+    .getByRole('button', { name: 'Править', exact: true })
+    .click();
   const form = page.locator('form.person-form');
   await form.getByLabel('ФИО', { exact: true }).fill('Общий Контакт Обновлён');
   const contactRequest = page.waitForRequest(
@@ -350,6 +361,7 @@ test('правка контакта и взаимодействия сохран
   await form.getByRole('button', { name: 'Сохранить', exact: true }).click();
   expect((await contactRequest).postDataJSON()).not.toHaveProperty('organizationId');
   await expect(toast(page)).toContainText('Контакт сохранён');
+  await closeRecordActions(page);
   const feed = page.getByRole('list', { name: 'Взаимодействия', exact: true });
   await feed.getByRole('button', { name: 'Править', exact: true }).click();
   const eventForm = page.locator('form.event-form');
@@ -372,12 +384,15 @@ test('правка контакта и взаимодействия сохран
   );
   expect(storedPerson.rows[0]?.organization_id).toBe(organization.id);
   await feed.getByRole('button', { name: 'В корзину' }).click();
+
   await expect(toast(page)).toContainText('Запись в корзине');
+  await closeRecordActions(page);
   await page.getByRole('button', { name: 'Корзина взаимодействий' }).click();
   const trash = page.getByRole('list', { name: 'Удалённые взаимодействия' });
   await expect(trash).toContainText('Правка общей записи');
   await checkApp(page, info, 'r1b4b-trash-interaction');
   await trash.getByRole('button', { name: 'Восстановить' }).click();
+
   await expect(feed).toContainText('Правка общей записи');
 });
 
@@ -438,6 +453,7 @@ test('остаток начисления и отмена ровно по paymen
   await toast(page).getByRole('button', { name: 'Отменить', exact: true }).click();
   await cancellation;
   await expect(toast(page)).toContainText('Оплата отменена');
+  await closeRecordActions(page);
   expect(listRequests).toBe(0);
   await expect(row).toContainText(/осталось 1\s840,50\s₽/);
   await page.goto('#/home/month');
@@ -550,6 +566,7 @@ test('начисление и оплата: повтор после потеря
   await expect(form.getByRole('alert')).toBeVisible();
   await form.getByRole('button', { name: 'Сохранить начисление' }).click();
   await expect(toast(page)).toContainText('Начисление сохранено');
+  await closeRecordActions(page);
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBeTruthy();
   expect(keys[0]).toBe(keys[1]);

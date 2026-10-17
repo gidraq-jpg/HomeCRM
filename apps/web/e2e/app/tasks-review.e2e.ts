@@ -19,6 +19,7 @@ import { seedDocument } from './documents-support.ts';
 import { makePng } from './files-support.ts';
 import { apiAs, apiAsUser } from './notes-support.ts';
 import { seedAccount, seedProperty } from './property-support.ts';
+import { closeRecordActions, openRecordActions } from './record-actions.ts';
 import { signInAs } from './support.ts';
 
 async function check(page: Page, info: TestInfo, name: string) {
@@ -262,7 +263,9 @@ for (const surface of ['confirmation', 'undo'] as const) {
     await signInAs(page, family, 'adult');
     if (surface === 'confirmation') {
       await page.goto(`#/today/tasks/${id}`);
+      await openRecordActions(page);
       await page.getByRole('button', { name: 'Передать…', exact: true }).click();
+      await closeRecordActions(page);
       await page.getByLabel('Исполнитель', { exact: true }).selectOption(family.person('child').id);
       await page.getByRole('button', { name: 'Передать выбранному', exact: true }).click();
       await expect(page.getByRole('dialog', { name: 'Подтвердите доступ' })).toBeVisible();
@@ -292,13 +295,17 @@ test('B3/A4: имена теряющих доступ, отказ, перено�
   const id = (created.body as { id: string }).id;
   await signInAs(page, family, 'adult');
   await page.goto(`#/today/tasks/${id}`);
+  await openRecordActions(page);
   await page.getByRole('button', { name: 'Размещение и аудитория…' }).click();
+  await closeRecordActions(page);
   await page.getByRole('radio', { name: 'Взрослые', exact: true }).check();
   await expect(page.getByText(/Потеряют доступ:/)).toContainText('Вера');
   await check(page, info, 'b3-narrowing');
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   expect((await api.get(`tasks/${id}`)).body).toMatchObject({ audience: 'household' });
+  await openRecordActions(page);
   await page.getByRole('button', { name: 'Сделать личной', exact: true }).click();
+  await closeRecordActions(page);
   await expect(page.getByText(/Потеряют доступ:/)).toContainText('Анна');
   await expect(page.getByText(/Потеряют доступ:/)).toContainText('Вера');
   await check(page, info, 'a4-personal-confirm');
@@ -314,7 +321,9 @@ test('B3/A4: имена теряющих доступ, отказ, перено�
     confirmed: true,
   });
   await page.reload();
+  await openRecordActions(page);
   await page.getByRole('button', { name: 'Размещение и аудитория…' }).click();
+  await closeRecordActions(page);
   await expect(page.getByRole('radio', { name: 'Взрослые', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   const row = (await api.get(`tasks/${id}`)).body as { checklist: Record<string, unknown>[] };
@@ -329,7 +338,9 @@ test('B3/A4: имена теряющих доступ, отказ, перено�
   await expect(
     page.getByRole('heading', { name: 'Общее дело без вклада', exact: true }),
   ).toBeVisible();
+  await openRecordActions(page);
   await expect(page.getByRole('button', { name: 'Сделать личной' })).toHaveCount(0);
+  await closeRecordActions(page);
   expect(
     (
       await api.post(`tasks/${id}/move`, {
@@ -358,7 +369,9 @@ test('B3/A4: имена теряющих доступ, отказ, перено�
   await expect(
     page.getByRole('heading', { name: 'Дело с чужим вложением', exact: true }),
   ).toBeVisible();
+  await openRecordActions(page);
   await expect(page.getByRole('button', { name: 'Сделать личной' })).toHaveCount(0);
+  await closeRecordActions(page);
   const preview = page.locator('.file-row__image');
   await preview.scrollIntoViewIfNeeded();
   await expect(preview).toBeVisible();

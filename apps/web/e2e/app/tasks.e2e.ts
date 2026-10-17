@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createAuthDatabase } from '@homecrm/db';
@@ -26,6 +27,7 @@ import {
 } from './notes-support.ts';
 import { seedPerson } from './people-support.ts';
 import { seedAccount, seedProperty } from './property-support.ts';
+import { closeRecordActions, openRecordActions } from './record-actions.ts';
 import { expect, signInAs } from './support.ts';
 
 async function task(api: Api, input: Record<string, unknown>) {
@@ -682,8 +684,12 @@ test('прекращение повтора, корзина и восстано�
   });
   await signInAs(page, family, 'adult');
   await openTask(page, row.id, row.title);
+  await openRecordActions(page);
   await page.getByRole('button', { name: 'В корзину всю серию' }).click();
+  await closeRecordActions(page);
+  await openRecordActions(page);
   await expect(page.getByRole('button', { name: 'Восстановить серию' })).toBeVisible();
+  await closeRecordActions(page);
   await page.goto('#/more/trash');
   await expect(page.getByRole('link', { name: /Серия в корзину/ })).toBeVisible();
   await check(page, info, 'trash');
@@ -691,7 +697,9 @@ test('прекращение повтора, корзина и восстано�
   const request = page.waitForRequest((request) =>
     request.url().endsWith(`/tasks/${row.id}/series/restore`),
   );
+  await openRecordActions(page);
   await page.getByRole('button', { name: 'Восстановить серию' }).click();
+  await closeRecordActions(page);
   await request;
   await expect(page.getByRole('button', { name: 'Править дело' })).toBeVisible();
   await page.getByRole('button', { name: 'Править дело' }).click();
@@ -754,7 +762,9 @@ test('передача снимает главное; личное взросл�
   const logs = collectConsole(page);
   await signInAs(page, family, 'adult');
   await openTask(page, shared.id, shared.title);
+  await openRecordActions(page);
   await page.getByRole('button', { name: 'Передать…' }).click();
+  await closeRecordActions(page);
   await page
     .getByRole('dialog')
     .getByLabel('Исполнитель', { exact: true })

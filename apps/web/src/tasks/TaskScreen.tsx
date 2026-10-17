@@ -2,7 +2,6 @@ import { canChangeAudience, canMove, canRestore, canTrash, canWrite } from '@hom
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
-import { AccessBadge } from '../access/AccessBadge.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import { VISIBILITY_LABELS, type Visibility } from '../access/visibility.ts';
 import { ApiError, type Me } from '../auth/api.ts';
@@ -13,6 +12,7 @@ import { FilesSection } from '../files/FilesSection.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { Page, Section } from '../ui/Page.tsx';
+import { RecordPage } from '../ui/RecordPage.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import type { TaskCard, TimedTask } from './api.ts';
 import { fetchTask, seriesAction } from './api.ts';
@@ -166,9 +166,11 @@ function TaskView({ card }: { card: TimedTask }) {
     );
   });
   return (
-    <Page
+    <RecordPage
+      editing={editing !== null}
       title={card.title}
       documentTitle="Дело"
+      type={card.deletedAt ? 'Дело · в корзине' : 'Дело'}
       back={{
         to:
           typeof location.state?.fromPlan === 'string' &&
@@ -177,214 +179,65 @@ function TaskView({ card }: { card: TimedTask }) {
             : '/today',
         label: location.state?.fromPlan ? 'План' : 'Сегодня',
       }}
-    >
-      <OperationNotice operation={operation} />
-      {seriesError ? <Notice error>{taskError(seriesError)}</Notice> : null}
-      {editing ? (
+      visibility={visibilityOf(card)}
+      subtitle={STATUS_LABELS[card.status]}
+      onEdit={active && !editing ? () => void beginEdit() : undefined}
+      editLabel="Править дело"
+      editPending={editPending || operation.pending}
+      onAccess={
+        active && moveOptions.length
+          ? () => {
+              setVisibility(visibilityOf(card));
+              setMoving(true);
+            }
+          : undefined
+      }
+      facts={[
+        {
+          label: 'План',
+          value: `${card.planOn ? formatDateOnly(card.planOn) : 'Без даты'} ${card.planTime ?? ''}`,
+        },
+        {
+          label: 'Крайний срок',
+          value: `${card.dueOn ? formatDateOnly(card.dueOn) : 'Не задан'} ${card.dueTime ?? ''}`,
+        },
+        { label: 'Повтор', value: repeatLabel(card.repeatRule) || 'Без повтора' },
+      ]}
+      more={
         <>
-          <TaskForm
-            initial={taskDraft(editing, visibilityOf(editing))}
-            base={editing}
-            pending={operation.pending}
-            onSubmit={(draft) => {
-              const body = taskChange(draft, editing);
-              if (Object.keys(body).length === 2) {
-                setEditing(null);
-                return;
-              }
-              void operation.run({
-                path: `tasks/${card.id}`,
-                method: 'PATCH',
-                body,
-                keyed: true,
-              });
-            }}
-            onCancel={() => setEditing(null)}
-          />
-          {operation.error ? (
-            <>
-              <p className="muted">
-                Текущая серверная версия: {card.title}; {STATUS_LABELS[card.status]}; чек-лист{' '}
-                {card.checklist
-                  .map((item) => `${item.title}: ${item.done ? 'выполнен' : 'открыт'}`)
-                  .join(', ')}
-                . Черновик выше сохранён.
-              </p>
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={() => {
-                  setEditing(null);
-                  operation.setError(null);
-                  void refresh();
-                }}
-              >
-                Отбросить черновик и обновить
-              </button>
-            </>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <p className="property-meta">
-            <AccessBadge visibility={visibilityOf(card)} showLabel />
-            <strong>{STATUS_LABELS[card.status]}</strong>
-          </p>
-          {card.deletedAt ? <Notice>Дело в корзине. Правки недоступны.</Notice> : null}
-          <p className="task-description">{card.description || 'Описания нет.'}</p>
-          <dl className="facts">
-            <div className="facts__item">
-              <dt>План</dt>
-              <dd>
-                {card.planOn ? formatDateOnly(card.planOn) : 'Без даты'} {card.planTime}
-              </dd>
-            </div>
-            <div className="facts__item">
-              <dt>Крайний срок</dt>
-              <dd>
-                {card.dueOn ? formatDateOnly(card.dueOn) : 'Не задан'} {card.dueTime}
-              </dd>
-            </div>
-            <div className="facts__item">
-              <dt>Повтор</dt>
-              <dd>{repeatLabel(card.repeatRule) || 'Без повтора'}</dd>
-            </div>
-            {card.status === 'waiting' ? (
-              <div className="facts__item">
-                <dt>Жду</dt>
-                <dd>
-                  {card.waitingFrom?.title ?? 'Адресат недоступен'} · проверить{' '}
-                  {card.checkOn ? formatDateOnly(card.checkOn) : 'дату'}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-          <TaskAssignee card={card} />
-          {card.checklist.length ? (
-            <Section title="Чек-лист">
-              <ul className="task-list">
-                {[...card.checklist]
-                  .sort((a, b) => a.position - b.position)
-                  .map((item) => (
-                    <li key={item.id}>
-                      <label className="task-check-row">
-                        <input
-                          type="checkbox"
-                          checked={item.done}
-                          disabled={!active || operation.pending}
-                          onChange={(event) =>
-                            void operation.run({
-                              path: `tasks/${card.id}`,
-                              method: 'PATCH',
-                              body: {
-                                checklist: card.checklist.map((row) =>
-                                  row.id === item.id ? { ...row, done: event.target.checked } : row,
-                                ),
-                                expectedUpdatedAt: card.updatedAt,
-                              },
-                              keyed: true,
-                            })
-                          }
-                        />
-                        <span>{item.title}</span>
-                      </label>
-                    </li>
-                  ))}
-              </ul>
-            </Section>
-          ) : null}
+          {operation.error ? <Notice error>{taskError(operation.error)}</Notice> : null}
+          {seriesError ? <Notice error>{taskError(seriesError)}</Notice> : null}{' '}
           <div className="btn-row">
             {active ? (
-              <>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  disabled={editPending || operation.pending}
-                  aria-busy={editPending}
-                  onClick={() => void beginEdit()}
-                >
-                  Править дело
-                </button>
-                {['open', 'waiting'].includes(card.status) ? (
-                  <>
+              ['open', 'waiting'].includes(card.status) ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => {
+                      setAssignee(card.assigneeId ?? me.id);
+                      setTransfer(true);
+                    }}
+                  >
+                    Передать…
+                  </button>
+                  {card.assigneeId === me.id ? (
                     <button
                       type="button"
                       className="btn btn--secondary"
                       disabled={operation.pending}
                       onClick={() =>
                         void operation.run({
-                          path: `tasks/${card.id}/status`,
-                          body: { status: 'done', expectedUpdatedAt: card.updatedAt },
-                          keyed: true,
+                          path: `tasks/${card.id}/main`,
+                          body: { selected: !card.isMain },
                         })
                       }
                     >
-                      Выполнить
+                      {card.isMain ? 'Снять главное' : 'Сделать главным'}
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn--secondary"
-                      onClick={() => {
-                        setAssignee(card.assigneeId ?? me.id);
-                        setTransfer(true);
-                      }}
-                    >
-                      Передать…
-                    </button>
-                    {card.assigneeId === me.id ? (
-                      <button
-                        type="button"
-                        className="btn btn--secondary"
-                        disabled={operation.pending}
-                        onClick={() =>
-                          void operation.run({
-                            path: `tasks/${card.id}/main`,
-                            body: { selected: !card.isMain },
-                          })
-                        }
-                      >
-                        {card.isMain ? 'Снять главное' : 'Сделать главным'}
-                      </button>
-                    ) : null}
-                  </>
-                ) : null}
-                {card.status === 'done' &&
-                card.completionEventId &&
-                !card.completionUndoneAt &&
-                tick < card.undoUntil ? (
-                  <button
-                    className="btn btn--primary"
-                    type="button"
-                    disabled={operation.pending}
-                    onClick={() =>
-                      void operation.run({
-                        path: `tasks/${card.id}/undo`,
-                        body: { eventId: card.completionEventId },
-                      })
-                    }
-                  >
-                    Отменить выполнение ({Math.ceil((card.undoUntil - tick) / 1000)} с)
-                  </button>
-                ) : null}
-                {['done', 'cancelled', 'not_done'].includes(card.status) ? (
-                  <button
-                    className="btn btn--secondary"
-                    type="button"
-                    disabled={
-                      operation.pending || (card.status === 'done' && tick < card.undoUntil + 2000)
-                    }
-                    onClick={() =>
-                      void operation.run({
-                        path: `tasks/${card.id}/status`,
-                        body: { status: 'open', expectedUpdatedAt: card.updatedAt },
-                        keyed: true,
-                      })
-                    }
-                  >
-                    Возобновить дело
-                  </button>
-                ) : null}
-              </>
+                  ) : null}
+                </>
+              ) : null
             ) : null}
             {trash ? (
               <>
@@ -464,7 +317,164 @@ function TaskView({ card }: { card: TimedTask }) {
               Сделать личной
             </button>
           ) : null}
+        </>
+      }
+    >
+      <OperationNotice operation={operation} />
+      {seriesError ? <Notice error>{taskError(seriesError)}</Notice> : null}
+      {editing ? (
+        <>
+          <TaskForm
+            initial={taskDraft(editing, visibilityOf(editing))}
+            base={editing}
+            pending={operation.pending}
+            onSubmit={(draft) => {
+              const body = taskChange(draft, editing);
+              if (Object.keys(body).length === 2) {
+                setEditing(null);
+                return;
+              }
+              void operation.run({
+                path: `tasks/${card.id}`,
+                method: 'PATCH',
+                body,
+                keyed: true,
+              });
+            }}
+            onCancel={() => setEditing(null)}
+          />
+          {operation.error ? (
+            <>
+              <p className="muted">
+                Текущая серверная версия: {card.title}; {STATUS_LABELS[card.status]}; чек-лист{' '}
+                {card.checklist
+                  .map((item) => `${item.title}: ${item.done ? 'выполнен' : 'открыт'}`)
+                  .join(', ')}
+                . Черновик выше сохранён.
+              </p>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => {
+                  setEditing(null);
+                  operation.setError(null);
+                  void refresh();
+                }}
+              >
+                Отбросить черновик и обновить
+              </button>
+            </>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {card.deletedAt ? <Notice>Дело в корзине. Правки недоступны.</Notice> : null}
+          {active && ['open', 'waiting'].includes(card.status) ? (
+            <div className="ui6-primary">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={operation.pending}
+                onClick={() =>
+                  void operation.run({
+                    path: `tasks/${card.id}/status`,
+                    body: { status: 'done', expectedUpdatedAt: card.updatedAt },
+                    keyed: true,
+                  })
+                }
+              >
+                Выполнить
+              </button>
+            </div>
+          ) : null}
+          {active && ['done', 'cancelled', 'not_done'].includes(card.status) ? (
+            <div className="ui6-primary">
+              {card.status === 'done' &&
+              card.completionEventId &&
+              !card.completionUndoneAt &&
+              tick < card.undoUntil ? (
+                <button
+                  className="btn btn--primary"
+                  type="button"
+                  disabled={operation.pending}
+                  onClick={() =>
+                    void operation.run({
+                      path: `tasks/${card.id}/undo`,
+                      body: { eventId: card.completionEventId },
+                    })
+                  }
+                >
+                  Отменить выполнение ({Math.ceil((card.undoUntil - tick) / 1000)} с)
+                </button>
+              ) : null}
+              {['done', 'cancelled', 'not_done'].includes(card.status) ? (
+                <button
+                  className="btn btn--secondary"
+                  type="button"
+                  disabled={
+                    operation.pending || (card.status === 'done' && tick < card.undoUntil + 2000)
+                  }
+                  onClick={() =>
+                    void operation.run({
+                      path: `tasks/${card.id}/status`,
+                      body: { status: 'open', expectedUpdatedAt: card.updatedAt },
+                      keyed: true,
+                    })
+                  }
+                >
+                  Возобновить дело
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          <p className="task-description">{card.description || 'Описания нет.'}</p>
+          <dl className="facts">
+            {card.status === 'waiting' ? (
+              <div className="facts__item">
+                <dt>Жду</dt>
+                <dd>
+                  {card.waitingFrom?.title ?? 'Адресат недоступен'} · проверить{' '}
+                  {card.checkOn ? formatDateOnly(card.checkOn) : 'дату'}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+          <TaskAssignee card={card} />
+          {card.checklist.length ? (
+            <Section title="Чек-лист">
+              <ul className="task-list">
+                {[...card.checklist]
+                  .sort((a, b) => a.position - b.position)
+                  .map((item) => (
+                    <li key={item.id}>
+                      <label className="task-check-row">
+                        <input
+                          type="checkbox"
+                          checked={item.done}
+                          disabled={!active || operation.pending}
+                          onChange={(event) =>
+                            void operation.run({
+                              path: `tasks/${card.id}`,
+                              method: 'PATCH',
+                              body: {
+                                checklist: card.checklist.map((row) =>
+                                  row.id === item.id ? { ...row, done: event.target.checked } : row,
+                                ),
+                                expectedUpdatedAt: card.updatedAt,
+                              },
+                              keyed: true,
+                            })
+                          }
+                        />
+                        <span>{item.title}</span>
+                      </label>
+                    </li>
+                  ))}
+              </ul>
+            </Section>
+          ) : null}
           <FilesSection
+            compact
             parent={{ kind: 'task', id: card.id }}
             card={card}
             canAdd={active}
@@ -579,7 +589,7 @@ function TaskView({ card }: { card: TimedTask }) {
           </button>
         </Sheet>
       ) : null}
-    </Page>
+    </RecordPage>
   );
 }
 function TaskAssignee({ card }: { card: TaskCard }) {

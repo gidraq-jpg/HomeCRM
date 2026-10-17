@@ -11,8 +11,8 @@ import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
-import { Page } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import {
   type DocumentCard,
   type DocumentExpiryFilter,
@@ -143,7 +143,10 @@ export function DocumentsScreen() {
   }
 
   return (
-    <Page title="Документы" {...(all.length > 0 ? { eyebrow: documentCount(all.length) } : {})}>
+    <StudioPage
+      title="Документы"
+      {...(all.length > 0 ? { eyebrow: documentCount(all.length) } : {})}
+    >
       <div className="filters document-filters">
         <div className="field">
           <label className="field__label" htmlFor={ids.search}>
@@ -264,6 +267,6 @@ export function DocumentsScreen() {
           ) : null}
         </>
       ) : null}
-    </Page>
+    </StudioPage>
   );
 }
