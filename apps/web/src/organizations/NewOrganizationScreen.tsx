@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { Page } from '../ui/Page.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { CreateOrganization } from './CreateOrganization.tsx';
 
@@ -10,7 +10,7 @@ export function NewOrganizationScreen() {
   const navigate = useNavigate();
   const toast = useToast();
   return (
-    <Page title="Новая организация" back={BACK}>
+    <StudioPage form title="Новая организация" back={BACK}>
       <CreateOrganization
         onCancel={() => navigate('/more/organizations')}
         onCreated={(card) => {
@@ -18,6 +18,6 @@ export function NewOrganizationScreen() {
           navigate(`/more/organizations/${card.id}`, { replace: true });
         }}
       />
-    </Page>
+    </StudioPage>
   );
 }

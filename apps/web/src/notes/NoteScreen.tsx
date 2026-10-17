@@ -1,13 +1,6 @@
-import {
-  ArrowCounterClockwise,
-  PencilSimple,
-  PushPin,
-  PushPinSlash,
-  Trash,
-} from '@phosphor-icons/react';
+import { ArrowCounterClockwise, PushPin, PushPinSlash, Trash } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
 import { DeadlinesSection } from '../deadlines/DeadlinesSection.tsx';
@@ -17,6 +10,7 @@ import { useMembers } from '../household/queries.ts';
 import { LinksSection } from '../links/LinksSection.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
 import { Page, Section } from '../ui/Page.tsx';
+import { RecordPage } from '../ui/RecordPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {
   creatableVisibilities,
@@ -221,11 +215,77 @@ function NoteView({ card }: { card: NoteCard }) {
   }
 
   return (
-    <Page
+    <RecordPage
+      editing={editing}
       title={card.title}
       documentTitle={TAB_TITLE}
-      eyebrow={`Изменена ${formatMoment(card.updatedAt, me.timeZone)}`}
+      type={trashed ? 'Заметка · в корзине' : 'Заметка'}
+      subtitle={`Изменена ${formatMoment(card.updatedAt, me.timeZone)}`}
       back={BACK}
+      visibility={visibility}
+      onEdit={
+        abilities.edit && !trashed && !editing
+          ? () => {
+              setEditBase(card.updatedAt);
+              setEditing(true);
+            }
+          : undefined
+      }
+      facts={[
+        { label: 'Автор', value: author === 'вы' ? 'Вы' : author },
+        { label: 'Создана', value: formatDay(card.createdAt, me.timeZone) },
+        ...(items.length ? [{ label: 'Чек-лист', value: `${done.done}/${done.total}` }] : []),
+      ]}
+      more={
+        <>
+          {' '}
+          {!trashed ? (
+            <div className="btn-row">
+              {abilities.edit ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  aria-pressed={card.pinned}
+                  disabled={quick.disabled}
+                  onClick={() => void quick.run(() => patch({ pinned: !card.pinned }))}
+                >
+                  {card.pinned ? (
+                    <PushPinSlash size={20} aria-hidden />
+                  ) : (
+                    <PushPin size={20} aria-hidden />
+                  )}
+                  {card.pinned ? 'Открепить' : 'Закрепить'}
+                </button>
+              ) : (
+                <p className="muted">Эту заметку могут править только взрослые участники дома.</p>
+              )}
+              {abilities.trash ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={quick.disabled}
+                  onClick={trash}
+                >
+                  <Trash size={20} aria-hidden />В корзину
+                </button>
+              ) : null}
+            </div>
+          ) : abilities.restore ? (
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={quick.disabled}
+                onClick={restore}
+              >
+                <ArrowCounterClockwise size={20} aria-hidden />
+                Восстановить
+              </button>
+            </div>
+          ) : null}
+        </>
+      }
+      access={!trashed ? <NoteAccess card={card} abilities={abilities} /> : undefined}
     >
       {editing ? (
         <NoteForm
@@ -246,7 +306,6 @@ function NoteView({ card }: { card: NoteCard }) {
       ) : (
         <>
           <p className="property-meta">
-            <AccessBadge visibility={visibility} showLabel />
             {card.pinned ? (
               <span className="access-badge access-badge--labeled">
                 <PushPin size={18} weight="fill" aria-hidden />
@@ -299,22 +358,10 @@ function NoteView({ card }: { card: NoteCard }) {
 
           <NoteError error={quick.error} action="toggle" />
 
-          {visibility !== 'personal' ? (
-            <dl className="facts">
-              <div className="facts__item">
-                <dt>Автор</dt>
-                <dd>{author === 'вы' ? 'Вы' : author}</dd>
-              </div>
-              <div className="facts__item">
-                <dt>Создана</dt>
-                <dd>{formatDay(card.createdAt, me.timeZone)}</dd>
-              </div>
-            </dl>
-          ) : null}
-
-          {!trashed ? <DeadlinesSection source="notes" card={card} /> : null}
+          {!trashed ? <DeadlinesSection compact source="notes" card={card} /> : null}
 
           <FilesSection
+            compact
             parent={{ kind: 'note', id: card.id }}
             card={card}
             canAdd={abilities.edit}
@@ -322,71 +369,12 @@ function NoteView({ card }: { card: NoteCard }) {
           />
 
           <LinksSection
+            compact
             record={{ type: 'note', id: card.id }}
             facts={factsOf(card, viewer, 'note')}
           />
-
-          {!trashed ? (
-            <div className="btn-row">
-              {abilities.edit ? (
-                <>
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    onClick={() => {
-                      setEditBase(card.updatedAt);
-                      setEditing(true);
-                    }}
-                  >
-                    <PencilSimple size={20} aria-hidden />
-                    Править
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--secondary"
-                    aria-pressed={card.pinned}
-                    disabled={quick.disabled}
-                    onClick={() => void quick.run(() => patch({ pinned: !card.pinned }))}
-                  >
-                    {card.pinned ? (
-                      <PushPinSlash size={20} aria-hidden />
-                    ) : (
-                      <PushPin size={20} aria-hidden />
-                    )}
-                    {card.pinned ? 'Открепить' : 'Закрепить'}
-                  </button>
-                </>
-              ) : (
-                <p className="muted">Эту заметку могут править только взрослые участники дома.</p>
-              )}
-              {abilities.trash ? (
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  disabled={quick.disabled}
-                  onClick={trash}
-                >
-                  <Trash size={20} aria-hidden />В корзину
-                </button>
-              ) : null}
-            </div>
-          ) : abilities.restore ? (
-            <div className="btn-row">
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={quick.disabled}
-                onClick={restore}
-              >
-                <ArrowCounterClockwise size={20} aria-hidden />
-                Восстановить
-              </button>
-            </div>
-          ) : null}
-
-          {!trashed ? <NoteAccess card={card} abilities={abilities} /> : null}
         </>
       )}
-    </Page>
+    </RecordPage>
   );
 }

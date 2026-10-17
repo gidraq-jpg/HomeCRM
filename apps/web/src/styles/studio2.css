@@ -527,3 +527,246 @@ html[data-design="studio"] .object-details {
     padding-bottom: 40px;
   }
 }
+
+/* UI-6: карточки, списки и полные формы. Область ограничена D16a. */
+html[data-design="studio"] .main:has(> .ui6-record-page) {
+  background: var(--charcoal);
+}
+html[data-design="studio"] .main:has(> .ui6-record-page) > .offline-status:not(:empty) {
+  background: var(--paper);
+}
+html[data-design="studio"] .ui6-record-page {
+  padding: 0;
+  background: var(--charcoal);
+}
+html[data-design="studio"] .ui6-record-page > .page-heading {
+  margin: 0;
+}
+html[data-design="studio"] .ui6-record-page h1 {
+  overflow-wrap: anywhere;
+}
+html[data-design="studio"] .ui6-page .studio-list-hero > .back-link {
+  margin: 0 0 8px;
+  color: var(--muted-on-dark);
+}
+html[data-design="studio"] .ui6-page .studio-add {
+  border-color: var(--charcoal);
+}
+html[data-design="studio"] .ui6-panel {
+  min-width: 0;
+}
+html[data-design="studio"] .ui6-panel > .section:first-child,
+html[data-design="studio"] .ui6-panel > form:first-child {
+  margin-top: 0;
+}
+html[data-design="studio"]
+  .ui6-record-panel
+  :is(
+    .facts,
+    .task-list,
+    .task-history,
+    .task-links,
+    .phone-list,
+    .timeline,
+    .version-list,
+    .deadline-list,
+    .file-list,
+    .upload-list
+  ) {
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--studio-group-radius);
+  background: var(--surface);
+  margin-top: 12px;
+}
+html[data-design="studio"]
+  .ui6-record-panel
+  :is(
+    .facts__item,
+    .task-row,
+    .task-history > li,
+    .task-links > li,
+    .phone-item,
+    .timeline__item,
+    .version,
+    .deadline-item,
+    .file-row,
+    .upload-row
+  ) {
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+html[data-design="studio"]
+  .ui6-record-panel
+  :is(
+    .facts__item,
+    .task-row,
+    .task-history > li,
+    .task-links > li,
+    .phone-item,
+    .timeline__item,
+    .version,
+    .deadline-item,
+    .file-row,
+    .upload-row
+  )
+  + * {
+  border-top: 1px solid var(--paper);
+}
+html[data-design="studio"] .ui6-record-panel .facts__item {
+  align-items: baseline;
+}
+html[data-design="studio"] .ui6-record-panel .facts dt {
+  font-size: 0.8125rem;
+}
+html[data-design="studio"] .ui6-record-panel .facts dd {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  text-align: start;
+}
+html[data-design="studio"] .ui6-record-panel .task-list > li > .task-check-row {
+  padding: 10px 12px;
+}
+html[data-design="studio"]
+  .ui6-record-panel
+  :is(.task-check-row, .phone-item__number, .file-row__name, .timeline__text) {
+  font-size: 0.9375rem;
+  font-weight: 400;
+}
+html[data-design="studio"]
+  .ui6-record-panel
+  :is(.file-row__meta, .phone-item__label, .timeline__head, .task-history p) {
+  font-size: 0.8125rem;
+}
+html[data-design="studio"] .ui6-record-panel .file-row__thumb,
+html[data-design="studio"] .ui6-record-panel .file-row__image {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--studio-tile-radius);
+}
+html[data-design="studio"] .ui6-record-panel .link-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0;
+  border: 0;
+}
+html[data-design="studio"] .ui6-record-panel .link-item > .row {
+  flex: 1;
+  min-width: 0;
+}
+html[data-design="studio"] .ui6-record-panel .markdown {
+  padding: 12px;
+  border-radius: var(--studio-group-radius);
+  background: var(--surface);
+}
+html[data-design="studio"] .ui6-record-panel .task-description {
+  font-size: 0.9375rem;
+}
+html[data-design="studio"] .ui6-record-page .object-facts {
+  gap: 12px 20px;
+}
+html[data-design="studio"] .ui6-record-page .object-facts > div {
+  flex: 1 1 72px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+html[data-design="studio"] .ui6-record-page .object-facts dd {
+  font-size: 1.0625rem;
+}
+html[data-design="studio"] .ui6-record-page .object-facts a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--accent-on-dark);
+}
+html[data-design="studio"] .ui6-record-page .object-hero__meta > .access-badge {
+  color: var(--muted-on-dark);
+  background: transparent;
+  padding-inline: 0;
+}
+html[data-design="studio"] .ui6-primary {
+  margin-bottom: 16px;
+}
+html[data-design="studio"] .ui6-record-panel .ui6-primary > .btn {
+  width: 100%;
+}
+html[data-design="studio"] :is(.ui6-panel, .ui6-actions) .btn--secondary {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent-strong);
+}
+html[data-design="studio"] .ui6-actions .btn-row {
+  display: grid;
+}
+html[data-design="studio"] .ui6-actions .btn-row > .btn {
+  flex: none;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: start;
+}
+html[data-design="studio"] .ui6-actions .access-card {
+  margin-top: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+html[data-design="studio"] .ui6-actions .btn--primary {
+  width: 100%;
+}
+html[data-design="studio"] .ui6-panel :is(.input, .select, .textarea) {
+  min-height: 52px;
+  padding: 12px 14px;
+  border-radius: var(--studio-field-radius);
+  background: var(--surface);
+  font-weight: 400;
+  font-size: 1rem;
+}
+html[data-design="studio"] .ui6-panel .field__label {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+html[data-design="studio"] .ui6-panel .field__hint {
+  font-size: 0.8125rem;
+}
+html[data-design="studio"] .ui6-panel form .btn-row {
+  flex-direction: column;
+}
+html[data-design="studio"] .ui6-panel form .btn-row > .btn {
+  flex: none;
+  min-height: 52px;
+}
+html[data-design="studio"] .ui6-panel :is(form, fieldset, .filters__selects, .field) {
+  min-width: 0;
+}
+html[data-design="studio"] .ui6-panel :is(form, .facts, .markdown) a {
+  min-width: var(--tap);
+}
+html[data-design="studio"] .ui6-panel .phone-item__main,
+html[data-design="studio"] .ui6-panel .phone-item__number {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 960px) {
+  html[data-design="studio"] .ui6-panel {
+    padding-inline: 32px;
+    padding-bottom: 40px;
+  }
+}
+
+html[data-design="studio"] .ui6-record-panel :is(.facts, .property-meta):empty {
+  display: none;
+}
+
+html[data-design="studio"] :is(.ui6-page, .ui6-record-page) .ui6-panel .section__head {
+  flex-wrap: wrap;
+}
+html[data-design="studio"] .ui6-panel .section__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

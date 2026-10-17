@@ -9,8 +9,9 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
 import { ContactsList } from '../people/ContactsList.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
-import { Page, Section } from '../ui/Page.tsx';
+import { Section } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 
 /** Вышел из дома, пока его не вернули приглашением: общие записи остаются под его именем. */
 export function NoHousehold() {
@@ -96,17 +97,17 @@ export function PeopleScreen() {
   const showMembers = scope !== 'personal';
 
   return (
-    <Page title="Люди">
+    <StudioPage title="Люди">
       {showMembers ? <Members /> : null}
 
       {showMembers && isAdmin ? (
-        <Link className="btn btn--primary btn--block list-action" to="/people/invite">
+        <Link className="text-button list-action" to="/people/invite">
           <UserPlus size={20} aria-hidden />
           Пригласить участника
         </Link>
       ) : null}
 
       <ContactsList />
-    </Page>
+    </StudioPage>
   );
 }

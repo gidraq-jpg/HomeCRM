@@ -1,9 +1,8 @@
-import { ArrowCounterClockwise, PencilSimple, Trash } from '@phosphor-icons/react';
+import { ArrowCounterClockwise, Trash } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
-import { formatDay, formatMoment } from '../auth/dates.ts';
+import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
@@ -13,6 +12,8 @@ import { OrganizationView } from '../organizations/OrganizationScreen.tsx';
 import { useOrganizationOptions } from '../organizations/queries.ts';
 import { EXTERNAL_LINK } from '../ui/link.ts';
 import { Page } from '../ui/Page.tsx';
+import { RecordPage } from '../ui/RecordPage.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { patchPerson, restorePerson, trashPerson } from './api.ts';
 import { ContactObjects } from './ContactObjects.tsx';
@@ -80,7 +81,6 @@ function PersonView({ card }: { card: PersonCard }) {
   const trashed = card.deletedAt !== null;
   const { data } = card;
   const categories = categoriesLabel(data.categories);
-  const eyebrow = `${categories === '' ? 'Человек' : categories} · изменён ${formatMoment(card.updatedAt, me.timeZone)}`;
 
   function trash() {
     void quick.run(async () => {
@@ -126,7 +126,8 @@ function PersonView({ card }: { card: PersonCard }) {
 
   if (editing) {
     return (
-      <Page
+      <StudioPage
+        form
         title={card.title}
         documentTitle={TAB_TITLE}
         eyebrow="Правка контакта"
@@ -157,22 +158,61 @@ function PersonView({ card }: { card: PersonCard }) {
             })
           }
         />
-      </Page>
+      </StudioPage>
     );
   }
 
   const facts = factsOf(card, viewer, 'contact');
   return (
-    <Page
+    <RecordPage
       title={card.title}
       documentTitle={TAB_TITLE}
-      eyebrow={trashed ? `${eyebrow} · в корзине` : eyebrow}
+      type={`Человек${trashed ? ' · в корзине' : ''}`}
+      subtitle={categories || undefined}
       back={PEOPLE_BACK}
+      visibility={visibility}
+      onEdit={abilities.edit && !trashed ? () => setEditing(true) : undefined}
+      facts={[
+        { label: 'Автор', value: nameOf(card.authorId) },
+        { label: 'Создан', value: formatDay(card.createdAt, me.timeZone) },
+        ...(data.birthday ? [{ label: 'День рождения', value: birthdayLabel(data.birthday) }] : []),
+      ]}
+      more={
+        <>
+          {' '}
+          <ObjectError error={quick.error} action="person" />
+          {!trashed ? (
+            <div className="btn-row">
+              {!abilities.edit ? (
+                <p className="muted">Этот контакт могут править только взрослые участники дома.</p>
+              ) : null}
+              {abilities.trash ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={quick.disabled}
+                  onClick={trash}
+                >
+                  <Trash size={20} aria-hidden />В корзину
+                </button>
+              ) : null}
+            </div>
+          ) : abilities.restore ? (
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={quick.disabled}
+                onClick={restore}
+              >
+                <ArrowCounterClockwise size={20} aria-hidden />
+                Восстановить
+              </button>
+            </div>
+          ) : null}
+        </>
+      }
     >
-      <p className="property-meta">
-        <AccessBadge visibility={visibility} showLabel />
-      </p>
-
       {trashed ? (
         <Notice>
           <strong>Контакт в корзине.</strong>{' '}
@@ -243,71 +283,24 @@ function PersonView({ card }: { card: PersonCard }) {
             <dd>{data.address}</dd>
           </div>
         )}
-        {data.birthday === null ? null : (
+        {data.birthdayEnabled ? (
           <div className="facts__item">
             <dt>День рождения</dt>
-            <dd>
-              {birthdayLabel(data.birthday)}
-              {data.birthdayEnabled ? ' · Напоминание включено' : ''}
-            </dd>
+            <dd>Напоминание включено</dd>
           </div>
-        )}
+        ) : null}
         {data.note === '' ? null : (
           <div className="facts__item">
             <dt>Заметка</dt>
             <dd>{data.note}</dd>
           </div>
         )}
-        <div className="facts__item">
-          <dt>Автор</dt>
-          <dd>{nameOf(card.authorId)}</dd>
-        </div>
-        <div className="facts__item">
-          <dt>Создан</dt>
-          <dd>{formatDay(card.createdAt, me.timeZone)}</dd>
-        </div>
       </dl>
 
       <ContactObjects contactId={card.id} contactFacts={facts} canLink={!trashed} />
 
       <InteractionsSection contactId={card.id} canAdd={abilities.edit && !trashed} />
       {!trashed ? <TrashInteractions contactId={card.id} /> : null}
-
-      <ObjectError error={quick.error} action="person" />
-      {!trashed ? (
-        <div className="btn-row">
-          {abilities.edit ? (
-            <button type="button" className="btn btn--primary" onClick={() => setEditing(true)}>
-              <PencilSimple size={20} aria-hidden />
-              Править
-            </button>
-          ) : (
-            <p className="muted">Этот контакт могут править только взрослые участники дома.</p>
-          )}
-          {abilities.trash ? (
-            <button
-              type="button"
-              className="btn btn--secondary"
-              disabled={quick.disabled}
-              onClick={trash}
-            >
-              <Trash size={20} aria-hidden />В корзину
-            </button>
-          ) : null}
-        </div>
-      ) : abilities.restore ? (
-        <div className="btn-row">
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={quick.disabled}
-            onClick={restore}
-          >
-            <ArrowCounterClockwise size={20} aria-hidden />
-            Восстановить
-          </button>
-        </div>
-      ) : null}
-    </Page>
+    </RecordPage>
   );
 }

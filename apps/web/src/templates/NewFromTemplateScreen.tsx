@@ -2,8 +2,8 @@ import { HouseLine, Key, Tree } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Notice } from '../auth/components.tsx';
-import { Page } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import type { Template } from './api.ts';
 import { useRefreshAfterTemplate, useTemplates } from './queries.ts';
@@ -59,19 +59,19 @@ export function NewFromTemplateScreen() {
 
   if (query.isPending) {
     return (
-      <Page title="Объект из шаблона" back={BACK}>
+      <StudioPage form title="Объект из шаблона" back={BACK}>
         <Notice>Загружаем шаблоны…</Notice>
-      </Page>
+      </StudioPage>
     );
   }
   if (query.isError) {
     return (
-      <Page title="Объект из шаблона" back={BACK}>
+      <StudioPage form title="Объект из шаблона" back={BACK}>
         <Notice error>Не удалось загрузить шаблоны. Проверьте подключение и повторите.</Notice>
         <button className="text-button" type="button" onClick={() => void query.refetch()}>
           Повторить загрузку шаблонов
         </button>
-      </Page>
+      </StudioPage>
     );
   }
 
@@ -79,7 +79,7 @@ export function NewFromTemplateScreen() {
     templateId === undefined ? undefined : query.data.find((item) => item.id === templateId);
   if (templateId === undefined) {
     return (
-      <Page title="Объект из шаблона" back={BACK}>
+      <StudioPage form title="Объект из шаблона" back={BACK}>
         <p className="muted">
           Шаблон заведёт объект сразу со счетами, счётчиками и сроками. Лишнее снимается галочками
           на следующем шаге.
@@ -88,19 +88,24 @@ export function NewFromTemplateScreen() {
         <Link className="text-button list-action" to="/home/new">
           Создать пустой объект без шаблона
         </Link>
-      </Page>
+      </StudioPage>
     );
   }
   if (template === undefined) {
     return (
-      <Page title="Объект из шаблона" back={{ to: '/home/from-template', label: 'Шаблоны' }}>
+      <StudioPage
+        form
+        title="Объект из шаблона"
+        back={{ to: '/home/from-template', label: 'Шаблоны' }}
+      >
         <Notice error>Такого шаблона нет. Выберите шаблон из списка.</Notice>
-      </Page>
+      </StudioPage>
     );
   }
 
   return (
-    <Page
+    <StudioPage
+      form
       title="Новый объект"
       eyebrow={template.title}
       back={{ to: '/home/from-template', label: 'Шаблоны' }}
@@ -113,6 +118,6 @@ export function NewFromTemplateScreen() {
           navigate(`/home/${objectId}`, { replace: true });
         }}
       />
-    </Page>
+    </StudioPage>
   );
 }

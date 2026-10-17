@@ -1,4 +1,5 @@
 import { canWrite, canWriteLink } from '@homecrm/shared';
+import { Plus } from '@phosphor-icons/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -100,7 +101,24 @@ export function TaskLinks({ card }: { card: TaskCard }) {
     queryFn: ({ signal }) => fetchLinks({ type: 'task', id: card.id }, signal),
   });
   return (
-    <Section title="Связи">
+    <Section
+      title="Связи"
+      aside={
+        <>
+          {' '}
+          {canWrite(viewerOf(me), factsOf(card, viewerOf(me), 'task')) ? (
+            <button
+              className="icon-button"
+              aria-label="Добавить связь…"
+              type="button"
+              onClick={() => setOpen(true)}
+            >
+              <Plus size={20} aria-hidden />
+            </button>
+          ) : null}
+        </>
+      }
+    >
       {query.error ? (
         <Notice error>
           {taskError(query.error)}
@@ -114,11 +132,7 @@ export function TaskLinks({ card }: { card: TaskCard }) {
           <LinkedRecord key={link.id} link={link} card={card} />
         ))}
       </ul>
-      {canWrite(viewerOf(me), factsOf(card, viewerOf(me), 'task')) ? (
-        <button className="btn btn--secondary" type="button" onClick={() => setOpen(true)}>
-          Добавить связь…
-        </button>
-      ) : null}
+
       {open ? (
         <Sheet
           open

@@ -32,6 +32,9 @@
 
 /* Studio включается только рабочим entry. Прототип 0.5 сохраняет токены выше. */
 :root[data-design="studio"] {
+  --studio-group-radius: 20px;
+  --studio-field-radius: 16px;
+  --studio-tile-radius: 13px;
   --charcoal: #1b1a18;
   --paper: #ebe5da;
   --surface: #f8f5ef;

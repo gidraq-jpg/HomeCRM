@@ -246,7 +246,7 @@ test('связь с объектом и взаимодействие с сумм
 
   // Правка и корзина: из ленты объекта запись пропадает вместе с корзиной.
   await openContact(page, master.id, 'Вымышленный Мастер Сергей');
-  await page.getByRole('button', { name: 'Править' }).first().click();
+  await feed.getByRole('button', { name: 'Править' }).click();
   await expect(form.getByLabel('Сумма, ₽ (необязательно)')).toHaveValue('1840,50');
   await form.getByLabel('Сумма, ₽ (необязательно)').fill('2000');
   await form.getByRole('button', { name: 'Сохранить' }).click();

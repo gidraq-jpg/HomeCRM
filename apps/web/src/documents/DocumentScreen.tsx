@@ -1,13 +1,6 @@
-import {
-  ArrowCounterClockwise,
-  ArrowsClockwise,
-  PencilSimple,
-  ShareNetwork,
-  Trash,
-} from '@phosphor-icons/react';
+import { ArrowCounterClockwise, ArrowsClockwise, ShareNetwork, Trash } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
 import { FilesSection } from '../files/FilesSection.tsx';
@@ -19,7 +12,9 @@ import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
 import { ResponsibleField } from '../tasks/ResponsibleField.tsx';
 import { Page } from '../ui/Page.tsx';
+import { RecordPage } from '../ui/RecordPage.tsx';
 import { Status } from '../ui/Row.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {
   changeAssignee,
@@ -218,7 +213,7 @@ function DocumentView({ card }: { card: DocumentCard }) {
   if (mode !== 'view') {
     const renewing = mode === 'renew';
     return (
-      <Page {...heading}>
+      <StudioPage form {...heading}>
         <DocumentForm
           draft={renewing ? renewalDraft(card.title, card.data) : draftFrom(card.title, card.data)}
           mode={mode}
@@ -254,15 +249,100 @@ function DocumentView({ card }: { card: DocumentCard }) {
             </div>
           ) : null}
         </DocumentForm>
-      </Page>
+      </StudioPage>
     );
   }
 
   return (
-    <Page {...heading}>
-      <p className="property-meta">
-        <AccessBadge visibility={visibility} showLabel />
-      </p>
+    <RecordPage
+      title={card.title}
+      documentTitle={TAB_TITLE}
+      type={DOCUMENT_LABELS[card.data.type] + (trashed ? ' · в корзине' : '')}
+      subtitle={<Status tone={info.tone}>{info.label}</Status>}
+      back={BACK}
+      visibility={visibility}
+      onEdit={canChange ? () => setMode('edit') : undefined}
+      facts={[
+        { label: 'Владелец', value: <OwnerFact card={card} /> },
+        {
+          label: 'Срок действия',
+          value:
+            source.kind === 'indefinite'
+              ? 'Бессрочно'
+              : source.kind === 'explicit' || source.kind === 'age'
+                ? dateLabel(source.until)
+                : 'Не указан',
+        },
+        { label: 'Ответственный', value: nameOf(card.assigneeId ?? card.authorId) },
+      ]}
+      more={
+        <>
+          <DocumentError error={quick.error} action={trashed ? 'restore' : 'trash'} />
+          {!trashed ? (
+            <div className="btn-row">
+              {!canChange && valid ? (
+                <p className="muted">Этот документ могут править только взрослые участники дома.</p>
+              ) : null}
+              {abilities.trash ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  disabled={quick.disabled}
+                  onClick={trash}
+                >
+                  <Trash size={20} aria-hidden />В корзину
+                </button>
+              ) : null}
+            </div>
+          ) : abilities.restore ? (
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={quick.disabled}
+                onClick={restore}
+              >
+                <ArrowCounterClockwise size={20} aria-hidden />
+                Восстановить
+              </button>
+            </div>
+          ) : null}
+        </>
+      }
+      access={
+        !trashed && valid && abilities.share && householdId !== null ? (
+          <section className="section" aria-labelledby={`share-${card.id}`}>
+            <div className="section__head">
+              <h2 className="section__title" id={`share-${card.id}`}>
+                Кто видит
+              </h2>
+            </div>
+            <p className="muted">
+              Сейчас документ видите только вы. Супруги и другие взрослые дома смогут его открыть,
+              если поделиться.
+            </p>
+            <button
+              type="button"
+              className="btn btn--primary btn--block"
+              disabled={quick.disabled}
+              onClick={share}
+            >
+              <ShareNetwork size={20} aria-hidden />
+              Поделиться со взрослыми
+            </button>
+          </section>
+        ) : undefined
+      }
+    >
+      {canChange ? (
+        <div className="ui6-primary">
+          {' '}
+          <button type="button" className="btn btn--primary" onClick={() => setMode('renew')}>
+            <ArrowsClockwise size={20} aria-hidden />
+            Продлить
+          </button>
+        </div>
+      ) : null}
 
       {trashed ? (
         <Notice>
@@ -279,12 +359,6 @@ function DocumentView({ card }: { card: DocumentCard }) {
         <div className="facts__item">
           <dt>Тип</dt>
           <dd>{DOCUMENT_LABELS[card.data.type]}</dd>
-        </div>
-        <div className="facts__item">
-          <dt>Владелец</dt>
-          <dd>
-            <OwnerFact card={card} />
-          </dd>
         </div>
         <div className="facts__item">
           <dt>Серия и номер</dt>
@@ -359,6 +433,7 @@ function DocumentView({ card }: { card: DocumentCard }) {
       )}
 
       <FilesSection
+        compact
         parent={{ kind: 'document', id: card.id }}
         card={card}
         canAdd={canChange}
@@ -367,71 +442,6 @@ function DocumentView({ card }: { card: DocumentCard }) {
       />
 
       <DocumentVersions card={card} />
-
-      <DocumentError error={quick.error} action={trashed ? 'restore' : 'trash'} />
-      {!trashed ? (
-        <div className="btn-row">
-          {canChange ? (
-            <>
-              <button type="button" className="btn btn--primary" onClick={() => setMode('renew')}>
-                <ArrowsClockwise size={20} aria-hidden />
-                Продлить
-              </button>
-              <button type="button" className="btn btn--secondary" onClick={() => setMode('edit')}>
-                <PencilSimple size={20} aria-hidden />
-                Править
-              </button>
-            </>
-          ) : valid ? (
-            <p className="muted">Этот документ могут править только взрослые участники дома.</p>
-          ) : null}
-          {abilities.trash ? (
-            <button
-              type="button"
-              className="btn btn--secondary"
-              disabled={quick.disabled}
-              onClick={trash}
-            >
-              <Trash size={20} aria-hidden />В корзину
-            </button>
-          ) : null}
-        </div>
-      ) : abilities.restore ? (
-        <div className="btn-row">
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={quick.disabled}
-            onClick={restore}
-          >
-            <ArrowCounterClockwise size={20} aria-hidden />
-            Восстановить
-          </button>
-        </div>
-      ) : null}
-
-      {!trashed && valid && abilities.share && householdId !== null ? (
-        <section className="section" aria-labelledby={`share-${card.id}`}>
-          <div className="section__head">
-            <h2 className="section__title" id={`share-${card.id}`}>
-              Кто видит
-            </h2>
-          </div>
-          <p className="muted">
-            Сейчас документ видите только вы. Супруги и другие взрослые дома смогут его открыть,
-            если поделиться.
-          </p>
-          <button
-            type="button"
-            className="btn btn--primary btn--block"
-            disabled={quick.disabled}
-            onClick={share}
-          >
-            <ShareNetwork size={20} aria-hidden />
-            Поделиться со взрослыми
-          </button>
-        </section>
-      ) : null}
-    </Page>
+    </RecordPage>
   );
 }

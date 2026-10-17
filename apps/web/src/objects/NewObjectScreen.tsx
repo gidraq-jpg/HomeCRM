@@ -6,7 +6,7 @@ import { useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { newPlacement, viewerOf } from '../notes/abilities.ts';
 import { accessToast } from '../notes/toasts.ts';
-import { Page } from '../ui/Page.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { creatableObjectVisibilities } from './abilities.ts';
 import { createObject } from './api.ts';
@@ -55,7 +55,7 @@ export function NewObjectScreen() {
   }
 
   return (
-    <Page title="Новый объект" back={BACK}>
+    <StudioPage form title="Новый объект" back={BACK}>
       <ObjectForm
         draft={EMPTY_DRAFT}
         mode="create"
@@ -86,6 +86,6 @@ export function NewObjectScreen() {
           ) : null
         }
       />
-    </Page>
+    </StudioPage>
   );
 }

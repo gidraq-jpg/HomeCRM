@@ -196,6 +196,11 @@ export async function openQuick(page: Page): Promise<void> {
 }
 
 export async function openObjectActions(page: Page): Promise<void> {
+  if (await page.locator('.ui6-record-page').count()) {
+    if (!(await page.getByRole('dialog').count()))
+      await page.getByRole('button', { name: 'Ещё: действия с записью' }).click();
+    return;
+  }
   if (/^#\/home\/[a-f0-9-]+(?:\/|$)/.test(new URL(page.url()).hash))
     await expect(page.getByRole('button', { name: 'Ещё: действия с объектом' })).toBeVisible();
   if (

@@ -16,7 +16,7 @@ import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, type PlacedRecord, viewerOf } from '../notes/abilities.ts';
 import { usePersonName } from '../objects/context.ts';
-import { EmptyState } from '../ui/EmptyState.tsx';
+import { CompactEmptyState, EmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
@@ -51,6 +51,7 @@ export interface FilesCard extends PlacedRecord {
 type ListedFile = FileMeta & { canRestore?: boolean };
 
 interface FilesSectionProps {
+  compact?: boolean;
   parent: FileParent;
   card: FilesCard;
   /** Можно ли добавлять файлы: право править запись (`canWrite`). */
@@ -337,6 +338,7 @@ function UploadRow({
  * через `?inline=1`. «Удалённые файлы» приходят от сервера, поэтому видны и после перезагрузки.
  */
 export function FilesSection({
+  compact = false,
   parent,
   card,
   canAdd,
@@ -369,7 +371,20 @@ export function FilesSection({
   return (
     <Section
       title="Файлы"
-      aside={live.length > 0 ? <span className="muted">{fileCount(live.length)}</span> : undefined}
+      aside={
+        compact && canAdd && !parentTrashed ? (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Добавить файл"
+            onClick={() => picker.current?.click()}
+          >
+            <Plus size={20} aria-hidden />
+          </button>
+        ) : live.length > 0 ? (
+          <span className="muted">{fileCount(live.length)}</span>
+        ) : undefined
+      }
     >
       {canAdd && !parentTrashed ? (
         <>
@@ -386,17 +401,21 @@ export function FilesSection({
               event.currentTarget.value = '';
             }}
           />
-          <button
-            type="button"
-            className="btn btn--primary btn--block"
-            onClick={() => picker.current?.click()}
-          >
-            <Plus size={20} aria-hidden />
-            Добавить файл
-          </button>
-          <p className="field__hint file-hint">
-            Фото (JPEG, PNG, WebP, HEIC) и PDF до 25 МБ. Файл увидят те же люди, что и запись.
-          </p>
+          {!compact ? (
+            <>
+              <button
+                type="button"
+                className="btn btn--primary btn--block"
+                onClick={() => picker.current?.click()}
+              >
+                <Plus size={20} aria-hidden />
+                Добавить файл
+              </button>
+              <p className="field__hint file-hint">
+                Фото (JPEG, PNG, WebP, HEIC) и PDF до 25 МБ. Файл увидят те же люди, что и запись.
+              </p>
+            </>
+          ) : null}
         </>
       ) : null}
 
@@ -414,14 +433,18 @@ export function FilesSection({
       ) : null}
 
       {live.length === 0 && uploads.items.length === 0 ? (
-        <EmptyState icon={<Files size={24} aria-hidden />} title="Файлов пока нет">
-          <p>
-            {canAdd && !parentTrashed
-              ? 'Добавьте фото или PDF: квитанцию, договор, снимок счётчика.'
-              : 'К этой записи ничего не прикреплено.'}
-          </p>
-          <p>Файлы видят только те люди, которые видят саму запись.</p>
-        </EmptyState>
+        compact ? (
+          <CompactEmptyState title="Файлов пока нет" />
+        ) : (
+          <EmptyState icon={<Files size={24} aria-hidden />} title="Файлов пока нет">
+            <p>
+              {canAdd && !parentTrashed
+                ? 'Добавьте фото или PDF: квитанцию, договор, снимок счётчика.'
+                : 'К этой записи ничего не прикреплено.'}
+            </p>
+            <p>Файлы видят только те люди, которые видят саму запись.</p>
+          </EmptyState>
+        )
       ) : null}
 
       {live.length > 0 ? (

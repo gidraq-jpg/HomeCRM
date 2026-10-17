@@ -12,7 +12,7 @@ import {
   organizationPlacement,
 } from '../organizations/abilities.ts';
 import { useOrganizationOptions } from '../organizations/queries.ts';
-import { Page } from '../ui/Page.tsx';
+import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { createPerson } from './api.ts';
 import { emptyPersonDraft } from './form.ts';
@@ -46,7 +46,7 @@ export function NewPersonScreen() {
         : (options[0] ?? 'personal');
 
   return (
-    <Page title="Новый человек" back={PEOPLE_BACK}>
+    <StudioPage form title="Новый человек" back={PEOPLE_BACK}>
       <PersonForm
         draft={emptyPersonDraft()}
         organizations={(organizations.data ?? []).map(({ id, title }) => ({ id, title }))}
@@ -69,6 +69,6 @@ export function NewPersonScreen() {
       >
         <VisibilityPicker value={visibility} options={options} onChange={setChosen} />
       </PersonForm>
-    </Page>
+    </StudioPage>
   );
 }
