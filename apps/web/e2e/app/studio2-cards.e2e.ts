@@ -298,3 +298,29 @@ test('UI-6: файлы, версии и взаимодействия в груп
     }
   }
 });
+
+test('UI-6: ошибка закрепления видна внутри листа Ещё', async ({ page, family }) => {
+  test.skip(phase === 'before', 'Исходная съёмка выполнена отдельно.');
+  const api = await apiAs(family, 'adult');
+  const note = await seedNote(api, family, { title: 'Вымышленная заметка с отказом' });
+  await signInAs(page, family, 'adult');
+  await page.goto(`#/more/notes/${note.id}`);
+  await expect(page.locator('.ui6-record-page')).toBeVisible();
+  await page.route(`**/api/notes/${note.id}`, (route) =>
+    route.request().method() === 'PATCH'
+      ? route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: '{"code":"INTERNAL_ERROR"}',
+        })
+      : route.continue(),
+  );
+  await page.getByRole('button', { name: 'Ещё: действия с записью' }).click();
+  const more = page.getByRole('dialog', { name: 'Ещё', exact: true });
+  await more.getByRole('button', { name: 'Закрепить', exact: true }).click();
+  await expect(more.getByRole('alert')).toBeVisible();
+  await expectAccessible(page, 'note-action-error');
+  await expectTouchTargets(page);
+  await closeRecordActions(page);
+  await expect(page.getByRole('alert')).toBeVisible();
+});

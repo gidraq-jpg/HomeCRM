@@ -238,7 +238,7 @@ function NoteView({ card }: { card: NoteCard }) {
       ]}
       more={
         <>
-          {' '}
+          <NoteError error={quick.error} action="toggle" />{' '}
           {!trashed ? (
             <div className="btn-row">
               {abilities.edit ? (
