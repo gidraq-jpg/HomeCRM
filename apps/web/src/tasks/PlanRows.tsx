@@ -18,6 +18,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   move,
   complete,
   resume,
+  resumeBlocked,
   remember,
   dates = false,
 }: {
@@ -28,6 +29,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   move?: (card: T) => void;
   complete: (card: T) => void;
   resume?: (card: T) => void;
+  resumeBlocked?: (card: T) => boolean;
   remember?: () => void;
   dates?: boolean;
 }) {
@@ -81,7 +83,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
                 className="icon-button plan-row__done"
                 type="button"
                 aria-label={`${closed ? 'Возобновить' : 'Отметить сделанным'}: ${card.title}`}
-                disabled={pending}
+                disabled={pending || (closed && resumeBlocked?.(card))}
                 onClick={() => (closed ? resume?.(card) : complete(card))}
               >
                 {circle}

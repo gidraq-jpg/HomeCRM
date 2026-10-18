@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useToast } from '../ui/Toast.tsx';
 import { fetchTask, TaskCard, TaskError, type TimedTask } from './api.ts';
 import { type TaskOperation, useTaskOperation } from './operation.tsx';
@@ -15,6 +15,29 @@ export function useFeedActions<T extends TaskCard>(apply: (card: T) => void) {
   } | null>(null);
   const toast = useToast();
   const completions = useRef(new Map<string, TimedTask>());
+  const [resumeClock, setResumeClock] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: счётчик перевзводит таймер при изменении окон в ref.
+  useEffect(() => {
+    const now = performance.now();
+    const next = [...completions.current.values()]
+      .flatMap((card) => [card.undoUntil, card.undoUntil + 2000])
+      .filter((until) => until > now)
+      .sort((a, b) => a - b)[0];
+    if (next === undefined) return;
+    const timer = window.setTimeout(() => setResumeClock((value) => value + 1), next - now + 1);
+    return () => window.clearTimeout(timer);
+  }, [resumeClock]);
+  const resumeBlocked = (card: T) => {
+    const completion = completions.current.get(card.id);
+    const now = performance.now();
+    return (
+      !!card.repeatRule &&
+      card.status === 'done' &&
+      !!completion &&
+      now >= completion.undoUntil &&
+      now < completion.undoUntil + 2000
+    );
+  };
   const checkingResume = useRef(false);
   const [resumePending, setResumePending] = useState(false);
   const localVersions = useRef(new Map<string, { shown: string; base: string }>());
@@ -42,6 +65,7 @@ export function useFeedActions<T extends TaskCard>(apply: (card: T) => void) {
     if (action.kind === 'complete' && result && !action.undo)
       completions.current.set(card.id, result);
     else completions.current.delete(card.id);
+    setResumeClock((value) => value + 1);
     apply(card);
     setMoving(null);
     if (action.undo || action.kind === 'resume') {
@@ -120,6 +144,7 @@ export function useFeedActions<T extends TaskCard>(apply: (card: T) => void) {
       setMoving(card);
     },
     complete: (card: T) => status(card, 'done'),
+    resumeBlocked,
     resume: async (card: T) => {
       if (checkingResume.current || operation.pending) return;
       let completion = completions.current.get(card.id);
@@ -134,6 +159,8 @@ export function useFeedActions<T extends TaskCard>(apply: (card: T) => void) {
             operation.setError(new TaskError(409, { code: 'CONFLICT' }));
             return;
           }
+          completions.current.set(card.id, completion);
+          setResumeClock((value) => value + 1);
         } catch (error) {
           operation.setError(error);
           return;
@@ -142,6 +169,7 @@ export function useFeedActions<T extends TaskCard>(apply: (card: T) => void) {
           setResumePending(false);
         }
       }
+      if (resumeBlocked(card)) return;
       if (
         card.repeatRule &&
         completion?.completionEventId &&

@@ -117,6 +117,16 @@ test('D19a.1–3/13: повтор возвращается отменой без
   expect((await api.get(`tasks/${secondCompleted.nextTaskId}`)).body).toMatchObject({
     deletedAt: expect.any(String),
   });
+  await page
+    .getByRole('button', { name: 'Отметить сделанным: Протереть стол D19', exact: true })
+    .click();
+  await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toBeVisible();
+  const resume = page.getByRole('button', { name: 'Возобновить: Протереть стол D19', exact: true });
+  await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toHaveCount(0, {
+    timeout: 10_000,
+  });
+  await expect(resume).toBeDisabled();
+  await expect(resume).toBeEnabled();
 });
 
 test('D19a.2: выполненное без сети старое дело остаётся в своём дне до и после синхронизации', async ({

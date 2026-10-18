@@ -313,6 +313,7 @@ function AllFeed({ house }: { house: string | null }) {
       dates
       complete={actions.complete}
       resume={actions.resume}
+      resumeBlocked={actions.resumeBlocked}
       move={timeZone ? actions.startMove : undefined}
     />
   );
