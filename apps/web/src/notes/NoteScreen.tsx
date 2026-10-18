@@ -293,7 +293,12 @@ function NoteView({ card }: { card: NoteCard }) {
               </div>
             ) : null
           }
-          access={!trashed ? access : undefined}
+          access={
+            !trashed &&
+            (abilities.share || abilities.audience || abilities.copy || abilities.makePersonal)
+              ? access
+              : undefined
+          }
         >
           {editing ? (
             <NoteForm

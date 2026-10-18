@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { defaultObjectVisibility, type Visibility } from '../access/visibility.ts';
 import { useAction } from '../auth/components.tsx';
@@ -56,6 +56,9 @@ export function NewObjectScreen() {
 
   return (
     <StudioPage form title="Новый объект" back={BACK}>
+      <Link className="text-button" to="/home/from-template">
+        Заполнить из шаблона
+      </Link>
       <ObjectForm
         draft={EMPTY_DRAFT}
         mode="create"

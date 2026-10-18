@@ -264,7 +264,7 @@ export function buildRows(items: readonly RadarItem[], context: RowContext): Rad
         what: located
           ? located.rule.kind === 'date' || located.rule.kind === 'window'
             ? KIND_LABELS[located.rule.kind]
-            : `${KIND_LABELS[located.rule.kind]}: ${describeRule(located.rule, context.today)}`
+            : `${KIND_LABELS[located.rule.kind]}: ${describeRule(located.rule, todayIn(item.timeZone, context.now))}`
           : 'Срок',
         when: occurrenceWhen(timing, item.timeZone, context.now),
         relative: occurrenceRelative(timing, item.timeZone, context.now),

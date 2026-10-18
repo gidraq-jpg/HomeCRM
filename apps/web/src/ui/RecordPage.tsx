@@ -3,6 +3,7 @@ import { type ReactNode, type RefObject, useState } from 'react';
 import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
+import { AddAction } from '../shell/AddAction.tsx';
 import { FormHeading } from './FormHeading.tsx';
 import { Page } from './Page.tsx';
 import { Sheet } from './Sheet.tsx';
@@ -68,6 +69,7 @@ export function RecordPage({
                 <CaretLeft size={20} aria-hidden />
                 {back.label}
               </Link>
+              <AddAction />
               {onEdit ? (
                 <button
                   className="icon-button"
@@ -131,7 +133,6 @@ export function RecordPage({
     >
       <div className="studio-panel studio-list-panel ui6-panel ui6-record-panel">{children}</div>
       <Sheet
-        returnFocusRef={actionsRef}
         open={panel !== null}
         onOpenChange={(open) => {
           if (!open) changePanel(null);
@@ -148,6 +149,7 @@ export function RecordPage({
             if (
               target instanceof Element &&
               event.currentTarget.contains(target) &&
+              !target.closest('[data-keep-sheet-open]') &&
               target.closest('button, a')
             )
               changePanel(null);

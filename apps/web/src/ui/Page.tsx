@@ -72,6 +72,7 @@ export function Page({
 
 interface SectionProps {
   title: string;
+  level?: 2 | 3 | 4;
   /** Рядом с заголовком: счётчик или ссылка. */
   aside?: ReactNode;
   /** Тот же стиль, что у «Главное на сегодня» в LifeOS. */
@@ -79,13 +80,14 @@ interface SectionProps {
   children: ReactNode;
 }
 
-export function Section({ title, aside, eyebrow = false, children }: SectionProps) {
+export function Section({ title, aside, eyebrow = false, children, level = 2 }: SectionProps) {
+  const Heading = `h${level}` as const;
   return (
     <section className="section">
       <div className="section__head">
-        <h2 className={eyebrow ? 'section__title section__title--eyebrow' : 'section__title'}>
+        <Heading className={eyebrow ? 'section__title section__title--eyebrow' : 'section__title'}>
           {title}
-        </h2>
+        </Heading>
         {aside}
       </div>
       {children}

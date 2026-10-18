@@ -18,9 +18,9 @@ async function count(family: Family, sql: string) {
 }
 
 async function openTemplateForm(page: Page, template: string) {
-  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Добавить' });
-  await dialog.getByRole('button', { name: /^Из шаблона/ }).click();
+  await page.goto('#/home');
+  await page.getByRole('button', { name: 'Добавить объект', exact: true }).click();
+  await page.getByRole('link', { name: 'Заполнить из шаблона', exact: true }).click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Объект из шаблона', exact: true }),
   ).toBeVisible();
@@ -110,7 +110,7 @@ test('«Сдаваемая квартира» со снятыми галочка
   await page.goto('#/home');
   const empty = page.getByRole('region', { name: 'Объектов пока нет' });
   await expect(empty).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Добавить объект', exact: true })).toBeVisible();
 
   await openTemplateForm(page, 'Сдаваемая квартира');
   await expect(form(page).getByRole('checkbox')).toHaveCount(19);

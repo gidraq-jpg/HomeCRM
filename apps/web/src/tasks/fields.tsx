@@ -16,6 +16,7 @@ export function TextField({
   maxLength,
   placeholder,
   disabled = false,
+  min,
 }: {
   label: string;
   value: string;
@@ -25,6 +26,7 @@ export function TextField({
   maxLength?: number;
   placeholder?: string;
   disabled?: boolean;
+  min?: string;
 }) {
   const id = useId();
   return (
@@ -41,6 +43,7 @@ export function TextField({
         maxLength={maxLength}
         placeholder={placeholder}
         disabled={disabled}
+        min={min}
         onChange={(event) => onChange(event.target.value)}
         autoComplete="off"
       />

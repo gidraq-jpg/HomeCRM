@@ -319,6 +319,7 @@ export function NoteAccess({
               type="button"
               className="btn btn--secondary"
               disabled={copying.disabled}
+              data-keep-sheet-open
               onClick={() =>
                 void copying.run(async () => {
                   const copy = await copyToPersonal(card.id);
@@ -340,12 +341,12 @@ export function NoteAccess({
           ) : null}
         </div>
       ) : null}
+      <NoteError error={copying.error} action="copy" />
     </div>
   );
   return (
     <>
       {children ? children(controls) : controls}
-      <NoteError error={copying.error} action="copy" />
       {sheet === 'share' ? (
         <ShareSheet returnFocusRef={returnFocusRef} card={card} onClose={close} />
       ) : null}

@@ -82,7 +82,7 @@ test('боковое меню вместо нижнего, переключат�
   await checkApp(page, info, 'desktop-people');
 
   // Studio 2, п. 4: «+» в заголовке раздела, рядом с названием, без перекрытия текста.
-  const add = page.getByRole('button', { name: 'Добавить', exact: true });
+  const add = page.getByRole('button', { name: 'Добавить человека', exact: true });
   await expect(add).toBeVisible();
   const box = await add.boundingBox();
   const headingBox = await page

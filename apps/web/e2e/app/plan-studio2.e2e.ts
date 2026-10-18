@@ -145,7 +145,7 @@ for (const textScale of [1, 2]) {
         ),
       )
       .toBeLessThan(2);
-    await expect(tabs.getByRole('button', { name: 'Добавить', exact: true })).toBeInViewport();
+    await expect(tabs.getByRole('button', { name: 'Добавить дело', exact: true })).toBeInViewport();
     if (process.platform === 'linux') {
       const directory = resolve(import.meta.dirname, '../../../../docs/screenshots/TASK-5');
       await mkdir(directory, { recursive: true });
@@ -268,7 +268,7 @@ test('TASK-5: пустой план, вкладки с плюсом, досту�
   await plan(page);
   await expect(page.getByText('На две недели вперёд дел нет', { exact: true })).toBeVisible();
   await expect(
-    page.locator('.today-tabs').getByRole('button', { name: 'Добавить', exact: true }),
+    page.locator('.today-tabs').getByRole('button', { name: 'Добавить дело', exact: true }),
   ).toBeVisible();
   await check(page, `empty-${info.project.use.viewport?.width}`);
   await page.evaluate(() => {

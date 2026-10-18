@@ -1,4 +1,9 @@
 import { shiftTaskDate } from '@homecrm/shared';
+import type { TaskCard } from './api.ts';
+
+export function isOverdue(card: TaskCard, today: string): boolean {
+  return ['open', 'waiting'].includes(card.status) && !!card.dueOn && card.dueOn < today;
+}
 
 export function planDay(date: string, today?: string) {
   if (date === today) return 'Сегодня';

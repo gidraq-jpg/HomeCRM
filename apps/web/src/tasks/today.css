@@ -208,6 +208,7 @@ html[data-design="studio"] .plan-page {
 }
 .plan-row--closed .plan-row__title {
   text-decoration: line-through;
+  color: var(--muted);
 }
 .plan-empty-days {
   margin: 18px 4px;

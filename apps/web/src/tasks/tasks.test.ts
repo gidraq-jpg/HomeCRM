@@ -2,10 +2,12 @@ import { parseQuickline, TaskFields } from '@homecrm/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as offlineIdentity from '../offline/identity.ts';
 import * as offlineQueue from '../offline/queue.ts';
+import type { Intent } from '../offline/store.ts';
 import { fetchTasks, TaskCard, TaskError, taskRequest, undoWindow } from './api.ts';
 import { createBody } from './NewTaskScreen.tsx';
 import { quickDraft } from './Quickline.tsx';
 import { uniqueTasks } from './queries.ts';
+import { queuedStatus } from './queued-status.ts';
 import { taskChange, taskDraft } from './TaskForm.tsx';
 
 const account = '00000000-0000-4000-8000-000000000001';
@@ -39,6 +41,39 @@ function card() {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+it('D19a.2–3: очередь сохраняет выполненное при старом GET и не маскирует конфликт', () => {
+  const original = card();
+  const intent: Pick<Intent, 'entity' | 'operation' | 'state' | 'createdAt' | 'body' | 'response'> =
+    {
+      entity: original.id,
+      operation: 'task_status',
+      state: 'pending',
+      createdAt: Date.parse('2026-10-18T10:00:00Z'),
+      body: { status: 'done' },
+    };
+  expect(queuedStatus(original, [intent])).toMatchObject({
+    status: 'done',
+    updatedAt: '2026-10-18T10:00:00.000Z',
+  });
+  expect(queuedStatus(original, [{ ...intent, state: 'conflict' }])).toEqual(original);
+  const response = {
+    ...original,
+    status: 'done',
+    updatedAt: '2026-10-18T10:00:01Z',
+    undoUntil: 123,
+    repeatScope: 'this',
+    expectedUpdatedAt: original.updatedAt,
+  };
+  const confirmed = queuedStatus(original, [{ ...intent, state: 'confirmed', response }]);
+  expect(confirmed.status).toBe('done');
+  for (const field of ['undoUntil', 'repeatScope', 'expectedUpdatedAt'])
+    expect(confirmed).not.toHaveProperty(field);
+  expect(
+    queuedStatus({ ...original, updatedAt: '2026-10-18T11:00:00Z' }, [
+      { ...intent, state: 'confirmed', response },
+    ]).status,
+  ).toBe('open');
 });
 describe('дела: черновик и контракт', () => {
   it('обычная правка скрытого адресата не посылает null и не переписывает расписание', () => {

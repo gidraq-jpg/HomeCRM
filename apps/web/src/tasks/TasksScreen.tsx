@@ -10,6 +10,7 @@ import { isOpenWindow } from '../deadlines/utility.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { PushCard } from '../notifications/PushCard.tsx';
 import { todayIn } from '../objects/dates.ts';
+import { useQueue } from '../offline/OfflinePanel.tsx';
 import { FirstRunCard } from '../templates/FirstRunCard.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
@@ -24,6 +25,7 @@ import { RecordPicker } from './options.tsx';
 import { PlanFeed } from './PlanFeed.tsx';
 import { PlanRows } from './PlanRows.tsx';
 import { uniqueTasks, useTaskList, useToday } from './queries.ts';
+import { queuedStatus } from './queued-status.ts';
 import { STATUS_LABELS } from './TaskForm.tsx';
 import { TaskRows } from './TaskRows.tsx';
 import { TaskTabs } from './TaskTabs.tsx';
@@ -233,6 +235,7 @@ function AllFeed({ house }: { house: string | null }) {
   const { me, householdId } = useHousehold();
   const { scope } = useScope();
   const client = useQueryClient();
+  const { rows: queued } = useQueue();
   const [filters, setFilters] = useState<TaskFilters>({});
   const [objectOpen, setObjectOpen] = useState(false);
   const [params, setParams] = useSearchParams();
@@ -256,9 +259,10 @@ function AllFeed({ house }: { house: string | null }) {
   const weekEnd = today ? new Date(`${today}T12:00:00Z`) : null;
   if (weekEnd) weekEnd.setUTCDate(weekEnd.getUTCDate() + (7 - (weekEnd.getUTCDay() || 7)));
   const end = weekEnd?.toISOString().slice(0, 10) ?? '';
-  const tasks = uniqueTasks(query.data?.pages.flat() ?? []).filter(
-    (task) => !house || !task.householdId || task.householdId === house,
-  );
+  const ownQueued = queued.filter((intent) => intent.owner === me.id);
+  const tasks = uniqueTasks(query.data?.pages.flat() ?? [])
+    .map((card) => queuedStatus(card, ownQueued))
+    .filter((task) => !house || !task.householdId || task.householdId === house);
   const active = tasks.filter((task) => ['open', 'waiting'].includes(task.status));
   const overdue = active.filter((task) => task.planOn && today && task.planOn < today);
   const selected = overdueOnly
@@ -481,9 +485,11 @@ export function QueryNotice({
 export function LoadMore({
   query,
   label,
+  onFocus,
 }: {
   query: { hasNextPage: boolean; isFetchingNextPage: boolean; fetchNextPage: () => unknown };
   label: string;
+  onFocus?: () => void;
 }) {
   return query.hasNextPage ? (
     <button
@@ -491,6 +497,7 @@ export function LoadMore({
       className="btn btn--secondary btn--block list-action"
       disabled={query.isFetchingNextPage}
       onClick={() => void query.fetchNextPage()}
+      onFocus={onFocus}
     >
       {query.isFetchingNextPage ? 'Загружаем…' : label}
     </button>

@@ -44,7 +44,7 @@ test('пустой раздел Studio 2 объясняет пространст
   await expect(empty).toContainText('Здесь только общие записи дома');
   await setScope(page, 'Всё');
   await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Новая заметка', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить заметку', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Новая заметка' })).toBeVisible();
 });
 

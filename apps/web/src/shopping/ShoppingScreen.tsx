@@ -22,6 +22,7 @@ import { RecordPicker } from '../tasks/options.tsx';
 import { TaskTabs } from '../tasks/TaskTabs.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
 import { countWord } from '../ui/format.ts';
+import { groupBy } from '../ui/groupBy.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
@@ -158,7 +159,7 @@ export function ShoppingScreen() {
     return (
       <>
         {open.length ? (
-          [...Map.groupBy(open, (card) => card.data.category || card.data.store || 'Список')].map(
+          [...groupBy(open, (card) => card.data.category || card.data.store || 'Список')].map(
             ([category, items]) => (
               <Section
                 key={category}

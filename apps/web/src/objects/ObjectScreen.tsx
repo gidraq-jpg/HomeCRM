@@ -1,6 +1,6 @@
 import { CaretLeft, DotsThree, PencilSimple } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { Link, Outlet, useMatch, useNavigate, useParams } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import { Link, Outlet, useLocation, useMatch, useNavigate, useParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
@@ -10,6 +10,7 @@ import { useMeters } from '../meters/queries.ts';
 import { viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { formatArea } from '../property/property.ts';
+import { AddAction } from '../shell/AddAction.tsx';
 import { FormHeading } from '../ui/FormHeading.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import { Page } from '../ui/Page.tsx';
@@ -60,7 +61,14 @@ function ObjectView({ card }: { card: ObjectCard }) {
   const trashed = card.deletedAt !== null;
   const property = card.objectType === 'property';
   const navigate = useNavigate();
+  const location = useLocation();
+  const editNavigation = useRef(false);
   const [panel, setPanel] = useState<'edit' | 'more' | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: смена адреса завершает локальную правку.
+  useEffect(() => {
+    if (editNavigation.current) editNavigation.current = false;
+    else setPanel(null);
+  }, [location.key]);
   const editing = useMatch({ path: base, end: true }) !== null && panel === 'edit';
   const [accessOpen, setAccessOpen] = useState(false);
   const meters = useMeters(card.id, 'active', property && !trashed);
@@ -83,6 +91,7 @@ function ObjectView({ card }: { card: ObjectCard }) {
                 <CaretLeft size={20} aria-hidden />
                 Дом
               </Link>
+              <AddAction />
               {abilities.edit && !trashed ? (
                 <button
                   type="button"
@@ -90,7 +99,10 @@ function ObjectView({ card }: { card: ObjectCard }) {
                   aria-label="Править"
                   onClick={() => {
                     setPanel('edit');
-                    navigate(base);
+                    if (location.pathname !== base) {
+                      editNavigation.current = true;
+                      navigate(base);
+                    }
                   }}
                 >
                   <PencilSimple size={22} aria-hidden />

@@ -6,6 +6,7 @@ import { factsOf, viewerOf } from '../notes/abilities.ts';
 import type { FeedTaskCard, TaskCard } from './api.ts';
 import { formatDateOnly } from './fields.tsx';
 import { useTaskMembers } from './options.tsx';
+import { isOverdue } from './plan.ts';
 import { STATUS_LABELS } from './TaskForm.tsx';
 import { taskPath } from './TaskRows.tsx';
 
@@ -129,7 +130,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
                   {card.checkOn ? formatDateOnly(card.checkOn) : '—'}
                 </p>
               ) : null}
-              {active && card.dueOn && card.dueOn < today ? (
+              {isOverdue(card, today) ? (
                 <span className="studio-label studio-label--overdue">Просрочено</span>
               ) : null}
             </div>

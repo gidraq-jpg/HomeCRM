@@ -84,12 +84,13 @@ export function MoveTaskSheet({
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                if (date) move(date, scope);
+                if (date && date >= today) move(date, scope);
               }}
             >
               <TextField
                 label="Дата переноса"
                 type="date"
+                min={today}
                 value={date}
                 onChange={setDate}
                 required
@@ -97,7 +98,7 @@ export function MoveTaskSheet({
               />
               <button
                 className="btn btn--primary"
-                disabled={pending || !date || (scope === 'following' && !online)}
+                disabled={pending || !date || date < today || (scope === 'following' && !online)}
                 type="submit"
               >
                 {title}

@@ -1,5 +1,6 @@
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS, SCOPES } from '../access/scope.ts';
+import { isStudio } from './studio.ts';
 
 /** Переключатель «Всё · Общее · Личное» из шапки: фильтрует все разделы (SPACE-5). */
 export function ScopeSwitch() {
@@ -16,9 +17,14 @@ export function ScopeSwitch() {
             checked={scope === value}
             onChange={() => setScope(value)}
           />
-          <span className="scope-switch__label">{SCOPE_LABELS[value]}</span>
+          <span className="scope-switch__label">
+            {value === 'personal' && isStudio() ? <LockSimple size={18} aria-hidden /> : null}
+            {SCOPE_LABELS[value]}
+          </span>
         </label>
       ))}
     </fieldset>
   );
 }
+
+import { LockSimple } from '@phosphor-icons/react';

@@ -1,10 +1,12 @@
 import { Plus } from '@phosphor-icons/react';
-import { type ReactNode, useEffect } from 'react';
-import { useLocation } from 'react-router';
+import { type ReactNode, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
 import { ToastRegion } from '../ui/Toast.tsx';
 import { AddActionContext } from './AddAction.tsx';
 import { BottomNav, type ShellSection } from './BottomNav.tsx';
 import { SideNav } from './SideNav.tsx';
+import { sectionAdd } from './section-add.ts';
 import { isStudio } from './studio.ts';
 import { TopBar } from './TopBar.tsx';
 import { useKeyboardAttribute } from './useKeyboardAttribute.ts';
@@ -33,6 +35,18 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [quick, setQuick] = useState(false);
+  const add = () => {
+    if (!isStudio()) return onAdd();
+    const target = sectionAdd(pathname);
+    if (target.kind === 'menu') onAdd();
+    else if (target.kind === 'route') navigate(target.to);
+    else if (target.kind === 'shopping') {
+      if (pathname !== '/more/shopping') navigate('/more/shopping');
+      requestAnimationFrame(() => document.getElementById('shopping-quick-title')?.focus());
+    } else setQuick(true);
+  };
   useKeyboardAttribute();
 
   // Новый экран открывается сверху, как после перехода по ссылке.
@@ -42,7 +56,7 @@ export function AppShell({
   }, [pathname]);
 
   return (
-    <AddActionContext.Provider value={onAdd}>
+    <AddActionContext.Provider value={add}>
       <div className="app">
         <SideNav sections={sections} />
         <div className="app__content">
@@ -63,6 +77,7 @@ export function AppShell({
           <BottomNav sections={sections} />
         </div>
         {overlays}
+        {quick ? <QuickAddSheet open onOpenChange={setQuick} /> : null}
       </div>
     </AddActionContext.Provider>
   );

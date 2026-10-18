@@ -160,7 +160,7 @@ for (const percent of [100, 200]) {
         .getByRole('link', { name: 'Сегодня', exact: true }),
     ).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('link', { name: /Вымышленные яблоки/ })).toBeVisible();
-    await page.getByRole('button', { name: 'Добавить', exact: true }).click();
+    await page.getByRole('button', { name: 'Добавить покупку', exact: true }).click();
     const input = page.getByLabel('Добавить одной строкой', { exact: true });
     await expect(input).toBeFocused();
     await check(page, info, `shopping-${percent}`);

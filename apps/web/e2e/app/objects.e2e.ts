@@ -50,11 +50,7 @@ test('пустой «Дом»: одна строка, пространство �
   await checkApp(page, info, 'objects-empty-personal');
   await setScope(page, 'Общее');
   await setScope(page, 'Всё');
-  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: /^Объект/ })
-    .click();
+  await page.getByRole('button', { name: 'Добавить объект', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Новый объект' })).toBeVisible();
 });
 

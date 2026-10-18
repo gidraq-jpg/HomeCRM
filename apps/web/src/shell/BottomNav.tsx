@@ -9,13 +9,12 @@ export interface ShellSection {
 }
 
 /** Адрес покупок сохранён для ссылок и офлайн-снимка; раздел — «Сегодня». */
-export function radarFromToday(search: string, state: unknown): boolean {
+export function radarFromToday(_search: string, state: unknown): boolean {
   return (
-    new URLSearchParams(search).get('view') === 'mine' ||
-    (typeof state === 'object' &&
-      state !== null &&
-      'fromSection' in state &&
-      state.fromSection === 'today')
+    typeof state === 'object' &&
+    state !== null &&
+    'fromSection' in state &&
+    state.fromSection === 'today'
   );
 }
 export function sectionActive(to: string, pathname: string, search = '', state?: unknown): boolean {

@@ -82,7 +82,12 @@ export function useTaskOperation(
         request.method === 'PATCH'
       ) {
         // После PATCH согласованный снимок нужен и немедленной отмене через ту же очередь.
-        result = await fetchTask(result.id);
+        try {
+          result = await fetchTask(result.id);
+        } catch {
+          // Мутация подтверждена: не предлагаем повторить уже сохранённую правку.
+          // Её ответ остаётся согласованным снимком; следующий refresh повторит чтение.
+        }
         if (!sameAccount()) return;
       }
       // Ответ старого GET не должен затереть подтверждённую мутацию или отмену.
@@ -100,6 +105,8 @@ export function useTaskOperation(
         unresolved.current = { signature, body };
       }
       if (failure instanceof LocalSaved && onQueued) {
+        await client.cancelQueries({ queryKey: ['tasks', me.id] });
+        if (!sameAccount()) return;
         onQueued(request);
         return;
       }
