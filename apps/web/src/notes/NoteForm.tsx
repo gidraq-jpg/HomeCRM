@@ -9,6 +9,7 @@ import { clearDraft, useDurableDraft } from '../offline/drafts.ts';
 import { LocalSaved } from '../offline/identity.ts';
 import { CheckLine } from '../ui/CheckLine.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
+import { FormSubmitBar } from '../ui/FormSubmitBar.tsx';
 import { MAX_BODY, MAX_ITEMS, MAX_TITLE, type NoteInput } from './api.ts';
 import { addItem, type DraftItem, moveItem, removeItem, toInput, updateItem } from './checklist.ts';
 import { NoteError } from './components.tsx';
@@ -163,6 +164,7 @@ export function NoteForm({
           </label>
           <input
             id={ids.title}
+            placeholder="Например: размеры окон в спальне"
             className="input"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
@@ -314,13 +316,15 @@ export function NoteForm({
         <NoteError error={state.error} action={action} />
 
         <div className="btn-row">
-          <button
-            type="submit"
-            className="btn btn--primary"
-            disabled={state.disabled || !localDraft.ready || localDraft.needsDecision}
-          >
-            {state.pending ? pendingLabel : submitLabel}
-          </button>
+          <FormSubmitBar>
+            <button
+              type="submit"
+              className="btn btn--primary"
+              disabled={state.disabled || !localDraft.ready || localDraft.needsDecision}
+            >
+              {state.pending ? pendingLabel : submitLabel}
+            </button>
+          </FormSubmitBar>
           <button type="button" className="btn btn--secondary" onClick={onCancel}>
             Отмена
           </button>

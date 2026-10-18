@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AxeBuilder } from '@axe-core/playwright';
-import type { Page, TestInfo } from '@playwright/test';
+import type { Locator, Page, TestInfo } from '@playwright/test';
 import { expect } from './fixtures.ts';
 
 /** Скриншоты экранов: test-results/screens/<ширина>/NN-название.png. В git они не попадают. */
@@ -222,4 +222,28 @@ export async function openObjectDetails(page: Page): Promise<void> {
   await expect(summary.or(unavailable)).toBeVisible();
   if ((await summary.count()) && (await summary.locator('..').getAttribute('open')) === null)
     await summary.click();
+}
+
+/** «Кто видит» предшествует действию в DOM; закреплённая кнопка доступна и у длинной формы. */
+export async function expectVisibilityBeforeSubmit(form: Locator): Promise<void> {
+  const visibility = form.getByRole('group', { name: 'Кто видит', exact: true });
+  await expect(visibility).toBeVisible();
+  expect(
+    await visibility.evaluate((group) => {
+      const submit = group.closest('form')?.querySelector('button[type="submit"]');
+      return (
+        !!submit && !!(group.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING)
+      );
+    }),
+    '«Кто видит» перед сохранением в порядке чтения',
+  ).toBe(true);
+  const submit = form.locator('button[type="submit"]');
+  await expect(submit).toBeInViewport({ ratio: 1 });
+  await visibility.scrollIntoViewIfNeeded();
+  const groupBox = await visibility.boundingBox();
+  const submitBox = await submit.boundingBox();
+  expect(
+    groupBox && submitBox && groupBox.y + groupBox.height <= submitBox.y,
+    'после прокрутки вся строка «Кто видит» над кнопкой и не перекрыта панелью',
+  ).toBe(true);
 }

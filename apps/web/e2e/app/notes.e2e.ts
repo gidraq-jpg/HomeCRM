@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
-import { setScope } from '../support/helpers.ts';
+import { expectVisibilityBeforeSubmit, setScope } from '../support/helpers.ts';
 import {
   apiAs,
   expectNothingStored,
@@ -65,11 +65,7 @@ test('создание личной заметки: «Кто видит» над
   const visibility = form(page).getByRole('group', { name: 'Кто видит' });
   await expect(visibility.getByRole('radio', { name: 'Только я' })).toBeChecked();
   await expect(visibility.getByRole('radio')).toHaveCount(3);
-  const box = await visibility.boundingBox();
-  const save = await form(page)
-    .getByRole('button', { name: 'Сохранить', exact: true })
-    .boundingBox();
-  expect(box && save && box.y < save.y).toBe(true);
+  await expectVisibilityBeforeSubmit(form(page));
 
   // Заголовок обязателен: пустой не сохраняется, ошибка названа.
   await form(page).getByRole('button', { name: 'Сохранить', exact: true }).click();

@@ -132,11 +132,14 @@ export function Quickline({
             <textarea
               id={inputId}
               className="textarea"
-              rows={2}
+              rows={1}
               value={raw}
               maxLength={500}
               onChange={(event) => {
-                setRaw(event.target.value);
+                const input = event.currentTarget;
+                input.style.height = 'auto';
+                input.style.height = `${input.scrollHeight + 2}px`;
+                setRaw(input.value);
                 setExcluded(new Set());
                 setOverrides({});
               }}

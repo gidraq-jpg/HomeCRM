@@ -59,14 +59,14 @@ export function NewFromTemplateScreen() {
 
   if (query.isPending) {
     return (
-      <StudioPage form title="Объект из шаблона" back={BACK}>
+      <StudioPage form={templateId !== undefined} title="Объект из шаблона" back={BACK}>
         <Notice>Загружаем шаблоны…</Notice>
       </StudioPage>
     );
   }
   if (query.isError) {
     return (
-      <StudioPage form title="Объект из шаблона" back={BACK}>
+      <StudioPage form={templateId !== undefined} title="Объект из шаблона" back={BACK}>
         <Notice error>Не удалось загрузить шаблоны. Проверьте подключение и повторите.</Notice>
         <button className="text-button" type="button" onClick={() => void query.refetch()}>
           Повторить загрузку шаблонов
@@ -79,7 +79,7 @@ export function NewFromTemplateScreen() {
     templateId === undefined ? undefined : query.data.find((item) => item.id === templateId);
   if (templateId === undefined) {
     return (
-      <StudioPage form title="Объект из шаблона" back={BACK}>
+      <StudioPage title="Объект из шаблона" back={BACK}>
         <p className="muted">
           Шаблон заведёт объект сразу со счетами, счётчиками и сроками. Лишнее снимается галочками
           на следующем шаге.
@@ -107,7 +107,7 @@ export function NewFromTemplateScreen() {
     <StudioPage
       form
       title="Новый объект"
-      eyebrow={template.title}
+      formEyebrow={template.title}
       back={{ to: '/home/from-template', label: 'Шаблоны' }}
     >
       <TemplateForm

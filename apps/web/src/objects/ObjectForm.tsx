@@ -12,6 +12,7 @@ import {
   toPropertyData,
 } from '../property/property.ts';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
+import { FormSubmitBar } from '../ui/FormSubmitBar.tsx';
 import { type FieldInput, MAX_FIELD_NAME, MAX_FIELD_VALUE, MAX_FIELDS, MAX_TITLE } from './api.ts';
 import { ObjectError } from './components.tsx';
 import { addField, type DraftField, removeField, toInput, updateField } from './fields.ts';
@@ -157,6 +158,7 @@ export function ObjectForm({
         </label>
         <input
           id={ids.title}
+          placeholder="Например: квартира на Лесной"
           className="input"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
@@ -323,9 +325,11 @@ export function ObjectForm({
       <ObjectError error={state.error} action={action} />
 
       <div className="btn-row">
-        <button type="submit" className="btn btn--primary" disabled={state.disabled}>
-          {state.pending ? pendingLabel : submitLabel}
-        </button>
+        <FormSubmitBar>
+          <button type="submit" className="btn btn--primary" disabled={state.disabled}>
+            {state.pending ? pendingLabel : submitLabel}
+          </button>
+        </FormSubmitBar>
         <button type="button" className="btn btn--secondary" onClick={onCancel}>
           Отмена
         </button>

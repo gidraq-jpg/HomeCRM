@@ -4,6 +4,7 @@ import type { useAction } from '../auth/components.tsx';
 import { ObjectError } from '../objects/components.tsx';
 import { addPhone, PHONE_LABEL_HINTS, removePhone, updatePhone } from '../organizations/form.ts';
 import { CheckLine } from '../ui/CheckLine.tsx';
+import { FormSubmitBar } from '../ui/FormSubmitBar.tsx';
 import {
   MAX_EMAIL,
   MAX_ITEMS,
@@ -103,6 +104,7 @@ export function PersonForm({
         </label>
         <input
           id={id('title')}
+          placeholder="Например: Иван Петров"
           className="input"
           value={values.title}
           maxLength={MAX_TITLE}
@@ -444,9 +446,11 @@ export function PersonForm({
 
       <ObjectError error={state.error} action="person" />
       <div className="btn-row">
-        <button type="submit" className="btn btn--primary" disabled={state.disabled}>
-          {state.pending ? pendingLabel : submitLabel}
-        </button>
+        <FormSubmitBar>
+          <button type="submit" className="btn btn--primary" disabled={state.disabled}>
+            {state.pending ? pendingLabel : submitLabel}
+          </button>
+        </FormSubmitBar>
         <button type="button" className="btn btn--secondary" onClick={onCancel}>
           Отмена
         </button>
