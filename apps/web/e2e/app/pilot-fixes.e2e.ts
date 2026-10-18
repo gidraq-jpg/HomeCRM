@@ -129,6 +129,46 @@ test('D19a.1–3/13: повтор возвращается отменой без
   await expect(resume).toBeEnabled();
 });
 
+test('D19a.1: новое событие выполнения после снимка даёт конфликт без попытки отменить его', async ({
+  page,
+  family,
+}, info) => {
+  const api = await apiAs(family, 'adult');
+  const response = await api.post('tasks', {
+    title: 'Конфликт события D19',
+    planOn: homeDate(0),
+    repeatRule: { kind: 'daily' },
+  });
+  expect(response.status).toBe(201);
+  const id = (response.body as { id: string }).id;
+  await signInAs(page, family, 'adult');
+  await page.goto('#/today/all');
+  await page
+    .getByRole('button', { name: 'Отметить сделанным: Конфликт события D19', exact: true })
+    .click();
+  await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toBeVisible();
+  await page.reload();
+  await page.route(`**/api/tasks/${id}?*`, async (route) => {
+    const received = await route.fetch();
+    const body = await received.json();
+    const card = body.data ?? body;
+    card.completionEventId = crypto.randomUUID();
+    await route.fulfill({ response: received, json: body });
+  });
+  let undoRequests = 0;
+  await page.route(`**/api/tasks/${id}/undo`, (route) => {
+    undoRequests++;
+    return route.continue();
+  });
+  await page
+    .getByRole('button', { name: 'Возобновить: Конфликт события D19', exact: true })
+    .click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  expect(undoRequests).toBe(0);
+  expect((await api.get(`tasks/${id}`)).body).toMatchObject({ status: 'done' });
+  await check(page, info, 'repeat-conflict');
+});
+
 test('D19a.2: выполненное без сети старое дело остаётся в своём дне до и после синхронизации', async ({
   page,
   context,
@@ -246,6 +286,11 @@ test('D19a.6/9/10/13: покупки без Map.groupBy, назад из пра�
   await expect(page.locator('.ui7-fullscreen-form')).toBeVisible();
   await page.goBack();
   await page.getByRole('link', { name: 'Обзор', exact: true }).click();
+  await expect(page.locator('.ui7-fullscreen-form')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Править', exact: true }).click();
+  await expect(page.locator('.ui7-fullscreen-form')).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`#/home/${object.id}$`));
   await expect(page.locator('.ui7-fullscreen-form')).toHaveCount(0);
   await check(page, info, 'object');
   await page.goto('#/more/radar?view=mine');

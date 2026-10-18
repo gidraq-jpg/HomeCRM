@@ -99,10 +99,8 @@ function ObjectView({ card }: { card: ObjectCard }) {
                   aria-label="Править"
                   onClick={() => {
                     setPanel('edit');
-                    if (location.pathname !== base) {
-                      editNavigation.current = true;
-                      navigate(base);
-                    }
+                    editNavigation.current = true;
+                    navigate(base);
                   }}
                 >
                   <PencilSimple size={22} aria-hidden />

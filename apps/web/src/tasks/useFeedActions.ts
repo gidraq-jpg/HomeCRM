@@ -155,7 +155,10 @@ export function useFeedActions<T extends TaskCard>(apply: (card: T) => void) {
           // После смены ленты или перезагрузки окно берём из Date сервера,
           // не возвращаем служебные монотонные часы в кэш ленты.
           completion = await fetchTask(card.id);
-          if (completion.status !== 'done') {
+          if (
+            completion.status !== 'done' ||
+            completion.completionEventId !== card.completionEventId
+          ) {
             operation.setError(new TaskError(409, { code: 'CONFLICT' }));
             return;
           }
