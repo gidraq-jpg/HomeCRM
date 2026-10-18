@@ -680,3 +680,36 @@ test('чужое личное и «Взрослые» не попадают ни
     await vera.close();
   }
 });
+
+test('UI-7: Лента → Править → goBack возвращает вкладки и меню объекта', async ({
+  page,
+  family,
+}, info) => {
+  const api = await apiAs(family, 'adult');
+  const object = await seedObject(api, family, {
+    title: 'Вымышленный велосипед',
+    objectType: 'other',
+  });
+  await signInAs(page, family, 'adult');
+  await page.goto(`#/home/${object.id}/timeline`);
+  const tabs = page.getByRole('navigation', { name: 'Разделы объекта' });
+  await expect(tabs.getByRole('link', { name: 'Лента', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await page.getByRole('button', { name: 'Править', exact: true }).click();
+  await expect(form(page)).toBeVisible();
+  await expect(page.locator('.bottom-nav')).toBeHidden();
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`#/home/${object.id}/timeline$`));
+  await expect(tabs).toBeVisible();
+  await expect(tabs.getByRole('link', { name: 'Лента', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(page.locator('.bottom-nav')).toBeVisible();
+  await expect(page.locator('.topbar')).toBeVisible();
+  await expect(page.locator('.ui7-fullscreen-form')).toHaveCount(0);
+  await expect(form(page)).toHaveCount(0);
+  await checkApp(page, info, 'ui7-object-timeline-back');
+});

@@ -10,6 +10,7 @@ import {
   seedDeadline,
   setHomeZone,
 } from './deadlines-support.ts';
+import { seedDocument } from './documents-support.ts';
 import {
   expectImageLoaded,
   filePicker,
@@ -28,6 +29,7 @@ import {
   seedDevice,
   thisDevice,
 } from './notifications-support.ts';
+import { seedOrganization, seedPerson } from './people-support.ts';
 import { openRecordActions } from './record-actions.ts';
 import { checkApp, expect, seedProfiles, signInAs } from './support.ts';
 
@@ -333,4 +335,65 @@ test('уведомления на компьютере: карточка, экр
     page.getByRole('list', { name: 'Попытки отправки' }).getByRole('listitem'),
   ).toHaveCount(2);
   await checkApp(page, info, 'desktop-notifications-log');
+});
+
+test('UI-7: боковое меню остаётся у всех форм на 1280 px', async ({ page, family }) => {
+  test.setTimeout(60_000);
+  const api = await apiAs(family, 'adult');
+  const object = await seedObject(api, family, {
+    title: 'Вымышленный объект',
+    objectType: 'other',
+  });
+  const note = await seedNote(api, family, { title: 'Вымышленная заметка', body: 'Памятка' });
+  const person = await seedPerson(api, { title: 'Вымышленный человек' });
+  const organization = await seedOrganization(api, { title: 'Вымышленная организация' });
+  const doc = await seedDocument(api, {
+    title: 'Вымышленный документ',
+    type: 'other',
+    indefinite: true,
+  });
+  const task = await api.post('tasks', { title: 'Вымышленное дело' });
+  expect(task.status).toBe(201);
+  await signInAs(page, family, 'adult');
+  const side = page.locator('.side-nav');
+  const check = async () => {
+    await expect(page.locator('.ui7-fullscreen-form')).toBeVisible();
+    await expect(side).toBeVisible();
+    await expect(page.locator('.bottom-nav')).toBeHidden();
+    const submit = page.locator('form button[type="submit"]');
+    await expect(submit).toBeVisible();
+    const submitHeight = await submit.evaluate((button) => button.getBoundingClientRect().height);
+    const barHeight = await page
+      .locator('.form-submit-bar')
+      .evaluate((bar) => bar.getBoundingClientRect().height);
+    expect(barHeight, 'нет пустого flex-отступа у кнопки').toBeLessThanOrEqual(submitHeight + 1);
+  };
+  for (const route of [
+    '/today/new',
+    '/more/notes/new',
+    '/home/new',
+    '/documents/new',
+    '/people/contacts/new',
+    '/more/organizations/new',
+    '/home/from-template/apartment',
+  ]) {
+    await page.goto(`#${route}`);
+    await check();
+  }
+  for (const route of [
+    `/today/tasks/${(task.body as { id: string }).id}`,
+    `/more/notes/${note.id}`,
+    `/home/${object.id}`,
+    `/documents/${doc.id}`,
+    `/people/contacts/${person.id}`,
+    `/more/organizations/${organization.id}`,
+  ]) {
+    await page.goto(`#${route}`);
+    await page
+      .locator('.object-hero__actions')
+      .getByRole('button', { name: /^Править/ })
+      .click();
+    await check();
+  }
+  await page.close();
 });

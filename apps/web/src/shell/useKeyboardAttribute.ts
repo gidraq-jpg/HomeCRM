@@ -20,8 +20,10 @@ export function useKeyboardAttribute(): void {
     const height = () => viewport?.height ?? window.innerHeight;
 
     let tallest = height();
+    let resetOnResize = false;
     const update = () => {
-      tallest = Math.max(tallest, height());
+      tallest = resetOnResize ? height() : Math.max(tallest, height());
+      resetOnResize = false;
       if (height() < tallest * KEYBOARD_RATIO) root.dataset.keyboard = 'open';
       else delete root.dataset.keyboard;
     };
@@ -29,16 +31,17 @@ export function useKeyboardAttribute(): void {
     // media query меняется и от клавиатуры, когда высота становится меньше ширины.
     // Сбрасываем базовую высоту только при настоящем повороте устройства.
     const orientation = window.screen.orientation;
+    const orientationTarget = orientation ?? window.matchMedia('(orientation: portrait)');
     const onOrientation = () => {
-      tallest = height();
-      update();
+      // change может прийти до resize: новая базовая высота известна только на нём.
+      resetOnResize = true;
     };
 
     target.addEventListener('resize', update);
-    orientation?.addEventListener('change', onOrientation);
+    orientationTarget.addEventListener('change', onOrientation);
     return () => {
       target.removeEventListener('resize', update);
-      orientation?.removeEventListener('change', onOrientation);
+      orientationTarget.removeEventListener('change', onOrientation);
       delete root.dataset.keyboard;
     };
   }, []);

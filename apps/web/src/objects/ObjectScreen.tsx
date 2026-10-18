@@ -1,6 +1,6 @@
 import { CaretLeft, DotsThree, PencilSimple } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link, Outlet, useNavigate, useParams } from 'react-router';
+import { Link, Outlet, useMatch, useNavigate, useParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
@@ -61,6 +61,7 @@ function ObjectView({ card }: { card: ObjectCard }) {
   const property = card.objectType === 'property';
   const navigate = useNavigate();
   const [panel, setPanel] = useState<'edit' | 'more' | null>(null);
+  const editing = useMatch({ path: base, end: true }) !== null && panel === 'edit';
   const [accessOpen, setAccessOpen] = useState(false);
   const meters = useMeters(card.id, 'active', property && !trashed);
   const deadlines = useSourceDeadlines('objects', card.id);
@@ -69,11 +70,11 @@ function ObjectView({ card }: { card: ObjectCard }) {
   return (
     <Page
       title={card.title}
-      className={`object-page ${panel === 'edit' ? 'ui7-fullscreen-form' : ''}`}
+      className={`object-page ${editing ? 'ui7-fullscreen-form' : ''}`}
       documentTitle={TAB_TITLE}
       eyebrow={trashed ? `${eyebrow} · в корзине` : eyebrow}
       heading={
-        panel === 'edit' ? (
+        editing ? (
           <FormHeading title={card.title} back={BACK} />
         ) : (
           <div className="object-hero">
@@ -155,8 +156,8 @@ function ObjectView({ card }: { card: ObjectCard }) {
         ? { status: <PropertyStatusBadge status={card.typeData.status} /> }
         : {})}
     >
-      <div className={`studio-panel object-panel ${panel === 'edit' ? 'ui6-panel' : ''}`}>
-        {panel !== 'edit' ? (
+      <div className={`studio-panel object-panel ${editing ? 'ui6-panel' : ''}`}>
+        {!editing ? (
           <LinkTabs
             label="Разделы объекта"
             items={[

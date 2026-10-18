@@ -10,6 +10,7 @@ export function StudioPage({
   back,
   title,
   eyebrow,
+  formEyebrow,
   status,
   heading,
   className,
@@ -17,7 +18,12 @@ export function StudioPage({
   service = false,
   backHistory = false,
   ...props
-}: Parameters<typeof Page>[0] & { form?: boolean; service?: boolean; backHistory?: boolean }) {
+}: Parameters<typeof Page>[0] & {
+  form?: boolean;
+  formEyebrow?: string;
+  service?: boolean;
+  backHistory?: boolean;
+}) {
   const navigate = useNavigate();
   return (
     <Page
@@ -27,7 +33,13 @@ export function StudioPage({
       heading={
         heading ??
         (form ? (
-          <FormHeading title={title} back={back} backHistory={backHistory} />
+          <FormHeading
+            title={title}
+            back={back}
+            backHistory={backHistory}
+            eyebrow={formEyebrow}
+            status={status}
+          />
         ) : (
           <div className="studio-list-hero">
             {backHistory ? (
