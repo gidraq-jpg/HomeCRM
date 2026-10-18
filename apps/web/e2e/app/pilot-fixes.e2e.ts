@@ -2,7 +2,11 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Page, TestInfo } from '@playwright/test';
 import { expect, test } from '../auth/support/fixtures.ts';
-import { expectAccessible, expectNoHorizontalScroll } from '../support/helpers.ts';
+import {
+  expectAccessible,
+  expectNoHorizontalScroll,
+  expectTouchTargets,
+} from '../support/helpers.ts';
 import { homeDate, setHomeZone } from './deadlines-support.ts';
 import { seedDocument } from './documents-support.ts';
 import { apiAs, seedNote, seedObject } from './notes-support.ts';
@@ -12,8 +16,14 @@ import { signInAs } from './support.ts';
 async function check(page: Page, info: TestInfo, name: string) {
   await expectNoHorizontalScroll(page);
   await expectAccessible(page, `D19-${name}-${info.project.name}`);
+  await expectTouchTargets(page);
   if (process.platform === 'linux') {
-    const directory = resolve(import.meta.dirname, '../../../../docs/screenshots/D19');
+    const directory = resolve(
+      import.meta.dirname,
+      process.env.D19_CAPTURE === '1'
+        ? '../../../../docs/screenshots/D19'
+        : '../../test-results/screens/D19',
+    );
     await mkdir(directory, { recursive: true });
     const path = resolve(directory, `${name}-${info.project.name}.png`);
     await page.screenshot({ path, fullPage: true });
@@ -294,7 +304,12 @@ test('D19a.11–12: ребёнку метка заметки без кнопки
   await check(page, info, 'month');
   await page.goto(`#/people/contacts/${person.id}`);
   await expect(page.locator('dt').filter({ hasText: /^День рождения$/ })).toHaveCount(1);
-  await expect(page.locator('dt').filter({ hasText: 'Напоминание о дне рождения' })).toHaveCount(1);
+  await expect(
+    page.locator('.object-facts > div').filter({ hasText: 'День рождения' }),
+  ).toContainText('Напоминание включено');
+  await expect(
+    page.locator('.ui6-record-panel dt').filter({ hasText: 'День рождения' }),
+  ).toHaveCount(0);
   await check(page, info, 'person');
   await page.context().clearCookies();
   await signInAs(page, family, 'child');

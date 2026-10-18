@@ -175,7 +175,14 @@ function PersonView({ card }: { card: PersonCard }) {
       facts={[
         { label: 'Автор', value: nameOf(card.authorId) },
         { label: 'Создан', value: formatDay(card.createdAt, me.timeZone) },
-        ...(data.birthday ? [{ label: 'День рождения', value: birthdayLabel(data.birthday) }] : []),
+        ...(data.birthday
+          ? [
+              {
+                label: 'День рождения',
+                value: `${birthdayLabel(data.birthday)} · Напоминание ${data.birthdayEnabled ? 'включено' : 'выключено'}`,
+              },
+            ]
+          : []),
       ]}
       more={
         !trashed ? (
@@ -280,12 +287,6 @@ function PersonView({ card }: { card: PersonCard }) {
             <dd>{data.address}</dd>
           </div>
         )}
-        {data.birthdayEnabled ? (
-          <div className="facts__item">
-            <dt>Напоминание о дне рождения</dt>
-            <dd>Напоминание включено</dd>
-          </div>
-        ) : null}
         {data.note === '' ? null : (
           <div className="facts__item">
             <dt>Заметка</dt>
