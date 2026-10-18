@@ -1,8 +1,8 @@
-"""Коллаж первых экранов Linux-снимков D16b (нужен Pillow, вне приложения)."""
+"""Коллаж Linux-снимков D16b; запуск в контейнере описан в runbook, раздел 12."""
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-ROOT = Path(__file__).resolve().parents[4] / "docs/screenshots/UI-6"
+ROOT = Path(__file__).resolve().parents[2] / "test-results/screens/UI-6"
 SCREENS = [
     ("more", "Ещё"), ("search-results", "Поиск"), ("profile", "Обо мне"),
     ("security", "Безопасность"), ("export", "Мои данные"), ("member", "Участник"),
@@ -17,8 +17,7 @@ SCREENS = [
     ("record-access-audience", "Кто видит"), ("record-transfer", "Передать дело"), ("profile-form", "Правка профиля"),
     ("profile-leave", "Подтверждение ухода"), ("member-role", "Смена роли"), ("invite-issued", "Выданное приглашение"),
 ]
-font_path = Path("C:/Windows/Fonts/segoeui.ttf")
-font = ImageFont.truetype(str(font_path), 18) if font_path.exists() else ImageFont.load_default()
+font = ImageFont.truetype("DejaVuSans.ttf", 18)
 for percent in (100, 200):
     width, height, gap, cols = 240, 494, 16, 6
     rows = (len(SCREENS) + cols - 1) // cols

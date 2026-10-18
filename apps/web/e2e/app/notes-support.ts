@@ -133,7 +133,7 @@ export async function openNotes(page: Page) {
 }
 
 /** Ничего из `secrets` не лежит ни в хранилищах браузера, ни в кэше, ни в адресе и названии вкладки. */
-export async function expectNothingStored(page: Page, secrets: readonly string[]) {
+export async function expectNothingStored(page: Page, secrets: readonly (string | RegExp)[]) {
   const dump = await page.evaluate(async () => {
     const parts: string[] = [location.href, document.title];
     for (const storage of [localStorage, sessionStorage]) {
@@ -150,8 +150,11 @@ export async function expectNothingStored(page: Page, secrets: readonly string[]
     for (const database of databases) parts.push(database.name ?? '');
     return parts.join('\n');
   });
-  for (const secret of secrets)
-    expect(dump, `«${secret}» в хранилищах браузера`).not.toContain(secret);
+  for (const secret of secrets) {
+    const stored = expect(dump, `«${secret}» в хранилищах браузера`);
+    if (typeof secret === 'string') stored.not.toContain(secret);
+    else stored.not.toMatch(secret);
+  }
   // В кэше сервис-воркера только файлы сборки, никакого /api.
   expect(dump).not.toContain('/api/');
 }

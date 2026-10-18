@@ -19,7 +19,7 @@ import { apiAs, openAs, seedObject } from './notes-support.ts';
 import { seedAccount, seedLink, seedOrganization, seedProperty } from './property-support.ts';
 import { signInAs } from './support.ts';
 
-const directory = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-4');
+const directory = resolve(import.meta.dirname, '../../test-results/screens/UI-4');
 test('Studio 2: сумма, окно и оплаченная доля из настоящего радара', async ({
   page,
   family,

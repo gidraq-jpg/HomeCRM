@@ -47,7 +47,7 @@ for (const zoom of [100, 200]) {
     const raw = 'Позвонить завтра в 18:00 #Учебная @Борис';
     await input.fill(raw);
     await expect(page.locator('.task-chip')).toHaveCount(4);
-    const directory = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-4b');
+    const directory = resolve(import.meta.dirname, '../../test-results/screens/UI-4b');
     async function check(name: string) {
       await page.evaluate(() => document.fonts.ready);
       await settle(page);

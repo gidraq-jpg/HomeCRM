@@ -82,7 +82,7 @@ for (const percent of [100, 200]) {
           resolve(SCREENSHOT_DIR, info.project.name.slice(1), `object-spacing-${percent}.png`),
           resolve(
             import.meta.dirname,
-            `../../../../docs/screenshots/UI-4/${info.project.name}-object-spacing-${percent}.png`,
+            `../../test-results/screens/UI-4/${info.project.name}-object-spacing-${percent}.png`,
           ),
         );
       }

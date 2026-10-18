@@ -17,7 +17,7 @@ import { signInAs } from './support.ts';
 
 async function shot(page: Page, name: string) {
   if (process.platform !== 'linux') return;
-  const directory = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-2');
+  const directory = resolve(import.meta.dirname, '../../test-results/screens/UI-2');
   await mkdir(directory, { recursive: true });
   await page.screenshot({ path: resolve(directory, `${name}.png`), fullPage: true });
 }
