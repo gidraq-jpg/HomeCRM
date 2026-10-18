@@ -104,7 +104,8 @@ for (const textScale of [1, 2]) {
     await expect(page.getByText('→ Анна', { exact: false })).toBeVisible();
     await expect(page.locator('.plan-circle--waiting')).toBeVisible();
     await expect(page.getByText(/· свободно/).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: /2 просроченных дела/ })).toBeVisible();
+    // Просрочка — срок dueOn; прошедший день плана сам по себе её не добавляет.
+    await expect(page.getByRole('link', { name: /1 просроченное дело/ })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toHaveCount(0);
     await check(page, `plan-${textScale * 100}-${width}`);
     await page.getByRole('button', { name: 'Перенести: Полить растения', exact: true }).click();

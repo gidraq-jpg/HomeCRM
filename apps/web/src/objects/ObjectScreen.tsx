@@ -62,11 +62,11 @@ function ObjectView({ card }: { card: ObjectCard }) {
   const property = card.objectType === 'property';
   const navigate = useNavigate();
   const location = useLocation();
-  const editNavigation = useRef(false);
+  const panelNavigation = useRef(false);
   const [panel, setPanel] = useState<'edit' | 'more' | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: смена адреса завершает локальную правку.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: смена адреса закрывает локальную панель, кроме явного открытия из шапки.
   useEffect(() => {
-    if (editNavigation.current) editNavigation.current = false;
+    if (panelNavigation.current) panelNavigation.current = false;
     else setPanel(null);
   }, [location.key]);
   const editing = useMatch({ path: base, end: true }) !== null && panel === 'edit';
@@ -99,7 +99,7 @@ function ObjectView({ card }: { card: ObjectCard }) {
                   aria-label="Править"
                   onClick={() => {
                     setPanel('edit');
-                    editNavigation.current = true;
+                    panelNavigation.current = true;
                     navigate(base);
                   }}
                 >
@@ -112,6 +112,7 @@ function ObjectView({ card }: { card: ObjectCard }) {
                 aria-label="Ещё: действия с объектом"
                 onClick={() => {
                   setPanel('more');
+                  panelNavigation.current = true;
                   navigate(base);
                 }}
               >

@@ -420,6 +420,16 @@ test('D19a.14: плюс открывает форму раздела из спи
   ]) {
     for (const source of [list, card]) {
       await page.goto(`#${source}`);
+      if (source === card && target === '/documents/new') {
+        await expect(page.locator('main .studio-add')).toBeVisible();
+        await page.evaluate(() => {
+          window.document.documentElement.style.fontSize = '200%';
+        });
+        await check(page, info, 'document-text200');
+        await page.evaluate(() => {
+          window.document.documentElement.style.fontSize = '';
+        });
+      }
       await page.locator(`button.studio-add[aria-label="${label}"]`).click();
       await expect(page).toHaveURL(new RegExp(`#${target}$`));
       await expect(

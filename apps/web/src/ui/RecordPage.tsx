@@ -1,5 +1,5 @@
 import { CaretLeft, DotsThree, PencilSimple } from '@phosphor-icons/react';
-import { type ReactNode, type RefObject, useState } from 'react';
+import { type ReactNode, type RefObject, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
@@ -25,6 +25,7 @@ interface RecordPageProps {
   onAccess?: () => void;
   actionsRef?: RefObject<HTMLButtonElement | null>;
   onActionsOpenChange?: (open: boolean) => void;
+  actionsOpen?: boolean;
   children: ReactNode;
 }
 
@@ -45,10 +46,14 @@ export function RecordPage({
   access,
   onAccess,
   onActionsOpenChange,
+  actionsOpen,
   actionsRef,
   children,
 }: RecordPageProps) {
   const [panel, setPanel] = useState<'more' | 'access' | null>(null);
+  useEffect(() => {
+    if (actionsOpen === false) setPanel(null);
+  }, [actionsOpen]);
   const changePanel = (next: 'more' | 'access' | null) => {
     onActionsOpenChange?.(next !== null);
     setPanel(next);

@@ -221,12 +221,14 @@ function NoteView({ card }: { card: NoteCard }) {
       card={card}
       abilities={abilities}
       active={accessActive}
+      onCopyComplete={() => setAccessActive(false)}
       returnFocusRef={recordActions}
     >
       {(access) => (
         <RecordPage
           actionsRef={recordActions}
           onActionsOpenChange={setAccessActive}
+          actionsOpen={accessActive}
           editing={editing}
           title={card.title}
           documentTitle={TAB_TITLE}

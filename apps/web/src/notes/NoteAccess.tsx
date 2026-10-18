@@ -250,6 +250,7 @@ interface NoteAccessProps {
   active?: boolean;
   returnFocusRef?: RefObject<HTMLElement | null>;
   children?: (controls: ReactNode) => ReactNode;
+  onCopyComplete?: () => void;
 }
 
 /**
@@ -262,6 +263,7 @@ export function NoteAccess({
   children,
   active = true,
   returnFocusRef,
+  onCopyComplete,
 }: NoteAccessProps) {
   const [sheet, setSheet] = useState<SheetName | null>(null);
   const navigate = useNavigate();
@@ -324,6 +326,7 @@ export function NoteAccess({
                 void copying.run(async () => {
                   const copy = await copyToPersonal(card.id);
                   await refresh();
+                  onCopyComplete?.();
                   toast.show({
                     message: 'Копия сохранена в личном',
                     detail: 'Кто видит копию: только вы',
