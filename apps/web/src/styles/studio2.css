@@ -284,6 +284,8 @@ html[data-design="studio"] .today-hints > a {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
+  /* Цель 44 px не сдвигает вкладки и карточку главного дела ниже. */
+  margin-block: -8px;
 }
 html[data-design="studio"] .today-panel {
   padding: 18px 16px calc(var(--nav-height) + 32px + env(safe-area-inset-bottom));
