@@ -7,6 +7,7 @@ import { apiRequest } from '../auth/api.ts';
 
 export const ACCOUNT_STATUSES = [
   'transmitted',
+  'saved',
   'not_transmitted',
   'not_open',
   'not_required',
@@ -22,7 +23,13 @@ export const MonthAccount = z.object({
 });
 export type MonthAccount = z.infer<typeof MonthAccount>;
 
-const Money = z.object({ chargedCents: Cents, paidCents: Cents, remainingCents: Cents });
+const Money = z.object({
+  chargedCents: Cents,
+  paidCents: Cents,
+  remainingCents: Cents,
+  dueOn: z.string().nullable().default(null),
+  overdue: z.boolean().default(false),
+});
 
 export const MonthObject = Money.extend({
   spaceId: z.string(),
@@ -41,8 +48,15 @@ export const MonthOverview = z.object({
 });
 export type MonthOverview = z.infer<typeof MonthOverview>;
 
-export function fetchMonth(month: string, signal?: AbortSignal) {
-  const query = new URLSearchParams({ month });
+export interface MonthFilters {
+  scope?: 'all' | 'personal' | 'household';
+  householdId?: string;
+}
+
+export function fetchMonth(month?: string, signal?: AbortSignal, filters: MonthFilters = {}) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) if (value) query.set(key, value);
+  if (month) query.set('month', month);
   return apiRequest('GET', `utilities/month?${query}`, MonthOverview, undefined, signal);
 }
 

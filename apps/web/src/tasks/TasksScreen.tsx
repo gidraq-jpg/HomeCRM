@@ -6,6 +6,7 @@ import { Notice } from '../auth/components.tsx';
 import { RadarRows } from '../deadlines/RadarScreen.tsx';
 import { ReadingsWindowsFromRows } from '../deadlines/ReadingsWindowCards.tsx';
 import { buildRows, filterRows } from '../deadlines/radar.ts';
+import { useHouseNames } from '../deadlines/useHouseNames.ts';
 import { isOpenWindow } from '../deadlines/utility.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { PushCard } from '../notifications/PushCard.tsx';
@@ -64,6 +65,7 @@ function TasksPage({
   children: ReactNode;
 }) {
   const { me, householdId, isAdmin } = useHousehold();
+  const houseNames = useHouseNames();
   const { scope } = useScope();
   const [, setParams] = useSearchParams();
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
@@ -94,9 +96,9 @@ function TasksPage({
           label="Выбранный дом"
           value={house ?? ''}
           onChange={(value) => setParams({ householdId: value })}
-          options={me.roles.map((role, index) => ({
+          options={me.roles.map((role) => ({
             value: role.householdId,
-            label: `Дом ${index + 1}`,
+            label: houseNames(role.householdId),
           }))}
         />
       ) : null}

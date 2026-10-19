@@ -79,7 +79,12 @@ export function DocumentRows({
                   {[DOCUMENT_LABELS[document.data.type], owner].filter(Boolean).join(' · ')}
                 </span>
                 <span className="radar-line row__state">
-                  <Status tone={info.tone}>{info.label}</Status>
+                  <Status tone={info.tone}>
+                    {info.label}
+                    {info.tone === 'warning' || info.tone === 'danger'
+                      ? ` · ${info.until.replace(/^до /, '')}`
+                      : ''}
+                  </Status>
                 </span>
               </>
             }

@@ -249,8 +249,13 @@ html[data-design="studio"] .object-panel .link-item {
   align-items: center;
 }
 html[data-design="studio"] .object-panel .link-item > .row {
-  flex: 1;
+  flex: 1 1 240px;
   min-width: 0;
+}
+html[data-design="studio"] .object-panel .link-item :is(.row__title, .row__meta) {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 html[data-design="studio"] .window-card {
   border: 0;
@@ -268,12 +273,17 @@ html[data-design="studio"] .today-hints {
   gap: 8px;
   margin-top: 14px;
 }
-html[data-design="studio"] .today-hints > span {
+html[data-design="studio"] .today-hints > :is(span, a) {
   padding: 5px 10px;
   border-radius: 10px;
   background: #302c25;
   color: var(--on-dark);
   font-size: 0.75rem;
+}
+html[data-design="studio"] .today-hints > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
 }
 html[data-design="studio"] .today-panel {
   padding: 18px 16px calc(var(--nav-height) + 32px + env(safe-area-inset-bottom));

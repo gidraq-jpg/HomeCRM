@@ -358,7 +358,7 @@ export function ReadingsEntry() {
       ctx.setUploaded({});
       setSubmitted(false);
       setPhotoProblems({});
-      toast.show({ message: 'Показания сохранены', detail: 'Осталось передать их поставщику.' });
+      toast.show({ message: 'Показания сохранены', detail: 'Проверьте значения и расход.' });
       navigate(`${base}/transfer`);
     });
   }

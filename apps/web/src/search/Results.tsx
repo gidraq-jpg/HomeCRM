@@ -8,6 +8,7 @@ import {
 } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
+import { markdownText } from '../notes/markdown.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { countWord } from '../ui/format.ts';
 import { Section } from '../ui/Page.tsx';
@@ -71,7 +72,9 @@ export function Results({ data }: { data: SearchResult }) {
                     <span className="row__body">
                       <span className="row__title">{item.title}</span>
                       <span className="row__meta search-result__snippet">
-                        <Snippet text={item.snippet} />
+                        <Snippet
+                          text={item.type === 'note' ? markdownText(item.snippet) : item.snippet}
+                        />
                       </span>
                       <span className="row__meta">{item.space}</span>
                     </span>

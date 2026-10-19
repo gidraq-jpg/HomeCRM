@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, isValidElement, type ReactNode } from 'react';
 
 // Markdown заметки — ADR-0020: абзацы, заголовки, списки, выделение, ссылки. Сырого HTML нет:
 // всё, что похоже на разметку, выводится текстом, а в DOM попадают только элементы, которые
@@ -240,6 +240,29 @@ function Lines({ lines, keys }: { lines: readonly string[]; keys: { next: () => 
 }
 
 const HEADINGS = ['h2', 'h3', 'h4', 'h5', 'h6', 'h6'] as const;
+
+/** Текст предпросмотра использует тот же разбор, что карточка; HTML и внешние картинки не исполняются. */
+export function markdownText(source: string): string {
+  const textOf = (node: ReactNode): string => {
+    if (typeof node === 'string' || typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(textOf).join('');
+    if (isValidElement<{ children?: ReactNode }>(node)) return textOf(node.props.children);
+    return '';
+  };
+  return parseBlocks(source)
+    .map((block) => {
+      if (block.kind === 'rule') return '';
+      const text =
+        block.kind === 'list'
+          ? block.items.join(' ')
+          : 'lines' in block
+            ? block.lines.join(' ')
+            : block.text;
+      return textOf(renderInline(text, { next: () => 'preview' }));
+    })
+    .filter(Boolean)
+    .join(' ');
+}
 
 /**
  * Показывает Markdown заметки. Заголовок самой заметки — `h1`, поэтому `#` в тексте — это `h2`.

@@ -86,21 +86,21 @@ function PhoneRow({ line }: { line: PhoneLine }) {
   return (
     <li className="phone-item">
       <div className="phone-item__main">
-        <span className="phone-item__number mono">{line.number}</span>
+        {line.href ? (
+          <a
+            className="phone-item__number mono"
+            href={line.href}
+            aria-label={`Набрать ${line.number}`}
+          >
+            {line.number}
+          </a>
+        ) : (
+          <span className="phone-item__number mono">{line.number}</span>
+        )}
         {line.label === '' ? null : <span className="phone-item__label">{line.label}</span>}
         {line.emergency ? <Status tone="danger">Аварийный</Status> : null}
       </div>
       <div className="phone-item__actions">
-        {line.href === null ? null : (
-          <a
-            className="btn btn--secondary"
-            href={line.href}
-            aria-label={`Позвонить: ${line.label === '' ? line.number : line.label}`}
-          >
-            <Phone size={20} aria-hidden />
-            Позвонить
-          </a>
-        )}
         <CopyButton value={line.number} what="номер телефона" />
       </div>
     </li>

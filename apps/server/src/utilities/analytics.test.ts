@@ -206,6 +206,7 @@ it('UTIL-11: статус окна требует каждый прибор, у�
     values: ['2'],
   });
   expect(final.status, final.text).toBe(201);
+  expect(await status()).toBe('saved');
   expect(
     (
       await adult.post(`/api/objects/${id}/readings/transmit`, {

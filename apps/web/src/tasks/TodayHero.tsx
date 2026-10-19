@@ -7,6 +7,7 @@ import { listScopeOf } from '../notes/queries.ts';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectsList } from '../objects/queries.ts';
 import { formatLongDate, formatRub, formatShortDate, plural, weekdayName } from '../ui/format.ts';
+import { useMonth } from '../utilities/queries.ts';
 
 import type { Today } from './api.ts';
 import { uniqueTasks } from './queries.ts';
@@ -38,6 +39,7 @@ export function TodayHero({
     },
   });
   const objects = useObjectsList(false);
+  const utilities = useMonth(undefined, house);
   const taskCount = data ? todayTaskCount(data.tasks) : undefined;
   const deadlineCount = radar.status === 'ready' ? nearbyDeadlineCount(radar.rows) : undefined;
   const objectCount = objects.data ? uniqueTasks(objects.data.pages.flat()).length : undefined;
@@ -96,14 +98,10 @@ export function TodayHero({
   ];
   // Только свежие видимые строки радара; неизвестные суммы и даты не подменяем нулём.
   const ready = radar.status === 'ready' && !radar.error && !radar.recalculating;
-  const payments = ready
-    ? radar.rows.filter(
-        (row) => row.utility?.kind === 'payment' && ['overdue', 'now', '7days'].includes(row.group),
-      )
-    : [];
-  const knownPayments =
-    payments.length > 0 && payments.every((row) => row.utility?.remainingCents != null);
-  const due = payments.reduce((sum, row) => sum + (row.utility?.remainingCents ?? 0), 0);
+  const due = utilities.error ? 0 : (utilities.data?.totals.remainingCents ?? 0);
+  const monthParams = new URLSearchParams();
+  if (utilities.data) monthParams.set('month', utilities.data.month);
+  if (house) monthParams.set('householdId', house);
   const windowEnd = ready
     ? radar.rows
         .filter((row) => row.utility?.kind === 'readings' && row.group === 'now')
@@ -148,9 +146,11 @@ export function TodayHero({
           ))}
         </p>
       </nav>
-      {(knownPayments && due > 0) || windowEnd ? (
+      {due > 0 || windowEnd ? (
         <div className="today-hints">
-          {knownPayments && due > 0 ? <span>{formatRub(due)} к оплате</span> : null}
+          {due > 0 ? (
+            <Link to={`/home/month?${monthParams}`}>{formatRub(due)} к оплате</Link>
+          ) : null}
           {windowEnd ? <span>Показания до {formatShortDate(windowEnd)}</span> : null}
         </div>
       ) : null}

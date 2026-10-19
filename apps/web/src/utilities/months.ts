@@ -35,6 +35,7 @@ export function monthShort(month: string): string {
 }
 
 export const STATUS_LABELS: Readonly<Record<AccountStatus, string>> = {
+  saved: 'Показания сохранены · проверьте передачу',
   transmitted: 'Показания переданы',
   not_transmitted: 'Показания не переданы',
   not_open: 'Окно показаний ещё не открылось',
@@ -42,6 +43,7 @@ export const STATUS_LABELS: Readonly<Record<AccountStatus, string>> = {
 };
 
 export const STATUS_TONES: Readonly<Record<AccountStatus, 'ok' | 'warning' | 'neutral'>> = {
+  saved: 'neutral',
   transmitted: 'ok',
   not_transmitted: 'warning',
   not_open: 'neutral',

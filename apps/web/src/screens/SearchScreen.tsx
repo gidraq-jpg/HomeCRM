@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useScope } from '../access/ScopeContext.tsx';
-import { SCOPE_LABELS } from '../access/scope.ts';
 import { Results } from '../search/Results.tsx';
 import { useSearch } from '../search/useSearch.ts';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
@@ -34,7 +33,13 @@ export function SearchScreen() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <p className="field__hint">Ищем в режиме «{SCOPE_LABELS[scope]}».</p>
+        <p className="field__hint">
+          {scope === 'all'
+            ? 'В ваших личных и общих записях семьи.'
+            : scope === 'personal'
+              ? 'В ваших личных записях.'
+              : 'В общих записях семьи.'}
+        </p>
       </div>
       {q.length === 0 ? (
         <CompactEmptyState title="Поиск по вашим записям" />

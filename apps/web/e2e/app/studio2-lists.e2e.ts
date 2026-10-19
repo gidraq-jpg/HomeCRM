@@ -236,7 +236,7 @@ for (const percent of [100, 200]) {
     for (const [route, name, empty] of [
       ['/today/all', 'all-empty', 'Дел под выбранные условия нет.'],
       ['/more/radar', 'radar-empty', 'Сроков пока нет'],
-      ['/more/shopping', 'shopping-empty', 'В списке пусто'],
+      ['/more/shopping', 'shopping-empty', 'Добавьте первую покупку'],
       ['/more/notes', 'notes-empty', 'Заметок пока нет'],
     ]) {
       await open(page, route ?? '');

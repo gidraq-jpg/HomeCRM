@@ -38,6 +38,7 @@ export function TextField({
         id={id}
         className="input"
         type={type}
+        lang={type === 'date' ? 'ru' : undefined}
         value={value}
         required={required}
         maxLength={maxLength}

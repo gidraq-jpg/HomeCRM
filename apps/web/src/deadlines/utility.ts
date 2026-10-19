@@ -43,10 +43,10 @@ export function windowProgress(
   return { total: own.length, missing, untransmitted };
 }
 
-/** Строка о ходе окна: «2 счётчика без показаний» или «Показания внесены, осталось передать». */
+/** Строка о ходе окна: что сохранено и где проверить следующий шаг. */
 export function progressText(progress: WindowProgress): string | null {
   if (progress.missing > 0) return metersWithoutText(progress.missing);
-  if (progress.untransmitted > 0) return 'Показания внесены, осталось передать';
+  if (progress.untransmitted > 0) return 'Показания сохранены. Проверьте передачу в лицевом счёте';
   return null;
 }
 

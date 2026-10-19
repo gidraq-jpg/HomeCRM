@@ -1,13 +1,22 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useScope } from '../access/ScopeContext.tsx';
+import { useHousehold } from '../household/HouseholdContext.tsx';
 import { fetchAnalytics, fetchMonth } from './api.ts';
 
 // Ключи запросов содержат только месяц и идентификатор объекта.
 const UTILITIES = 'utilities';
 
-export function useMonth(month: string) {
+export function useMonth(month?: string, house?: string | null) {
+  const { scope } = useScope();
+  const { me, householdId } = useHousehold();
+  const home = house === undefined ? householdId : house;
   return useQuery({
-    queryKey: [UTILITIES, 'month', month],
-    queryFn: ({ signal }) => fetchMonth(month, signal),
+    queryKey: [UTILITIES, me.id, 'month', month, scope, home],
+    queryFn: ({ signal }) =>
+      fetchMonth(month, signal, {
+        scope: scope === 'shared' ? 'household' : scope,
+        ...(home ? { householdId: home } : {}),
+      }),
   });
 }
 

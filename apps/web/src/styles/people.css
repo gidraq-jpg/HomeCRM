@@ -1,6 +1,12 @@
 /* Люди, взаимодействия, быстрые действия, срок документа по возрасту. Цели нажатия — не меньше 44 px (--tap). */
 
 /* Быстрые действия: «Позвонить», «Написать», «На карте» */
+.phone-item__number[href] {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  min-width: var(--tap);
+}
 .quick-actions {
   display: flex;
   flex-wrap: wrap;
