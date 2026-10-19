@@ -31,7 +31,7 @@ async function check(page: Page, info: TestInfo, name: string) {
   if (process.platform === 'linux') {
     const directory = resolve(
       import.meta.dirname,
-      '../../../../docs/screenshots/R1c.4c',
+      '../../test-results/screens/R1c.4c',
       info.project.name,
     );
     await mkdir(directory, { recursive: true });

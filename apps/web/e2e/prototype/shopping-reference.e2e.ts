@@ -20,7 +20,7 @@ test('Shopping: исходная визуальная основа Claude', asyn
   if (process.platform === 'linux') {
     const dir = resolve(
       import.meta.dirname,
-      '../../../../docs/screenshots/R1c.7-8',
+      '../../test-results/screens/R1c.7-8',
       info.project.name,
     );
     await mkdir(dir, { recursive: true });

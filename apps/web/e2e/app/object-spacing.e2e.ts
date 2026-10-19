@@ -1,4 +1,4 @@
-import { copyFile } from 'node:fs/promises';
+import { copyFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { expect, test } from '../auth/support/fixtures.ts';
 import {
@@ -78,12 +78,11 @@ for (const percent of [100, 200]) {
       await expectAccessible(page, `object-spacing-${percent}`);
       if (process.platform === 'linux') {
         await screenshot(page, info, `object-spacing-${percent}`);
+        const directory = resolve(import.meta.dirname, '../../test-results/screens/UI-4');
+        await mkdir(directory, { recursive: true });
         await copyFile(
           resolve(SCREENSHOT_DIR, info.project.name.slice(1), `object-spacing-${percent}.png`),
-          resolve(
-            import.meta.dirname,
-            `../../../../docs/screenshots/UI-4/${info.project.name}-object-spacing-${percent}.png`,
-          ),
+          resolve(directory, `${info.project.name}-object-spacing-${percent}.png`),
         );
       }
     } finally {

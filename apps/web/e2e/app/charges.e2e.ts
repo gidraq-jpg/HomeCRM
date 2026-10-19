@@ -136,7 +136,14 @@ test('начисление с перерасчётом и квитанцией; 
     'SELECT count(*)::int AS n FROM utility_charges',
   );
   expect(stored.rows[0]?.n).toBe(2);
-  await expectNothingStored(page, ['TEST-777', 'Квартира у парка', 'Электроэнергия день', '1740']);
+  await expectNothingStored(page, [
+    'TEST-777',
+    'Квартира у парка',
+    'Электроэнергия день',
+    // Сумма с ключом JSON или отдельным ключом storage, а не цифры внутри UUID/имени сборки.
+    /(?:"(?:totalCents|amountCents)"\s*:\s*"?|(?:^|\n)(?:totalCents|amountCents)\n)174069(?:"|\b)/,
+    /1[\s\u00a0]?740[,.]69/,
+  ]);
 });
 
 test('две оплаты закрывают срок в радаре, отмена с причиной открывает его, ребёнок ничего не видит', async ({
