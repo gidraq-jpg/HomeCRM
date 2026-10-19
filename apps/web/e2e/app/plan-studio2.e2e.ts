@@ -104,7 +104,8 @@ for (const textScale of [1, 2]) {
     await expect(page.getByText('→ Анна', { exact: false })).toBeVisible();
     await expect(page.locator('.plan-circle--waiting')).toBeVisible();
     await expect(page.getByText(/· свободно/).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: /2 просроченных дела/ })).toBeVisible();
+    // Просрочка — срок dueOn; прошедший день плана сам по себе её не добавляет.
+    await expect(page.getByRole('link', { name: /1 просроченное дело/ })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toHaveCount(0);
     await check(page, `plan-${textScale * 100}-${width}`);
     await page.getByRole('button', { name: 'Перенести: Полить растения', exact: true }).click();
@@ -145,7 +146,7 @@ for (const textScale of [1, 2]) {
         ),
       )
       .toBeLessThan(2);
-    await expect(tabs.getByRole('button', { name: 'Добавить', exact: true })).toBeInViewport();
+    await expect(tabs.getByRole('button', { name: 'Добавить дело', exact: true })).toBeInViewport();
     if (process.platform === 'linux') {
       const directory = resolve(import.meta.dirname, '../../test-results/screens/TASK-5');
       await mkdir(directory, { recursive: true });
@@ -268,7 +269,7 @@ test('TASK-5: пустой план, вкладки с плюсом, досту�
   await plan(page);
   await expect(page.getByText('На две недели вперёд дел нет', { exact: true })).toBeVisible();
   await expect(
-    page.locator('.today-tabs').getByRole('button', { name: 'Добавить', exact: true }),
+    page.locator('.today-tabs').getByRole('button', { name: 'Добавить дело', exact: true }),
   ).toBeVisible();
   await check(page, `empty-${info.project.use.viewport?.width}`);
   await page.evaluate(() => {

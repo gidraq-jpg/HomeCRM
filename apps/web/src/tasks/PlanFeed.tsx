@@ -4,12 +4,12 @@ import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
-import type { FeedTaskCard, Today } from './api.ts';
+import { FeedTaskCard } from './api.ts';
 import { MoveTaskSheet } from './MoveTaskSheet.tsx';
 import { OperationNotice } from './operation.tsx';
 import { PlanRows } from './PlanRows.tsx';
-import { emptyDays, overdueLabel, planDay } from './plan.ts';
-import { uniqueTasks, usePlan } from './queries.ts';
+import { emptyDays, isOverdue, overdueLabel, planDay } from './plan.ts';
+import { uniqueTasks, usePlan, useToday } from './queries.ts';
 import { LoadMore, QueryNotice } from './TasksScreen.tsx';
 import { useFeedActions } from './useFeedActions.ts';
 
@@ -24,15 +24,9 @@ export function PlanFeed({ house }: { house: string | null }) {
     [me.id, house, scope],
   );
   useQuery<number>({ queryKey: scrollKey, enabled: false, gcTime: 5 * 60_000 });
-  const cachedToday = useQuery<Today>({
-    queryKey: ['tasks', me.id, house, 'today', scope],
-    enabled: false,
-  });
+  const cachedToday = useToday(house);
   const today = query.data ? todayIn(query.data.pages[0]?.timeZone ?? 'UTC') : '';
-  const overdue =
-    cachedToday.data?.tasks.filter(
-      (card) => (card.planOn && card.planOn < today) || (card.dueOn && card.dueOn < today),
-    ).length ?? 0;
+  const overdue = cachedToday.data?.tasks.filter((card) => isOverdue(card, today)).length ?? 0;
   const sentinel = useRef<HTMLDivElement>(null);
   const armed = useRef(false);
   useLayoutEffect(() => {
@@ -44,6 +38,7 @@ export function PlanFeed({ house }: { house: string | null }) {
   }, [client, scrollKey]);
   const remember = () => client.setQueryData(scrollKey, window.scrollY);
   const apply = (card: FeedTaskCard) => {
+    card = FeedTaskCard.strip().parse(card);
     client.setQueryData(key, (data: typeof query.data) =>
       data
         ? {
@@ -94,19 +89,22 @@ export function PlanFeed({ house }: { house: string | null }) {
     window.addEventListener('wheel', onGesture, { passive: true });
     window.addEventListener('touchmove', onGesture, { passive: true });
     window.addEventListener('keydown', onKey);
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        nearEnd = !!entry?.isIntersecting;
-        load();
-      },
-      { rootMargin: '0px 0px 160px 0px' },
-    );
-    if (sentinel.current) observer.observe(sentinel.current);
+    const observer =
+      typeof IntersectionObserver === 'undefined'
+        ? null
+        : new IntersectionObserver(
+            ([entry]) => {
+              nearEnd = !!entry?.isIntersecting;
+              load();
+            },
+            { rootMargin: '0px 0px 160px 0px' },
+          );
+    if (sentinel.current) observer?.observe(sentinel.current);
     return () => {
       window.removeEventListener('wheel', onGesture);
       window.removeEventListener('touchmove', onGesture);
       window.removeEventListener('keydown', onKey);
-      observer.disconnect();
+      observer?.disconnect();
     };
   }, [query.hasNextPage, query.isFetching, query.fetchNextPage]);
   const days = new Map<string, Map<string, FeedTaskCard>>();
@@ -163,7 +161,13 @@ export function PlanFeed({ house }: { house: string | null }) {
           )
         : null}
       <div ref={sentinel} className="plan-sentinel" />
-      <LoadMore query={query} label="Показать следующие дни" />
+      <LoadMore
+        query={query}
+        label="Показать следующие дни"
+        onFocus={() => {
+          if (query.hasNextPage && !query.isFetching) void query.fetchNextPage();
+        }}
+      />
       {undated.length ? (
         <details className="plan-undated">
           <summary>Без даты · {undated.length}</summary>

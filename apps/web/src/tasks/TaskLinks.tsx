@@ -104,19 +104,16 @@ export function TaskLinks({ card }: { card: TaskCard }) {
     <Section
       title="Связи"
       aside={
-        <>
-          {' '}
-          {canWrite(viewerOf(me), factsOf(card, viewerOf(me), 'task')) ? (
-            <button
-              className="icon-button"
-              aria-label="Добавить связь…"
-              type="button"
-              onClick={() => setOpen(true)}
-            >
-              <Plus size={20} aria-hidden />
-            </button>
-          ) : null}
-        </>
+        canWrite(viewerOf(me), factsOf(card, viewerOf(me), 'task')) ? (
+          <button
+            className="icon-button"
+            aria-label="Добавить связь…"
+            type="button"
+            onClick={() => setOpen(true)}
+          >
+            <Plus size={20} aria-hidden />
+          </button>
+        ) : null
       }
     >
       {query.error ? (

@@ -444,6 +444,8 @@ html[data-design="studio"] .object-hero__actions {
   gap: 4px;
 }
 html[data-design="studio"] .object-hero__actions .back-link {
+  min-width: var(--tap);
+  overflow-wrap: anywhere;
   margin: 0 auto 0 -8px;
   color: var(--muted-on-dark);
 }

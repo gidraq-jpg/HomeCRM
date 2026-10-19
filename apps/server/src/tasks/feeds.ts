@@ -43,7 +43,7 @@ export function taskFeeds(route: DataRoute) {
           object: sql<unknown>`(
             SELECT CASE WHEN o.id IS NOT NULL THEN jsonb_build_object('id', o.id, 'title', o.title) END
             FROM record_links l
-            LEFT JOIN objects o ON o.id = CASE WHEN l.left_table='objects' THEN l.left_id ELSE l.right_id END AND o.deleted_at IS NULL
+            JOIN objects o ON o.id = CASE WHEN l.left_table='objects' THEN l.left_id ELSE l.right_id END AND o.deleted_at IS NULL
             WHERE l.deleted_at IS NULL AND (
               (l.left_table='tasks' AND l.left_id=tasks.id AND l.right_table='objects') OR
               (l.right_table='tasks' AND l.right_id=tasks.id AND l.left_table='objects')

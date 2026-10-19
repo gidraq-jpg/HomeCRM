@@ -56,7 +56,7 @@ export function StudioPage({
             <div className="page-heading__line">
               <h1>{title}</h1>
               {status}
-              {!form && !service ? <AddAction /> : null}
+              {!form ? <AddAction /> : null}
             </div>
             {eyebrow ? <p className="studio-list-count">{eyebrow}</p> : null}
           </div>

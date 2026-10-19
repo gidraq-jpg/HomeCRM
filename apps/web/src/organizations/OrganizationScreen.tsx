@@ -166,40 +166,35 @@ export function OrganizationView({
         ...(data.openingHours ? [{ label: 'Часы работы', value: data.openingHours }] : []),
       ]}
       more={
-        <>
-          {' '}
-          {!trashed ? (
-            <div className="btn-row">
-              {!abilities.edit ? (
-                <p className="muted">
-                  Эту организацию могут править только взрослые участники дома.
-                </p>
-              ) : null}
-              {abilities.trash ? (
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  disabled={quick.disabled}
-                  onClick={trash}
-                >
-                  <Trash size={20} aria-hidden />В корзину
-                </button>
-              ) : null}
-            </div>
-          ) : abilities.restore ? (
-            <div className="btn-row">
+        !trashed ? (
+          <div className="btn-row">
+            {!abilities.edit ? (
+              <p className="muted">Эту организацию могут править только взрослые участники дома.</p>
+            ) : null}
+            {abilities.trash ? (
               <button
                 type="button"
-                className="btn btn--primary"
+                className="btn btn--secondary"
                 disabled={quick.disabled}
-                onClick={restore}
+                onClick={trash}
               >
-                <ArrowCounterClockwise size={20} aria-hidden />
-                Восстановить
+                <Trash size={20} aria-hidden />В корзину
               </button>
-            </div>
-          ) : null}
-        </>
+            ) : null}
+          </div>
+        ) : abilities.restore ? (
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={quick.disabled}
+              onClick={restore}
+            >
+              <ArrowCounterClockwise size={20} aria-hidden />
+              Восстановить
+            </button>
+          </div>
+        ) : null
       }
     >
       <ObjectError error={quick.error} action="contact" />

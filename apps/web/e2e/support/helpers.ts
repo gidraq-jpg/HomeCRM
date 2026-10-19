@@ -179,6 +179,7 @@ export async function goToSection(page: Page, label: string): Promise<void> {
 
 /** «+» → вид записи. Открывает панель добавления на форме нужного вида. */
 export async function startAdd(page: Page, kind: string): Promise<void> {
+  await page.goto('#/today');
   await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
@@ -187,11 +188,13 @@ export async function startAdd(page: Page, kind: string): Promise<void> {
 
 /** Быстрое дело в листе Studio 2. */
 export async function openQuick(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
-  await page
-    .getByRole('dialog', { name: 'Добавить', exact: true })
-    .getByRole('button', { name: /^Дело/ })
-    .click();
+  await page.getByRole('button', { name: /^Добавить( дело)?$/ }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  if (await page.getByRole('dialog', { name: 'Добавить', exact: true }).count())
+    await page
+      .getByRole('dialog', { name: 'Добавить', exact: true })
+      .getByRole('button', { name: /^Дело/ })
+      .click();
   await expect(page.getByRole('dialog', { name: 'Новое дело', exact: true })).toBeVisible();
 }
 

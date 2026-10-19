@@ -54,6 +54,7 @@ function ObjectMonth({ object }: { object: MonthObject }) {
       {object.accounts.length === 0 ? (
         <Section
           title="Лицевые счета"
+          level={4}
           aside={
             <Link
               className="icon-button"
@@ -64,7 +65,7 @@ function ObjectMonth({ object }: { object: MonthObject }) {
             </Link>
           }
         >
-          <p className="muted">Лицевых счетов нет</p>
+          <p className="muted">Лицевых счетов нет.</p>
         </Section>
       ) : (
         <ul className="month-accounts" aria-label={`Лицевые счета: ${object.title}`}>

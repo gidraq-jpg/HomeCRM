@@ -128,6 +128,7 @@ export function TodayHero({
               <Link
                 className="today-metric"
                 to={metric.to}
+                state={metric.key === 'radar' ? { fromSection: 'today' } : undefined}
                 aria-label={`${metric.value} ${metric.label}${metric.status ? `: ${metric.status}` : ''}`}
                 aria-describedby={`today-metric-${metric.key}`}
                 onClick={

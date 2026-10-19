@@ -1,4 +1,4 @@
-import { Note, Plus, PushPin } from '@phosphor-icons/react';
+import { Note, PushPin } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
 import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
@@ -6,6 +6,7 @@ import { VISIBILITY_LABELS } from '../access/visibility.ts';
 import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { AddAction } from '../shell/AddAction.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { countWord, normalizeText } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
@@ -17,7 +18,6 @@ import { useNotesList } from './queries.ts';
 import '../styles/studio2-lists.css';
 
 const BACK = { to: '/more', label: 'Ещё' } as const;
-const NEW_NOTE = '/more/notes/new';
 export const noteCount = (count: number) => countWord(count, ['заметка', 'заметки', 'заметок']);
 
 export function NoteRows({ notes, label }: { notes: readonly NoteSummary[]; label: string }) {
@@ -72,9 +72,7 @@ export function NotesScreen() {
                 </span>
               ) : null}
             </h1>
-            <Link className="studio-add" aria-label="Новая заметка" to={NEW_NOTE}>
-              <Plus size={22} aria-hidden />
-            </Link>
+            <AddAction />
           </div>
         </div>
       }

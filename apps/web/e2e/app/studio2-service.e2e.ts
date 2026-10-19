@@ -70,7 +70,10 @@ test('UI-6 D16b: служебные экраны, данные и пустые �
       }
       await page.evaluate(() => document.fonts.ready);
       if (phase === 'after') {
-        await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(0);
+        // Формы без «+»; служебные экраны открывают быструю строку (D19a.14).
+        await expect(page.locator('main .studio-add')).toHaveCount(
+          (await page.locator('.ui7-fullscreen-form').count()) ? 0 : 1,
+        );
         await expectNoHorizontalScroll(page);
         await expectAccessible(page, name);
         await expectTouchTargets(page);
@@ -101,7 +104,7 @@ test('UI-6 D16b: Назад служебных экранов возвращае
     await page.goto(`#${destination}`);
     const back = page.getByRole('button', { name: 'Назад', exact: true });
     await expect(back).toBeVisible();
-    await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(0);
+    await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(1);
     await back.click();
     await expect(page).toHaveURL(new RegExp(`#${origin}$`));
   }

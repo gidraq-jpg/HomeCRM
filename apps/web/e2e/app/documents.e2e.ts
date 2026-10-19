@@ -32,11 +32,7 @@ test('документ с двумя страницами: серия и ном�
   await openDocuments(page);
   await expect(page.getByRole('region', { name: 'Документов пока нет' })).toBeVisible();
   await checkApp(page, info, 'documents-empty');
-  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: /^Документ/ })
-    .click();
+  await page.getByRole('button', { name: 'Добавить документ', exact: true }).click();
 
   // Форма: «Кто видит» над «Сохранить»; документ взрослого по умолчанию личный (PRD 7.2).
   const form = page.locator('form.document-form');

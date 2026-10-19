@@ -1,5 +1,16 @@
 import { expect, it } from 'vitest';
-import { emptyDays, nextWeekday, overdueLabel, planDay } from './plan.ts';
+import type { TaskCard } from './api.ts';
+import { emptyDays, isOverdue, nextWeekday, overdueLabel, planDay } from './plan.ts';
+
+it('D19a.5: просрочка по крайнему сроку активного дела, не по дню плана', () => {
+  const card = { status: 'open', planOn: '2026-10-01', dueOn: null } as TaskCard;
+  expect(isOverdue(card, '2026-10-18')).toBe(false);
+  expect(isOverdue({ ...card, dueOn: CalendarDate.parse('2026-10-17') }, '2026-10-18')).toBe(true);
+  expect(isOverdue({ ...card, dueOn: CalendarDate.parse('2026-10-18') }, '2026-10-18')).toBe(false);
+  expect(
+    isOverdue({ ...card, status: 'done', dueOn: CalendarDate.parse('2026-10-17') }, '2026-10-18'),
+  ).toBe(false);
+});
 
 it('TASK-12: следующая суббота и понедельник всегда в будущем, включая границы года', () => {
   expect(nextWeekday('2026-10-17', 6)).toBe('2026-10-24');
@@ -16,3 +27,5 @@ it('TASK-5: подписи дней, пустых промежутков и фо
   expect(overdueLabel(2)).toContain('2 просроченных дела');
   expect(overdueLabel(5)).toContain('5 просроченных дел');
 });
+
+import { CalendarDate } from '@homecrm/shared';

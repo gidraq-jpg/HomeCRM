@@ -17,6 +17,26 @@ const ZONE = 'Europe/Moscow';
 const NOW = new Date('2026-10-07T09:00:00Z');
 const ME = 'fictional-boris';
 
+it('D19a.10: год в подписи повторного срока определяется поясом его дома на границе года', () => {
+  const entry = item('new-year', {
+    noteId: 'note-new-year',
+    timeZone: 'Pacific/Kiritimati',
+    rule: DeadlineRule.parse({
+      kind: 'repeat',
+      anchor: '2027-01-01',
+      repeat: { unit: 'day', every: 2 },
+    }),
+  });
+  const context = {
+    timeZone: 'UTC',
+    now: new Date('2026-12-31T23:30:00Z'),
+    today: '2026-12-31' as const,
+    titleOf: () => undefined,
+    locate: () => undefined,
+  };
+  expect(buildRows([entry], context)[0]?.what).not.toContain('2027');
+});
+
 it('день рождения ведёт к источнику, возраст появляется только при известном годе', () => {
   const result = rows([
     item('birthday-1', {

@@ -42,7 +42,8 @@ export function useRadarItems(
   // Сервер отбирает наступления по дате срока, а группу «Позже» даёт предупреждение документа,
   // которое началось раньше срока (загранпаспорт — за 180 дней, горизонт документов — 365). Поэтому
   // запрос идёт на год вперёд; остальные сроки дальше 90 дней сервер в радар не включает.
-  const to = addDays(todayIn(timeZone), RADAR_DAYS_AHEAD);
+  // Дополнительный день покрывает границу даты домов вплоть до UTC+14.
+  const to = addDays(todayIn(timeZone), RADAR_DAYS_AHEAD + 1);
   return useQuery({
     queryKey: [DEADLINES, 'radar', accountId, timeZone, to, filters],
     queryFn: ({ signal }) => fetchRadar(RADAR_FROM, to, signal, filters),

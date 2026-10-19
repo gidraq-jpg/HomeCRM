@@ -81,6 +81,34 @@ it('TASK-5: первый объект по созданию связи; без �
   });
   expect(cards.find((card) => card.id === bare.id)?.object).toBeNull();
 });
+it('TASK-5/D19a.8: первая скрытая связь не мешает следующему видимому объекту', async () => {
+  const hidden = (
+    await adult.post('/api/objects', { title: 'Закрытый объект D19', placement: place('adults') })
+  ).json<{ id: string }>();
+  const visible = (
+    await adult.post('/api/objects', { title: 'Открытый объект D19', placement: place() })
+  ).json<{ id: string; title: string }>();
+  const task = await create({ objectId: hidden.id });
+  expect(
+    (
+      await adult.post('/api/links', {
+        left: { type: 'task', id: task.id },
+        right: { type: 'object', id: visible.id },
+      })
+    ).status,
+  ).toBe(201);
+  for (const feed of ['plan', 'today']) {
+    const response = await child.get(`/api/tasks/${feed}?offline=true`);
+    expect(response.status, response.text).toBe(200);
+    const data = response.json<{ data: Feed }>().data;
+    const cards = feed === 'plan' ? data.days.flatMap((day) => day.tasks) : data.tasks;
+    expect(cards.find((card) => card.id === task.id)?.object).toEqual({
+      id: visible.id,
+      title: visible.title,
+    });
+    expect(response.text).not.toContain(hidden.id);
+  }
+});
 it('TASK-12: this меняет только экземпляр, following — шаблон; без права правки 403', async () => {
   const row = await create({ repeatRule: { kind: 'daily' }, planTime: '09:00' });
   for (const repeatScope of ['this', 'following']) {

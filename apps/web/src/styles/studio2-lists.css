@@ -47,16 +47,6 @@ html[data-design="studio"] .studio-list-panel {
   min-height: 60vh;
   padding: 24px 16px calc(var(--nav-height) + 40px + env(safe-area-inset-bottom));
 }
-html[data-design="studio"] .studio-list-panel::before {
-  content: "";
-  position: absolute;
-  top: 10px;
-  left: calc(50% - 18px);
-  width: 36px;
-  height: 4px;
-  border-radius: 4px;
-  background: var(--line);
-}
 html[data-design="studio"] .today-tabs .tabs {
   overflow-x: auto;
   scrollbar-width: none;

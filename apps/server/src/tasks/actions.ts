@@ -14,6 +14,7 @@ import {
   requireWrite,
 } from '../objects/support.ts';
 import { publicRecord } from '../utilities/service.ts';
+import { type RadarTaskSource, radarTaskTitle } from './radar-title.ts';
 import { getTask, summaries, summary } from './routes.ts';
 export function taskActions(route: DataRoute) {
   route('POST', '/api/objects/:id/assignee', 200, async (tx, account, request) => {
@@ -161,6 +162,10 @@ export function taskActions(route: DataRoute) {
     if (prior) return summary(tx, prior);
     const source = (
       await tx.execute<{
+        source_kind: RadarTaskSource['source_kind'];
+        label: RadarTaskSource['label'];
+        period: RadarTaskSource['period'];
+        document_type: RadarTaskSource['document_type'];
         space_id: string;
         space_kind: 'personal' | 'household';
         audience: 'household' | 'adults' | null;
@@ -173,8 +178,8 @@ export function taskActions(route: DataRoute) {
         document_id: string | null;
         contact_id: string | null;
       }>(sql`
-   SELECT d.space_id,d.space_kind,d.audience,d.household_id,o.date::text,coalesce(d.label,n.title,b.title,doc.title,t.title,c.title,p.display_name) AS title,d.task_id,d.note_id,d.object_id,d.document_id,d.contact_id
-   FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id LEFT JOIN notes n ON n.id=d.note_id LEFT JOIN objects b ON b.id=d.object_id LEFT JOIN documents doc ON doc.id=d.document_id LEFT JOIN tasks t ON t.id=d.task_id LEFT JOIN contacts c ON c.id=d.contact_id LEFT JOIN member_profiles p ON p.account_id=d.profile_account_id
+   SELECT d.space_id,d.space_kind,d.audience,d.household_id,o.date::text,coalesce(d.label,n.title,doc.title,t.title,c.title,p.display_name,meter.title,b.title) AS title,d.task_id,d.note_id,d.object_id,d.document_id,d.contact_id,d.source_kind,d.label,charge.period,doc.data->>'type' AS document_type
+   FROM deadline_occurrences o JOIN deadlines d ON d.id=o.deadline_id LEFT JOIN notes n ON n.id=d.note_id LEFT JOIN objects b ON b.id=d.object_id LEFT JOIN documents doc ON doc.id=d.document_id LEFT JOIN tasks t ON t.id=d.task_id LEFT JOIN contacts c ON c.id=d.contact_id LEFT JOIN member_profiles p ON p.account_id=d.profile_account_id LEFT JOIN utility_charges charge ON charge.id=d.charge_id LEFT JOIN meters meter ON meter.id=d.meter_id
    WHERE o.id=${occurrenceId}::uuid AND o.deleted_at IS NULL AND (o.completed_at IS NULL OR d.source_kind='readings') AND d.deleted_at IS NULL`)
     ).rows[0];
     if (
@@ -186,7 +191,7 @@ export function taskActions(route: DataRoute) {
     const [row] = await tx
       .insert(tasks)
       .values({
-        title: source.title,
+        title: radarTaskTitle(source).slice(0, 200),
         spaceId: source.space_id,
         spaceKind: source.space_kind,
         audience: source.audience,

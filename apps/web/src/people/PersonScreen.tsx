@@ -175,41 +175,45 @@ function PersonView({ card }: { card: PersonCard }) {
       facts={[
         { label: 'Автор', value: nameOf(card.authorId) },
         { label: 'Создан', value: formatDay(card.createdAt, me.timeZone) },
-        ...(data.birthday ? [{ label: 'День рождения', value: birthdayLabel(data.birthday) }] : []),
+        ...(data.birthday
+          ? [
+              {
+                label: 'День рождения',
+                value: `${birthdayLabel(data.birthday)} · Напоминание ${data.birthdayEnabled ? 'включено' : 'выключено'}`,
+              },
+            ]
+          : []),
       ]}
       more={
-        <>
-          {' '}
-          {!trashed ? (
-            <div className="btn-row">
-              {!abilities.edit ? (
-                <p className="muted">Этот контакт могут править только взрослые участники дома.</p>
-              ) : null}
-              {abilities.trash ? (
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  disabled={quick.disabled}
-                  onClick={trash}
-                >
-                  <Trash size={20} aria-hidden />В корзину
-                </button>
-              ) : null}
-            </div>
-          ) : abilities.restore ? (
-            <div className="btn-row">
+        !trashed ? (
+          <div className="btn-row">
+            {!abilities.edit ? (
+              <p className="muted">Этот контакт могут править только взрослые участники дома.</p>
+            ) : null}
+            {abilities.trash ? (
               <button
                 type="button"
-                className="btn btn--primary"
+                className="btn btn--secondary"
                 disabled={quick.disabled}
-                onClick={restore}
+                onClick={trash}
               >
-                <ArrowCounterClockwise size={20} aria-hidden />
-                Восстановить
+                <Trash size={20} aria-hidden />В корзину
               </button>
-            </div>
-          ) : null}
-        </>
+            ) : null}
+          </div>
+        ) : abilities.restore ? (
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={quick.disabled}
+              onClick={restore}
+            >
+              <ArrowCounterClockwise size={20} aria-hidden />
+              Восстановить
+            </button>
+          </div>
+        ) : null
       }
     >
       <ObjectError error={quick.error} action="person" />
@@ -283,12 +287,6 @@ function PersonView({ card }: { card: PersonCard }) {
             <dd>{data.address}</dd>
           </div>
         )}
-        {data.birthdayEnabled ? (
-          <div className="facts__item">
-            <dt>День рождения</dt>
-            <dd>Напоминание включено</dd>
-          </div>
-        ) : null}
         {data.note === '' ? null : (
           <div className="facts__item">
             <dt>Заметка</dt>

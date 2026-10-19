@@ -1,8 +1,9 @@
 import { CaretLeft, DotsThree, PencilSimple } from '@phosphor-icons/react';
-import { type ReactNode, type RefObject, useState } from 'react';
+import { type ReactNode, type RefObject, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
+import { AddAction } from '../shell/AddAction.tsx';
 import { FormHeading } from './FormHeading.tsx';
 import { Page } from './Page.tsx';
 import { Sheet } from './Sheet.tsx';
@@ -24,6 +25,7 @@ interface RecordPageProps {
   onAccess?: () => void;
   actionsRef?: RefObject<HTMLButtonElement | null>;
   onActionsOpenChange?: (open: boolean) => void;
+  actionsOpen?: boolean;
   children: ReactNode;
 }
 
@@ -44,10 +46,14 @@ export function RecordPage({
   access,
   onAccess,
   onActionsOpenChange,
+  actionsOpen,
   actionsRef,
   children,
 }: RecordPageProps) {
   const [panel, setPanel] = useState<'more' | 'access' | null>(null);
+  useEffect(() => {
+    if (actionsOpen === false) setPanel(null);
+  }, [actionsOpen]);
   const changePanel = (next: 'more' | 'access' | null) => {
     onActionsOpenChange?.(next !== null);
     setPanel(next);
@@ -68,6 +74,7 @@ export function RecordPage({
                 <CaretLeft size={20} aria-hidden />
                 {back.label}
               </Link>
+              <AddAction />
               {onEdit ? (
                 <button
                   className="icon-button"
@@ -131,7 +138,6 @@ export function RecordPage({
     >
       <div className="studio-panel studio-list-panel ui6-panel ui6-record-panel">{children}</div>
       <Sheet
-        returnFocusRef={actionsRef}
         open={panel !== null}
         onOpenChange={(open) => {
           if (!open) changePanel(null);
@@ -148,6 +154,7 @@ export function RecordPage({
             if (
               target instanceof Element &&
               event.currentTarget.contains(target) &&
+              !target.closest('[data-keep-sheet-open]') &&
               target.closest('button, a')
             )
               changePanel(null);

@@ -20,6 +20,17 @@ interface SheetProps {
   returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
+// Цепочка листов может размонтировать предыдущий триггер до закрытия следующего.
+const sheetOpeners = new WeakMap<HTMLElement, HTMLElement[]>();
+
+function focusChain(): HTMLElement[] {
+  if (typeof document === 'undefined') return [];
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || active === document.body) return [];
+  const parent = active.closest<HTMLElement>('[data-sheet]');
+  return [active, ...(parent ? (sheetOpeners.get(parent) ?? []) : [])];
+}
+
 export function Sheet({
   open,
   onOpenChange,
@@ -32,29 +43,33 @@ export function Sheet({
 }: SheetProps) {
   // Панели открываются не через Dialog.Trigger, поэтому Radix не знает, куда вернуть фокус:
   // запоминаем элемент, с которого панель открыли, и возвращаем фокус на него при закрытии.
-  const opener = useRef<HTMLElement | null>(null);
+  const openers = useRef<HTMLElement[]>([]);
+  // Сохраняем до Portal/FocusScope: они могут перевести activeElement на body.
+  if (open && !openers.current.length) openers.current = focusChain();
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="sheet-overlay" />
         <Dialog.Content
+          data-sheet
+          ref={(element) => {
+            if (element) sheetOpeners.set(element, openers.current);
+          }}
           className={fullScreen ? 'sheet sheet--full' : 'sheet'}
           {...(role ? { role } : {})}
           onOpenAutoFocus={() => {
-            opener.current =
-              document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            if (!openers.current.length) openers.current = focusChain();
           }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            // Следующий лист уже открыт: его фокус не должен возвращаться под модальный слой.
-            if (
-              document.querySelector(
-                '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]',
-              )
-            )
-              return;
-            const target = returnFocusRef?.current ?? opener.current;
+            const activeSheet = [
+              ...document.querySelectorAll('[data-sheet][data-state="open"]'),
+            ].at(-1);
+            const target = [...openers.current, returnFocusRef?.current].find(
+              (element) => element?.isConnected && (!activeSheet || activeSheet.contains(element)),
+            );
+            openers.current = [];
             if (target?.isConnected) target.focus();
           }}
         >

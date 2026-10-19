@@ -38,17 +38,18 @@ export function useRadar({
   filters?: Partial<RadarFilters>;
 } = {}): RadarState {
   const { me } = useHousehold();
-  const radar = useRadarItems(me.id, me.timeZone, filters);
+  // Пояс /me — настройка сервера; наступления несут настоящий пояс своего дома.
+  const radar = useRadarItems(me.id, 'UTC', filters);
   const rows = useMemo(() => {
     const now = new Date();
     return buildRows(radar.data?.items ?? [], {
-      timeZone: me.timeZone,
+      timeZone: radar.data?.items[0]?.timeZone ?? 'UTC',
       now,
-      today: todayIn(me.timeZone, now),
+      today: todayIn(radar.data?.items[0]?.timeZone ?? 'UTC', now),
       titleOf: () => undefined,
       locate: () => undefined,
     });
-  }, [radar.data, me.timeZone]);
+  }, [radar.data]);
 
   const recalculating = radar.data?.recalculating ?? false;
   const { refetch } = radar;
