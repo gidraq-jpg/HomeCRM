@@ -158,7 +158,11 @@ for (const zoom of [100, 200]) {
     await page.getByRole('button', { name: 'Добавить', exact: true }).click();
     const add = page.getByRole('dialog', { name: 'Добавить', exact: true });
     await expect(add.getByRole('button', { name: /^Дело/ })).toContainText('Одной строкой');
-    await add.getByRole('button', { name: /^Новое дело/ }).click();
+    await add.getByRole('button', { name: /^Дело/ }).click();
+    await page
+      .getByRole('dialog', { name: 'Новое дело', exact: true })
+      .getByRole('link', { name: 'Полная форма дела', exact: true })
+      .click();
     await expect(
       page.getByRole('heading', { level: 1, name: 'Новое дело', exact: true }),
     ).toBeVisible();

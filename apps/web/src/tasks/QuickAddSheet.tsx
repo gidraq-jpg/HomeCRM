@@ -1,5 +1,5 @@
 import { CalendarDate } from '@homecrm/shared';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
 import { Sheet } from '../ui/Sheet.tsx';
@@ -48,6 +48,13 @@ export function QuickAddSheet({
             : 'Загружаем часовой пояс дома…'}
         </p>
       )}
+      <Link
+        className="text-button"
+        to={`/today/new${selected && selected !== householdId ? `?householdId=${selected}` : ''}`}
+        onClick={() => onOpenChange(false)}
+      >
+        Полная форма дела
+      </Link>
     </Sheet>
   );
 }

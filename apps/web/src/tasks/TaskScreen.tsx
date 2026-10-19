@@ -11,6 +11,7 @@ import { ME_KEY } from '../auth/session-cache.ts';
 import { FilesSection } from '../files/FilesSection.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf, visibilityOf } from '../notes/abilities.ts';
+import { useSettings } from '../notifications/queries.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
@@ -18,6 +19,7 @@ import type { TaskCard, TimedTask } from './api.ts';
 import { fetchTask, seriesAction } from './api.ts';
 import { taskError } from './errors.ts';
 import { formatDateOnly, SelectField } from './fields.tsx';
+import { MoveTaskSheet } from './MoveTaskSheet.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
 import { MemberPicker, useTaskMembers } from './options.tsx';
 import { useRefreshTasks, useTask, useTaskHistory, useToday } from './queries.ts';
@@ -25,6 +27,7 @@ import { repeatLabel } from './repeats.tsx';
 import { STATUS_LABELS, TaskForm, taskChange, taskDraft } from './TaskForm.tsx';
 import { TaskLinks } from './TaskLinks.tsx';
 import { taskPath } from './TaskRows.tsx';
+import { useFeedActions } from './useFeedActions.ts';
 export function TaskScreen() {
   const { taskId } = useParams();
   const { me } = useHousehold();
@@ -51,6 +54,12 @@ function TaskView({ card }: { card: TimedTask }) {
   const { me, householdId } = useHousehold();
   const client = useQueryClient();
   const refresh = useRefreshTasks();
+  const settings = useSettings();
+  const calendar = useToday(card.householdId);
+  const feedActions = useFeedActions<TaskCard>((updated) => {
+    client.setQueryData(['tasks', me.id, 'card', card.id], { ...card, ...updated });
+  });
+  const [actionsOpen, setActionsOpen] = useState(false);
   const facts = factsOf(card, viewerOf(me), 'task');
   const viewer = viewerOf(me);
   const targetHouse = card.householdId ?? householdId;
@@ -93,6 +102,11 @@ function TaskView({ card }: { card: TimedTask }) {
     setMoving(false);
   });
   const active = canWrite(viewer, facts);
+  const canReschedule = active && ['open', 'waiting'].includes(card.status) && !!calendar.data;
+  const reschedule = () => {
+    setActionsOpen(false);
+    feedActions.startMove(card);
+  };
   const restore = !!card.deletedAt && canRestore(viewer, facts);
   const trash = canTrash(viewer, facts);
   const [tick, setTick] = useState(performance.now());
@@ -169,6 +183,8 @@ function TaskView({ card }: { card: TimedTask }) {
   return (
     <RecordPage
       actionsRef={recordActions}
+      actionsOpen={actionsOpen}
+      onActionsOpenChange={setActionsOpen}
       editing={editing !== null}
       title={card.title}
       documentTitle="Дело"
@@ -197,11 +213,34 @@ function TaskView({ card }: { card: TimedTask }) {
       facts={[
         {
           label: 'План',
-          value: `${card.planOn ? formatDateOnly(card.planOn) : 'Без даты'} ${card.planTime ?? ''}`,
+          value: canReschedule ? (
+            <button
+              className="text-button task-reschedule"
+              type="button"
+              onClick={reschedule}
+              aria-label="Перенести план дела"
+            >
+              {card.planOn ? formatDateOnly(card.planOn) : 'Без даты'} {card.planTime ?? ''}
+            </button>
+          ) : (
+            `${card.planOn ? formatDateOnly(card.planOn) : 'Без даты'} ${card.planTime ?? ''}`
+          ),
         },
         {
           label: 'Крайний срок',
-          value: `${card.dueOn ? formatDateOnly(card.dueOn) : 'Не задан'} ${card.dueTime ?? ''}`,
+          value:
+            canReschedule && card.dueOn ? (
+              <button
+                className="text-button task-reschedule"
+                type="button"
+                onClick={reschedule}
+                aria-label="Перенести дело по дате срока"
+              >
+                {formatDateOnly(card.dueOn)} {card.dueTime ?? ''}
+              </button>
+            ) : (
+              `${card.dueOn ? formatDateOnly(card.dueOn) : 'Не задан'} ${card.dueTime ?? ''}`
+            ),
         },
         { label: 'Повтор', value: repeatLabel(card.repeatRule) || 'Без повтора' },
       ]}
@@ -211,6 +250,11 @@ function TaskView({ card }: { card: TimedTask }) {
             {active ? (
               ['open', 'waiting'].includes(card.status) ? (
                 <>
+                  {canReschedule ? (
+                    <button type="button" className="btn btn--secondary" onClick={reschedule}>
+                      Перенести…
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="btn btn--secondary"
@@ -221,7 +265,7 @@ function TaskView({ card }: { card: TimedTask }) {
                   >
                     Передать…
                   </button>
-                  {card.assigneeId === me.id ? (
+                  {card.assigneeId === me.id && settings.data?.todayMainEnabled ? (
                     <button
                       type="button"
                       className="btn btn--secondary"
@@ -484,6 +528,16 @@ function TaskView({ card }: { card: TimedTask }) {
           <History card={card} />
         </>
       )}
+      {feedActions.moving && calendar.data ? (
+        <MoveTaskSheet
+          card={feedActions.moving}
+          timeZone={calendar.data.timeZone}
+          pending={feedActions.operation.pending}
+          error={feedActions.operation.error}
+          close={feedActions.close}
+          move={feedActions.move}
+        />
+      ) : null}
       {transfer ? (
         <Sheet
           returnFocusRef={recordActions}

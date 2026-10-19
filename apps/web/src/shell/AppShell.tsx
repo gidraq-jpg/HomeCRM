@@ -1,5 +1,5 @@
 import { Plus } from '@phosphor-icons/react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
 import { ToastRegion } from '../ui/Toast.tsx';
@@ -37,6 +37,21 @@ export function AppShell({
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [quick, setQuick] = useState(false);
+  const chrome = useRef<HTMLDivElement>(null);
+  const app = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = chrome.current;
+    if (!element) return;
+    const measure = () =>
+      app.current?.style.setProperty(
+        '--chrome-clearance',
+        `${element.getBoundingClientRect().height + 24}px`,
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const add = () => {
     if (!isStudio()) return onAdd();
     const target = sectionAdd(pathname);
@@ -57,7 +72,7 @@ export function AppShell({
 
   return (
     <AddActionContext.Provider value={add}>
-      <div className="app">
+      <div className="app" ref={app}>
         <SideNav sections={sections} />
         <div className="app__content">
           <TopBar scopeVisible={scopeVisible} />
@@ -65,7 +80,7 @@ export function AppShell({
             {children}
           </main>
         </div>
-        <div className="chrome">
+        <div className="chrome" ref={chrome}>
           <aside className="chrome__actions" aria-label="Быстрые действия">
             <ToastRegion />
             {!isStudio() ? (

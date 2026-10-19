@@ -26,6 +26,7 @@ export const NotificationSettings = z.strictObject({
   hideText: z.boolean().default(true),
   morningEnabled: z.boolean().default(true),
   weeklyEnabled: z.boolean().default(true),
+  todayMainEnabled: z.boolean().default(true),
 });
 export type NotificationSettings = z.infer<typeof NotificationSettings>;
 /** У PATCH нет defaults: пропущенные поля должны сохранять прежние значения. */
@@ -37,6 +38,7 @@ export const NotificationSettingsPatch = z.strictObject({
   hideText: NotificationSettings.shape.hideText.removeDefault().optional(),
   morningEnabled: NotificationSettings.shape.morningEnabled.removeDefault().optional(),
   weeklyEnabled: NotificationSettings.shape.weeklyEnabled.removeDefault().optional(),
+  todayMainEnabled: NotificationSettings.shape.todayMainEnabled.removeDefault().optional(),
 });
 
 /** Адрес задаёт браузер, но запрос worker не должен уходить во внутреннюю сеть. */
