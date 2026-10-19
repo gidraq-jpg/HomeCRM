@@ -57,6 +57,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         'hide_text',
         'morning_enabled',
         'weekly_enabled',
+        'today_main_enabled',
       ],
     },
     push_attempts: { SELECT: 'all' },
