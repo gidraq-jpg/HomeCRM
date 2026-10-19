@@ -35,11 +35,11 @@
 /* Два контура: хотя бы один контрастирует 3:1 с любой светлой или тёмной поверхностью. */
 :root[data-design="studio"][data-design]
 :is(:focus-visible, input:focus-visible + span, input:focus-visible + .choice__body) {
-  outline: 3px solid var(--focus-dark);
+  outline: 3px solid var(--focus-light);
   outline-offset: 2px;
   box-shadow:
-    0 0 0 2px var(--focus-light),
-    0 0 0 8px var(--focus-light);
+    0 0 0 2px var(--focus-dark),
+    0 0 0 8px var(--focus-dark);
 }
 
 /* Studio включается только рабочим entry. Прототип 0.5 сохраняет токены выше. */

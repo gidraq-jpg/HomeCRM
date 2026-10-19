@@ -9,6 +9,7 @@ import { buildRows, filterRows } from '../deadlines/radar.ts';
 import { useHouseNames } from '../deadlines/useHouseNames.ts';
 import { isOpenWindow } from '../deadlines/utility.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { listScopeOf } from '../notes/queries.ts';
 import { PushCard } from '../notifications/PushCard.tsx';
 import { todayIn } from '../objects/dates.ts';
 import { useQueue } from '../offline/OfflinePanel.tsx';
@@ -65,8 +66,12 @@ function TasksPage({
   children: ReactNode;
 }) {
   const { me, householdId, isAdmin } = useHousehold();
-  const houseNames = useHouseNames();
   const { scope } = useScope();
+  const houseNames = useHouseNames(
+    view === 'today'
+      ? { scope: listScopeOf(scope), view: 'mine', ...(house ? { householdId: house } : {}) }
+      : {},
+  );
   const [, setParams] = useSearchParams();
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
   const feedTabs = <TaskTabs houseQuery={houseQuery} />;

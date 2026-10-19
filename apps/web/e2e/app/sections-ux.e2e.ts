@@ -204,10 +204,11 @@ test('D20a-15: одна подпись ответственного, один з
   family,
 }, info) => {
   const api = await apiAs(family, 'adult');
+  const me = (await api.get('me')).body as { timeZone: string };
   await seedDocument(api, {
     title: 'Вымышленный полис',
     type: 'property_insurance',
-    expiresOn: homeDate(20),
+    expiresOn: homeDate(20, me.timeZone),
     placement: { spaceId: family.houseId, audience: 'adults' },
   });
   const person = await seedPerson(api, {
@@ -265,14 +266,14 @@ async function checkFocus(page: Page, target: Locator) {
       visible: element.matches(':focus-visible'),
       contrast: Math.max(
         contrast(style.outlineColor, background),
-        contrast('rgb(255, 255, 255)', background),
+        contrast('rgb(17, 17, 17)', background),
       ),
       light,
     };
   });
   expect(colors.visible).toBe(true);
-  expect(colors.outline).toBe('rgb(17, 17, 17)');
-  expect(colors.shadow).toContain('rgb(255, 255, 255)');
+  expect(colors.outline).toBe('rgb(255, 255, 255)');
+  expect(colors.shadow).toContain('rgb(17, 17, 17)');
   expect(colors.width).toBe('3px');
   expect(colors.contrast).toBeGreaterThanOrEqual(3);
 }
