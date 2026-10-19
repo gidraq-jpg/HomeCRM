@@ -48,13 +48,6 @@ export function analyticsRoutes(route: DataRoute) {
       AND (${scope}='all' OR o.space_kind::text=${scope})
       AND (${householdId ?? null}::uuid IS NULL OR o.space_kind='personal' OR o.space_id=${householdId ?? null}::uuid)`;
     const home = householdId ?? [...account.viewer.memberships.keys()].sort()[0];
-    const zone = home
-      ? (
-          await tx.execute<{ zone: string }>(
-            sql`SELECT time_zone AS zone FROM spaces WHERE id=${home}::uuid`,
-          )
-        ).rows[0]?.zone
-      : undefined;
     // Главная и месячный экран читают один и тот же месяц: самый ранний с неоплаченным.
     const unpaid = requested
       ? undefined
@@ -68,6 +61,14 @@ export function analyticsRoutes(route: DataRoute) {
       WHERE ${objectFilter} AND c.deleted_at IS NULL AND c.cancelled_at IS NULL
         AND c.total_cents>coalesce(p.amount,0)`)
         ).rows[0]?.month;
+    const zone =
+      !requested && !unpaid && home
+        ? (
+            await tx.execute<{ zone: string }>(
+              sql`SELECT time_zone AS zone FROM spaces WHERE id=${home}::uuid`,
+            )
+          ).rows[0]?.zone
+        : undefined;
     const month = requested ?? unpaid ?? localDate(now, zone ?? 'UTC').slice(0, 7);
     type AccountStatus = {
       id: string;
