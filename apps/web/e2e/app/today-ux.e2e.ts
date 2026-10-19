@@ -209,6 +209,37 @@ test('D20a 2: свайп по четырём вкладкам, границы и
   }
   await syntheticSwipe(page, '.today-tabs');
   await expect(page).toHaveURL(/#\/today$/);
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '200%';
+  });
+  const strip = page.locator('.today-tabs .tabs');
+  await strip.scrollIntoViewIfNeeded();
+  await strip.evaluate((element) => {
+    element.scrollLeft = 0;
+  });
+  const bounds = await strip.boundingBox();
+  if (!bounds) throw new Error('Task strip is not visible');
+  const horizontal = await page.context().newCDPSession(page);
+  const fromX = bounds.x + bounds.width - 24;
+  const toX = bounds.x + 24;
+  const stripY = bounds.y + bounds.height / 2;
+  await horizontal.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: fromX, y: stripY }],
+  });
+  for (let step = 1; step <= 6; step++)
+    await horizontal.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x: fromX + ((toX - fromX) * step) / 6, y: stripY }],
+    });
+  await horizontal.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await horizontal.detach();
+  await expect.poll(() => strip.evaluate((element) => element.scrollLeft)).toBeGreaterThan(10);
+  await expect(page).toHaveURL(/#\/today$/);
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '100%';
+    window.scrollTo(0, 0);
+  });
   await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   await syntheticSwipe(page, '.today-hero');
   await expect(page).toHaveURL(/#\/today$/);
