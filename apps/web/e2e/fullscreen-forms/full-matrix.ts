@@ -38,7 +38,7 @@ async function ready(page: Page) {
 async function capture(page: Page, info: TestInfo, name: string, percent: number) {
   const dir = resolve(
     import.meta.dirname,
-    '../../../../docs/screenshots/UI-7',
+    '../../test-results/screens/UI-7',
     before ? 'before' : 'after',
   );
   await mkdir(dir, { recursive: true });

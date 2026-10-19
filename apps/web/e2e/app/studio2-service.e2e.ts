@@ -54,7 +54,7 @@ test('UI-6 D16b: служебные экраны, данные и пустые �
     ['not-found', '/unknown-service'],
     ['open-missing', `/open/${crypto.randomUUID()}`],
   ] as const;
-  const dir = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-6', phase);
+  const dir = resolve(import.meta.dirname, '../../test-results/screens/UI-6', phase);
   await mkdir(dir, { recursive: true });
   for (const percent of phase === 'before' ? [100] : [100, 200]) {
     for (const [name, route] of screens) {
@@ -114,7 +114,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
     await expectAccessible(page, name);
     await expectTouchTargets(page);
   }
-  const dir = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-6', phase);
+  const dir = resolve(import.meta.dirname, '../../test-results/screens/UI-6', phase);
   await mkdir(dir, { recursive: true });
   const dialogOpen =
     (await page.getByRole('dialog').count()) + (await page.getByRole('alertdialog').count()) > 0;
@@ -280,7 +280,7 @@ test('UI-6 D16b: администратор, приглашение, роль, �
     await page.getByRole('button', { name: 'Создать ссылку-приглашение', exact: true }).click();
     await expect(page.getByText('Ссылка показывается один раз.', { exact: true })).toBeVisible();
     // Ссылка-приглашение содержит одноразовый тестовый токен: в артефакте он закрыт маской.
-    const dir = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-6', phase);
+    const dir = resolve(import.meta.dirname, '../../test-results/screens/UI-6', phase);
     if (phase === 'after') {
       await expectAccessible(page, 'invite-issued');
       await expectNoHorizontalScroll(page);

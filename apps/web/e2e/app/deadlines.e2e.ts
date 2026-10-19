@@ -479,7 +479,9 @@ test('радар: группы по времени дома, «Моё · Вес�
   // «Весь дом»: добавляется гараж Анны.
   await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(groupItems(page, '7 дней')).toHaveCount(3);
-  await expect(groupItems(page, '7 дней')).toHaveCount(3);
+  await expect(page.getByRole('heading', { name: '7 дней', exact: true }).locator('..')).toHaveText(
+    /^7 дней\s*3$/,
+  );
   await expect(groupItems(page, '7 дней').filter({ hasText: 'Гараж' })).toContainText(
     'через 4 дня',
   );
@@ -524,6 +526,7 @@ test('радар: пустые состояния (TPL-4) — нет сроко�
   await signInAs(page, family, 'adult');
   await openRadar(page);
   await expect(page.getByText('Сроков пока нет', { exact: true })).toBeVisible();
+  await expect.poll(() => radarSummary(page)).toEqual({});
   await expect(page.getByText('Срочного нет')).toHaveCount(0);
   await checkApp(page, info, 'radar-empty');
 
@@ -539,9 +542,13 @@ test('радар: пустые состояния (TPL-4) — нет сроко�
   await checkApp(page, info, 'radar-empty-mine');
   await setScope(page, 'Личное');
   await expect(page.getByText('У вас сроков нет', { exact: true })).toBeVisible();
+  await expect.poll(() => radarSummary(page)).toEqual({});
   await setScope(page, 'Всё');
   await page.getByRole('button', { name: 'Весь дом', exact: true }).click();
   await expect(groupItems(page, '7 дней')).toContainText('Гараж');
+  await setScope(page, 'Личное');
+  await expect(page.getByText('Под выбранный режим сроков нет', { exact: true })).toBeVisible();
+  await expect.poll(() => radarSummary(page)).toEqual({});
 
   // «Сегодня»: срочного нет, но это не пустой экран.
   await page.goto('#/today');
@@ -584,7 +591,9 @@ test('срок скрыт вместе с записью: ребёнок не в
     await openRadar(child.page);
     await child.page.getByRole('button', { name: 'Весь дом', exact: true }).click();
     await expect.poll(() => radarSummary(child.page)).toEqual({ '7 дней': 1 });
-    await expect.poll(() => radarSummary(child.page)).toEqual({ '7 дней': 1 });
+    await expect(
+      child.page.getByRole('heading', { name: '7 дней', exact: true }).locator('..'),
+    ).toHaveText(/^7 дней\s*1$/);
     const text = await child.page.locator('main').innerText();
     for (const hidden of ['Счета на квартиру', 'Подарок на юбилей', 'Просрочено'])
       expect(text, `«${hidden}» в радаре ребёнка`).not.toContain(hidden);

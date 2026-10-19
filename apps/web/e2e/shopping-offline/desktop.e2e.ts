@@ -32,7 +32,7 @@ test('SHOP/OFFLINE desktop: реальные данные, длинный тек
   await expectNoHorizontalScroll(page);
   await expectTouchTargets(page);
   await expectAccessible(page, 'Shopping desktop');
-  const dir = resolve(import.meta.dirname, '../../../../docs/screenshots/R1c.7-8/desktop');
+  const dir = resolve(import.meta.dirname, '../../test-results/screens/R1c.7-8/desktop');
   await mkdir(dir, { recursive: true });
   if (process.platform === 'linux')
     await page.screenshot({ path: resolve(dir, 'shopping-real-long.png'), fullPage: true });

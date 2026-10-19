@@ -66,7 +66,7 @@ test('UI-6: карточки, списки и формы Studio 2', async ({ pag
     ['templates', '/home/from-template'],
     ['new-template', '/home/from-template/apartment'],
   ] as const;
-  const dir = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-6', phase);
+  const dir = resolve(import.meta.dirname, '../../test-results/screens/UI-6', phase);
   await mkdir(dir, { recursive: true });
   for (const percent of phase === 'before' ? [100] : [100, 200]) {
     await page.evaluate((p) => {
@@ -131,7 +131,7 @@ test('UI-6: пустые списки и формы, текст 100/200%', async
   test.skip(phase === 'before', 'Исходная съёмка выполнена отдельно.');
   test.setTimeout(180_000);
   await signInAs(page, family, 'adult');
-  const dir = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-6/after');
+  const dir = resolve(import.meta.dirname, '../../test-results/screens/UI-6/after');
   await mkdir(dir, { recursive: true });
   const routes = [
     ['objects', '/home'],
@@ -275,7 +275,7 @@ test('UI-6: файлы, версии и взаимодействия в груп
     ).status,
   ).toBe(201);
   await signInAs(page, family, 'adult');
-  const dir = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-6/after');
+  const dir = resolve(import.meta.dirname, '../../test-results/screens/UI-6/after');
   for (const percent of [100, 200]) {
     await page.evaluate((p) => {
       document.documentElement.style.fontSize = `${p}%`;

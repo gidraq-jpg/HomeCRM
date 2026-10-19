@@ -313,3 +313,42 @@ pwsh deploy/scripts/backup-status.ps1 -Snapshots
 Правила: 5 неудачных проверок подряд (около 5 минут) — запись «notify: unavailable» в журнал и оповещение; когда приложение снова отвечает — «notify: recovered» с временем начала простоя. Оповещение приходит, если приложение не ответило 200 со `"status":"ok"` и `"database":"ok"` (в том числе при недоступной базе).
 
 **Канал оповещений.** Сейчас — журнал VPS. Заготовка под Telegram (R2) включается строками `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` в `/etc/homecrm-watch.env`; токен читается только из этого файла и не печатается. Из России Telegram API почти недоступен: канал включают на зарубежном VPS.
+
+## 12. Проверки ночью и перед выпуском
+
+Команды выполняются из своего worktree. Одновременно на машине идёт только один тяжёлый прогон: `pnpm check`, замеры скорости или e2e. Перед push дождитесь завершения чужого прогона; штатная ловушка сама выполнит `pnpm check`, обходить её нельзя.
+
+```powershell
+pnpm check
+pnpm test:perf
+pnpm test:e2e:full
+```
+
+`pnpm check` проверяет кодировку, линтер, типы и все обычные тесты Vitest. Файлы `*.perf.test.ts` выделены в `pnpm test:perf`: последовательно, одним worker, с прежним пределом p95 300 мс. В CI это отдельный обязательный шаг задания «pnpm check», после остальных тестов. Ночью и перед каждым выпуском нужны обе команды; замер не запускают одновременно с e2e или проверками другого исполнителя.
+
+`pnpm test:e2e:full` собирает Linux-образ Playwright и запускает отдельный compose-проект `homecrm-test-full` с одноразовой PostgreSQL. В нём последовательно идут все сценарии приложения (360/412 px и существующие desktop-сценарии на 1280 px), полная матрица форм UI-7 (`e2e/fullscreen-forms/full-matrix.ts`, 100/200%, клавиатура, создание и правка на 360/412 px), затем все сценарии прототипа на обеих его ширинах. axe и проверки доступа, конфликтов и офлайна сохраняются. При ошибке команда возвращает ненулевой код; красный ночной прогон останавливает выпуск.
+
+У тестовой PostgreSQL постоянно задано `max_locks_per_transaction=512`: в локальном Compose и e2e через команду сервера, в CI через `POSTGRES_INITDB_ARGS`. Для внешней тестовой PostgreSQL, переданной через `HOMECRM_TEST_PG_ADMIN_URL`, такую настройку задают при создании кластера; рабочую базу для тестов не используют.
+
+Полный прогон не публикует постоянных портов приложения, серверы сценариев получают свободные порты. После завершения (в том числе ошибки) команда удаляет только свой compose-проект и его одноразовые тома. После принудительного закрытия терминала очистка вручную:
+
+```powershell
+docker compose -p homecrm-test-full -f apps/web/e2e/fullscreen-forms/compose.yaml down --volumes
+```
+
+Снимки CI и полного прогона пишутся в `apps/web/test-results/screens/`, ошибки — в `apps/web/test-results/artifacts/` (подпапки `app`, `forms`, `prototype`), эти файлы не коммитятся. Эталоны `docs/screenshots/**` автоматически не меняются: отобранные Linux-снимки для PR переносятся туда отдельно. В CI каталог `apps/web/test-results` прикладывается как артефакт. Тайм-ауты и повторные попытки тестов не увеличиваются.
+
+Три исправленных нестабильных файла можно проверить пять раз подряд в том же контейнере, без полного прогона:
+
+```powershell
+docker compose -p homecrm-test-d19b -f apps/web/e2e/fullscreen-forms/compose.yaml run --build --rm playwright pnpm --filter @homecrm/web test:e2e:auth charges.e2e.ts all-tasks-actions.e2e.ts deadlines.e2e.ts --repeat-each=5
+docker compose -p homecrm-test-d19b -f apps/web/e2e/fullscreen-forms/compose.yaml down --volumes
+```
+
+Коллаж D16b собирается в том же Linux-образе, где уже установлен системный Pillow (только инструмент снимков; зависимостей приложения нет):
+
+```powershell
+docker compose -p homecrm-test-d19b -f apps/web/e2e/fullscreen-forms/compose.yaml run --no-deps --build --rm playwright python3 apps/web/e2e/studio2-service/collage.py
+```
+
+Исходные `service-*` берутся из `apps/web/test-results/screens/UI-6/`, туда же сохраняются коллажи. Для новых снимков сначала выполните сценарий `studio2-service.e2e.ts`; старые утверждённые снимки остаются в документации.

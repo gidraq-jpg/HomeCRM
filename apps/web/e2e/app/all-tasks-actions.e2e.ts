@@ -13,7 +13,7 @@ import { signInAs } from './support.ts';
 
 async function capture(page: Page, name: string) {
   if (process.platform !== 'linux') return;
-  const directory = resolve(import.meta.dirname, '../../../../docs/screenshots/D17');
+  const directory = resolve(import.meta.dirname, '../../test-results/screens/D17');
   await mkdir(directory, { recursive: true });
   await page.screenshot({ path: resolve(directory, `${name}.png`), fullPage: true });
 }
@@ -59,13 +59,35 @@ test('TASK-6/12: все дела — выполнение, возврат, пе�
   ).toHaveCount(1);
   await expect(page.getByRole('link', { name: '2 открытых дела', exact: true })).toBeVisible();
   await capture(page, `after-${width}`);
+  // После отмены лента перечитывается и может переставить строки. Следующий клик —
+  // только после ответа с открытым делом, а не посреди обновления списка.
+  const restored = page.waitForResponse(async (response) => {
+    if (
+      response.request().method() !== 'GET' ||
+      new URL(response.url()).pathname !== '/api/tasks' ||
+      !response.ok()
+    )
+      return false;
+    const body = await response.json();
+    const rows: unknown = Array.isArray(body) ? body : body.data;
+    return (
+      Array.isArray(rows) &&
+      rows.some((row) => row.title === 'Покрасить стены' && row.status === 'open')
+    );
+  });
   await page.getByRole('button', { name: 'Отменить', exact: true }).click();
   await expect(page.getByText('Выполнение отменено', { exact: true })).toBeVisible();
+  await (await restored).finished();
   await expect(completed).not.toHaveClass(/plan-row--closed/);
+  await expect(
+    completed.getByRole('button', { name: 'Отметить сделанным: Покрасить стены', exact: true }),
+  ).toBeEnabled();
   await page
     .getByRole('button', { name: 'Отметить сделанным: Покрасить стены', exact: true })
     .click();
-  await expect(page.getByText('Дело выполнено', { exact: true })).toBeVisible();
+  // Повторное выполнение проверяем по строке: тост кратковременный, состояние остаётся.
+  await expect(completed).toHaveClass(/plan-row--closed/);
+  await expect(completed.locator('.plan-circle--done')).toBeVisible();
   await expectAccessible(page, `all-tasks-completed-${width}`);
   await page.getByRole('button', { name: 'Возобновить: Покрасить стены', exact: true }).click();
   await expect(page.getByText('Дело возобновлено', { exact: true })).toBeVisible();

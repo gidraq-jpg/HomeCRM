@@ -20,7 +20,7 @@ async function check(page: Page, name: string) {
   await expectTouchTargets(page);
   await expectAccessible(page, name);
   if (process.platform === 'linux') {
-    const directory = resolve(import.meta.dirname, '../../../../docs/screenshots/TASK-5');
+    const directory = resolve(import.meta.dirname, '../../test-results/screens/TASK-5');
     await mkdir(directory, { recursive: true });
     await page.screenshot({ path: resolve(directory, `${name}.png`), fullPage: true });
   }
@@ -147,7 +147,7 @@ for (const textScale of [1, 2]) {
       .toBeLessThan(2);
     await expect(tabs.getByRole('button', { name: 'Добавить', exact: true })).toBeInViewport();
     if (process.platform === 'linux') {
-      const directory = resolve(import.meta.dirname, '../../../../docs/screenshots/TASK-5');
+      const directory = resolve(import.meta.dirname, '../../test-results/screens/TASK-5');
       await mkdir(directory, { recursive: true });
       await page.screenshot({
         path: resolve(directory, `plan-sticky-${textScale * 100}-${width}.png`),

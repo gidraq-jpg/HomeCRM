@@ -22,7 +22,7 @@ async function check(page: Page, info: TestInfo, name: string) {
     await page.evaluate(() => window.scrollTo(0, 0));
   }
   if (process.platform === 'linux') {
-    const dir = resolve(import.meta.dirname, '../../../../docs/screenshots/UI-5');
+    const dir = resolve(import.meta.dirname, '../../test-results/screens/UI-5');
     await mkdir(dir, { recursive: true });
     await page.screenshot({
       path: resolve(dir, `${name}-${info.project.name}.png`),
