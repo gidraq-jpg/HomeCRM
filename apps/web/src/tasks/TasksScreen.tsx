@@ -161,7 +161,10 @@ function TodayFeed({ house }: { house: string | null }) {
   });
   const urgent = filterRows(rows, { view: 'mine', scope, meId: me.id }).filter(
     (row) =>
-      !isOpenWindow(row) && !query.data?.tasks.some((task) => row.to === `/today/tasks/${task.id}`),
+      !isOpenWindow(row) &&
+      !query.data?.tasks.some(
+        (task) => row.to === `/today/tasks/${task.id}` || task.radarOccurrenceId === row.id,
+      ),
   );
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
   return (

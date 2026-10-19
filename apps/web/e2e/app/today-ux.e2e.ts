@@ -103,13 +103,28 @@ test('D20a 1,4,5,8: личное главное дело, устройства, 
       })
     ).status,
   ).toBe(201);
+  const linked = await seedNote(api, family, { title: 'Вымышленный срок с делом' });
+  expect(
+    (
+      await api.post(`notes/${linked.id}/deadlines`, {
+        rule: { kind: 'date', date: homeDate(0), warnings: [0] },
+      })
+    ).status,
+  ).toBe(201);
   await recalc(family);
+  const todayBefore = await api.get('tasks/today?scope=all');
+  const occurrence = (todayBefore.body as { radar: { id: string; title: string }[] }).radar.find(
+    (row) => row.title === 'Вымышленный срок с делом',
+  );
+  expect(occurrence).toBeDefined();
+  expect((await api.post('tasks/from-radar', { occurrenceId: occurrence?.id })).status).toBe(201);
   await signInAs(page, family, 'adult');
   await expect(
     page.getByRole('heading', { name: 'Главное на сегодня', exact: true }),
   ).toBeVisible();
   await expect(page.getByText('Проверить вымышленный фильтр', { exact: true })).toHaveCount(1);
   await expect(page.getByText('Вымышленный срок без дела', { exact: true })).toBeVisible();
+  await expect(page.getByText('Вымышленный срок с делом', { exact: true })).toHaveCount(1);
   await check(page, info, 'today');
   await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   const menu = page.getByRole('dialog', { name: 'Добавить', exact: true });
