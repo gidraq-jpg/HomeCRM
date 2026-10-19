@@ -18,7 +18,8 @@ test('вымышленных данных прототипа нет, все пя
   await seedProfiles(family);
   await signInAs(page, family, 'adult');
   const nav = page.getByRole('navigation', { name: 'Основные разделы' });
-  await expect(nav.getByRole('link')).toHaveText(['Сегодня', 'Дом', 'Документы', 'Люди', 'Ещё']);
+  await expect(nav.getByRole('link')).toHaveText(['Сегодня', 'Дом', 'Док.', 'Люди', 'Ещё']);
+  await expect(nav.getByRole('link', { name: 'Документы', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
   await checkApp(page, info, 'section-today');
 
