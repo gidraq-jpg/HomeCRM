@@ -97,6 +97,8 @@ export function ShoppingScreen() {
     const body = { title: value, ...(placement ? { placement } : {}) };
     void state.run(async () => {
       await createShopping({ ...body, idempotencyKey: key(body) });
+      // Незавершённое первое чтение содержит снимок до POST; invalidate переиспользует его.
+      await client.cancelQueries({ queryKey: ['shopping', account] });
       setTitle('');
       await refresh();
       toast.show({ message: 'Покупка добавлена' });

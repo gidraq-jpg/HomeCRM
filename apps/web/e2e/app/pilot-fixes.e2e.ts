@@ -264,10 +264,42 @@ test('D19a.6/9/10/13: покупки без Map.groupBy, назад из пра�
     Object.defineProperty(Map, 'groupBy', { value: undefined });
   });
   await signInAs(page, family, 'adult');
+  // Первый снимок пустого списка может прийти после успешного добавления.
+  let initialRead!: () => void;
+  const initialReady = new Promise<void>((resolve) => {
+    initialRead = resolve;
+  });
+  let releaseInitial!: () => void;
+  const initialReleased = new Promise<void>((resolve) => {
+    releaseInitial = resolve;
+  });
+  let holdInitial = true;
+  await page.route('**/api/shopping?*', async (route) => {
+    if (!holdInitial || new URL(route.request().url()).searchParams.get('scope') !== 'household')
+      return route.continue();
+    holdInitial = false;
+    const response = await route.fetch();
+    expect(await response.json()).toMatchObject({ data: [] });
+    initialRead();
+    await initialReleased;
+    await route.fulfill({ response });
+  });
   await page.goto('#/more/shopping');
   await expect(page.getByRole('heading', { name: 'Покупки', exact: true })).toBeVisible();
-  await page.getByLabel('Добавить одной строкой', { exact: true }).fill('Мыло D19');
-  await page.keyboard.press('Enter');
+  const shoppingInput = page.getByLabel('Добавить одной строкой', { exact: true });
+  try {
+    await initialReady;
+    await shoppingInput.fill('Мыло D19');
+    const created = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/shopping') && response.request().method() === 'POST',
+    );
+    await page.keyboard.press('Enter');
+    expect((await created).status()).toBe(201);
+    await expect(shoppingInput).toHaveValue('');
+  } finally {
+    releaseInitial();
+  }
   await expect(page.getByText('Мыло D19', { exact: true })).toBeVisible();
   await check(page, info, 'shopping');
   expect(
