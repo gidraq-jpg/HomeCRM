@@ -148,6 +148,7 @@ function TodayFeed({ house }: { house: string | null }) {
   const { scope } = useScope();
   const query = useToday(house);
   const settings = useSettings();
+  const loadingFeed = query.isPending || settings.isPending;
   const showMain = settings.data?.todayMainEnabled === true;
   const now = new Date();
   const rows = buildRows(query.data?.radar ?? [], {
@@ -173,7 +174,7 @@ function TodayFeed({ house }: { house: string | null }) {
       house={house}
       hero={<TodayHero data={query.data} error={query.error} house={house} />}
     >
-      {query.isPending ? (
+      {loadingFeed ? (
         <div className="today-feed-skeleton" role="status">
           <span className="visually-hidden">Загружаем дела…</span>
         </div>
@@ -188,7 +189,7 @@ function TodayFeed({ house }: { house: string | null }) {
           </button>
         </Notice>
       ) : null}
-      {query.data && showMain ? (
+      {!loadingFeed && query.data && showMain ? (
         <Section title="Главное на сегодня" eyebrow>
           {query.data.main ? (
             <TaskRows
@@ -218,7 +219,7 @@ function TodayFeed({ house }: { house: string | null }) {
         </Section>
       ) : null}
       <FirstRunCard />
-      {query.data ? (
+      {!loadingFeed && query.data ? (
         <>
           <ReadingsWindowsFromRows rows={rows} />
           <Section title="Сегодня и просроченные">
