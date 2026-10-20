@@ -12,6 +12,7 @@ import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { defaultVisibility } from '../access/visibility.ts';
 import { Notice } from '../auth/components.tsx';
+import { useHouseNames } from '../deadlines/useHouseNames.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { creatableVisibilities, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import type { DraftBase } from '../offline/draft-data.ts';
@@ -21,7 +22,6 @@ import type { TaskCard } from './api.ts';
 import { ChecklistEditor } from './ChecklistEditor.tsx';
 import { SelectField, TextField } from './fields.tsx';
 import { MemberPicker, RecordPicker, useOptions, useTaskMembers } from './options.tsx';
-import { useToday } from './queries.ts';
 import { RepeatFields } from './repeats.tsx';
 export const STATUS_LABELS: Record<TaskCard['status'], string> = {
   open: 'Открыто',
@@ -79,13 +79,13 @@ export function TaskForm({
   onCancel: () => void;
 }) {
   const { me } = useHousehold();
+  const houseNames = useHouseNames();
   const { scope } = useScope();
   const objects = useOptions('object', !base);
   const [visibilityTouched, setVisibilityTouched] = useState(false);
   const [draft, setDraft] = useState(initial);
   const location = useLocation();
   const localDraft = useDurableDraft(`form:${location.pathname}`, draft, setDraft, base);
-  const calendar = useToday(draft.householdId || null);
   const [invalid, setInvalid] = useState('');
   const descriptionId = useId();
   function update<K extends keyof TaskDraft>(key: K, value: TaskDraft[K]) {
@@ -162,17 +162,14 @@ export function TaskForm({
             }}
             options={[
               { value: '', label: 'Выберите дом' },
-              ...me.roles.map((role, index) => ({
+              ...me.roles.map((role) => ({
                 value: role.householdId,
-                label: `Дом ${index + 1}`,
+                label: houseNames(role.householdId),
               })),
             ]}
           />
         ) : null}
-        <p className="muted">
-          Даты и точное время — в часовом поясе дома
-          {calendar.data ? `: ${calendar.data.timeZone}` : ' (уточняем…)'}.
-        </p>
+        <p className="muted">Даты и точное время — в часовом поясе дома.</p>
         <div className="task-fields">
           <TextField
             label={draft.repeatRule ? 'Начальная дата / план' : 'Дата плана'}

@@ -279,7 +279,9 @@ export function ReadingsTransfer() {
           <h2 className="card__title" id="saved-title">
             Показания сохранены
           </h2>
-          <p className="card__meta">Осталось передать их поставщику — значения ниже.</p>
+          <p className="card__meta">
+            Значения и расход сохранены. Если нужна передача, выберите способ ниже.
+          </p>
           <ul className="transfer-list" aria-label="Сохранённые показания">
             {saved.readings.map((reading) => {
               const meter = meterOf(allMeters, reading.parentId);
@@ -365,7 +367,10 @@ export function ReadingsTransfer() {
               </Link>
             }
           >
-            <p>Все сохранённые показания отмечены переданными. Новые появятся здесь после ввода.</p>
+            <p>
+              Показаний к передаче за этот месяц нет. Новые появятся здесь после ввода, если счёту
+              нужна передача.
+            </p>
           </EmptyState>
         ) : null}
         {groups.length > 1 && ctx.canWrite ? (

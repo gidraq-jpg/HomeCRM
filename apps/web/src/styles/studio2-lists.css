@@ -148,9 +148,14 @@ html[data-design="studio"] .studio-radar-row {
   padding: 6px;
 }
 html[data-design="studio"] .studio-radar-row__record {
-  flex: 1 1 130px;
+  flex: 1 1 240px;
   min-width: 0;
   padding: 6px;
+}
+html[data-design="studio"] .studio-radar-row :is(.row__title, .row__meta) {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 html[data-design="studio"] .studio-radar-row__actions {
   display: flex;

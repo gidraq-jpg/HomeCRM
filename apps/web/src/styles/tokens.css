@@ -16,6 +16,8 @@
   --danger: #9b332b;
   --danger-soft: #f7e3e0;
   --overlay: rgb(35 45 40 / 0.5);
+  --focus-dark: #111111;
+  --focus-light: #ffffff;
 
   --font-sans: Roboto, "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-serif: "Noto Serif", Georgia, "Times New Roman", serif;
@@ -28,6 +30,16 @@
   --fab-size: 56px;
 
   color-scheme: light;
+}
+
+/* Два контура: хотя бы один контрастирует 3:1 с любой светлой или тёмной поверхностью. */
+:root[data-design="studio"][data-design]
+:is(:focus-visible, input:focus-visible + span, input:focus-visible + .choice__body) {
+  outline: 3px solid var(--focus-light);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--focus-dark),
+    0 0 0 8px var(--focus-dark);
 }
 
 /* Studio включается только рабочим entry. Прототип 0.5 сохраняет токены выше. */

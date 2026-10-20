@@ -273,7 +273,9 @@ function DocumentView({ card }: { card: DocumentCard }) {
                 ? dateLabel(source.until)
                 : 'Не указан',
         },
-        { label: 'Ответственный', value: nameOf(card.assigneeId ?? card.authorId) },
+        ...(!canChange || trashed
+          ? [{ label: 'Ответственный', value: nameOf(card.assigneeId ?? card.authorId) }]
+          : []),
       ]}
       more={
         !trashed ? (
@@ -394,10 +396,6 @@ function DocumentView({ card }: { card: DocumentCard }) {
             </dd>
           </div>
         )}{' '}
-        <div className="facts__item">
-          <dt>Ответственный за продление</dt>
-          <dd>{nameOf(card.assigneeId ?? card.authorId)}</dd>
-        </div>
         <div className="facts__item">
           <dt>Теги</dt>
           <dd>{card.data.tags.length === 0 ? '—' : card.data.tags.join(', ')}</dd>

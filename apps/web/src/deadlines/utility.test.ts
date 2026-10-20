@@ -74,7 +74,7 @@ describe('окно показаний: сколько счётчиков ещё 
 
   it('все внесены, но не переданы — подсказка передать; всё готово — строки нет', () => {
     expect(progressText({ total: 1, missing: 0, untransmitted: 1 })).toBe(
-      'Показания внесены, осталось передать',
+      'Показания сохранены. Проверьте передачу в лицевом счёте',
     );
     expect(progressText({ total: 1, missing: 0, untransmitted: 0 })).toBeNull();
   });

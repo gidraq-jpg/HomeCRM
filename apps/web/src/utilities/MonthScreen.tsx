@@ -1,14 +1,11 @@
 import { CalendarBlank, CaretLeft, CaretRight, Gauge, Plus, Receipt } from '@phosphor-icons/react';
 import { Link, useSearchParams } from 'react-router';
-import { useScope } from '../access/ScopeContext.tsx';
-import { matchesScope } from '../access/scope.ts';
 import { ApiError } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { visibilityOf } from '../notes/abilities.ts';
 import { todayIn } from '../objects/dates.ts';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
-import { countWord, formatRub } from '../ui/format.ts';
+import { countWord, type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
 import { Section } from '../ui/Page.tsx';
 import { Status } from '../ui/Row.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
@@ -18,7 +15,13 @@ import { useMonth } from './queries.ts';
 
 const BACK = { to: '/home', label: 'Дом' } as const;
 
-function Money({ chargedCents, paidCents, remainingCents }: MonthOverview['totals']) {
+function Money({
+  chargedCents,
+  paidCents,
+  remainingCents,
+  dueOn,
+  overdue,
+}: MonthOverview['totals']) {
   return (
     <dl className="facts">
       <div className="facts__item">
@@ -33,7 +36,14 @@ function Money({ chargedCents, paidCents, remainingCents }: MonthOverview['total
         <dt>К оплате</dt>
         <dd>
           <strong>{formatRub(remainingCents)}</strong>
-          {remainingCents > 0 ? <Status tone="warning">Есть долг</Status> : null}
+          {remainingCents > 0 ? (
+            <Status tone="warning">
+              {overdue ? 'Есть долг' : 'К оплате'}
+              {dueOn
+                ? `${overdue ? ' · срок был' : ' до'} ${formatShortDate(dueOn as DateOnly)}`
+                : ''}
+            </Status>
+          ) : null}
         </dd>
       </div>
     </dl>
@@ -50,6 +60,8 @@ function ObjectMonth({ object }: { object: MonthObject }) {
         chargedCents={object.chargedCents}
         paidCents={object.paidCents}
         remainingCents={object.remainingCents}
+        dueOn={object.dueOn}
+        overdue={object.overdue}
       />
       {object.accounts.length === 0 ? (
         <Section
@@ -107,16 +119,17 @@ function ObjectMonth({ object }: { object: MonthObject }) {
  * Месяц лежит в адресе (`?month=2026-10`): это не секрет, и ссылку можно сохранить.
  */
 export function MonthScreen() {
-  const { me } = useHousehold();
-  const { scope } = useScope();
+  const { me, householdId } = useHousehold();
   const [params, setParams] = useSearchParams();
   const current = monthOf(todayIn(me.timeZone));
   const requested = params.get('month');
-  const month = isMonth(requested) ? requested : current;
-  const query = useMonth(month);
+  const house = params.get('householdId');
+  const home = me.roles.some((role) => role.householdId === house) ? house : householdId;
+  const query = useMonth(isMonth(requested) ? requested : undefined, home);
+  const month = isMonth(requested) ? requested : (query.data?.month ?? current);
 
   function go(next: string) {
-    setParams(next === current ? {} : { month: next }, { replace: true });
+    setParams({ month: next, ...(home ? { householdId: home } : {}) }, { replace: true });
   }
 
   const label = monthName(month);
@@ -175,15 +188,7 @@ export function MonthScreen() {
     );
   }
 
-  const objects = query.data.objects.filter((object) => matchesScope(visibilityOf(object), scope));
-  const totals = objects.reduce(
-    (sum, object) => ({
-      chargedCents: sum.chargedCents + object.chargedCents,
-      paidCents: sum.paidCents + object.paidCents,
-      remainingCents: sum.remainingCents + object.remainingCents,
-    }),
-    { chargedCents: 0, paidCents: 0, remainingCents: 0 },
-  );
+  const { objects, totals } = query.data;
   const nothing = totals.chargedCents === 0 && totals.paidCents === 0;
   const first = objects.find((object) => object.accounts.length > 0);
   const firstAccount = first?.accounts[0];

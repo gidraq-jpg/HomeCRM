@@ -7,6 +7,7 @@ import { listScopeOf } from '../notes/queries.ts';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectsList } from '../objects/queries.ts';
 import { formatLongDate, formatRub, formatShortDate, plural, weekdayName } from '../ui/format.ts';
+import { useMonth } from '../utilities/queries.ts';
 
 import type { Today } from './api.ts';
 import { uniqueTasks } from './queries.ts';
@@ -38,6 +39,7 @@ export function TodayHero({
     },
   });
   const objects = useObjectsList(false);
+  const utilities = useMonth(undefined, house);
   const taskCount = data ? todayTaskCount(data.tasks) : undefined;
   const deadlineCount = radar.status === 'ready' ? nearbyDeadlineCount(radar.rows) : undefined;
   const objectCount = objects.data ? uniqueTasks(objects.data.pages.flat()).length : undefined;
@@ -96,14 +98,11 @@ export function TodayHero({
   ];
   // Только свежие видимые строки радара; неизвестные суммы и даты не подменяем нулём.
   const ready = radar.status === 'ready' && !radar.error && !radar.recalculating;
-  const payments = ready
-    ? radar.rows.filter(
-        (row) => row.utility?.kind === 'payment' && ['overdue', 'now', '7days'].includes(row.group),
-      )
-    : [];
-  const knownPayments =
-    payments.length > 0 && payments.every((row) => row.utility?.remainingCents != null);
-  const due = payments.reduce((sum, row) => sum + (row.utility?.remainingCents ?? 0), 0);
+  const hintsBusy = (!ready && !radar.error) || utilities.isPending;
+  const due = utilities.error ? 0 : (utilities.data?.payableCents ?? 0);
+  const monthParams = new URLSearchParams();
+  if (utilities.data) monthParams.set('month', utilities.data.month);
+  if (house) monthParams.set('householdId', house);
   const windowEnd = ready
     ? radar.rows
         .filter((row) => row.utility?.kind === 'readings' && row.group === 'now')
@@ -154,16 +153,18 @@ export function TodayHero({
           ))}
         </p>
       </nav>
-      <div className="today-hints" aria-busy={!ready}>
-        {!ready && !radar.error ? (
+      <div className="today-hints" aria-busy={hintsBusy}>
+        {hintsBusy ? (
           <span
             role="status"
             className="today-hints__skeleton"
             aria-label="Загружаем суммы и окна показаний"
           />
         ) : null}
-        {knownPayments && due > 0 ? <span>{formatRub(due)} к оплате</span> : null}
-        {windowEnd ? <span>Показания до {formatShortDate(windowEnd)}</span> : null}
+        {!hintsBusy && due > 0 ? (
+          <Link to={`/home/month?${monthParams}`}>{formatRub(due)} к оплате</Link>
+        ) : null}
+        {!hintsBusy && windowEnd ? <span>Показания до {formatShortDate(windowEnd)}</span> : null}
       </div>
     </div>
   );

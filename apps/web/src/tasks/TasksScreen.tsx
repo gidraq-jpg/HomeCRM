@@ -6,8 +6,10 @@ import { Notice } from '../auth/components.tsx';
 import { RadarRows } from '../deadlines/RadarScreen.tsx';
 import { ReadingsWindowsFromRows } from '../deadlines/ReadingsWindowCards.tsx';
 import { buildRows, filterRows } from '../deadlines/radar.ts';
+import { useHouseNames } from '../deadlines/useHouseNames.ts';
 import { isOpenWindow } from '../deadlines/utility.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { listScopeOf } from '../notes/queries.ts';
 import { PushCard } from '../notifications/PushCard.tsx';
 import { useSettings } from '../notifications/queries.ts';
 import { todayIn } from '../objects/dates.ts';
@@ -66,6 +68,11 @@ function TasksPage({
 }) {
   const { me, householdId, isAdmin } = useHousehold();
   const { scope } = useScope();
+  const houseNames = useHouseNames(
+    view === 'today'
+      ? { scope: listScopeOf(scope), view: 'mine', ...(house ? { householdId: house } : {}) }
+      : {},
+  );
   const [, setParams] = useSearchParams();
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
   const feedTabs = <TaskTabs houseQuery={houseQuery} />;
@@ -95,9 +102,9 @@ function TasksPage({
           label="Выбранный дом"
           value={house ?? ''}
           onChange={(value) => setParams({ householdId: value })}
-          options={me.roles.map((role, index) => ({
+          options={me.roles.map((role) => ({
             value: role.householdId,
-            label: `Дом ${index + 1}`,
+            label: houseNames(role.householdId),
           }))}
         />
       ) : null}

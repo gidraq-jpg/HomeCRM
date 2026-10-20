@@ -8,6 +8,7 @@ import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { ApiError, errorMessage } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
+import { useHouseNames } from '../deadlines/useHouseNames.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import {
   creatableVisibilities,
@@ -34,6 +35,7 @@ import {
   type ShoppingCard,
   shoppingAction,
 } from './api.ts';
+import { alreadyListed } from './duplicates.ts';
 import { ShoppingLinks } from './ShoppingLinks.tsx';
 import '../tasks/today.css';
 import '../styles/studio2-lists.css';
@@ -50,6 +52,7 @@ function ShoppingError({ error }: { error: unknown }) {
 }
 export function ShoppingScreen() {
   const { me, householdId } = useHousehold();
+  const houseNames = useHouseNames();
   const { scope } = useScope();
   const client = useQueryClient();
   const toast = useToast();
@@ -61,6 +64,7 @@ export function ShoppingScreen() {
   );
   const [trash, setTrash] = useState(false);
   const [title, setTitle] = useState('');
+  const [duplicate, setDuplicate] = useState(false);
   const [listChoice, setListChoice] = useState<'household' | 'personal'>(
     scope === 'personal' ? 'personal' : 'household',
   );
@@ -96,6 +100,10 @@ export function ShoppingScreen() {
     const placement = newPlacement(place, house || null);
     const body = { title: value, ...(placement ? { placement } : {}) };
     void state.run(async () => {
+      if (await alreadyListed(value, place, house || null)) {
+        setDuplicate(true);
+        return;
+      }
       await createShopping({ ...body, idempotencyKey: key(body) });
       // Незавершённое первое чтение содержит снимок до POST; invalidate переиспользует его.
       await client.cancelQueries({ queryKey: ['shopping', account] });
@@ -161,7 +169,7 @@ export function ShoppingScreen() {
     return (
       <>
         {open.length ? (
-          [...groupBy(open, (card) => card.data.category || card.data.store || 'Список')].map(
+          [...groupBy(open, (card) => card.data.category || card.data.store || 'Без магазина')].map(
             ([category, items]) => (
               <Section
                 key={category}
@@ -173,7 +181,7 @@ export function ShoppingScreen() {
             ),
           )
         ) : (
-          <p className="muted">В списке пусто.</p>
+          <p className="muted">{bought.length ? 'Всё куплено' : 'Добавьте первую покупку'}</p>
         )}
         {bought.length ? (
           <details className="shopping-bought">
@@ -250,9 +258,9 @@ export function ShoppingScreen() {
                   setPlace(selectedList);
                 }}
               >
-                {me.roles.map((role, index) => (
+                {me.roles.map((role) => (
                   <option key={role.householdId} value={role.householdId}>
-                    Дом {index + 1}
+                    {houseNames(role.householdId)}
                   </option>
                 ))}
               </select>
@@ -274,9 +282,16 @@ export function ShoppingScreen() {
                   required
                   enterKeyHint="done"
                   readOnly={state.disabled}
-                  onChange={(event) => setTitle(event.target.value)}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    setDuplicate(false);
+                  }}
                 />
+                <button type="submit" className="btn btn--primary" disabled={state.disabled}>
+                  Добавить
+                </button>
               </div>
+              {duplicate ? <p role="status">Уже в списке</p> : null}
               <details className="studio-list-options">
                 <summary>Параметры покупки</summary>
                 <VisibilityPicker
@@ -305,15 +320,15 @@ export function ShoppingScreen() {
               </button>
             </>
           ) : all.length === 0 ? (
-            <p className="muted">{trash ? 'Корзина покупок пуста' : 'В списке пусто'}</p>
+            <p className="muted">{trash ? 'Удалённых покупок нет' : 'Добавьте первую покупку'}</p>
           ) : (
             <>
-              {scope !== 'personal' ? (
+              {scope !== 'personal' && all.some((card) => card.spaceKind === 'household') ? (
                 <section aria-label="Общий список">
                   {list(all.filter((card) => card.spaceKind === 'household'))}
                 </section>
               ) : null}
-              {scope !== 'shared' ? (
+              {scope !== 'shared' && all.some((card) => card.spaceKind === 'personal') ? (
                 <section aria-label="Мой список">
                   {list(all.filter((card) => card.spaceKind === 'personal'))}
                 </section>
@@ -330,7 +345,7 @@ export function ShoppingScreen() {
                 aria-pressed={!trash}
                 onClick={() => setTrash(false)}
               >
-                Список
+                Купить
               </button>
               <button
                 type="button"
@@ -338,7 +353,7 @@ export function ShoppingScreen() {
                 aria-pressed={trash}
                 onClick={() => setTrash(true)}
               >
-                Корзина покупок
+                Удалённые покупки
               </button>
             </div>
           </details>
@@ -525,6 +540,7 @@ function ShoppingEditor({
     card ? visibilityOf(card) : house ? 'household' : 'personal',
   );
   const [conflict, setConflict] = useState<ShoppingCard | null>(null);
+  const [duplicate, setDuplicate] = useState(false);
   const [editBase] = useState(card?.updatedAt);
   const options = creatableVisibilities(viewerOf(me), house, 'shopping_item');
   function save(event: FormEvent) {
@@ -543,6 +559,10 @@ function ShoppingEditor({
             idempotencyKey: key({ ...body, base: conflict?.updatedAt ?? editBase }),
           });
         else {
+          if (await alreadyListed(body.title, visibility, house)) {
+            setDuplicate(true);
+            return;
+          }
           const placement = newPlacement(visibility, house);
           await createShopping({
             ...body,
@@ -581,7 +601,10 @@ function ShoppingEditor({
             value={title}
             required
             maxLength={200}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setDuplicate(false);
+            }}
           />
         </label>
         <label>
@@ -642,6 +665,7 @@ function ShoppingEditor({
             сохранение осознанно применит вашу правку к показанной версии.
           </Notice>
         ) : null}
+        {duplicate ? <p role="status">Уже в списке</p> : null}
         <ShoppingError error={state.error} />
         <button className="btn btn--primary" type="submit" disabled={state.disabled}>
           {state.pending ? 'Сохраняем…' : conflict ? 'Применить мою правку' : 'Сохранить'}

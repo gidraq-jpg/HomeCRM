@@ -18,6 +18,7 @@ import {
   canTrash,
   canView,
   consumptionWarning,
+  localDate,
   MeterData,
   meterDecimal,
   meterUnits,
@@ -543,6 +544,16 @@ export async function meterRoutes(route: DataRoute) {
   });
   route('GET', '/api/objects/:id/transmission', 200, async (tx, account, request) => {
     const parent = await getObject(tx, account, parse(Id, request.params).id);
+    const zone =
+      (
+        await tx.execute<{
+          zone: string;
+        }>(sql`SELECT coalesce(s.time_zone,h.time_zone,'UTC') AS zone FROM spaces s
+      LEFT JOIN LATERAL (SELECT hs.time_zone FROM space_members m JOIN spaces hs ON hs.id=m.space_id
+        WHERE m.account_id=${parent.assigneeId}::uuid AND m.left_at IS NULL ORDER BY hs.id LIMIT 1) h ON true
+      WHERE s.id=${parent.spaceId}::uuid`)
+      ).rows[0]?.zone ?? 'UTC';
+    const today = localDate(new Date(), zone);
     const rows = await tx
       .select()
       .from(meters)
@@ -557,10 +568,16 @@ export async function meterRoutes(route: DataRoute) {
       }
     >();
     for (const meter of rows) {
+      if (!meter.isActive) continue;
       if (!canView(account.viewer, placementOf(meter))) continue;
       const readings = (await historyOf(tx, meter.id))
         .slice(0, 1)
-        .filter((r) => r.transmittedAt === null);
+        .filter(
+          (r) =>
+            r.transmittedAt === null &&
+            r.occurredOn.slice(0, 7) === today.slice(0, 7) &&
+            r.occurredOn <= today,
+        );
       if (!readings.length) continue;
       const [linked] = meter.utilityAccountId
         ? await tx
@@ -574,6 +591,11 @@ export async function meterRoutes(route: DataRoute) {
             )
         : [];
       const key = linked?.id ?? '';
+      if (
+        linked?.data.transmission?.method === 'automatic' ||
+        linked?.data.transmission?.method === 'not_required'
+      )
+        continue;
       const group = groups.get(key) ?? {
         utilityAccountId: linked?.id ?? null,
         number: linked?.data.number ?? '',
