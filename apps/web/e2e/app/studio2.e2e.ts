@@ -80,6 +80,8 @@ test('Studio 2: сумма, окно и оплаченная доля из на�
     '114000',
   );
   await expect(page.getByText('Окно открыто', { exact: true })).toBeVisible();
+  // Заготовка шапки сохраняет высоту при загрузке; карточка доступна над dock после прокрутки.
+  await page.locator('.task-focus').evaluate((card) => card.scrollIntoView({ block: 'center' }));
   const mainBox = await page.locator('.task-focus').boundingBox();
   const dockBox = await page.locator('.bottom-nav').boundingBox();
   expect((mainBox?.y ?? 0) + (mainBox?.height ?? 0)).toBeLessThan(dockBox?.y ?? 0);
@@ -271,7 +273,7 @@ test('Studio 2: нули и пустые списки на 100% и 200%', async 
   await expect(metrics).toContainText('дел нет');
   await expect(metrics).toContainText('сроков на подходе нет');
   await expect(metrics).toContainText('объектов под присмотром нет');
-  await expect(page.locator('.today-hints')).toHaveCount(0);
+  await expect(page.locator('.today-hints')).toBeEmpty();
   await check(page, info, 'today-zero');
   await page.evaluate(() => {
     document.documentElement.style.fontSize = '200%';
@@ -347,7 +349,7 @@ test('Studio 2: ребёнку не раскрываются личные и в�
     'Скрытое личное дело',
   ])
     await expect(page.getByText(hidden, { exact: false })).toHaveCount(0);
-  await expect(page.locator('.today-hints')).toHaveCount(0);
+  await expect(page.locator('.today-hints')).toBeEmpty();
   await expect(page.getByText(/к оплате|Показания до|7\s429,13|9\s876,5/)).toHaveCount(0);
   await check(page, info, 'today-child');
   const adultPage = await openAs(browser, family, info, 'adult');

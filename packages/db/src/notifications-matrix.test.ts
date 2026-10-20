@@ -45,7 +45,9 @@ it('матрица: все участники × владельцы × подп�
         expect(result.rowCount === 1, `${viewer.key}/${owner.key}/${table}`).toBe(expected);
         if (table !== 'push_attempts') {
           const mutation =
-            table === 'push_subscriptions' ? "device_name='Проверка'" : 'hide_text=false';
+            table === 'push_subscriptions'
+              ? "device_name='Проверка'"
+              : 'hide_text=false,today_main_enabled=false';
           const changed = await createAppDatabase(db.app).withAccount(viewer.id, (tx) =>
             tx.execute(sql.raw(`UPDATE ${table} SET ${mutation} WHERE account_id='${owner.id}'`)),
           );

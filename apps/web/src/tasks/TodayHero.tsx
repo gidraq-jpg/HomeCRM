@@ -98,6 +98,7 @@ export function TodayHero({
   ];
   // Только свежие видимые строки радара; неизвестные суммы и даты не подменяем нулём.
   const ready = radar.status === 'ready' && !radar.error && !radar.recalculating;
+  const hintsBusy = (!ready && !radar.error) || utilities.isPending;
   const due = utilities.error ? 0 : (utilities.data?.totals.remainingCents ?? 0);
   const monthParams = new URLSearchParams();
   if (utilities.data) monthParams.set('month', utilities.data.month);
@@ -127,7 +128,7 @@ export function TodayHero({
                 className="today-metric"
                 to={metric.to}
                 state={metric.key === 'radar' ? { fromSection: 'today' } : undefined}
-                aria-label={`${metric.value} ${metric.label}${metric.status ? `: ${metric.status}` : ''}`}
+                aria-label={`${metric.status === 'Загружаем…' || metric.status === 'Пересчёт…' ? '' : `${metric.value} `}${metric.label}${metric.status ? `: ${metric.status}` : ''}`}
                 aria-describedby={`today-metric-${metric.key}`}
                 onClick={
                   metric.key === 'tasks'
@@ -136,7 +137,13 @@ export function TodayHero({
                     : undefined
                 }
               >
-                <span aria-hidden>{phrases[index]}</span>
+                {metric.status === 'Загружаем…' || metric.status === 'Пересчёт…' ? (
+                  <span aria-hidden className="today-metric__skeleton">
+                    {metric.label}
+                  </span>
+                ) : (
+                  <span aria-hidden>{phrases[index]}</span>
+                )}
                 <span id={`today-metric-${metric.key}`} className="visually-hidden">
                   {metric.description}
                 </span>
@@ -146,14 +153,19 @@ export function TodayHero({
           ))}
         </p>
       </nav>
-      {due > 0 || windowEnd ? (
-        <div className="today-hints">
-          {due > 0 ? (
-            <Link to={`/home/month?${monthParams}`}>{formatRub(due)} к оплате</Link>
-          ) : null}
-          {windowEnd ? <span>Показания до {formatShortDate(windowEnd)}</span> : null}
-        </div>
-      ) : null}
+      <div className="today-hints" aria-busy={hintsBusy}>
+        {hintsBusy ? (
+          <span
+            role="status"
+            className="today-hints__skeleton"
+            aria-label="Загружаем суммы и окна показаний"
+          />
+        ) : null}
+        {!hintsBusy && due > 0 ? (
+          <Link to={`/home/month?${monthParams}`}>{formatRub(due)} к оплате</Link>
+        ) : null}
+        {!hintsBusy && windowEnd ? <span>Показания до {formatShortDate(windowEnd)}</span> : null}
+      </div>
     </div>
   );
 }

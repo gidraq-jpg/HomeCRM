@@ -98,6 +98,7 @@ export const notificationSettings = pgTable(
     hideText: boolean('hide_text').notNull().default(true),
     morningEnabled: boolean('morning_enabled').notNull().default(true),
     weeklyEnabled: boolean('weekly_enabled').notNull().default(true),
+    todayMainEnabled: boolean('today_main_enabled').notNull().default(true),
   },
   () => [
     ...ownPolicies('notification_settings', ['select', 'insert', 'update']),

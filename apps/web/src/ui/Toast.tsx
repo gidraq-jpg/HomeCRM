@@ -19,7 +19,7 @@ export interface ToastOptions {
   /** Вторая строка: пояснение, например почему запись не видна при выбранном фильтре. */
   detail?: string;
   action?: ToastAction;
-  /** По умолчанию 7 секунд: столько же даётся на отмену выполнения (TASK-7). */
+  /** Обычное сообщение — 4,5 с; действие отмены сохраняет своё окно (TASK-7). */
   durationMs?: number;
 }
 
@@ -34,7 +34,14 @@ interface ToastContextValue {
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
-const DEFAULT_DURATION_MS = 7000;
+const DEFAULT_DURATION_MS = 4500;
+
+/** У отмены («Отменить» / «Вернуть») сохраняется окно, заданное операцией. */
+export function toastDuration(options: ToastOptions | null): number {
+  return options?.action && ['Отменить', 'Вернуть'].includes(options.action.label)
+    ? (options.durationMs ?? 7000)
+    : DEFAULT_DURATION_MS;
+}
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ActiveToast | null>(null);
@@ -65,7 +72,7 @@ export function useToast(): Pick<ToastContextValue, 'show' | 'dismiss'> {
 export function ToastRegion() {
   const { toast, dismiss } = useToastContext();
   const id = toast?.id;
-  const durationMs = toast?.durationMs ?? DEFAULT_DURATION_MS;
+  const durationMs = toastDuration(toast);
 
   useEffect(() => {
     if (id === undefined) return;
