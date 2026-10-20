@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import * as z from 'zod';
+import { saveSettings } from '../notifications/api.ts';
+import { useRefreshNotifications, useSettings } from '../notifications/queries.ts';
 import { prepareLogout } from '../offline/logout.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { Section } from '../ui/Page.tsx';
@@ -17,6 +19,7 @@ import {
   useAction,
 } from './components.tsx';
 import { formatMoment } from './dates.ts';
+import { deviceLabel } from './device-label.ts';
 import { RecoveryCodes } from './TwoFactorSetup.tsx';
 
 const DevicesResponse = z.array(
@@ -55,10 +58,10 @@ function Devices({ onSignedOut, timeZone }: { onSignedOut: () => void; timeZone:
         <ul className="security-list">
           {query.data.map((session) => (
             <li key={session.id}>
-              <strong>{session.userAgent || 'Неизвестное устройство'}</strong>
+              <strong>{deviceLabel(session.userAgent)}</strong>
               {session.current && <p>Это устройство</p>}
               <p>{session.ipAddress || 'Адрес не указан'}</p>
-              <p>Вход: {date(session.createdAt)}</p>
+              <p>Последний вход: {date(session.createdAt)}</p>
               <p>До: {date(session.expiresAt)}</p>
               <button
                 className="text-button"
@@ -302,6 +305,7 @@ export function SecurityScreen({
         </button>
         <ErrorNotice error={state.error} />
       </Section>
+      <TodaySettings />
       <FactorSettings me={me} reload={reload} />
       <ChangePassword />
       <Devices onSignedOut={onSignedOut} timeZone={me.timeZone} />
@@ -309,5 +313,56 @@ export function SecurityScreen({
       <HouseholdLinks me={me} />
       <InstallApp inline />
     </Page>
+  );
+}
+
+function TodaySettings() {
+  const query = useSettings();
+  const [savingValue, setSavingValue] = useState<boolean | null>(null);
+  const refresh = useRefreshNotifications();
+  const state = useAction();
+  return (
+    <Section title="Сегодня">
+      {query.data ? (
+        <label className="choice">
+          <input
+            type="checkbox"
+            role="switch"
+            aria-checked={savingValue ?? query.data.todayMainEnabled}
+            checked={savingValue ?? query.data.todayMainEnabled}
+            disabled={state.disabled || !!query.error}
+            onChange={(event) => {
+              const todayMainEnabled = event.currentTarget.checked;
+              setSavingValue(todayMainEnabled);
+              void state.run(async () => {
+                try {
+                  await saveSettings({ todayMainEnabled });
+                  await refresh();
+                } finally {
+                  setSavingValue(null);
+                }
+              });
+            }}
+          />
+          <span className="choice__body">
+            <span className="choice__title">Главное дело на «Сегодня»</span>
+            <span className="choice__hint" aria-hidden>
+              {(savingValue ?? query.data.todayMainEnabled) ? 'Включено' : 'Выключено'}
+            </span>
+          </span>
+        </label>
+      ) : query.isPending ? (
+        <Notice>Загружаем настройки…</Notice>
+      ) : null}
+      {query.error ? (
+        <>
+          <ErrorNotice error={query.error} />
+          <button type="button" className="text-button" onClick={() => void query.refetch()}>
+            Повторить загрузку настроек
+          </button>
+        </>
+      ) : null}
+      <ErrorNotice error={state.error} />
+    </Section>
   );
 }

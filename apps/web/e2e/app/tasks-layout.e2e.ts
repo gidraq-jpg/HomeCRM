@@ -272,7 +272,9 @@ test('Studio: реальные показатели, пространство, �
   await signInAs(page, family, 'adult');
   const metrics = page.getByRole('navigation', { name: 'Показатели на сегодня' });
   await expect(page.locator('.today-hero__greeting')).toContainText(name);
-  await expect(metrics.getByRole('link', { name: /объектов: Загружаем/ })).toContainText('—');
+  await expect(
+    metrics.getByRole('link', { name: /объектов: Загружаем/ }).locator('.today-metric__skeleton'),
+  ).toBeVisible();
   releaseObjects();
   await expect(metrics.getByRole('link', { name: '2 дела сегодня', exact: true })).toBeVisible();
   await expect(metrics.getByRole('link', { name: '2 объекта', exact: true })).toBeVisible();

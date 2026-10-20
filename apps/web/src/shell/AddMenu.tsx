@@ -4,6 +4,7 @@ import {
   ListChecks,
   Note,
   ShoppingCart,
+  SquaresFour,
   UserPlus,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -63,12 +64,6 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
           onClick={() => setQuick(true)}
         />
         <Row
-          icon={<ListChecks size={22} aria-hidden />}
-          title="Новое дело"
-          meta="Полная форма: план, чек-лист, ожидание и повтор"
-          onClick={() => go('/today/new')}
-        />
-        <Row
           icon={<Note size={22} aria-hidden />}
           title="Заметка"
           meta="Текст, чек-лист; по умолчанию личная"
@@ -87,7 +82,7 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
           onClick={() => go('/documents/new')}
         />
         <Row
-          icon={<ListChecks size={22} aria-hidden />}
+          icon={<SquaresFour size={22} aria-hidden />}
           title="Из шаблона"
           meta="Новая квартира или дом: счета, счётчики и сроки сразу"
           onClick={() => go('/home/from-template')}

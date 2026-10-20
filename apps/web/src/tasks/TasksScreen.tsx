@@ -9,6 +9,7 @@ import { buildRows, filterRows } from '../deadlines/radar.ts';
 import { isOpenWindow } from '../deadlines/utility.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { PushCard } from '../notifications/PushCard.tsx';
+import { useSettings } from '../notifications/queries.ts';
 import { todayIn } from '../objects/dates.ts';
 import { useQueue } from '../offline/OfflinePanel.tsx';
 import { FirstRunCard } from '../templates/FirstRunCard.tsx';
@@ -146,6 +147,9 @@ function TodayFeed({ house }: { house: string | null }) {
   const { me, householdId } = useHousehold();
   const { scope } = useScope();
   const query = useToday(house);
+  const settings = useSettings();
+  const loadingFeed = query.isPending || settings.isPending;
+  const showMain = settings.data?.todayMainEnabled === true;
   const now = new Date();
   const rows = buildRows(query.data?.radar ?? [], {
     timeZone: query.data?.timeZone ?? 'UTC',
@@ -157,7 +161,11 @@ function TodayFeed({ house }: { house: string | null }) {
     locate: () => undefined,
   });
   const urgent = filterRows(rows, { view: 'mine', scope, meId: me.id }).filter(
-    (row) => !isOpenWindow(row),
+    (row) =>
+      !isOpenWindow(row) &&
+      !query.data?.tasks.some(
+        (task) => row.to === `/today/tasks/${task.id}` || task.radarOccurrenceId === row.id,
+      ),
   );
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
   return (
@@ -166,8 +174,22 @@ function TodayFeed({ house }: { house: string | null }) {
       house={house}
       hero={<TodayHero data={query.data} error={query.error} house={house} />}
     >
-      <QueryNotice query={query} />
-      {query.data ? (
+      {loadingFeed ? (
+        <div className="today-feed-skeleton" role="status">
+          <span className="visually-hidden">Загружаем дела…</span>
+        </div>
+      ) : (
+        <QueryNotice query={query} />
+      )}
+      {settings.error ? (
+        <Notice error>
+          Не удалось загрузить настройку главного дела.{' '}
+          <button type="button" className="text-button" onClick={() => void settings.refetch()}>
+            Повторить загрузку настройки
+          </button>
+        </Notice>
+      ) : null}
+      {!loadingFeed && query.data && showMain ? (
         <Section title="Главное на сегодня" eyebrow>
           {query.data.main ? (
             <TaskRows
@@ -197,21 +219,15 @@ function TodayFeed({ house }: { house: string | null }) {
         </Section>
       ) : null}
       <FirstRunCard />
-      {query.data ? (
+      {!loadingFeed && query.data ? (
         <>
           <ReadingsWindowsFromRows rows={rows} />
-          {query.data.recalculating ? (
-            <Notice>
-              Сроки пересчитываются.{' '}
-              <button className="text-button" type="button" onClick={() => void query.refetch()}>
-                Обновить сегодня
-              </button>
-            </Notice>
-          ) : null}
           <Section title="Сегодня и просроченные">
             <TaskRows
               label="Дела на сегодня"
-              tasks={query.data.tasks.filter((task) => task.id !== query.data.main?.id)}
+              tasks={query.data.tasks.filter(
+                (task) => !showMain || task.id !== query.data.main?.id,
+              )}
             />
           </Section>
           <details className="task-completed">

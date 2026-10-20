@@ -75,6 +75,63 @@ beforeEach(async () => {
 afterAll(async () => {
   await world?.close();
 });
+it('TASK-4: главное дело выключается лично, между сессиями, без изменения дел', async () => {
+  const other = world.device();
+  await other.signIn(world.boris.username, world.boris.password);
+  const task = await adult.post('/api/tasks', { title: 'Вымышленное главное дело' });
+  expect(task.status).toBe(201);
+  const id = task.json<{ id: string }>().id;
+  expect((await adult.post(`/api/tasks/${id}/main`, { selected: true })).status).toBe(200);
+  const before = (await adult.get(`/api/tasks/${id}`)).json();
+  expect(
+    (
+      await adult.request('PATCH', '/api/notifications/settings', {
+        json: { todayMainEnabled: false },
+      })
+    ).status,
+  ).toBe(200);
+  expect((await other.get('/api/notifications/settings')).json()).toMatchObject({
+    todayMainEnabled: false,
+  });
+  expect((await child.get('/api/notifications/settings')).json()).toMatchObject({
+    todayMainEnabled: true,
+  });
+  expect(
+    (
+      await child.request('PATCH', '/api/notifications/settings', {
+        json: { accountId: world.boris.id, todayMainEnabled: true },
+      })
+    ).status,
+  ).toBe(400);
+  for (const viewer of [world.vera, world.anna]) {
+    const changed = await world.module.appDb.withAccount(viewer.id, (tx) =>
+      tx.execute(
+        sql`UPDATE notification_settings SET today_main_enabled=true WHERE account_id=${world.boris.id}::uuid RETURNING account_id`,
+      ),
+    );
+    expect(changed.rowCount, `Чужая настройка недоступна: ${viewer.role}`).toBe(0);
+  }
+  expect((await other.get('/api/notifications/settings')).json()).toMatchObject({
+    todayMainEnabled: false,
+  });
+  await adult.request('PATCH', '/api/notifications/settings', { json: { hideText: false } });
+  expect((await other.get('/api/notifications/settings')).json()).toMatchObject({
+    todayMainEnabled: false,
+    hideText: false,
+  });
+  expect((await adult.get(`/api/tasks/${id}`)).json()).toEqual(before);
+  expect(
+    (
+      await adult.request('PATCH', '/api/notifications/settings', {
+        json: { todayMainEnabled: 'false' },
+      })
+    ).status,
+  ).toBe(400);
+  await other.request('PATCH', '/api/notifications/settings', { json: { todayMainEnabled: true } });
+  expect((await adult.get('/api/notifications/settings')).json()).toMatchObject({
+    todayMainEnabled: true,
+  });
+});
 it('DOC-2: перед отправкой смена роли закрывает удостоверение и отменяет доставку ребёнку', async () => {
   await world.database.admin.query(
     "UPDATE space_members SET role='adult' WHERE space_id=$1 AND account_id=$2",
@@ -138,6 +195,7 @@ it('API возвращает defaults, валидирует настройки �
     hideText: true,
     morningEnabled: true,
     weeklyEnabled: true,
+    todayMainEnabled: true,
   });
   expect((await admin.get('/api/push/subscriptions')).json()).toEqual([]);
   expect((await child.get('/api/push/subscriptions')).json()).toEqual([]);
