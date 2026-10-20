@@ -426,7 +426,7 @@ test('остаток начисления и отмена ровно по paymen
   await recalc(family);
   await signInAs(page, family, 'adult');
   await openRadar(page);
-  const row = page.locator('.studio-radar-row').filter({ hasText: 'Общая Квартира' });
+  const row = page.locator('.compact-radar-row').filter({ hasText: 'Общая Квартира' });
   await expect(row).toContainText(/осталось 1\s840,50\s₽/);
   await checkApp(page, info, 'r1b4b-radar-remaining');
   let listRequests = 0;
@@ -437,7 +437,8 @@ test('остаток начисления и отмена ровно по paymen
   const markedResponse = page.waitForResponse((response) =>
     response.url().includes('/complete-payment'),
   );
-  await row.getByRole('button', { name: 'Оплачено', exact: true }).click();
+  await row.getByRole('button', { name: /^Ещё действия:/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Оплачено', exact: true }).click();
   const marked = (await (await markedResponse).json()) as { paymentId: string };
   expect(marked.paymentId).toBeTruthy();
   const cancellation = page.waitForRequest((request) =>

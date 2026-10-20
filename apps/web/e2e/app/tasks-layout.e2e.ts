@@ -57,7 +57,7 @@ test('пустые ленты: исходный фокус, подписи и о
       await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toHaveCount(0);
       await expect(page.getByRole('link', { name: 'Пригласить участника' })).toHaveCount(0);
     } else {
-      await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toHaveCount(0);
       await expect(page.getByRole('link', { name: 'Пригласить участника' })).toBeVisible();
     }
     if (view === 'today') {
@@ -76,7 +76,6 @@ test('пустые ленты: исходный фокус, подписи и о
       await expect(add.getByRole('button', { name: 'Добавить дело', exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
     }
-    if (view === 'today') await expectGap(page, '.task-actions > a', '.task-actions__help', 8);
     await check(page, `empty-${view}-${width}`);
   }
 });

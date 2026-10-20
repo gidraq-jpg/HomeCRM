@@ -696,7 +696,10 @@ test('A2: сроки дела и коммуналки отвечают EDIT_SOUR
     await item.getByRole('button', { name: /^Ещё действия:/ }).click();
     await page
       .getByRole('dialog')
-      .getByRole('link', { name: /Ответственный — в карточке источника/ })
+      .getByRole('link', {
+        name: title === 'Источник дела' ? 'Открыть дело' : 'Открыть объект',
+        exact: true,
+      })
       .click();
     expect(new URL(page.url()).hash).toContain(source);
   }

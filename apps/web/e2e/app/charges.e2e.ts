@@ -237,7 +237,10 @@ test('две оплаты закрывают срок в радаре, отме�
   await expect(radarPayment()).toHaveCount(1);
 
   // «Отметить оплату» в радаре создаёт оплату на остаток, «Отменить» в уведомлении — отменяет её.
-  await radarPayment().getByRole('button', { name: 'Оплачено', exact: true }).click();
+  await radarPayment()
+    .getByRole('button', { name: /^Ещё действия:/ })
+    .click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Оплачено', exact: true }).click();
   await expect(toast(page)).toContainText('Оплата отмечена');
   await expect(radarPayment()).toHaveCount(0);
   const live = await family.database.admin.query<{ n: number; total: string }>(

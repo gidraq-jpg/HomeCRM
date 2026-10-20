@@ -140,11 +140,10 @@ test('радар: окно, оплата с отменой и поверка —
     .filter({ hasText: 'Квартира у парка' });
   await expect(windowItem).toContainText('Живём');
   await expect(windowItem).toContainText('Электроэнергия · № TEST-123');
-  await expect(windowItem.getByRole('link', { name: 'Внести', exact: true })).toHaveAttribute(
-    'href',
-    `#/home/${flat.id}/readings`,
-  );
   await windowItem.getByRole('button', { name: /^Ещё действия:/ }).click();
+  await expect(
+    page.getByRole('dialog').getByRole('link', { name: 'Внести', exact: true }),
+  ).toHaveAttribute('href', `#/home/${flat.id}/readings`);
   await expect(
     page.getByRole('dialog').getByRole('link', { name: 'Открыть счёт' }),
   ).toHaveAttribute('href', `#/home/${flat.id}/accounts`);
@@ -157,18 +156,20 @@ test('радар: окно, оплата с отменой и поверка —
   // Окно без счётчиков: подсказка и «Передано».
   const empty = now.filter({ hasText: 'Дача у озера' });
   await expect(empty).toContainText('Сдаётся');
-  await expect(empty.getByRole('link', { name: 'Добавьте счётчики' })).toHaveAttribute(
-    'href',
-    `#/home/${dacha.id}/meters`,
-  );
-  await expect(empty.getByRole('button', { name: 'Передано' })).toBeVisible();
+  await empty.getByRole('button', { name: /^Ещё действия:/ }).click();
+  await expect(
+    page.getByRole('dialog').getByRole('link', { name: 'Добавьте счётчики' }),
+  ).toHaveAttribute('href', `#/home/${dacha.id}/meters`);
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Передано' })).toBeVisible();
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
 
   // Оплата: отметка и отмена.
   const payment = now.filter({ hasText: 'Оплата' });
   await expect(payment).toHaveCount(1);
   await expect(payment).toContainText('Квартира у парка');
   await checkApp(page, info, 'utility-radar');
-  await payment.getByRole('button', { name: 'Оплачено', exact: true }).click();
+  await payment.getByRole('button', { name: /^Ещё действия:/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Оплачено', exact: true }).click();
   await expect(toast(page)).toContainText('Оплата отмечена');
   await expect(now.filter({ hasText: 'Оплата' })).toHaveCount(0);
   const marked = await family.database.admin.query(

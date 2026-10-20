@@ -1,5 +1,5 @@
 import { canWrite } from '@homecrm/shared';
-import { Check, ListChecks, Star } from '@phosphor-icons/react';
+import { Check, Clock, ListChecks, Star } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
@@ -46,11 +46,15 @@ export function TaskRows({
   label,
   focus = false,
   radar = [],
+  move,
+  pending = false,
 }: {
   tasks: readonly TaskCard[];
   label: string;
   focus?: boolean;
   radar?: readonly RadarItem[];
+  move?: (card: TaskCard) => void;
+  pending?: boolean;
 }) {
   const { me } = useHousehold();
   const viewer = viewerOf(me);
@@ -103,7 +107,7 @@ export function TaskRows({
                   }
                   type="button"
                   aria-label="Выполнить"
-                  disabled={operation.pending}
+                  disabled={operation.pending || pending}
                   onClick={() =>
                     void operation.run({
                       path: `tasks/${card.id}/status`,
@@ -112,7 +116,30 @@ export function TaskRows({
                     })
                   }
                 >
-                  <Check size={22} aria-hidden />
+                  <span className="plan-circle task-completion-circle" aria-hidden>
+                    <Check size={16} weight="bold" />
+                  </span>
+                </button>
+              ) : card.status === 'done' ? (
+                <span key={card.id} className="task-row-completed" aria-hidden>
+                  <span className="plan-circle plan-circle--done">
+                    <Check size={16} weight="bold" />
+                  </span>
+                </span>
+              ) : null;
+            const reschedule =
+              move &&
+              ['open', 'waiting'].includes(card.status) &&
+              canWrite(viewer, factsOf(card, viewer, 'task')) ? (
+                <button
+                  key={`move-${card.id}`}
+                  className="icon-button"
+                  type="button"
+                  aria-label={`Перенести: ${card.title}`}
+                  disabled={operation.pending || pending}
+                  onClick={() => move(card)}
+                >
+                  <Clock size={22} aria-hidden />
                 </button>
               ) : null;
             const payment = radar.find(
@@ -166,10 +193,11 @@ export function TaskRows({
                     Открыть дело
                   </Link>
                   {done}
+                  {reschedule}
                 </div>
               </li>
             ) : (
-              <li className="task-feed-item" key={card.id}>
+              <li className="task-feed-item today-task-row" key={card.id}>
                 <Link className="row" to={taskPath(card.id)}>
                   <RowContent
                     icon={
@@ -185,6 +213,7 @@ export function TaskRows({
                   />
                 </Link>
                 {done}
+                {reschedule}
               </li>
             );
           })}

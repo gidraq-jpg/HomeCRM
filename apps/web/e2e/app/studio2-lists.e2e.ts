@@ -127,7 +127,8 @@ for (const percent of [100, 200]) {
     await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByRole('list', { name: 'Просрочено', exact: true })).toHaveCount(0);
-    await fold.getByRole('button', { name: 'В работу', exact: true }).click();
+    await fold.getByRole('button', { name: /^Ещё действия:/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'В работу', exact: true }).click();
     await expect(
       page.getByRole('heading', { name: 'Вымышленный паспорт', exact: true }),
     ).toBeVisible();

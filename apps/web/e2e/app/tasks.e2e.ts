@@ -822,7 +822,8 @@ test('поиск и уведомление открывают дело; рада
   expect(occurrence).toBeTruthy();
   await page.goto('#/more/radar');
   const item = page.getByRole('listitem').filter({ hasText: 'Срок из заметки' });
-  await item.getByRole('button', { name: 'В работу' }).click();
+  await item.getByRole('button', { name: /^Ещё действия:/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'В работу' }).click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Срок из заметки', exact: true }),
   ).toBeVisible();
@@ -831,8 +832,9 @@ test('поиск и уведомление открывают дело; рада
   await page
     .getByRole('listitem')
     .filter({ hasText: 'Срок из заметки' })
-    .getByRole('button', { name: 'В работу' })
+    .getByRole('button', { name: /^Ещё действия:/ })
     .click();
+  await page.getByRole('dialog').getByRole('button', { name: 'В работу' }).click();
   await expect(page).toHaveURL(new RegExp(`/today/tasks/${taskId}$`));
   await check(page, info, 'from-radar');
 });

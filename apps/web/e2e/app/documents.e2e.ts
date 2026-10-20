@@ -274,10 +274,11 @@ test('радар: срок документа ведёт в карточку, п
     .filter({ hasText: 'ОСАГО Субару' })
     .filter({ hasText: 'Срок документа' });
   await expect(soonRow.locator('a.row')).toHaveAttribute('href', `#/documents/${soon.id}`);
-  await expect(soonRow.getByRole('link', { name: 'Продлить', exact: true })).toHaveAttribute(
-    'href',
-    `#/documents/${soon.id}?action=renew`,
-  );
+  await soonRow.getByRole('button', { name: /^Ещё действия:/ }).click();
+  await expect(
+    page.getByRole('dialog').getByRole('link', { name: 'Продлить', exact: true }),
+  ).toHaveAttribute('href', `#/documents/${soon.id}?action=renew`);
+  await page.getByRole('dialog').getByRole('button', { name: 'Закрыть', exact: true }).click();
   const laterGroup = page.getByRole('list', { name: 'Позже', exact: true });
   await expect(laterGroup).toContainText('Загранпаспорт Бориса');
   await expect(laterGroup.locator('a.row')).toHaveAttribute('href', `#/documents/${later.id}`);
