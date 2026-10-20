@@ -65,7 +65,7 @@ R1c.8 поддерживает безопасный ключ одиночног�
 
 `POST /api/meters/:id/replace` (201): `{finalReading: <показание>, newMeter: <создание счётчика с обязательным initialReading>}`. Даты конечного и начального показания совпадают; ресурс тот же. Конечный отсчёт может быть в день предыдущего. Ответ `{oldMeterId, finalReading, newMeter}`. Ошибка любой части откатывает всю замену. Между конечным старого и начальным нового расход не начисляется.
 
-`GET /api/objects/:id/transmission` — массив групп `{utilityAccountId, number, transmission, readings}`. В `readings` последний ещё не переданный отсчёт каждого прибора, с `meterId`, `zones`, `serialNumber`, `installationPlace`. `transmission` — существующий контракт счёта: gosuslugi_dom/provider с url/phone с phone/automatic/not_required. Без живого счёта — группа с null и пустым номером.
+`GET /api/objects/:id/transmission` — массив групп `{utilityAccountId, number, transmission, readings}`. В `readings` последний ещё не переданный отсчёт активного прибора за текущий календарный месяц в поясе дома объекта, не позже сегодняшней даты, с `meterId`, `zones`, `serialNumber`, `installationPlace`. Старые месяцы и счета с `automatic`/`not_required` не предлагаются к передаче. История показаний сохраняется. `transmission` — существующий контракт счёта: gosuslugi_dom/provider с url/phone с phone. Без живого счёта — группа с null и пустым номером.
 
 `POST /api/objects/:id/readings/transmit`: `{readingIds: ["<uuid>"], method: "Сайт поставщика", transmittedAt?: "<ISO UTC>"}`. 1–100 разных показаний одного объекта. Ответ — массив переданных показаний; повтор сохраняет прежние дату и способ. Ошибка любого id откатывает весь пакет. В S3 четыре счётчика требуют одного ввода и одной отметки передачи.
 

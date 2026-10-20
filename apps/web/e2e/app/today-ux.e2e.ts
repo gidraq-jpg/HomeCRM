@@ -342,16 +342,21 @@ test('D20a 3: CLS при медленной загрузке Сегодня ≤ 
     }).observe({ type: 'layout-shift', buffered: true });
   });
   await page.route(
-    /\/api\/(?:tasks\/today|radar|objects|notifications\/settings)/,
+    /\/api\/(?:tasks\/today|deadlines|utilities\/month|objects|notifications\/settings)/,
     async (route) => {
       await new Promise((done) =>
-        setTimeout(done, route.request().url().includes('notifications/settings') ? 1800 : 900),
+        setTimeout(
+          done,
+          /notifications\/settings|utilities\/month/.test(route.request().url()) ? 1800 : 900,
+        ),
       );
       await route.continue();
     },
   );
   await page.reload();
   await expect(page.locator('.today-metric__skeleton').first()).toBeVisible();
+  await expect(page.locator('.today-hints')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('.today-hints__skeleton')).toBeVisible();
   const before = await page.locator('.today-tabs').boundingBox();
   await expect(page.locator('.today-metric__skeleton')).toHaveCount(0);
   await expect(page.locator('.today-hints[aria-busy="true"]')).toHaveCount(0);

@@ -27,15 +27,55 @@ const money = (r: Money) => ({
 
 export function analyticsRoutes(route: DataRoute) {
   route('GET', '/api/utilities/month', 200, async (tx, account, request) => {
-    const { month } = parse(z.strictObject({ month: BillingPeriod }), request.query);
+    const {
+      month: requested,
+      scope,
+      householdId,
+    } = parse(
+      z.strictObject({
+        month: BillingPeriod.optional(),
+        scope: z.enum(['all', 'personal', 'household']).default('all'),
+        householdId: z.uuid().optional(),
+      }),
+      request.query,
+    );
+    if (householdId && !account.viewer.memberships.has(householdId))
+      throw new Failure(404, 'NOT_FOUND');
     // Вложенные политики RLS делают JIT дороже самого месячного агрегирования.
     await tx.execute(sql`SET LOCAL jit=off`);
+    const now = new Date();
+    const objectFilter = sql`o.deleted_at IS NULL
+      AND (${scope}='all' OR o.space_kind::text=${scope})
+      AND (${householdId ?? null}::uuid IS NULL OR o.space_kind='personal' OR o.space_id=${householdId ?? null}::uuid)`;
+    const home = householdId ?? [...account.viewer.memberships.keys()].sort()[0];
+    // Переход с главной открывает самый ранний месяц с неоплаченным.
+    const unpaid = requested
+      ? undefined
+      : (
+          await tx.execute<{ month: string | null }>(sql`
+      WITH paid AS (SELECT parent_id,sum(amount_cents) AS amount FROM utility_payments
+        WHERE deleted_at IS NULL AND cancelled_at IS NULL GROUP BY parent_id)
+      SELECT min(c.period) AS month FROM utility_charges c
+      JOIN utility_accounts a ON a.id=c.parent_id AND a.deleted_at IS NULL
+      JOIN objects o ON o.id=a.parent_id LEFT JOIN paid p ON p.parent_id=c.id
+      WHERE ${objectFilter} AND c.deleted_at IS NULL AND c.cancelled_at IS NULL
+        AND c.total_cents>coalesce(p.amount,0)`)
+        ).rows[0]?.month;
+    const zone =
+      !requested && !unpaid && home
+        ? (
+            await tx.execute<{ zone: string }>(
+              sql`SELECT time_zone AS zone FROM spaces WHERE id=${home}::uuid`,
+            )
+          ).rows[0]?.zone
+        : undefined;
+    const month = requested ?? unpaid ?? localDate(now, zone ?? 'UTC').slice(0, 7);
     type AccountStatus = {
       id: string;
       title: string;
       data: { transmission?: { method: string }; readingRule?: unknown };
       zone: string;
-      transmittedReadings: { meterId: string; date: string }[];
+      transmittedReadings: { meterId: string; date: string; transmitted: boolean }[];
       meterIds: string[];
       completed: boolean;
     };
@@ -47,32 +87,40 @@ export function analyticsRoutes(route: DataRoute) {
       audience: 'adults' | 'household' | null;
       assigneeId: string;
       accounts: AccountStatus[];
+      dueOn: string | null;
+      overdue: boolean;
+      payable: string;
     };
     const { rows } = await tx.execute<MonthRow>(sql`
-      WITH visible_objects AS MATERIALIZED (SELECT * FROM objects WHERE deleted_at IS NULL),
+      WITH visible_objects AS MATERIALIZED (SELECT o.* FROM objects o WHERE ${objectFilter}),
       accounts AS MATERIALIZED (SELECT a.*,coalesce(s.time_zone,hs.time_zone,'UTC') AS zone FROM utility_accounts a
         JOIN visible_objects p ON p.id=a.parent_id JOIN spaces s ON s.id=p.space_id
         LEFT JOIN LATERAL (SELECT h.time_zone FROM space_members m JOIN spaces h ON h.id=m.space_id WHERE m.account_id=p.assignee_id AND m.left_at IS NULL ORDER BY h.id LIMIT 1) hs ON true
         WHERE a.deleted_at IS NULL),
       payments AS MATERIALIZED (SELECT parent_id,sum(amount_cents) AS paid FROM utility_payments WHERE deleted_at IS NULL AND cancelled_at IS NULL GROUP BY parent_id),
-      charges AS MATERIALIZED (SELECT a.parent_id,sum(c.total_cents) AS charged,sum(coalesce(p.paid,0)) AS paid,
-        sum(greatest(c.total_cents-coalesce(p.paid,0),0)) AS remaining
+      charges AS MATERIALIZED (SELECT a.parent_id,
+        sum(c.total_cents) FILTER (WHERE c.period=${month}) AS charged,
+        sum(coalesce(p.paid,0)) FILTER (WHERE c.period=${month}) AS paid,
+        sum(greatest(c.total_cents-coalesce(p.paid,0),0)) FILTER (WHERE c.period=${month}) AS remaining,
+        min(c.due_on) FILTER (WHERE c.period=${month} AND c.total_cents>coalesce(p.paid,0)) AS due_on,
+        bool_or(c.total_cents>coalesce(p.paid,0) AND c.due_on<(${now.toISOString()}::timestamptz AT TIME ZONE a.zone)::date) FILTER (WHERE c.period=${month}) AS overdue,
+        sum(greatest(c.total_cents-coalesce(p.paid,0),0)) FILTER (WHERE c.due_on<=(${now.toISOString()}::timestamptz AT TIME ZONE a.zone)::date+7) AS payable
         FROM utility_charges c JOIN accounts a ON a.id=c.parent_id LEFT JOIN payments p ON p.parent_id=c.id
-        WHERE c.period=${month} AND c.deleted_at IS NULL AND c.cancelled_at IS NULL GROUP BY a.parent_id),
+        WHERE c.deleted_at IS NULL AND c.cancelled_at IS NULL GROUP BY a.parent_id),
       meters AS MATERIALIZED (SELECT m.id,m.utility_account_id FROM meters m WHERE m.deleted_at IS NULL AND m.is_active),
-      readings AS MATERIALIZED (SELECT r.parent_id,r.occurred_on::text AS date FROM meter_readings r WHERE r.deleted_at IS NULL AND r.transmitted_at IS NOT NULL
+      readings AS MATERIALIZED (SELECT r.parent_id,r.occurred_on::text AS date,r.transmitted_at IS NOT NULL AS transmitted FROM meter_readings r WHERE r.deleted_at IS NULL
         AND r.occurred_on>=(${month}||'-01')::date AND r.occurred_on<(${month}||'-01')::date+interval '2 months'),
       visible_deadlines AS MATERIALIZED (SELECT id,utility_account_id FROM deadlines WHERE source_kind='readings' AND deleted_at IS NULL),
       completed_accounts AS MATERIALIZED (SELECT DISTINCT d.utility_account_id FROM deadline_occurrences o JOIN visible_deadlines d ON d.id=o.deadline_id WHERE o.date>=(${month}||'-01')::date AND o.date<(${month}||'-01')::date+interval '1 month' AND o.deleted_at IS NULL AND o.completed_at IS NOT NULL),
       statuses AS MATERIALIZED (SELECT a.parent_id,jsonb_agg(jsonb_build_object('id',a.id,'title',a.title,'data',a.data,'zone',a.zone,
         'meterIds',coalesce((SELECT jsonb_agg(m.id) FROM meters m WHERE m.utility_account_id=a.id),'[]'::jsonb),
-        'transmittedReadings',coalesce((SELECT jsonb_agg(jsonb_build_object('date',r.date,'meterId',r.parent_id)) FROM readings r JOIN meters m ON m.id=r.parent_id WHERE m.utility_account_id=a.id),'[]'::jsonb),
+        'transmittedReadings',coalesce((SELECT jsonb_agg(jsonb_build_object('date',r.date,'meterId',r.parent_id,'transmitted',r.transmitted)) FROM readings r JOIN meters m ON m.id=r.parent_id WHERE m.utility_account_id=a.id),'[]'::jsonb),
         'completed',EXISTS(SELECT 1 FROM completed_accounts c WHERE c.utility_account_id=a.id)) ORDER BY a.id) AS accounts
         FROM accounts a GROUP BY a.parent_id)
       SELECT o.id,o.title,o.space_id AS "spaceId",o.space_kind AS "spaceKind",o.audience,o.assignee_id AS "assigneeId",
-        coalesce(c.charged,0)::text AS charged,coalesce(c.paid,0)::text AS paid,coalesce(c.remaining,0)::text AS remaining,coalesce(s.accounts,'[]'::jsonb) AS accounts
-      FROM visible_objects o LEFT JOIN charges c ON c.parent_id=o.id LEFT JOIN statuses s ON s.parent_id=o.id ORDER BY o.title,o.id`);
-    const now = new Date();
+        coalesce(c.charged,0)::text AS charged,coalesce(c.paid,0)::text AS paid,coalesce(c.remaining,0)::text AS remaining,
+        c.due_on::text AS "dueOn",coalesce(c.overdue,false) AS overdue,coalesce(c.payable,0)::text AS payable,s.accounts
+      FROM visible_objects o LEFT JOIN charges c ON c.parent_id=o.id JOIN statuses s ON s.parent_id=o.id ORDER BY o.title,o.id`);
     const windowsByRule = new Map<
       string,
       { startsAt: Date; endsAt: Date; startDate: string; endDate: string } | null
@@ -111,6 +159,8 @@ export function analyticsRoutes(route: DataRoute) {
       spaceKind: r.spaceKind,
       audience: r.audience,
       ...money(r),
+      dueOn: r.dueOn,
+      overdue: r.overdue,
       accounts: r.accounts.map((a) => {
         const method = a.data.transmission?.method;
         const window = windowFor(a);
@@ -119,10 +169,22 @@ export function analyticsRoutes(route: DataRoute) {
           (a.meterIds.length > 0
             ? a.meterIds.every((id) =>
                 a.transmittedReadings.some(
-                  (r) => r.meterId === id && r.date >= window.startDate && r.date <= window.endDate,
+                  (r) =>
+                    r.transmitted &&
+                    r.meterId === id &&
+                    r.date >= window.startDate &&
+                    r.date <= window.endDate,
                 ),
               )
             : a.completed);
+        const saved =
+          window &&
+          a.meterIds.length > 0 &&
+          a.meterIds.every((id) =>
+            a.transmittedReadings.some(
+              (r) => r.meterId === id && r.date >= window.startDate && r.date <= window.endDate,
+            ),
+          );
         const status =
           method === 'not_required' || method === 'automatic' || !window
             ? 'not_required'
@@ -130,23 +192,31 @@ export function analyticsRoutes(route: DataRoute) {
               ? 'not_open'
               : transmitted
                 ? 'transmitted'
-                : 'not_transmitted';
+                : saved
+                  ? 'saved'
+                  : 'not_transmitted';
         return { id: a.id, title: a.title, status };
       }),
     }));
     return {
       month,
       objects,
-      totals: money(
-        visible.reduce<Money>(
-          (s, r) => ({
-            charged: (BigInt(s.charged) + BigInt(r.charged)).toString(),
-            paid: (BigInt(s.paid) + BigInt(r.paid)).toString(),
-            remaining: (BigInt(s.remaining) + BigInt(r.remaining)).toString(),
-          }),
-          { charged: '0', paid: '0', remaining: '0' },
+      // Плашка на главной охватывает все месяцы: просрочено, сейчас и ближайшие 7 дней.
+      payableCents: safeCents(visible.reduce((sum, row) => sum + BigInt(row.payable), 0n)),
+      totals: {
+        ...money(
+          visible.reduce<Money>(
+            (s, r) => ({
+              charged: (BigInt(s.charged) + BigInt(r.charged)).toString(),
+              paid: (BigInt(s.paid) + BigInt(r.paid)).toString(),
+              remaining: (BigInt(s.remaining) + BigInt(r.remaining)).toString(),
+            }),
+            { charged: '0', paid: '0', remaining: '0' },
+          ),
         ),
-      ),
+        dueOn: visible.flatMap((r) => (r.dueOn ? [r.dueOn] : [])).sort()[0] ?? null,
+        overdue: visible.some((r) => r.overdue),
+      },
     };
   });
   route('GET', '/api/objects/:id/analytics', 200, async (tx, account, request) => {

@@ -168,7 +168,7 @@ test('SHOP: прототип списка, real quickline/bought/undo/trash/rest
   await page.goto(`#/more/shopping/${id}`);
   await page.getByRole('button', { name: 'В корзину', exact: true }).click();
   await page.locator('.shopping-tools > summary').click();
-  await page.getByRole('button', { name: 'Корзина покупок' }).click();
+  await page.getByRole('button', { name: 'Удалённые покупки' }).click();
   await page.getByRole('link', { name: /Семейное молоко/ }).click();
   await page.getByRole('button', { name: 'Восстановить' }).click();
   await expect(page.getByRole('button', { name: 'Куплено', exact: true })).toBeVisible();

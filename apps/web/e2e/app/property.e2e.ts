@@ -205,7 +205,7 @@ test('S1: первая квартира, три лицевых счёта, дв�
   await expect(phones).toContainText('+7 000 123-45-67');
   await expect(phones).toContainText('Аварийная служба');
   await expect(phones).toContainText('Аварийный');
-  await expect(phones.getByRole('link', { name: /Позвонить/ })).toHaveAttribute(
+  await expect(phones.getByRole('link', { name: /^Набрать / })).toHaveAttribute(
     'href',
     'tel:+70001234567',
   );

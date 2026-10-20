@@ -11,6 +11,7 @@ import { homeDate, setHomeZone } from './deadlines-support.ts';
 import { seedDocument } from './documents-support.ts';
 import { apiAs, seedNote, seedObject } from './notes-support.ts';
 import { seedOrganization, seedPerson } from './people-support.ts';
+import { seedAccount } from './property-support.ts';
 import { signInAs } from './support.ts';
 
 async function check(page: Page, info: TestInfo, name: string) {
@@ -375,6 +376,7 @@ test('D19a.11–12: ребёнку метка заметки без кнопки
     title: 'Вымышленная квартира D19',
     objectType: 'property',
   });
+  await seedAccount(api, object.id, { title: 'Электричество D19' });
   const person = await seedPerson(api, {
     title: 'Вымышленный человек D19',
     data: { birthday: '1985-03-14', birthdayEnabled: true },
@@ -385,9 +387,8 @@ test('D19a.11–12: ребёнку метка заметки без кнопки
     page.getByRole('heading', { level: 3, name: object.title, exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole('heading', { level: 4, name: 'Лицевые счета', exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText('Лицевых счетов нет.', { exact: true })).toBeVisible();
+    page.getByRole('list', { name: `Лицевые счета: ${object.title}`, exact: true }),
+  ).toContainText('Электричество D19');
   await check(page, info, 'month');
   await page.goto(`#/people/contacts/${person.id}`);
   await expect(page.locator('dt').filter({ hasText: /^День рождения$/ })).toHaveCount(1);

@@ -105,10 +105,9 @@ test('месяц с частичной оплатой: суммы, статус�
   await expect(flatCard).toContainText(/К оплате\s*1\s440,50\s₽/);
   await expect(flatCard.getByText('Показания не переданы', { exact: true })).toBeVisible();
   await expect(flatCard.getByText('Передача не требуется', { exact: true })).toBeVisible();
-  // Дача без лицевых счетов: нулевые суммы и действие.
+  // D20a-11: объект без лицевых счетов не создаёт нулевую строку.
   const dachaCard = objectCard(page, 'Дача у озера');
-  await expect(dachaCard).toContainText(/Начислено\s*0\s₽/);
-  await expect(dachaCard.getByRole('link', { name: 'Добавить лицевой счёт' })).toBeVisible();
+  await expect(dachaCard).toHaveCount(0);
 
   // Переходы к «Показаниям» и «Начислениям» ведут в нужный объект и счёт.
   await expect(flatCard.getByRole('link', { name: 'Показания: Электроэнергия' })).toHaveAttribute(

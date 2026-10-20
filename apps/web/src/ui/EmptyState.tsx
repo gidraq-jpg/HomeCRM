@@ -32,7 +32,7 @@ export function EmptyState({ icon, title, children, actions }: EmptyStateProps) 
 
 /** Объяснение разницы личного и общего для пустого раздела — PRD, раздел 7.4. */
 export const EMPTY_SCOPE_EXPLANATION: Readonly<Record<Scope, string>> = {
-  all: 'Здесь пока ничего нет.',
+  all: 'Добавьте первую запись кнопкой «+». Личное видно только вам, общее — семье.',
   shared:
     'Здесь только общие записи дома: их видят вся семья или взрослые. Личные записи в этот режим не попадают.',
   personal: 'Здесь только ваши записи. Их не видит никто, кроме вас.',

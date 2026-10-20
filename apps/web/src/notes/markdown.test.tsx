@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { Markdown, parseBlocks, safeHref } from './markdown.tsx';
+import { Markdown, markdownText, parseBlocks, safeHref } from './markdown.tsx';
 
 const html = (source: string) => renderToStaticMarkup(<Markdown source={source} />);
 
@@ -30,6 +30,13 @@ describe('безопасные ссылки', () => {
 });
 
 describe('Markdown заметки', () => {
+  it('предпросмотр убирает разметку, сохраняя слова и отметки поиска', () => {
+    expect(
+      markdownText(
+        '# Заголовок\n\n**‹Важное›** и [ссылка](https://example.com)\n\n- молоко\n- хлеб',
+      ),
+    ).toBe('Заголовок ‹Важное› и ссылка молоко хлеб');
+  });
   it('рисует абзацы, заголовки, списки, выделение и код', () => {
     const out = html(
       [

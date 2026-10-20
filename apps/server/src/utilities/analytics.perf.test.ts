@@ -42,7 +42,7 @@ beforeAll(async () => {
 });
 afterAll(async () => world?.close());
 
-it('G4: месяц на 500 объектах и радар 500 документов — один запрос данных, p95 <300 мс', async () => {
+it('G4: месяц на 500 объектах и радар 500 документов — постоянное число запросов, p95 <300 мс', async () => {
   const counts: { execute: number; select: number }[] = [];
   const original = world.module.appDb.withAccount.bind(world.module.appDb);
   const spy = vi.spyOn(world.module.appDb, 'withAccount').mockImplementation((id, fn, options) =>
@@ -63,9 +63,10 @@ it('G4: месяц на 500 объектах и радар 500 документ�
     ),
   );
   try {
-    for (const [url, field] of [
-      ['/api/utilities/month?month=2026-10', 'objects'],
-      ['/api/deadlines?from=2000-01-01&to=2099-12-31', 'items'],
+    for (const [url, field, executeCount] of [
+      ['/api/utilities/month?month=2026-10', 'objects', 2],
+      ['/api/utilities/month', 'objects', 3],
+      ['/api/deadlines?from=2000-01-01&to=2099-12-31', 'items', 2],
     ] as const) {
       for (let i = 0; i < 3; i++) await adult.get(url);
       const timings: number[] = [];
@@ -75,8 +76,9 @@ it('G4: месяц на 500 объектах и радар 500 документ�
         timings.push(performance.now() - start);
         expect(response.status, response.text).toBe(200);
         expect(response.json<Record<string, unknown[]>>()[field]).toHaveLength(500);
-        // Проверка сессии — отдельно; в транзакции данных SET LOCAL jit и один SQL данных.
-        expect(counts.at(-1)).toEqual({ execute: 2, select: 0 });
+        // SET LOCAL jit и один SQL данных; без месяца — ещё один выбор неоплаченного периода.
+        // Число запросов постоянно, не зависит от числа объектов. Старый предел явного месяца сохранён.
+        expect(counts.at(-1)).toEqual({ execute: executeCount, select: 0 });
       }
       const p95 = percentile(timings, 0.95);
       console.info(`${url.split('?')[0]}, 500 records: p95=${p95.toFixed(1)} ms`);

@@ -707,7 +707,9 @@ function History({ card }: { card: TaskCard }) {
                 return (
                   <p className="muted" key={key}>
                     {key === 'status'
-                      ? `Статус: ${STATUS_LABELS[change.old as TaskCard['status']] ?? '—'} → ${STATUS_LABELS[change.new as TaskCard['status']] ?? '—'}`
+                      ? !change.old
+                        ? 'Создано'
+                        : `Статус: ${STATUS_LABELS[change.old as TaskCard['status']] ?? '—'} → ${STATUS_LABELS[change.new as TaskCard['status']] ?? '—'}`
                       : key === 'assignee_id' && change.old
                         ? `Передача: ${name(change.old)} → ${name(change.new)}`
                         : key === 'task_resumed'
