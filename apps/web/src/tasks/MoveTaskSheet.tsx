@@ -15,6 +15,7 @@ export function MoveTaskSheet({
   error,
   close,
   move,
+  thisOnly = false,
 }: {
   card: TaskCard;
   timeZone: string;
@@ -22,9 +23,12 @@ export function MoveTaskSheet({
   error: unknown;
   close: () => void;
   move: (date: string | null, scope: 'this' | 'following') => void;
+  thisOnly?: boolean;
 }) {
   const online = useOnline();
-  const [scope, setScope] = useState<'this' | 'following' | null>(card.repeatRule ? null : 'this');
+  const [scope, setScope] = useState<'this' | 'following' | null>(
+    card.repeatRule && !thisOnly ? null : 'this',
+  );
   const [picking, setPicking] = useState(false);
   const [date, setDate] = useState('');
   const today = todayIn(timeZone);

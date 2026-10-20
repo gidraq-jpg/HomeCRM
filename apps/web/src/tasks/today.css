@@ -270,3 +270,39 @@ html[data-design="studio"] .plan-page {
 .plan-move-options .btn {
   white-space: normal;
 }
+
+/* D20b: открытое дело не выглядит выполненным, действия не вытесняют название. */
+.task-completion-circle {
+  display: grid;
+  place-items: center;
+}
+.task-completion-circle svg {
+  opacity: 0;
+}
+@media (hover: hover) {
+  .icon-button:hover .task-completion-circle svg {
+    opacity: 1;
+  }
+}
+.icon-button:active .task-completion-circle svg {
+  opacity: 1;
+}
+html[data-design="studio"] .today-task-row {
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+html[data-design="studio"] .today-task-row .row {
+  min-width: 0;
+  padding-inline: 8px;
+}
+html[data-design="studio"] .today-task-row .icon-button {
+  flex: none;
+  margin: 0;
+}
+.task-row-completed {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+}

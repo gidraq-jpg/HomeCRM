@@ -17,7 +17,7 @@ import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
-import type { TaskCard, TaskFilters, Today } from './api.ts';
+import { FeedTaskCard, type TaskCard, type TaskFilters, type Today } from './api.ts';
 import { taskError } from './errors.ts';
 import { SelectField } from './fields.tsx';
 import { MoveTaskSheet } from './MoveTaskSheet.tsx';
@@ -71,9 +71,6 @@ function TasksPage({
   const feedTabs = <TaskTabs houseQuery={houseQuery} />;
   const actions = (
     <div className="task-actions">
-      <Link className="btn btn--secondary" to={`/today/new${houseQuery}`}>
-        Новое дело
-      </Link>
       <div className="task-actions__help">
         <Link className="text-button" to="/more/spaces">
           Как устроены личное и общее
@@ -146,10 +143,35 @@ function TasksPage({
 function TodayFeed({ house }: { house: string | null }) {
   const { me, householdId } = useHousehold();
   const { scope } = useScope();
+  const client = useQueryClient();
   const query = useToday(house);
   const settings = useSettings();
   const loadingFeed = query.isPending || settings.isPending;
   const showMain = settings.data?.todayMainEnabled === true;
+  const actions = useFeedActions<TaskCard>((card) => {
+    const moved = FeedTaskCard.strip().parse({ object: null, ...card });
+    client.setQueryData<Today>(['tasks', me.id, house, 'today', scope], (data) => {
+      if (!data) return data;
+      const visible =
+        moved.isMain ||
+        (moved.planOn && moved.planOn <= data.today) ||
+        (moved.dueOn && moved.dueOn < data.today);
+      return {
+        ...data,
+        main: data.main?.id === moved.id ? moved : data.main,
+        tasks: [
+          ...data.tasks.filter((task) => task.id !== moved.id),
+          ...(visible ? [moved] : []),
+        ].sort(
+          (left, right) =>
+            (left.planOn ?? '').localeCompare(right.planOn ?? '') ||
+            (left.planTime ?? '').localeCompare(right.planTime ?? '') ||
+            left.id.localeCompare(right.id),
+        ),
+      };
+    });
+  });
+  const { operation, moving } = actions;
   const now = new Date();
   const rows = buildRows(query.data?.radar ?? [], {
     timeZone: query.data?.timeZone ?? 'UTC',
@@ -197,6 +219,8 @@ function TodayFeed({ house }: { house: string | null }) {
               tasks={[query.data.main]}
               radar={query.error || query.data.recalculating ? [] : query.data.radar}
               focus
+              move={actions.startMove}
+              pending={operation.pending}
             />
           ) : (
             <div className="focus task-focus">
@@ -219,6 +243,7 @@ function TodayFeed({ house }: { house: string | null }) {
         </Section>
       ) : null}
       <FirstRunCard />
+      {!moving ? <OperationNotice operation={operation} /> : null}
       {!loadingFeed && query.data ? (
         <>
           <ReadingsWindowsFromRows rows={rows} />
@@ -228,12 +253,16 @@ function TodayFeed({ house }: { house: string | null }) {
               tasks={query.data.tasks.filter(
                 (task) => !showMain || task.id !== query.data.main?.id,
               )}
+              move={actions.startMove}
+              pending={operation.pending}
             />
           </Section>
-          <details className="task-completed">
-            <summary>Выполнено сегодня ({query.data.completed.length})</summary>
-            <TaskRows label="Выполненные дела" tasks={query.data.completed} />
-          </details>
+          {query.data.completed.length ? (
+            <details className="task-completed">
+              <summary>Выполнено сегодня ({query.data.completed.length})</summary>
+              <TaskRows label="Выполненные дела" tasks={query.data.completed} />
+            </details>
+          ) : null}
           <Section title="Срочное из радара">
             {urgent.length === 0 ? <p className="muted">Срочного нет.</p> : null}
             <RadarRows rows={urgent.slice(0, 5)} label="Срочные сроки" />
@@ -244,6 +273,18 @@ function TodayFeed({ house }: { house: string | null }) {
         </>
       ) : null}
       <PushCard />
+      {moving && query.data ? (
+        <MoveTaskSheet
+          key={moving.id}
+          card={moving}
+          timeZone={query.data.timeZone}
+          pending={operation.pending}
+          error={operation.error}
+          close={actions.close}
+          move={(date) => actions.move(date, 'this')}
+          thisOnly
+        />
+      ) : null}
     </TasksPage>
   );
 }

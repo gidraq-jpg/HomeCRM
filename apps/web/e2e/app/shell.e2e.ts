@@ -48,7 +48,8 @@ test('пустая лента дел позволяет создать дело 
   family,
 }, info) => {
   await signInAs(page, family, 'adult');
-  await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Новое дело', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
   // Радар на «Сегодня»: срочного пока нет, сроков ни у кого нет.
   await expect(page.getByText('Срочного нет', { exact: false })).toBeVisible();
   await setScope(page, 'Личное');

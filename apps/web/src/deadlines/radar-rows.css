@@ -1,0 +1,27 @@
+/* D20b: строка открывает источник, меню сохраняет все прежние действия. */
+html[data-design="studio"] .compact-radar-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+}
+html[data-design="studio"] .compact-radar-row__record {
+  flex: 1;
+  min-width: 0;
+  padding: 6px;
+  gap: 8px;
+}
+.compact-radar-row > .icon-button {
+  flex: none;
+}
+.compact-radar-row .row__title,
+.compact-radar-row .row__meta {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: normal;
+}
+.compact-radar-row--overdue {
+  color: var(--warning);
+}
