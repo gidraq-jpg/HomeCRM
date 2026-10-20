@@ -69,6 +69,8 @@ test('Studio 2: сумма, окно и оплаченная доля из на�
   await signInAs(page, family, 'adult');
   await expect(page.locator('.today-hints')).toContainText(/3\s860\s₽ к оплате/);
   await expect(page.locator('.today-hints')).toContainText('Показания до');
+  await expect(page.locator('.today-hints__skeleton')).toHaveCount(0);
+  await expect(page.locator('.today-hints')).toHaveAttribute('aria-busy', 'false');
   await expect(page.locator('.today-hints > :is(span, a)')).toHaveCount(2);
   await expect(page.getByRole('link', { name: /3\s860\s₽ к оплате/ })).toHaveAttribute(
     'href',

@@ -58,7 +58,7 @@ test('D20a-10: радар и связи оставляют название ши
   await checkApp(page, info, 'D20a-10-links');
 });
 
-test('D20a-11: сумма на главной ведёт к тому же неоплаченному месяцу со сроком', async ({
+test('D20a-11: плашка суммирует два месяца и открывает ранний; после срока — дата прошедшей оплаты', async ({
   page,
   family,
 }, info) => {
@@ -76,19 +76,30 @@ test('D20a-11: сумма на главной ведёт к тому же нео
       await api.post(`accounts/${account.id}/charges`, {
         period,
         totalCents: 12345,
+        dueOn: homeDate(-1),
+      })
+    ).status,
+  ).toBe(201);
+  expect(
+    (
+      await api.post(`accounts/${account.id}/charges`, {
+        period: '2025-10',
+        totalCents: 9000,
         dueOn: homeDate(3),
       })
     ).status,
   ).toBe(201);
+  await recalc(family);
   await signInAs(page, family, 'adult');
-  const hint = page.getByRole('link', { name: /123,45\s₽ к оплате/ });
+  const hint = page.getByRole('link', { name: /213,45\s₽ к оплате/ });
   await expect(hint).toBeVisible();
   await hint.click();
   await expect(page).toHaveURL(/month=2025-09/);
   await expect(page.locator('.month-switch__label')).toHaveText('Сентябрь 2025');
   await expect(page.getByText('Есть долг', { exact: true })).toHaveCount(0);
   await expect(page.locator('.month-object')).toHaveCount(1);
-  await expect(page.locator('.month-object .status').first()).toHaveText(/К оплате до/);
+  await expect(page.locator('.month-object .status').first()).toHaveText(/Есть долг · срок был \d/);
+  await expect(page.getByText(/Есть долг до/)).toHaveCount(0);
   await expect(page.locator('.month-object')).toContainText(/123,45\s₽/);
   await checkApp(page, info, 'D20a-11-month');
   await page.goto('#/more');

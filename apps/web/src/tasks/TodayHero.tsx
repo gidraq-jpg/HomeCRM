@@ -99,7 +99,7 @@ export function TodayHero({
   // Только свежие видимые строки радара; неизвестные суммы и даты не подменяем нулём.
   const ready = radar.status === 'ready' && !radar.error && !radar.recalculating;
   const hintsBusy = (!ready && !radar.error) || utilities.isPending;
-  const due = utilities.error ? 0 : (utilities.data?.totals.remainingCents ?? 0);
+  const due = utilities.error ? 0 : (utilities.data?.payableCents ?? 0);
   const monthParams = new URLSearchParams();
   if (utilities.data) monthParams.set('month', utilities.data.month);
   if (house) monthParams.set('householdId', house);

@@ -43,6 +43,7 @@ export type MonthObject = z.infer<typeof MonthObject>;
 
 export const MonthOverview = z.object({
   month: z.string(),
+  payableCents: Cents,
   objects: z.array(MonthObject),
   totals: Money,
 });

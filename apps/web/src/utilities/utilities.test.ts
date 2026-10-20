@@ -33,6 +33,7 @@ describe('ответы месяца и аналитики', () => {
   it('месяц разбирается как в контракте', () => {
     const parsed = MonthOverview.parse({
       month: '2026-10',
+      payableCents: 15000,
       objects: [
         {
           id: 'a',
@@ -49,12 +50,14 @@ describe('ответы месяца и аналитики', () => {
       totals: { chargedCents: 10000, paidCents: 4000, remainingCents: 6000 },
     });
     expect(parsed.objects[0]?.accounts[0]?.status).toBe('not_transmitted');
+    expect(parsed.payableCents).toBe(15000);
   });
 
   it('неизвестный статус отвергается: экран не гадает', () => {
     expect(() =>
       MonthOverview.parse({
         month: '2026-10',
+        payableCents: 0,
         objects: [
           {
             id: 'a',

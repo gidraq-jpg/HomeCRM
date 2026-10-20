@@ -48,7 +48,7 @@ export function analyticsRoutes(route: DataRoute) {
       AND (${scope}='all' OR o.space_kind::text=${scope})
       AND (${householdId ?? null}::uuid IS NULL OR o.space_kind='personal' OR o.space_id=${householdId ?? null}::uuid)`;
     const home = householdId ?? [...account.viewer.memberships.keys()].sort()[0];
-    // Главная и месячный экран читают один и тот же месяц: самый ранний с неоплаченным.
+    // Переход с главной открывает самый ранний месяц с неоплаченным.
     const unpaid = requested
       ? undefined
       : (
@@ -89,6 +89,7 @@ export function analyticsRoutes(route: DataRoute) {
       accounts: AccountStatus[];
       dueOn: string | null;
       overdue: boolean;
+      payable: string;
     };
     const { rows } = await tx.execute<MonthRow>(sql`
       WITH visible_objects AS MATERIALIZED (SELECT o.* FROM objects o WHERE ${objectFilter}),
@@ -97,12 +98,15 @@ export function analyticsRoutes(route: DataRoute) {
         LEFT JOIN LATERAL (SELECT h.time_zone FROM space_members m JOIN spaces h ON h.id=m.space_id WHERE m.account_id=p.assignee_id AND m.left_at IS NULL ORDER BY h.id LIMIT 1) hs ON true
         WHERE a.deleted_at IS NULL),
       payments AS MATERIALIZED (SELECT parent_id,sum(amount_cents) AS paid FROM utility_payments WHERE deleted_at IS NULL AND cancelled_at IS NULL GROUP BY parent_id),
-      charges AS MATERIALIZED (SELECT a.parent_id,sum(c.total_cents) AS charged,sum(coalesce(p.paid,0)) AS paid,
-        sum(greatest(c.total_cents-coalesce(p.paid,0),0)) AS remaining,
-        min(c.due_on) FILTER (WHERE c.total_cents>coalesce(p.paid,0)) AS due_on,
-        bool_or(c.total_cents>coalesce(p.paid,0) AND c.due_on<(${now.toISOString()}::timestamptz AT TIME ZONE a.zone)::date) AS overdue
+      charges AS MATERIALIZED (SELECT a.parent_id,
+        sum(c.total_cents) FILTER (WHERE c.period=${month}) AS charged,
+        sum(coalesce(p.paid,0)) FILTER (WHERE c.period=${month}) AS paid,
+        sum(greatest(c.total_cents-coalesce(p.paid,0),0)) FILTER (WHERE c.period=${month}) AS remaining,
+        min(c.due_on) FILTER (WHERE c.period=${month} AND c.total_cents>coalesce(p.paid,0)) AS due_on,
+        bool_or(c.total_cents>coalesce(p.paid,0) AND c.due_on<(${now.toISOString()}::timestamptz AT TIME ZONE a.zone)::date) FILTER (WHERE c.period=${month}) AS overdue,
+        sum(greatest(c.total_cents-coalesce(p.paid,0),0)) FILTER (WHERE c.due_on<=(${now.toISOString()}::timestamptz AT TIME ZONE a.zone)::date+7) AS payable
         FROM utility_charges c JOIN accounts a ON a.id=c.parent_id LEFT JOIN payments p ON p.parent_id=c.id
-        WHERE c.period=${month} AND c.deleted_at IS NULL AND c.cancelled_at IS NULL GROUP BY a.parent_id),
+        WHERE c.deleted_at IS NULL AND c.cancelled_at IS NULL GROUP BY a.parent_id),
       meters AS MATERIALIZED (SELECT m.id,m.utility_account_id FROM meters m WHERE m.deleted_at IS NULL AND m.is_active),
       readings AS MATERIALIZED (SELECT r.parent_id,r.occurred_on::text AS date,r.transmitted_at IS NOT NULL AS transmitted FROM meter_readings r WHERE r.deleted_at IS NULL
         AND r.occurred_on>=(${month}||'-01')::date AND r.occurred_on<(${month}||'-01')::date+interval '2 months'),
@@ -115,7 +119,7 @@ export function analyticsRoutes(route: DataRoute) {
         FROM accounts a GROUP BY a.parent_id)
       SELECT o.id,o.title,o.space_id AS "spaceId",o.space_kind AS "spaceKind",o.audience,o.assignee_id AS "assigneeId",
         coalesce(c.charged,0)::text AS charged,coalesce(c.paid,0)::text AS paid,coalesce(c.remaining,0)::text AS remaining,
-        c.due_on::text AS "dueOn",coalesce(c.overdue,false) AS overdue,s.accounts
+        c.due_on::text AS "dueOn",coalesce(c.overdue,false) AS overdue,coalesce(c.payable,0)::text AS payable,s.accounts
       FROM visible_objects o LEFT JOIN charges c ON c.parent_id=o.id JOIN statuses s ON s.parent_id=o.id ORDER BY o.title,o.id`);
     const windowsByRule = new Map<
       string,
@@ -197,6 +201,8 @@ export function analyticsRoutes(route: DataRoute) {
     return {
       month,
       objects,
+      // Плашка на главной охватывает все месяцы: просрочено, сейчас и ближайшие 7 дней.
+      payableCents: safeCents(visible.reduce((sum, row) => sum + BigInt(row.payable), 0n)),
       totals: {
         ...money(
           visible.reduce<Money>(

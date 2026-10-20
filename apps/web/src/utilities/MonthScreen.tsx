@@ -39,7 +39,9 @@ function Money({
           {remainingCents > 0 ? (
             <Status tone="warning">
               {overdue ? 'Есть долг' : 'К оплате'}
-              {dueOn ? ` до ${formatShortDate(dueOn as DateOnly)}` : ''}
+              {dueOn
+                ? `${overdue ? ' · срок был' : ' до'} ${formatShortDate(dueOn as DateOnly)}`
+                : ''}
             </Status>
           ) : null}
         </dd>
