@@ -17,7 +17,7 @@ async function rowWidth(row: Locator) {
   await expect(row.locator('.row__title').first()).toHaveCSS('overflow-wrap', 'normal');
 }
 
-test('D20a-10: радар и связи оставляют название широким, действие переносится ниже', async ({
+test('D20a-10/D20b: радар и связи оставляют название широким, меню рядом со строкой', async ({
   page,
   family,
 }, info) => {
@@ -44,12 +44,12 @@ test('D20a-10: радар и связи оставляют название ши
   await recalc(family);
   await signInAs(page, family, 'adult');
   await openRadar(page);
-  const row = page.locator('.studio-radar-row').filter({ hasText: flat.title });
+  const row = page.locator('.compact-radar-row').filter({ hasText: flat.title });
   await expect(row).toHaveCount(1);
   await rowWidth(row);
-  const record = await row.locator('.studio-radar-row__record').boundingBox();
-  const actions = await row.locator('.studio-radar-row__actions').boundingBox();
-  expect(actions?.y).toBeGreaterThanOrEqual((record?.y ?? 0) + (record?.height ?? 0) - 1);
+  const record = await row.locator('.compact-radar-row__record').boundingBox();
+  const actions = await row.getByRole('button', { name: /^Ещё действия:/ }).boundingBox();
+  expect(actions?.x).toBeGreaterThanOrEqual((record?.x ?? 0) + (record?.width ?? 0) - 1);
   await checkApp(page, info, 'D20a-10-radar');
   await page.goto(`#/home/${flat.id}`);
   const link = page.locator('.link-item').filter({ hasText: note.title });
