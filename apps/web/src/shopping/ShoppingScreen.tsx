@@ -28,7 +28,7 @@ import { Page, Section } from '../ui/Page.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
 import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';
-import { type ShoppingDraft, splitShoppingDictation } from '../voice/shopping-dictation.ts';
+import { dictatedDrafts, type ShoppingDraft } from '../voice/shopping-dictation.ts';
 import {
   createShopping,
   fetchShopping,
@@ -79,9 +79,12 @@ export function ShoppingScreen() {
   const [details, setDetails] = useState(false);
   const [drafts, setDrafts] = useState<ShoppingDraft[] | null>(null);
   // SHOP-4: надиктованное сначала показывается черновиками, ничего не добавляется само.
+  // Фраза без позиций («и», «, ,», тишина) не открывает пустой лист, а просит повторить.
   const dictation = useDictation((text) => {
-    const items = splitShoppingDictation(text);
-    if (items.length) setDrafts(items);
+    const result = dictatedDrafts(text);
+    if ('error' in result) return result.error;
+    setDrafts(result.drafts);
+    return undefined;
   });
   const input = useRef<HTMLInputElement>(null);
   const state = useAction();
@@ -386,7 +389,10 @@ export function ShoppingScreen() {
               drafts={drafts}
               place={place}
               house={house || null}
-              onClose={() => setDrafts(null)}
+              onClose={() => {
+                dictation.abort();
+                setDrafts(null);
+              }}
               onAdded={async (added, duplicates) => {
                 await client.cancelQueries({ queryKey: ['shopping', account] });
                 await refresh();

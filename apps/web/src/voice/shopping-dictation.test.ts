@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { splitShoppingDictation } from './shopping-dictation.ts';
+import {
+  type Context,
+  dictatedDrafts,
+  NO_ITEMS_MESSAGE,
+  nominative,
+  splitShoppingDictation,
+} from './shopping-dictation.ts';
 
 describe('SHOP-4: разбор надиктованных покупок', () => {
   const cases: [string, ReturnType<typeof splitShoppingDictation>][] = [
@@ -22,7 +28,7 @@ describe('SHOP-4: разбор надиктованных покупок', () =>
     ['бутылка воды ещё сок', [{ title: 'Вода', quantity: '1 бутылка' }, { title: 'Сок' }]],
     [
       'Купить хлеб, а также сметану потом гречку',
-      [{ title: 'Хлеб' }, { title: 'Сметану' }, { title: 'Гречку' }],
+      [{ title: 'Хлеб' }, { title: 'Сметана' }, { title: 'Гречка' }],
     ],
     ['хлеб и соль', [{ title: 'Хлеб' }, { title: 'Соль' }]],
     ['хлеб-соль', [{ title: 'Хлеб-соль' }]],
@@ -37,7 +43,7 @@ describe('SHOP-4: разбор надиктованных покупок', () =>
       '6 йогуртов плюс 4 банки фасоли',
       [
         { title: 'Йогурты', quantity: '6 шт.' },
-        { title: 'Фасоли', quantity: '4 банки' },
+        { title: 'Фасоль', quantity: '4 банки' },
       ],
     ],
     ['двенадцать сосисок', [{ title: 'Сосиски', quantity: '12 шт.' }]],
@@ -46,9 +52,74 @@ describe('SHOP-4: разбор надиктованных покупок', () =>
       [{ title: 'Кофе' }, { title: 'Вымышленный корм для кота' }],
     ],
     ['2 кг', [{ title: '2 кг' }]],
+    // D22: слово-разделитель перед знаком препинания не попадает в название.
+    ['хлеб и, молоко', [{ title: 'Хлеб' }, { title: 'Молоко' }]],
+    ['хлеб ещё. молоко плюс; сыр', [{ title: 'Хлеб' }, { title: 'Молоко' }, { title: 'Сыр' }]],
+    ['хлеб ,и молоко', [{ title: 'Хлеб' }, { title: 'Молоко' }]],
+    ['хлеб, а также, сыр', [{ title: 'Хлеб' }, { title: 'Сыр' }]],
+    ['и', []],
+    [', ,', []],
+    // D22: падежи; название из нескольких слов правилами не меняется.
+    ['купить сметану и гречку', [{ title: 'Сметана' }, { title: 'Гречка' }]],
+    ['2 кг гречки', [{ title: 'Гречка', quantity: '2 кг' }]],
+    ['банка сметаны', [{ title: 'Сметана', quantity: '1 банка' }]],
+    ['пять огурцов', [{ title: 'Огурцы', quantity: '5 шт.' }]],
+    ['три сосиски', [{ title: 'Сосиски', quantity: '3 шт.' }]],
+    ['свежую сметану', [{ title: 'Свежую сметану' }]],
   ];
   it.each(cases)('«%s»', (text, expected) => {
     expect(splitShoppingDictation(text)).toEqual(expected);
+  });
+
+  // D22: именительный падеж одного слова. Неуверенные формы остаются как сказано.
+  const words: [string, Context, string][] = [
+    ['сметану', 'accusative', 'сметана'],
+    ['гречку', 'accusative', 'гречка'],
+    ['колбасу', 'accusative', 'колбаса'],
+    ['курицу', 'accusative', 'курица'],
+    ['дыню', 'accusative', 'дыня'],
+    ['докторскую', 'accusative', 'докторская'],
+    ['хлеба', 'accusative', 'хлеб'],
+    ['сахару', 'accusative', 'сахар'],
+    ['кешью', 'accusative', 'кешью'],
+    ['рагу', 'accusative', 'рагу'],
+    ['тофу', 'accusative', 'тофу'],
+    ['сыру', 'accusative', 'сыр'],
+    ['мёду', 'accusative', 'мёд'],
+    ['чесноку', 'accusative', 'чеснок'],
+    ['бананы', 'accusative', 'бананы'],
+    ['сушки', 'accusative', 'сушки'],
+    ['фасоль', 'accusative', 'фасоль'],
+    ['фасоли', 'unit', 'фасоль'],
+    ['яиц', 'pieces', 'яйца'],
+    ['яблок', 'unit', 'яблоки'],
+    ['гречки', 'unit', 'гречка'],
+    ['картошки', 'unit', 'картошка'],
+    ['колбасы', 'unit', 'колбаса'],
+    ['сметаны', 'unit', 'сметана'],
+    ['капусты', 'unit', 'капуста'],
+    ['огурцов', 'pieces', 'огурцы'],
+    ['сырков', 'pieces', 'сырки'],
+    ['мандаринов', 'pieces', 'мандарины'],
+    ['конфет', 'unit', 'конфеты'],
+    ['груш', 'unit', 'груши'],
+    ['макароны', 'unit', 'макароны'],
+    ['соли', 'unit', 'соль'],
+    ['плов', 'pieces', 'плов'],
+    ['сыра', 'unit', 'сыр'],
+    ['кваса', 'unit', 'кваса'],
+    ['сушки', 'pieces', 'сушки'],
+  ];
+  it.each(words)('«%s» (%s) → «%s»', (word, context, expected) => {
+    expect(nominative(word, context)).toBe(expected);
+  });
+
+  it.each(['и', ', ,', '', ' ещё ; и '])('фраза без позиций «%s» — сообщение', (text) => {
+    expect(dictatedDrafts(text)).toEqual({ error: NO_ITEMS_MESSAGE });
+  });
+
+  it('фраза с позициями — черновики', () => {
+    expect(dictatedDrafts('и хлеб,')).toEqual({ drafts: [{ title: 'Хлеб' }] });
   });
 
   it('длинное название обрезается до 200 знаков', () => {
