@@ -104,17 +104,17 @@ export function DictationStatus({ dictation }: { dictation: Dictation }) {
   if (!dictation.supported) return null;
   return (
     <>
-      <p className="visually-hidden voice-announcement" aria-live="polite">
+      <div className="visually-hidden voice-announcement" aria-live="polite">
         {dictation.announcement}
-      </p>
+      </div>
       {dictation.listening ? (
-        <p className="voice-status">
+        <div className="voice-status">
           <span className="voice-status__dot" aria-hidden />
           <span>
             <strong>Идёт запись</strong>
             {dictation.interim ? `: ${dictation.interim}` : ' — говорите'}
           </span>
-        </p>
+        </div>
       ) : null}
       {dictation.error ? <Notice error>{dictation.error}</Notice> : null}
     </>
