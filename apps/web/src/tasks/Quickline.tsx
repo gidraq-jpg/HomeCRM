@@ -1,6 +1,6 @@
 import { type CalendarDate, calendarInstant, parseQuickline, TaskFields } from '@homecrm/shared';
 import { CalendarBlank, CaretRight, Clock, House, Users, X } from '@phosphor-icons/react';
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
@@ -10,6 +10,8 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
+import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';
+import { appendDictation } from '../voice/recognition.ts';
 import { formatDateOnly, TextField } from './fields.tsx';
 import { createBody } from './NewTaskScreen.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
@@ -66,6 +68,20 @@ export function Quickline({
   const [visibility, setVisibility] = useState<Visibility | null>(null);
   const [choosingVisibility, setChoosingVisibility] = useState(false);
   const inputId = useId();
+  const field = useRef<HTMLTextAreaElement>(null);
+  // TASK-2: надиктованное дописывается в поле; разбирается и сохраняется так же, как набранное.
+  const dictation = useDictation((text) => {
+    setRaw((current) => appendDictation(current, text).slice(0, 500));
+    setExcluded(new Set());
+    setOverrides({});
+  });
+  useLayoutEffect(() => {
+    const input = field.current;
+    if (!input) return;
+    input.style.height = 'auto';
+    if (!raw) return;
+    input.style.height = `${input.scrollHeight + 2}px`;
+  }, [raw]);
   const result = parseQuickline(raw, {
     now: calendarInstant(today, timeZone),
     timeZone,
@@ -129,22 +145,24 @@ export function Quickline({
             <label className="visually-hidden" htmlFor={inputId}>
               Быстрая строка
             </label>
-            <textarea
-              id={inputId}
-              className="textarea"
-              rows={1}
-              value={raw}
-              maxLength={500}
-              onChange={(event) => {
-                const input = event.currentTarget;
-                input.style.height = 'auto';
-                input.style.height = `${input.scrollHeight + 2}px`;
-                setRaw(input.value);
-                setExcluded(new Set());
-                setOverrides({});
-              }}
-            />
+            <div className="voice-line">
+              <textarea
+                ref={field}
+                id={inputId}
+                className="textarea"
+                rows={1}
+                value={raw}
+                maxLength={500}
+                onChange={(event) => {
+                  setRaw(event.currentTarget.value);
+                  setExcluded(new Set());
+                  setOverrides({});
+                }}
+              />
+              <DictationButton dictation={dictation} />
+            </div>
           </div>
+          <DictationStatus dictation={dictation} />
           <p className="muted">Поняли так · нажмите, чтобы изменить</p>
           <div className="task-chips">
             {draft.fragments.map((fragment) => {

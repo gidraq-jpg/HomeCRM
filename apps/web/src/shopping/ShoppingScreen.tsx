@@ -27,6 +27,8 @@ import { groupBy } from '../ui/groupBy.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
+import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';
+import { type ShoppingDraft, splitShoppingDictation } from '../voice/shopping-dictation.ts';
 import {
   createShopping,
   fetchShopping,
@@ -36,6 +38,7 @@ import {
   shoppingAction,
 } from './api.ts';
 import { alreadyListed } from './duplicates.ts';
+import { draftsMessage, ShoppingDrafts } from './ShoppingDrafts.tsx';
 import { ShoppingLinks } from './ShoppingLinks.tsx';
 import '../tasks/today.css';
 import '../styles/studio2-lists.css';
@@ -74,6 +77,12 @@ export function ShoppingScreen() {
     scope === 'personal' || !house ? 'personal' : 'household',
   );
   const [details, setDetails] = useState(false);
+  const [drafts, setDrafts] = useState<ShoppingDraft[] | null>(null);
+  // SHOP-4: надиктованное сначала показывается черновиками, ничего не добавляется само.
+  const dictation = useDictation((text) => {
+    const items = splitShoppingDictation(text);
+    if (items.length) setDrafts(items);
+  });
   const input = useRef<HTMLInputElement>(null);
   const state = useAction();
   const action = useAction();
@@ -287,10 +296,12 @@ export function ShoppingScreen() {
                     setDuplicate(false);
                   }}
                 />
+                <DictationButton dictation={dictation} />
                 <button type="submit" className="btn btn--primary" disabled={state.disabled}>
                   Добавить
                 </button>
               </div>
+              <DictationStatus dictation={dictation} />
               {duplicate ? <p role="status">Уже в списке</p> : null}
               <details className="studio-list-options">
                 <summary>Параметры покупки</summary>
@@ -369,6 +380,19 @@ export function ShoppingScreen() {
             >
               Ещё покупки
             </button>
+          ) : null}
+          {drafts ? (
+            <ShoppingDrafts
+              drafts={drafts}
+              place={place}
+              house={house || null}
+              onClose={() => setDrafts(null)}
+              onAdded={async (added, duplicates) => {
+                await client.cancelQueries({ queryKey: ['shopping', account] });
+                await refresh();
+                toast.show({ message: draftsMessage(added, duplicates) });
+              }}
+            />
           ) : null}
           {details ? (
             <ShoppingEditor

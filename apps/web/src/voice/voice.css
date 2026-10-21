@@ -1,0 +1,74 @@
+/* TASK-2, SHOP-4: кнопка микрофона и состояние записи. */
+.icon-button.voice-button {
+  flex: 0 0 var(--tap, 44px);
+  background: var(--soft, #dcd6c9);
+  color: var(--ink, #272725);
+}
+.icon-button.voice-button--on {
+  background: var(--accent, #a84d30);
+  color: #fff;
+}
+.icon-button.voice-button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.voice-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+.voice-line > .textarea,
+.voice-line > .input {
+  min-width: 0;
+  flex: 1;
+}
+.voice-status {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.voice-status__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  /* Без бесконечной анимации: состояние записи видно по значку, тексту и точке. */
+  background: var(--danger, #9b332b);
+}
+.voice-drafts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.voice-draft {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 6rem) var(--tap, 44px);
+  gap: 8px;
+  align-items: end;
+}
+.voice-draft label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+.voice-draft .input {
+  width: 100%;
+  min-width: 0;
+}
+.voice-draft__duplicate {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--warning, #9a5b18);
+  font-size: 0.875rem;
+}
+.voice-drafts-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
