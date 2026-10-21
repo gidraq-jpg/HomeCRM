@@ -71,9 +71,11 @@ export function Quickline({
   const field = useRef<HTMLTextAreaElement>(null);
   // TASK-2: надиктованное дописывается в поле; разбирается и сохраняется так же, как набранное.
   const dictation = useDictation((text) => {
+    if (!text.trim()) return undefined;
     setRaw((current) => appendDictation(current, text).slice(0, 500));
     setExcluded(new Set());
     setOverrides({});
+    return undefined;
   });
   useLayoutEffect(() => {
     const input = field.current;
@@ -112,6 +114,8 @@ export function Quickline({
         onSubmit={(event) => {
           event.preventDefault();
           if (!draft.title || operation.pending) return;
+          // Сохраняется то, что видно в поле; поздний итог записи не попадёт в очищенное поле.
+          dictation.abort();
           const parsed = TaskFields.safeParse({
             title: draft.title,
             planOn: draft.planOn,

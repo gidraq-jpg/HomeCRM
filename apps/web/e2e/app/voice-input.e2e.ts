@@ -18,7 +18,7 @@ import { signInAs } from './support.ts';
 // подменяется фиктивным: он выдаёт заданный текст или ошибку, звук никуда не уходит.
 
 type Step = { text?: string; error?: string; hold?: boolean };
-type VoiceWindow = Window & { __voice: Step[]; __voiceLang?: string };
+type VoiceWindow = Window & { __voice: Step[]; __voiceLang?: string; __voiceAborted?: number };
 
 async function fakeSpeech(page: Page, supported = true) {
   await page.addInitScript((supported) => {
@@ -70,6 +70,9 @@ async function fakeSpeech(page: Page, supported = true) {
         this.finish();
       }
       abort() {
+        target.__voiceAborted = (target.__voiceAborted ?? 0) + 1;
+        // Как у браузера: поздний итог фразы после отмены всё равно может прийти.
+        if (this.step.hold) this.emit(true);
         this.finish();
       }
     }
@@ -119,15 +122,16 @@ test('TASK-2: дело голосом — живой текст, чипы дат
   // С клавиатуры: фокус на кнопке и Enter.
   await mic.focus();
   await page.keyboard.press('Enter');
-  const stop = page.getByRole('button', { name: 'Остановить запись', exact: true });
-  await expect(stop).toHaveAttribute('aria-pressed', 'true');
+  // D22: имя кнопки постоянное, запись видна по aria-pressed и объявлению через aria-live.
+  await expect(mic).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Остановить запись' })).toHaveCount(0);
   await expect(page.locator('.voice-status')).toContainText(
     'Идёт запись: позвонить мастеру завтра',
   );
   await expect(page.locator('.voice-announcement')).toHaveText('Идёт запись, говорите');
   expect(await page.evaluate(() => (window as unknown as VoiceWindow).__voiceLang)).toBe('ru-RU');
   await check(page, info, 'task-listening');
-  await stop.click();
+  await mic.click();
   // Распознанное дописано к уже введённому; ничего не сохранено само.
   await expect(input).toHaveValue('#Учебная позвонить мастеру завтра');
   await expect(mic).toHaveAttribute('aria-pressed', 'false');
@@ -202,6 +206,65 @@ test('SHOP-4: покупки голосом — черновики, правка
   await expect(sheet).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Кефир', exact: true })).toBeVisible();
   await expect(page.locator('li.task-row', { hasText: 'Молоко' })).toHaveCount(1);
+});
+
+test('TASK-2: сохранение во время записи — запись прерывается, поздний текст не попадает', async ({
+  page,
+  family,
+}, info) => {
+  const api = await apiAs(family, 'adult');
+  await fakeSpeech(page);
+  await signInAs(page, family, 'adult');
+  await openQuick(page);
+  const input = page.getByLabel('Быстрая строка');
+  const mic = page.getByRole('button', { name: 'Надиктовать', exact: true });
+  await input.fill('Вымышленный звонок');
+  await say(page, { text: 'поздний текст', hold: true });
+  await mic.click();
+  await expect(mic).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.voice-status')).toContainText('поздний текст');
+  await check(page, info, 'task-save-listening');
+  await page.getByRole('button', { name: 'Добавить дело', exact: true }).click();
+  await expect(page).toHaveURL(/tasks\/[a-f0-9-]+$/);
+  const taskId = page.url().split('/').at(-1);
+  const saved = TaskCard.parse((await api.get(`tasks/${taskId}`)).body);
+  expect(saved.title).toBe('Вымышленный звонок');
+  // Распознаватель отменён без итога: и после паузы поле пустое, запись не идёт.
+  expect(await page.evaluate(() => (window as unknown as VoiceWindow).__voiceAborted)).toBe(1);
+  await page.waitForTimeout(200);
+  await openQuick(page);
+  await expect(page.getByLabel('Быстрая строка')).toHaveValue('');
+  await expect(page.getByRole('button', { name: 'Надиктовать', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+});
+
+test('SHOP-4: фраза без позиций — просьба повторить, лист не открывается', async ({
+  page,
+  family,
+}, info) => {
+  await fakeSpeech(page);
+  await signInAs(page, family, 'adult');
+  await openShopping(page);
+  const mic = page.getByRole('button', { name: 'Надиктовать', exact: true });
+  await say(page, { text: 'и, ,' });
+  await mic.click();
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Не удалось разобрать позиции, попробуйте ещё раз' }),
+  ).toBeVisible();
+  await expect(page.locator('.voice-announcement')).toHaveText('Запись остановлена');
+  await expect(page.getByRole('dialog', { name: 'Надиктованные покупки' })).toHaveCount(0);
+  await check(page, info, 'shopping-no-items');
+  // «хлеб и, молоко» — две позиции без лишнего «и»; отмена закрывает лист без записи.
+  await say(page, { text: 'хлеб и, молоко' });
+  await mic.click();
+  const sheet = page.getByRole('dialog', { name: 'Надиктованные покупки', exact: true });
+  await expect(sheet.getByLabel('Название позиции 1', { exact: true })).toHaveValue('Хлеб');
+  await expect(sheet.getByLabel('Название позиции 2', { exact: true })).toHaveValue('Молоко');
+  await sheet.getByRole('button', { name: 'Отмена', exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(mic).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('TASK-2: отказ в микрофоне и офлайн — понятное сообщение, текст не теряется', async ({
