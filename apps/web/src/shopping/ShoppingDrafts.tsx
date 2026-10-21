@@ -8,7 +8,7 @@ import { countWord, plural } from '../ui/format.ts';
 import { Sheet } from '../ui/Sheet.tsx';
 import type { ShoppingDraft } from '../voice/shopping-dictation.ts';
 import { createShopping } from './api.ts';
-import { alreadyListed, shoppingName } from './duplicates.ts';
+import { listedNames, shoppingName } from './duplicates.ts';
 
 type Row = ShoppingDraft & { id: string; duplicate?: boolean };
 
@@ -55,6 +55,8 @@ export function ShoppingDrafts({
     if (state.disabled || ready.length === 0) return;
     void state.run(async () => {
       const placement = newPlacement(place, house);
+      // Список для проверки дублей — один раз на нажатие; добавленное дальше пополняет `seen`.
+      const listed = await listedNames(place, house);
       const seen = new Set<string>();
       const duplicates = new Set<string>();
       const added = new Set<string>();
@@ -62,7 +64,7 @@ export function ShoppingDrafts({
         for (const row of ready) {
           const title = row.title.trim();
           const name = shoppingName(title);
-          if (seen.has(name) || (await alreadyListed(title, place, house))) {
+          if (seen.has(name) || listed.has(name)) {
             duplicates.add(row.id);
             continue;
           }
