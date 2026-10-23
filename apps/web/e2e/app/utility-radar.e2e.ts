@@ -279,7 +279,8 @@ test('уведомления: шесть коммунальных видов о�
   await page.getByRole('button', { name: 'Сохранить настройки' }).click();
   await expect(toast(page)).toContainText('Настройки уведомлений сохранены');
   const stored = await family.database.admin.query(
-    'SELECT enabled_kinds FROM notification_settings',
+    'SELECT enabled_kinds FROM notification_settings WHERE account_id=$1',
+    [family.person('adult').id],
   );
   expect(stored.rows).toEqual([
     {

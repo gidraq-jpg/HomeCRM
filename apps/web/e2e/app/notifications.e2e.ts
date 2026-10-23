@@ -234,7 +234,8 @@ test('экран «Уведомления»: устройство, тихие ч
   await save.click();
   await expect(toast(page)).toContainText('Настройки уведомлений сохранены');
   const stored = await family.database.admin.query(
-    'SELECT quiet_start, quiet_end, daily_budget, enabled_kinds, hide_text FROM notification_settings',
+    'SELECT quiet_start, quiet_end, daily_budget, enabled_kinds, hide_text FROM notification_settings WHERE account_id=$1',
+    [family.person('adult').id],
   );
   expect(stored.rows).toEqual([
     {
@@ -273,7 +274,8 @@ test('экран «Уведомления»: устройство, тихие ч
   await save.click();
   await expect(toast(page)).toContainText('Настройки уведомлений сохранены');
   const kinds = await family.database.admin.query(
-    'SELECT quiet_end, enabled_kinds FROM notification_settings',
+    'SELECT quiet_end, enabled_kinds FROM notification_settings WHERE account_id=$1',
+    [family.person('adult').id],
   );
   expect(kinds.rows).toEqual([
     {

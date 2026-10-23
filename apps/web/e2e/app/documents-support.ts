@@ -82,6 +82,10 @@ export async function openAsUser(
   await page.getByLabel('Имя пользователя или почта').fill(user.username);
   await page.getByLabel('Пароль', { exact: true }).fill(user.password);
   await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Как устроены личное и общее', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('link', { name: 'Понятно', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Сегодня', exact: true })).toBeVisible();
   return { page, close: () => context.close() };
 }
