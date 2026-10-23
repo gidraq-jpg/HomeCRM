@@ -25,6 +25,16 @@ x-environment: &settings
   BACKUP_ENABLED: ${BACKUP_ENABLED:-1}
   BACKUP_PRE_MIGRATION_CLOUD: ${BACKUP_PRE_MIGRATION_CLOUD:-required}
 
+x-ai: &ai-settings
+  AI_STT_PROVIDER: ${AI_STT_PROVIDER:-disabled}
+  AI_STT_URL: ${AI_STT_URL:-http://host.docker.internal:9000}
+  AI_EXTRACT_PROVIDER: ${AI_EXTRACT_PROVIDER:-disabled}
+  AI_EXTRACT_URL: ${AI_EXTRACT_URL:-http://host.docker.internal:8643/v1}
+  AI_EXTRACT_KEY_FILE: ${AI_EXTRACT_KEY_FILE:-}
+  AI_EXTRACT_MODEL: ${AI_EXTRACT_MODEL:-hermes-agent}
+  AI_HTTPS_PROXY: ${AI_HTTPS_PROXY:-}
+  AI_DAILY_LIMIT: ${AI_DAILY_LIMIT:-100}
+
 services:
   db:
     profiles: [app]
@@ -75,7 +85,9 @@ services:
         condition: service_completed_successfully
     env_file:
       - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/server.env
+    extra_hosts: ["host.docker.internal:host-gateway"]
     environment:
+      <<: *ai-settings
       FILE_MASTER_KEY_FILE: /run/secrets/file-master-key
       FILE_MASTER_KEY_VERSION: 1
       FILES_DIR: /data/files
@@ -86,6 +98,7 @@ services:
       - "127.0.0.1:${HOMECRM_APP_PORT:-8300}:8300"
     volumes:
       - files:/data/files
+      - ${HOMECRM_AI_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/ai}:/run/ai-secrets:ro
     read_only: true
     tmpfs:
       - /tmp
@@ -111,6 +124,8 @@ services:
         condition: service_completed_successfully
     env_file:
       - ${HOMECRM_APP_SECRETS:-${HOMECRM_DATA:-E:/HomeCRM-data}/secrets/app}/worker.env
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    environment: *ai-settings
     read_only: true
     tmpfs:
       - /tmp

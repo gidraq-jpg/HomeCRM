@@ -20,7 +20,8 @@
     "test:watch": "vitest --project=!perf",
     "test:perf": "vitest run --project=perf --maxWorkers=1 --no-file-parallelism",
     "test:e2e": "pnpm --filter @homecrm/web test:e2e",
-    "test:e2e:full": "node apps/web/e2e/run.ts full-compose"
+    "test:e2e:full": "node apps/web/e2e/run.ts full-compose",
+    "ai:eval": "node apps/server/src/ai/eval/run.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

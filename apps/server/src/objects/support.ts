@@ -88,7 +88,7 @@ export async function placementFrom(
   defaultAudience: 'household' | 'adults' = 'household',
 ): Promise<Placement> {
   const [space] = await tx
-    .select()
+    .select({ id: spaces.id, kind: spaces.kind, ownerAccountId: spaces.ownerAccountId })
     .from(spaces)
     .where(spaceId ? eq(spaces.id, spaceId) : eq(spaces.ownerAccountId, account.id));
   if (!space) missing();
@@ -105,7 +105,10 @@ export async function snapshotPlacement(
   audience: 'household' | 'adults' | null,
 ): Promise<Placement> {
   if (kind === 'household') return { kind, spaceId, audience: audience ?? 'household' };
-  const [space] = await tx.select().from(spaces).where(eq(spaces.id, spaceId));
+  const [space] = await tx
+    .select({ id: spaces.id, kind: spaces.kind, ownerAccountId: spaces.ownerAccountId })
+    .from(spaces)
+    .where(eq(spaces.id, spaceId));
   return { kind, spaceId, ownerId: space?.ownerAccountId ?? '' };
 }
 export async function readReference(

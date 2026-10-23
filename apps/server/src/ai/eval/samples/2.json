@@ -1,0 +1,26 @@
+{
+  "kind": "shopping",
+  "text": "молоко, хлеб",
+  "expected": [
+    {
+      "title": {
+        "value": "молоко",
+        "confident": true
+      },
+      "quantity": {
+        "value": null,
+        "confident": true
+      }
+    },
+    {
+      "title": {
+        "value": "хлеб",
+        "confident": true
+      },
+      "quantity": {
+        "value": null,
+        "confident": true
+      }
+    }
+  ]
+}

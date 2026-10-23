@@ -28,6 +28,7 @@ const FROZEN = ['id', 'author_id', 'created_at', 'updated_at', 'invalidated_at']
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
+    ai_daily_usage: { SELECT: 'all', INSERT: 'all', UPDATE: 'all' },
     radar_actions: {
       SELECT: 'all',
       INSERT: 'all',
@@ -68,7 +69,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     file_blobs: { SELECT: 'all', INSERT: 'all', DELETE: 'all' },
     record_links: { SELECT: 'all', INSERT: 'all', UPDATE: ['role', 'deleted_at'] },
     accounts: { SELECT: 'all' },
-    spaces: { SELECT: 'all', UPDATE: ['time_zone'] },
+    spaces: { SELECT: 'all', UPDATE: ['time_zone', 'ai_enabled'] },
     deadlines: {
       SELECT: 'all',
       INSERT: 'all',

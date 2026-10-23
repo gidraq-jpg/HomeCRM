@@ -1,0 +1,14 @@
+{
+  "kind": "note",
+  "text": "Вымышленная заметка",
+  "expected": {
+    "title": {
+      "value": "Вымышленная заметка",
+      "confident": true
+    },
+    "body": {
+      "value": "Вымышленная заметка",
+      "confident": true
+    }
+  }
+}

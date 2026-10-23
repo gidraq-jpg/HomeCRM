@@ -140,7 +140,10 @@ async function card(tx: Transaction, record: Note, includeDeleted = false) {
   };
 }
 async function personal(tx: Transaction, account: Account): Promise<Placement> {
-  const [space] = await tx.select().from(spaces).where(eq(spaces.ownerAccountId, account.id));
+  const [space] = await tx
+    .select({ id: spaces.id, kind: spaces.kind, ownerAccountId: spaces.ownerAccountId })
+    .from(spaces)
+    .where(eq(spaces.ownerAccountId, account.id));
   if (!space) throw new Failure(404, 'SPACE_NOT_FOUND');
   return { kind: 'personal', spaceId: space.id, ownerId: account.id };
 }
@@ -308,7 +311,10 @@ export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
       }
       let placement = await personal(tx, account);
       if (body.placement) {
-        const [space] = await tx.select().from(spaces).where(eq(spaces.id, body.placement.spaceId));
+        const [space] = await tx
+          .select({ id: spaces.id, kind: spaces.kind, ownerAccountId: spaces.ownerAccountId })
+          .from(spaces)
+          .where(eq(spaces.id, body.placement.spaceId));
         if (!space) throw new Failure(404, 'SPACE_NOT_FOUND');
         if (space.kind === 'personal' && body.placement.audience)
           throw new Failure(400, 'INVALID_INPUT');
