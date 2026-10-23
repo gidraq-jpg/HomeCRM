@@ -55,7 +55,7 @@ if ($Install) {
 }
 if ($Login) {
  Write-Output ('$env:HERMES_HOME = ''' + $HermesHome + '''')
- Write-Output ('& '''+(Join-Path $HermesRuntime '.venv/Scripts/hermes.exe')+''' auth login --provider openai-codex')
+ Write-Output ('& '''+(Join-Path $HermesRuntime '.venv/Scripts/hermes.exe')+''' login --provider openai-codex')
  Write-Output 'Вход выполняет владелец. Наличие auth.json ещё не подтверждает действительность входа.'
  exit
 }
