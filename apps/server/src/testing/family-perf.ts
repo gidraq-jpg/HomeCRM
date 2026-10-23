@@ -29,7 +29,7 @@ export async function seedPerfFamily(world: World, seed = 23) {
   const columns = 'space_id,space_kind,audience,author_id,title,deleted_at';
   const values = `${placement},'Вымышленный семейный ремонт '||i,CASE WHEN bucket>=95 THEN now() END`;
   for (const [table, count] of [
-    ['notes', 2000],
+    ['notes', 3000],
     ['contacts', 1000],
     ['documents', 1000],
     ['objects', 1000],
