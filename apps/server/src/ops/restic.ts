@@ -82,7 +82,19 @@ export type Restic = (
 export async function resticFor(env: OpsEnv, repo: Repo): Promise<Restic> {
   const resticEnvironment = await resticEnv(env, repo);
   return async (args, options = {}) => {
-    const result = await run('restic', [...RCLONE_OPTIONS, ...args], { env: resticEnvironment });
+    const result = await run('restic', [...RCLONE_OPTIONS, ...args], {
+      env: resticEnvironment,
+      ...(repo.name === 'cloud'
+        ? {
+            timeoutMs:
+              1000 *
+              (args[0] === 'backup'
+                ? env.BACKUP_CLOUD_BACKUP_TIMEOUT_SECONDS
+                : env.BACKUP_CLOUD_COMMAND_TIMEOUT_SECONDS),
+          }
+        : {}),
+    });
+    if (result.timedOut) throw new OpsError('cloud timeout');
     if (result.code !== 0 && !(options.allowCodes ?? []).includes(result.code)) {
       throw commandFailure('restic', args[0] ?? 'command', result.code, RESTIC_HINTS[result.code]);
     }
