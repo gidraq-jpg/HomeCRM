@@ -39,9 +39,29 @@ if (-not $NoBuild) {
   Invoke-Docker @compose @profiles build
 }
 Write-Host 'Запуск: копия перед миграцией, миграции, приложение'
-Invoke-Docker @compose @profiles up -d --remove-orphans --wait --wait-timeout 300
+# До успеха одноразовой миграции не пересоздаём ни app, ни worker старой версии.
+Invoke-Docker @compose @profiles up -d --wait --wait-timeout 180 db
+$migrationLog = & docker @compose @profiles run --rm --no-deps -T migrate 2>&1
+$migrationExit = $LASTEXITCODE
+# CLI пишет безопасные JSON-сообщения (OpsError/errorMessage); посторонний вывод Docker
+# и библиотек не показываем: там могут оказаться строки подключения и данные.
+foreach ($line in ($migrationLog | Select-Object -Last 25)) {
+  try {
+    $entry = "$line" | ConvertFrom-Json -ErrorAction Stop
+    if ($entry.level -in @('info', 'warn', 'error') -and $entry.msg) { Write-Host "$line" }
+  } catch { }
+}
+if ($migrationExit -ne 0) {
+  Write-Host 'Откат: запустите release.ps1 с прежней меткой и -NoBuild; при несовместимой схеме восстановите копию (runbook, раздел 10).'
+  throw 'Выпуск остановлен: migrate завершился с ошибкой'
+}
+# Миграция уже завершилась с кодом 0. --no-deps исключает её повторный запуск.
+$services = @('app', 'worker')
+if ($Project -eq 'homecrm') { $services += 'backup' }
+Invoke-Docker @compose @profiles up -d --no-deps --wait --wait-timeout 300 @services
 
 $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -TimeoutSec 15 -SkipHttpErrorCheck
 if ($health.status -ne 'ok' -or $health.database -ne 'ok') { throw "Смоук-проверка не пройдена: /health ответил status=$($health.status), database=$($health.database)" }
+if ($health.version -ne $Version) { throw 'Смоук-проверка не пройдена: отвечает другая версия приложения' }
 Write-Host "Готово: версия $($health.version), база отвечает."
 Write-Host 'Дальше — проверка входа на телефоне и запись в CHANGELOG.md.'

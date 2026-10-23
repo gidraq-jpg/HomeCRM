@@ -54,7 +54,7 @@ else {
       if ($repo -eq 'cloud') { Write-Host "  $($names[$repo]): не настроено (pwsh deploy/scripts/connect-yandex-disk.ps1)"; $problems++ }
       continue
     }
-    $mark = if ($result.ok) { 'ок' } else { "ОШИБКА: $($result.error)" }
+    $mark = if ($result.skipped -eq 'configuration') { 'пропущено по настройке' } elseif ($result.ok) { 'ок' } else { "ОШИБКА: $($result.error)" }
     Write-Host "  $($names[$repo]): $mark, снимок $($result.snapshot)"
     if (-not $result.ok) { $problems++ }
   }

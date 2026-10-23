@@ -22,6 +22,7 @@ export interface RunResult {
   code: number;
   stdout: string;
   stderr: string;
+  timedOut?: boolean;
 }
 
 export interface RunOptions {
@@ -36,15 +37,34 @@ export function run(command: string, args: string[], options: RunOptions = {}): 
       env: { ...process.env, ...options.env },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
+      // В Linux restic и запущенный им rclone завершаются одной группой.
+      detached: options.timeoutMs !== undefined && process.platform !== 'win32',
     });
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
     child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk));
     child.stderr.on('data', (chunk: Buffer) => stderr.push(chunk));
+    let timedOut = false;
     const timer =
       options.timeoutMs === undefined
         ? undefined
-        : setTimeout(() => child.kill('SIGKILL'), options.timeoutMs);
+        : setTimeout(() => {
+            timedOut = true;
+            if (child.pid === undefined) return;
+            if (process.platform === 'win32') {
+              const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+                windowsHide: true,
+                stdio: 'ignore',
+              });
+              killer.on('error', () => child.kill('SIGKILL'));
+            } else {
+              try {
+                process.kill(-child.pid, 'SIGKILL');
+              } catch (error) {
+                if ((error as NodeJS.ErrnoException).code !== 'ESRCH') child.kill('SIGKILL');
+              }
+            }
+          }, options.timeoutMs);
     child.on('error', (error) => {
       if (timer) clearTimeout(timer);
       const code = errorCode(error);
@@ -56,6 +76,7 @@ export function run(command: string, args: string[], options: RunOptions = {}): 
         code: code ?? 1,
         stdout: Buffer.concat(stdout).toString('utf8'),
         stderr: Buffer.concat(stderr).toString('utf8'),
+        ...(timedOut ? { timedOut: true } : {}),
       });
     });
   });

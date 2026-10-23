@@ -73,6 +73,15 @@ const RESTIC_HINTS: Readonly<Record<number, string>> = {
 /** Параметры rclone при работе restic: удалённое не уходит в корзину Яндекс Диска и не съедает объём (--yandex-hard-delete). */
 const RCLONE_OPTIONS = ['-o', 'rclone.args=serve restic --stdio --yandex-hard-delete'];
 
+/** Команды, которые передают или перебирают весь снимок: им нужен тайм-аут копии, а не служебный. */
+const LONG_COMMANDS: ReadonlySet<string> = new Set([
+  'backup',
+  'restore',
+  'forget',
+  'prune',
+  'check',
+]);
+
 /** Выполняет команду restic; ненулевой код — ошибка с хвостом вывода (без секретов). */
 export type Restic = (
   args: string[],
@@ -82,7 +91,19 @@ export type Restic = (
 export async function resticFor(env: OpsEnv, repo: Repo): Promise<Restic> {
   const resticEnvironment = await resticEnv(env, repo);
   return async (args, options = {}) => {
-    const result = await run('restic', [...RCLONE_OPTIONS, ...args], { env: resticEnvironment });
+    const result = await run('restic', [...RCLONE_OPTIONS, ...args], {
+      env: resticEnvironment,
+      ...(repo.name === 'cloud'
+        ? {
+            timeoutMs:
+              1000 *
+              (LONG_COMMANDS.has(args[0] ?? '')
+                ? env.BACKUP_CLOUD_BACKUP_TIMEOUT_SECONDS
+                : env.BACKUP_CLOUD_COMMAND_TIMEOUT_SECONDS),
+          }
+        : {}),
+    });
+    if (result.timedOut) throw new OpsError('cloud timeout');
     if (result.code !== 0 && !(options.allowCodes ?? []).includes(result.code)) {
       throw commandFailure('restic', args[0] ?? 'command', result.code, RESTIC_HINTS[result.code]);
     }

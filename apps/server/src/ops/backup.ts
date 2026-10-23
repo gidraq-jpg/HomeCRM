@@ -202,11 +202,23 @@ export async function runBackup(opts: {
   const previous = await readStatus<BackupStatus>(env.BACKUP_STATUS_DIR, BACKUP_STATUS_FILE);
   const repos = configuredRepos(env);
   const results: BackupResult['repos'] = {};
+  const needed = repos.filter((repo) => {
+    if (
+      kind === 'pre-migration' &&
+      repo.name === 'cloud' &&
+      env.BACKUP_PRE_MIGRATION_CLOUD === 'skip'
+    ) {
+      results.cloud = { ok: false, at: startedAt, skipped: 'configuration' };
+      log.info('cloud backup skipped by configuration', { kind });
+      return false;
+    }
+    return true;
+  });
   log.info('backup started', { kind });
   try {
     const manifest = await dumpDatabase(env, kind, stage, log);
     log.info('dump ready', { tables: Object.keys(manifest.tables).length, files: manifest.files });
-    for (const repo of repos) {
+    for (const repo of needed) {
       try {
         const snapshot = await backupToRepo(env, repo, kind, stage, log);
         results[repo.name] = { ok: true, at: new Date().toISOString(), snapshot };
@@ -221,7 +233,7 @@ export async function runBackup(opts: {
       }
     }
   } catch (error) {
-    for (const repo of repos) {
+    for (const repo of needed) {
       results[repo.name] = { ok: false, at: startedAt, error: errorMessage(error) };
     }
     log.error('dump failed', { error: errorMessage(error) });
@@ -230,14 +242,6 @@ export async function runBackup(opts: {
   }
 
   // Для копии перед миграцией облако можно явно пропустить (выпуск без интернета).
-  const needed = repos.filter(
-    (repo) =>
-      !(
-        kind === 'pre-migration' &&
-        repo.name === 'cloud' &&
-        env.BACKUP_PRE_MIGRATION_CLOUD === 'skip'
-      ),
-  );
   const ok = needed.every((repo) => results[repo.name]?.ok === true);
   const status: BackupStatus = {
     cloudConfigured: env.BACKUP_CLOUD_REPOSITORY !== undefined,

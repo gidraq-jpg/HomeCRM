@@ -54,6 +54,9 @@ export const OpsEnvSchema = z.object({
    * `skip` — для выпуска без интернета достаточно локальной копии. Явная команда владельца.
    */
   BACKUP_PRE_MIGRATION_CLOUD: z.enum(['required', 'skip']).default('required'),
+  /** Ограничения облачных команд: копия — 15 минут, служебные операции — 2 минуты. */
+  BACKUP_CLOUD_BACKUP_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(86400).default(900),
+  BACKUP_CLOUD_COMMAND_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(86400).default(120),
   HOME_TIME_ZONE: z.string().default('Asia/Yekaterinburg'),
   APP_VERSION: z.string().default('dev'),
 });

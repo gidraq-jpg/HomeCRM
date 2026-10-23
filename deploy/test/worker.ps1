@@ -95,7 +95,7 @@ try {
   $dockerCalls.Clear()
   $failStep = ''
   & "$PSScriptRoot/../scripts/release.ps1" -DataDir $data -Project homecrm-test-worker -Version worker-test -NoBuild -Port 18320
-  Assert-That ($dockerCalls.Count -eq 1 -and $dockerCalls[0].Contains('--profile app up -d')) 'После восстановления не запускается весь профиль app вместе с worker.'
+  Assert-That ($dockerCalls.Count -eq 3 -and $dockerCalls[0].EndsWith('up -d --wait --wait-timeout 180 db') -and $dockerCalls[1].EndsWith('run --rm --no-deps -T migrate') -and $dockerCalls[2].EndsWith('up -d --no-deps --wait --wait-timeout 300 app worker')) 'App и worker должны запускаться только после отдельной миграции.'
   Write-Host 'ок: выбранная версия — app и worker запускаются через release.ps1'
 }
 finally {

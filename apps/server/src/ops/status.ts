@@ -8,6 +8,7 @@ export interface RepoResult {
   at: string;
   snapshot?: string;
   error?: string;
+  skipped?: 'configuration';
 }
 
 export interface BackupStatus {
