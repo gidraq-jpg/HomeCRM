@@ -7,6 +7,7 @@ export const Me = z.object({
   id: z.string(),
   /** Личное пространство участника: туда кладётся личная запись, когда нужен явный placement. */
   personalSpaceId: z.string().nullable(),
+  firstEntryShown: z.boolean().optional(),
   displayName: z.string(),
   username: z.string().nullable(),
   email: z.string().nullable(),

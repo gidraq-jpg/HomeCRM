@@ -1,10 +1,30 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { VISIBILITIES, VISIBILITY_HINTS, VISIBILITY_LABELS } from '../access/visibility.ts';
+import { ErrorNotice } from '../auth/components.tsx';
+import { saveSettings } from '../notifications/api.ts';
 import { Section } from '../ui/Page.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 
 /** Короткое объяснение разницы личного и общего — PRD, разделы 7.4 и 7.5. */
-export function SpacesScreen() {
+export function SpacesScreen({
+  firstEntry = false,
+  onShown,
+}: {
+  firstEntry?: boolean;
+  onShown?: () => Promise<void>;
+}) {
+  const [error, setError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
+  // Повтор вручную нужен после ошибки сети при записи серверной отметки.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt запускает повтор сохранения.
+  useEffect(() => {
+    if (!firstEntry) return;
+    void saveSettings({ firstEntryShown: true })
+      .then(() => onShown?.())
+      .catch(setError);
+  }, [firstEntry, onShown, attempt]);
   return (
     <Page service title="Как устроены личное и общее" back={{ to: '/more', label: 'Ещё' }}>
       <p className="muted">
@@ -12,6 +32,19 @@ export function SpacesScreen() {
         запись лежит ровно в одном из них.
       </p>
 
+      <ErrorNotice error={error} />
+      {Boolean(error) && (
+        <button
+          className="btn"
+          type="button"
+          onClick={() => {
+            setError(null);
+            setAttempt(attempt + 1);
+          }}
+        >
+          Повторить сохранение
+        </button>
+      )}
       <Section title="Три значка">
         <ul className="spaces-list">
           {VISIBILITIES.map((visibility) => (
@@ -59,6 +92,9 @@ export function SpacesScreen() {
           сквозным шифрованием.
         </p>
       </Section>
+      <Link className="btn btn--primary" to="/today">
+        Понятно
+      </Link>
     </Page>
   );
 }

@@ -47,7 +47,7 @@ it('матрица: все участники × владельцы × подп�
           const mutation =
             table === 'push_subscriptions'
               ? "device_name='Проверка'"
-              : 'hide_text=false,today_main_enabled=false';
+              : 'hide_text=false,today_main_enabled=false,first_entry_shown=true';
           const changed = await createAppDatabase(db.app).withAccount(viewer.id, (tx) =>
             tx.execute(sql.raw(`UPDATE ${table} SET ${mutation} WHERE account_id='${owner.id}'`)),
           );

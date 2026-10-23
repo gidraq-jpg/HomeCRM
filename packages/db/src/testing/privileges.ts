@@ -58,6 +58,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         'morning_enabled',
         'weekly_enabled',
         'today_main_enabled',
+        'first_entry_shown',
       ],
     },
     push_attempts: { SELECT: 'all' },

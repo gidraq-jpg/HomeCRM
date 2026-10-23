@@ -26,6 +26,7 @@ export const NotificationSettings = z.strictObject({
   hideText: z.boolean().default(true),
   morningEnabled: z.boolean().default(true),
   weeklyEnabled: z.boolean().default(true),
+  firstEntryShown: z.boolean().default(false),
   todayMainEnabled: z.boolean().default(true),
 });
 export type NotificationSettings = z.infer<typeof NotificationSettings>;
@@ -38,6 +39,7 @@ export const NotificationSettingsPatch = z.strictObject({
   hideText: NotificationSettings.shape.hideText.removeDefault().optional(),
   morningEnabled: NotificationSettings.shape.morningEnabled.removeDefault().optional(),
   weeklyEnabled: NotificationSettings.shape.weeklyEnabled.removeDefault().optional(),
+  firstEntryShown: z.literal(true).optional(),
   todayMainEnabled: NotificationSettings.shape.todayMainEnabled.removeDefault().optional(),
 });
 

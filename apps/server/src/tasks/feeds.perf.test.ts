@@ -67,6 +67,6 @@ it('TASK-4/5/6: 1000 дел, ленты и радар p95 <300 мс; число 
     }
     const p95 = percentile(timings, 0.95);
     console.info(`Tasks feed ${url.split('?')[0]}: p95=${p95.toFixed(1)} ms, SQL=${queries}`);
-    expect(p95).toBeLessThan(300);
+    expect(p95).toBeLessThanOrEqual(url === '/api/tasks/today' ? 210 : 300);
   }
 }, 120000);
