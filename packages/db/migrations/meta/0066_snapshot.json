@@ -3627,7 +3627,7 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": "'{\"resource\":\"cold_water\",\"model\":\"\",\"serialNumber\":\"\",\"installationPlace\":\"\",\"zones\":[\"\u0420\u045b\u0421\u0403\u0420\u0405\u0420\u0455\u0420\u0406\u0420\u0405\u0420\u00b0\u0421\u040f\"],\"integerDigits\":5,\"fractionDigits\":3,\"installedOn\":null,\"verifiedOn\":null,\"status\":\"active\"}'::jsonb"
+          "default": "'{\"resource\":\"cold_water\",\"model\":\"\",\"serialNumber\":\"\",\"installationPlace\":\"\",\"zones\":[\"Основная\"],\"integerDigits\":5,\"fractionDigits\":3,\"installedOn\":null,\"verifiedOn\":null,\"status\":\"active\"}'::jsonb"
         },
         "search_text": {
           "name": "search_text",
