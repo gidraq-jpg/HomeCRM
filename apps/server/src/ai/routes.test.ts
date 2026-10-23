@@ -75,6 +75,24 @@ it('AI: выключенный дом запрещает разбор, наст�
   });
   expect(transcribed.statusCode).toBe(200);
   expect(transcribed.json()).toEqual({ text: 'Вымышленный образец' });
+  const excessive = new FormData();
+  excessive.set(
+    'file',
+    new Blob([new Uint8Array(10 * 1024 * 1024 + 1)], { type: 'audio/wav' }),
+    'sample.wav',
+  );
+  const oversized = new Response(excessive);
+  const rejected = await app.inject({
+    method: 'POST',
+    url: `/api/ai/transcribe?spaceId=${world.houseId}`,
+    headers: {
+      cookie: [...adult.cookies].map(([k, v]) => `${k}=${v}`).join('; '),
+      origin: 'http://homecrm.test',
+      'content-type': oversized.headers.get('content-type') ?? '',
+    },
+    payload: Buffer.from(await oversized.arrayBuffer()),
+  });
+  expect(rejected.statusCode).toBe(413);
   expect(world.requestLog.join('').includes(body.text)).toBe(false);
   await app.close();
 });

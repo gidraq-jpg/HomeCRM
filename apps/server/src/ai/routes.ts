@@ -1,9 +1,3 @@
-declare module 'fastify' {
-  interface FastifyRequest {
-    aiSlot?: boolean;
-  }
-}
-
 import multipart from '@fastify/multipart';
 import { and, eq, isNull, objects, spaceMembers, spaces, sql } from '@homecrm/db';
 import { AiStatus, canView, canViewMembership, ExtractInput } from '@homecrm/shared';
@@ -22,18 +16,33 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
   const providers = createProviders(ai);
   app.addHook('onClose', () => providers.close());
   let active = 0;
-  app.addHook('preHandler', async (request) => {
-    if (request.method !== 'POST') return;
-    if (active >= 2) throw new Failure(429, 'AI_BUSY');
-    active++;
-    request.aiSlot = true;
-  });
-  app.addHook('onResponse', async (request) => {
-    if (request.aiSlot) active--;
+  app.addHook('onRoute', (route) => {
+    if (route.method !== 'POST') return;
+    const handler = route.handler;
+    route.handler = async function (request, reply) {
+      if (active >= 2) throw new Failure(429, 'AI_BUSY');
+      active++;
+      try {
+        return await handler.call(this, request, reply);
+      } finally {
+        active--;
+      }
+    };
   });
   const accountReader = createAccountReader(options);
   app.setErrorHandler((error, request, reply) => {
-    const failure = error instanceof Failure ? error : new Failure(503, 'AI_UNAVAILABLE');
+    const status =
+      typeof error === 'object' && error !== null && 'statusCode' in error
+        ? error.statusCode
+        : undefined;
+    const failure =
+      error instanceof Failure
+        ? error
+        : status === 413
+          ? new Failure(413, 'AI_INVALID_AUDIO', 'Звук должен быть не больше 10 МБ.')
+          : status === 400 || status === 415
+            ? new Failure(400, 'INVALID_INPUT', 'Проверьте формат запроса.')
+            : new Failure(503, 'AI_UNAVAILABLE');
     request.log.info({ operation: 'ai', code: failure.code }, 'AI request failed');
     return reply.code(failure.status).send({
       code: failure.code,
