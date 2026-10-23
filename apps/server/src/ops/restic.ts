@@ -73,6 +73,15 @@ const RESTIC_HINTS: Readonly<Record<number, string>> = {
 /** Параметры rclone при работе restic: удалённое не уходит в корзину Яндекс Диска и не съедает объём (--yandex-hard-delete). */
 const RCLONE_OPTIONS = ['-o', 'rclone.args=serve restic --stdio --yandex-hard-delete'];
 
+/** Команды, которые передают или перебирают весь снимок: им нужен тайм-аут копии, а не служебный. */
+const LONG_COMMANDS: ReadonlySet<string> = new Set([
+  'backup',
+  'restore',
+  'forget',
+  'prune',
+  'check',
+]);
+
 /** Выполняет команду restic; ненулевой код — ошибка с хвостом вывода (без секретов). */
 export type Restic = (
   args: string[],
@@ -88,7 +97,7 @@ export async function resticFor(env: OpsEnv, repo: Repo): Promise<Restic> {
         ? {
             timeoutMs:
               1000 *
-              (args[0] === 'backup'
+              (LONG_COMMANDS.has(args[0] ?? '')
                 ? env.BACKUP_CLOUD_BACKUP_TIMEOUT_SECONDS
                 : env.BACKUP_CLOUD_COMMAND_TIMEOUT_SECONDS),
           }
