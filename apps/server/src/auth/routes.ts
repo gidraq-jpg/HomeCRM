@@ -12,6 +12,7 @@ import {
   isNull,
   loginEvents,
   memberProfiles,
+  notificationSettings,
   passwordResets,
   sessions,
   spaces,
@@ -236,31 +237,36 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
   app.get('/api/me', async (request, reply) => {
     const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
     if (account === null) return reply;
-    const { notices, profile, personalSpace } = await appDb.withAccount(account.id, async (tx) => ({
-      personalSpace: (
-        await tx
-          .select({ id: spaces.id })
-          .from(spaces)
-          .where(and(eq(spaces.kind, 'personal'), eq(spaces.ownerAccountId, account.id)))
-      )[0],
-      notices: await tx
-        .select({ id: passwordResets.id, completedAt: passwordResets.completedAt })
-        .from(passwordResets)
-        .where(
-          and(
-            sql`${passwordResets.completedAt} IS NOT NULL`,
-            isNull(passwordResets.acknowledgedAt),
-          ),
-        )
-        .orderBy(desc(passwordResets.completedAt), desc(passwordResets.id)),
-      profile: (
-        await tx.select().from(memberProfiles).where(eq(memberProfiles.accountId, account.id))
-      )[0],
-    }));
+    const { notices, profile, personalSpace, settings } = await appDb.withAccount(
+      account.id,
+      async (tx) => ({
+        personalSpace: (
+          await tx
+            .select({ id: spaces.id })
+            .from(spaces)
+            .where(and(eq(spaces.kind, 'personal'), eq(spaces.ownerAccountId, account.id)))
+        )[0],
+        settings: (await tx.select().from(notificationSettings))[0],
+        notices: await tx
+          .select({ id: passwordResets.id, completedAt: passwordResets.completedAt })
+          .from(passwordResets)
+          .where(
+            and(
+              sql`${passwordResets.completedAt} IS NOT NULL`,
+              isNull(passwordResets.acknowledgedAt),
+            ),
+          )
+          .orderBy(desc(passwordResets.completedAt), desc(passwordResets.id)),
+        profile: (
+          await tx.select().from(memberProfiles).where(eq(memberProfiles.accountId, account.id))
+        )[0],
+      }),
+    );
     const completedAt = notices[0]?.completedAt ?? null;
     return {
       id: account.id,
       personalSpaceId: personalSpace?.id ?? null,
+      firstEntryShown: settings?.firstEntryShown ?? false,
       displayName: profile?.displayName ?? account.displayName,
       username: account.username,
       email: account.email,

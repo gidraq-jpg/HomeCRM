@@ -444,7 +444,7 @@ export async function buildArchive(
         await tx.execute<{
           data: Data;
         }>(sql`SELECT jsonb_build_object('quietStart',quiet_start,'quietEnd',quiet_end,
-        'dailyBudget',daily_budget,'enabledKinds',enabled_kinds,'hideText',hide_text,'morningEnabled',morning_enabled,'weeklyEnabled',weekly_enabled,'todayMainEnabled',today_main_enabled) AS data FROM notification_settings WHERE account_id=${account.id}::uuid`)
+        'dailyBudget',daily_budget,'enabledKinds',enabled_kinds,'hideText',hide_text,'morningEnabled',morning_enabled,'weeklyEnabled',weekly_enabled,'todayMainEnabled',today_main_enabled,'firstEntryShown',first_entry_shown) AS data FROM notification_settings WHERE account_id=${account.id}::uuid`)
       ).rows;
       await addJSON('notification_settings', ExportRecords.notification_settings, [
         settings[0]?.data ?? NotificationSettings.parse({}),

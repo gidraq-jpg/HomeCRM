@@ -139,6 +139,9 @@ export async function createFamily() {
       return { ...person, role, username: role, password };
     }),
   );
+  await database.admin.query(
+    'INSERT INTO notification_settings(account_id,first_entry_shown) SELECT id,true FROM accounts ON CONFLICT(account_id) DO UPDATE SET first_entry_shown=true',
+  );
   const person = (role: Role) => {
     const found = people.find((p) => p.role === role);
     if (!found) throw new Error('Missing fictional participant');

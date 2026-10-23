@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes, useNavigate } from 'react-router';
 import { ScopeProvider } from './access/ScopeContext.tsx';
 import { ObjectAccounts } from './accounts/ObjectAccounts.tsx';
 import type { Me } from './auth/api.ts';
@@ -68,6 +68,15 @@ interface AppProps {
 
 function Workspace({ me, reloadMe, signOut }: AppProps) {
   const [adding, setAdding] = useState(false);
+  const navigate = useNavigate();
+  const [entering, setEntering] = useState(me.firstEntryShown === false);
+  useEffect(() => {
+    if (entering) {
+      navigate('/more/spaces', { replace: true });
+      setEntering(false);
+    }
+  }, [entering, navigate]);
+  if (entering) return null;
   return (
     <AppShell
       sections={SECTIONS}
@@ -122,7 +131,10 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
           element={<SecurityScreen me={me} reload={reloadMe} onSignedOut={signOut} />}
         />
         <Route path="more/export" element={<ExportScreen />} />
-        <Route path="more/spaces" element={<SpacesScreen />} />
+        <Route
+          path="more/spaces"
+          element={<SpacesScreen firstEntry={me.firstEntryShown === false} onShown={reloadMe} />}
+        />
         <Route path="more/readings" element={<ReadingsPicker />} />
         <Route path="more/notes" element={<NotesScreen />} />
         <Route path="more/notes/new" element={<NewNoteScreen />} />

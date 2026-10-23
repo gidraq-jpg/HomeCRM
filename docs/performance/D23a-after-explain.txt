@@ -1,0 +1,1385 @@
+D23a Today EXPLAIN ANALYZE:
+Sort  (cost=24049.52..24050.16 rows=256 width=542) (actual time=3.699..3.707 rows=148.00 loops=1)
+  Sort Key: tasks.plan_on, tasks.plan_time, tasks.id
+  Sort Method: quicksort  Memory: 59kB
+  Buffers: shared hit=1489
+  ->  Bitmap Heap Scan on tasks  (cost=20.69..24039.28 rows=256 width=542) (actual time=0.048..3.621 rows=148.00 loops=1)
+        Recheck Cond: (deleted_at IS NULL)
+        Filter: ((((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 17).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 19).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 21).col1)))))) AND (((status = ANY ('{open,waiting}'::text[])) AND (is_main OR (plan_on <= COALESCE((SubPlan 11), '2026-10-23'::date)) OR (due_on < COALESCE((SubPlan 14), '2026-10-23'::date)))) OR ((status = 'done'::text) AND (done_at >= '2026-10-22 19:00:00+00'::timestamp with time zone))))
+        Rows Removed by Filter: 802
+        Heap Blocks: exact=32
+        Buffers: shared hit=1489
+        ->  Bitmap Index Scan on tasks_predecessor_live  (cost=0.00..12.90 rows=950 width=0) (actual time=0.014..0.015 rows=950.00 loops=1)
+              Index Searches: 1
+              Buffers: shared hit=1
+        SubPlan 8
+          ->  Limit  (cost=69.06..69.07 rows=1 width=56) (actual time=0.002..0.002 rows=0.00 loops=148)
+                ->  Sort  (cost=69.06..69.07 rows=1 width=56) (actual time=0.002..0.002 rows=0.00 loops=148)
+                      Sort Key: l.created_at, l.id
+                      Sort Method: quicksort  Memory: 25kB
+                      ->  Hash Join  (cost=7.74..69.05 rows=1 width=56) (actual time=0.001..0.001 rows=0.00 loops=148)
+                            Hash Cond: (o.id = CASE WHEN (l.left_table = 'objects'::text) THEN l.left_id ELSE l.right_id END)
+                            ->  Seq Scan on objects o  (cost=7.73..66.73 rows=460 width=72) (never executed)
+                                  Filter: ((deleted_at IS NULL) AND (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 3).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 5).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 7).col1)))))))
+                                  SubPlan 3
+                                    ->  Seq Scan on spaces s  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                          Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 2).col1))))
+                                          SubPlan 2
+                                            ->  Seq Scan on space_members m  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 1).col1))))
+                                                  SubPlan 1
+                                                    ->  Seq Scan on household_access  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                  SubPlan 5
+                                    ->  Seq Scan on space_members m_1  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 4).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                          SubPlan 4
+                                            ->  Seq Scan on household_access household_access_1  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                  SubPlan 7
+                                    ->  Seq Scan on space_members m_2  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 6).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                          SubPlan 6
+                                            ->  Seq Scan on household_access household_access_2  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                            ->  Hash  (cost=0.00..0.00 rows=1 width=88) (actual time=0.001..0.001 rows=0.00 loops=148)
+                                  Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                                  ->  Seq Scan on record_links l  (cost=0.00..0.00 rows=1 width=88) (actual time=0.000..0.000 rows=0.00 loops=148)
+                                        Filter: ((deleted_at IS NULL) AND (((left_table = 'tasks'::text) AND (left_id = tasks.id) AND (right_table = 'objects'::text)) OR ((right_table = 'tasks'::text) AND (right_id = tasks.id) AND (left_table = 'objects'::text))) AND app.record_ref_allowed(left_table, left_id, false) AND app.record_ref_allowed(right_table, right_id, false))
+        SubPlan 17
+          ->  Seq Scan on spaces s_3  (cost=2.19..3.33 rows=1 width=16) (actual time=0.005..0.007 rows=1.00 loops=1)
+                Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 16).col1))))
+                Rows Removed by Filter: 3
+                Buffers: shared hit=1
+                SubPlan 16
+                  ->  Seq Scan on space_members m_5  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 15).col1))))
+                        SubPlan 15
+                          ->  Seq Scan on household_access household_access_5  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+        SubPlan 19
+          ->  Seq Scan on space_members m_6  (cost=1.07..2.19 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 18).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                Rows Removed by Filter: 2
+                Buffers: shared hit=1
+                SubPlan 18
+                  ->  Seq Scan on household_access household_access_6  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                        Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+        SubPlan 21
+          ->  Seq Scan on space_members m_7  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 20).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                SubPlan 20
+                  ->  Seq Scan on household_access household_access_7  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                        Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+        SubPlan 11
+          ->  Seq Scan on spaces s_1  (cost=2.19..3.30 rows=1 width=4) (actual time=0.001..0.001 rows=1.00 loops=800)
+                Filter: ((id = tasks.household_id) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 10).col1))))
+                Rows Removed by Filter: 3
+                Buffers: shared hit=801
+                SubPlan 10
+                  ->  Seq Scan on space_members m_3  (cost=1.07..2.18 rows=1 width=16) (actual time=0.003..0.003 rows=1.00 loops=1)
+                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 9).col1))))
+                        Rows Removed by Filter: 2
+                        Buffers: shared hit=1
+                        SubPlan 9
+                          ->  Seq Scan on household_access household_access_3  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+        SubPlan 14
+          ->  Seq Scan on spaces s_2  (cost=2.19..3.30 rows=1 width=4) (actual time=0.001..0.001 rows=1.00 loops=652)
+                Filter: ((id = tasks.household_id) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 13).col1))))
+                Rows Removed by Filter: 3
+                Buffers: shared hit=653
+                SubPlan 13
+                  ->  Seq Scan on space_members m_4  (cost=1.07..2.18 rows=1 width=16) (actual time=0.002..0.003 rows=1.00 loops=1)
+                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 12).col1))))
+                        Rows Removed by Filter: 2
+                        Buffers: shared hit=1
+                        SubPlan 12
+                          ->  Seq Scan on household_access household_access_4  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+Planning:
+  Buffers: shared hit=4
+Planning Time: 1.166 ms
+Execution Time: 3.840 ms
+
+D23a Radar EXPLAIN ANALYZE:
+Nested Loop Left Join  (cost=305217.68..305217.73 rows=2 width=819) (actual time=11.946..12.058 rows=163.00 loops=1)
+  Disabled: true
+  Buffers: shared hit=1792
+  CTE visible_deadlines
+    ->  Seq Scan on deadlines  (cost=7.73..280693.73 rows=2204 width=441) (actual time=1.357..2.822 rows=2800.00 loops=1)
+          Filter: (((((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 3).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 5).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 7).col1)))))) AND ((ANY (note_id = (hashed SubPlan 23).col1)) OR (ANY (object_id = (hashed SubPlan 39).col1)) OR (ANY (task_id = (hashed SubPlan 55).col1)) OR (ANY (document_id = (hashed SubPlan 79).col1)) OR (ANY (contact_id = (hashed SubPlan 95).col1)))) OR (ANY (profile_account_id = (hashed SubPlan 105).col1)) OR ((pg_trigger_depth() > 0) AND (COALESCE(note_id, object_id, document_id, contact_id, profile_account_id, task_id) = (NULLIF(current_setting('app.deadline_source_id'::text, true), ''::text))::uuid)))
+          Rows Removed by Filter: 200
+          Buffers: shared hit=371
+          SubPlan 3
+            ->  Seq Scan on spaces s  (cost=2.19..3.33 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 2).col1))))
+                  Rows Removed by Filter: 3
+                  Buffers: shared hit=1
+                  SubPlan 2
+                    ->  Seq Scan on space_members m_1  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 1).col1))))
+                          SubPlan 1
+                            ->  Seq Scan on household_access  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 5
+            ->  Seq Scan on space_members m_2  (cost=1.07..2.19 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 4).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                  Rows Removed by Filter: 2
+                  Buffers: shared hit=1
+                  SubPlan 4
+                    ->  Seq Scan on household_access household_access_1  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 7
+            ->  Seq Scan on space_members m_3  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 6).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                  SubPlan 6
+                    ->  Seq Scan on household_access household_access_2  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 23
+            ->  Seq Scan on notes n_1  (cost=7.73..122.73 rows=969 width=16) (actual time=0.008..0.419 rows=1600.00 loops=1)
+                  Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 18).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 20).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 22).col1))))))
+                  Rows Removed by Filter: 400
+                  Buffers: shared hit=67
+                  SubPlan 18
+                    ->  Seq Scan on spaces s_1  (cost=2.19..3.33 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                          Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 17).col1))))
+                          Rows Removed by Filter: 3
+                          Buffers: shared hit=1
+                          SubPlan 17
+                            ->  Seq Scan on space_members m_4  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 16).col1))))
+                                  SubPlan 16
+                                    ->  Seq Scan on household_access household_access_3  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 20
+                    ->  Seq Scan on space_members m_5  (cost=1.07..2.19 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 19).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                          Rows Removed by Filter: 2
+                          Buffers: shared hit=1
+                          SubPlan 19
+                            ->  Seq Scan on household_access household_access_4  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 22
+                    ->  Seq Scan on space_members m_6  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 21).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                          SubPlan 21
+                            ->  Seq Scan on household_access household_access_5  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 39
+            ->  Seq Scan on objects o_1  (cost=7.73..66.73 rows=484 width=16) (actual time=0.009..0.251 rows=800.00 loops=1)
+                  Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 34).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 36).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 38).col1))))))
+                  Rows Removed by Filter: 200
+                  Buffers: shared hit=36
+                  SubPlan 34
+                    ->  Seq Scan on spaces s_2  (cost=2.19..3.33 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                          Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 33).col1))))
+                          Rows Removed by Filter: 3
+                          Buffers: shared hit=1
+                          SubPlan 33
+                            ->  Seq Scan on space_members m_7  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 32).col1))))
+                                  SubPlan 32
+                                    ->  Seq Scan on household_access household_access_6  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 36
+                    ->  Seq Scan on space_members m_8  (cost=1.07..2.19 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 35).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                          Rows Removed by Filter: 2
+                          Buffers: shared hit=1
+                          SubPlan 35
+                            ->  Seq Scan on household_access household_access_7  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 38
+                    ->  Seq Scan on space_members m_9  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 37).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                          SubPlan 37
+                            ->  Seq Scan on household_access household_access_8  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 55
+            ->  Seq Scan on tasks t_1  (cost=7.73..64.73 rows=484 width=16) (actual time=0.012..0.214 rows=800.00 loops=1)
+                  Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 50).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 52).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 54).col1))))))
+                  Rows Removed by Filter: 200
+                  Buffers: shared hit=34
+                  SubPlan 50
+                    ->  Seq Scan on spaces s_3  (cost=2.19..3.33 rows=1 width=16) (actual time=0.004..0.006 rows=1.00 loops=1)
+                          Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 49).col1))))
+                          Rows Removed by Filter: 3
+                          Buffers: shared hit=1
+                          SubPlan 49
+                            ->  Seq Scan on space_members m_10  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 48).col1))))
+                                  SubPlan 48
+                                    ->  Seq Scan on household_access household_access_9  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 52
+                    ->  Seq Scan on space_members m_11  (cost=1.07..2.19 rows=1 width=16) (actual time=0.004..0.004 rows=1.00 loops=1)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 51).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                          Rows Removed by Filter: 2
+                          Buffers: shared hit=1
+                          SubPlan 51
+                            ->  Seq Scan on household_access household_access_10  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 54
+                    ->  Seq Scan on space_members m_12  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 53).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                          SubPlan 53
+                            ->  Seq Scan on household_access household_access_11  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 79
+            ->  Seq Scan on documents doc_1  (cost=7.73..2526.73 rows=484 width=16) (never executed)
+                  Filter: ((((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 70).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 72).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 74).col1)))))) AND ((NOT is_identity) OR (space_kind <> 'household'::space_kind) OR (NOT app.document_owner_is_child(owner_account_id)) OR (NOT (ANY (space_id = (hashed SubPlan 78).col1)))))
+                  SubPlan 70
+                    ->  Seq Scan on spaces s_4  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                          Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 69).col1))))
+                          SubPlan 69
+                            ->  Seq Scan on space_members m_13  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 68).col1))))
+                                  SubPlan 68
+                                    ->  Seq Scan on household_access household_access_12  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 72
+                    ->  Seq Scan on space_members m_14  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 71).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                          SubPlan 71
+                            ->  Seq Scan on household_access household_access_13  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 74
+                    ->  Seq Scan on space_members m_15  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 73).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                          SubPlan 73
+                            ->  Seq Scan on household_access household_access_14  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 78
+                    ->  Seq Scan on space_members viewer  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 77).col1))) AND (role = 'child'::member_role))
+                          SubPlan 77
+                            ->  Seq Scan on household_access household_access_15  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 95
+            ->  Seq Scan on contacts c_1  (cost=7.73..80.23 rows=1 width=16) (never executed)
+                  Filter: ((deleted_at IS NULL) AND (kind = 'person'::text) AND (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 90).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 92).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 94).col1)))))) AND ((data ->> 'birthdayEnabled'::text) = 'true'::text))
+                  SubPlan 90
+                    ->  Seq Scan on spaces s_5  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                          Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 89).col1))))
+                          SubPlan 89
+                            ->  Seq Scan on space_members m_16  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 88).col1))))
+                                  SubPlan 88
+                                    ->  Seq Scan on household_access household_access_16  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 92
+                    ->  Seq Scan on space_members m_17  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 91).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                          SubPlan 91
+                            ->  Seq Scan on household_access household_access_17  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 94
+                    ->  Seq Scan on space_members m_18  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 93).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                          SubPlan 93
+                            ->  Seq Scan on household_access household_access_18  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 105
+            ->  Seq Scan on member_profiles p_1  (cost=0.00..10.81 rows=1 width=16) (actual time=0.003..0.004 rows=0.00 loops=1)
+                  Filter: (birthday_enabled AND (birth_date IS NOT NULL) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (account_id = (hashed SubPlan 104).col1))))
+                  Rows Removed by Filter: 3
+                  Buffers: shared hit=1
+                  SubPlan 104
+                    ->  Hash Join  (cost=2.15..3.25 rows=2 width=16) (never executed)
+                          Hash Cond: (m_19.space_id = household_access_20.space_id)
+                          ->  Seq Scan on space_members m_19  (cost=1.07..2.14 rows=2 width=32) (never executed)
+                                Filter: ((left_at IS NULL) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 103).col1))))
+                                SubPlan 103
+                                  ->  Seq Scan on household_access household_access_19  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                        Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          ->  Hash  (cost=1.07..1.07 rows=1 width=16) (never executed)
+                                ->  Seq Scan on household_access household_access_20  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                      Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+  CTE visible_occurrences
+    ->  Index Scan using deadline_occurrences_date_key on deadline_occurrences  (cost=0.28..21137.08 rows=96 width=148) (actual time=0.067..0.761 rows=163.00 loops=1)
+          Index Cond: ((date <= '2026-10-24'::date) AND (date <= (CURRENT_DATE + 366)))
+          Filter: EXISTS(SubPlan 212)
+          Rows Removed by Filter: 28
+          Index Searches: 1
+          Buffers: shared hit=1103
+          SubPlan 212
+            ->  Index Scan using deadlines_pkey on deadlines d_1  (cost=8.01..109.52 rows=1 width=0) (actual time=0.003..0.003 rows=0.85 loops=191)
+                  Index Cond: (id = deadline_occurrences.deadline_id)
+                  Filter: ((((deadline_occurrences.deleted_at IS NULL) AND (deleted_at IS NULL)) OR ((pg_trigger_depth() > 0) AND (id = (NULLIF(current_setting('app.deadline_cascade_id'::text, true), ''::text))::uuid))) AND (((((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 109).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 111).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 113).col1)))))) AND (EXISTS(SubPlan 121) OR EXISTS(SubPlan 137) OR EXISTS(SubPlan 153) OR EXISTS(SubPlan 173) OR EXISTS(SubPlan 193))) OR (ANY (profile_account_id = (hashed SubPlan 211).col1)) OR ((pg_trigger_depth() > 0) AND (COALESCE(note_id, object_id, document_id, contact_id, profile_account_id, task_id) = (NULLIF(current_setting('app.deadline_source_id'::text, true), ''::text))::uuid))))
+                  Rows Removed by Filter: 0
+                  Index Searches: 191
+                  Buffers: shared hit=1070
+                  SubPlan 109
+                    ->  Seq Scan on spaces s_6  (cost=2.19..3.33 rows=1 width=16) (actual time=0.008..0.009 rows=1.00 loops=1)
+                          Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 108).col1))))
+                          Rows Removed by Filter: 3
+                          Buffers: shared hit=1
+                          SubPlan 108
+                            ->  Seq Scan on space_members m_20  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 107).col1))))
+                                  SubPlan 107
+                                    ->  Seq Scan on household_access household_access_21  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 111
+                    ->  Seq Scan on space_members m_21  (cost=1.07..2.19 rows=1 width=16) (actual time=0.004..0.004 rows=1.00 loops=1)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 110).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                          Rows Removed by Filter: 2
+                          Buffers: shared hit=1
+                          SubPlan 110
+                            ->  Seq Scan on household_access household_access_22  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 113
+                    ->  Seq Scan on space_members m_22  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 112).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                          SubPlan 112
+                            ->  Seq Scan on household_access household_access_23  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 121
+                    ->  Index Scan using notes_id_audience_key on notes n_2  (cost=8.00..16.04 rows=1 width=0) (actual time=0.000..0.000 rows=0.03 loops=163)
+                          Index Cond: (id = d_1.note_id)
+                          Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 116).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 118).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 120).col1))))))
+                          Index Searches: 5
+                          Buffers: shared hit=17
+                          SubPlan 116
+                            ->  Seq Scan on spaces s_7  (cost=2.19..3.33 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 115).col1))))
+                                  Rows Removed by Filter: 3
+                                  Buffers: shared hit=1
+                                  SubPlan 115
+                                    ->  Seq Scan on space_members m_23  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 114).col1))))
+                                          SubPlan 114
+                                            ->  Seq Scan on household_access household_access_24  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 118
+                            ->  Seq Scan on space_members m_24  (cost=1.07..2.19 rows=1 width=16) (actual time=0.003..0.003 rows=1.00 loops=1)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 117).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                  Rows Removed by Filter: 2
+                                  Buffers: shared hit=1
+                                  SubPlan 117
+                                    ->  Seq Scan on household_access household_access_25  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 120
+                            ->  Seq Scan on space_members m_25  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 119).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                  SubPlan 119
+                                    ->  Seq Scan on household_access household_access_26  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 137
+                    ->  Index Scan using objects_id_audience_key on objects o_2  (cost=8.00..16.03 rows=1 width=0) (actual time=0.000..0.000 rows=0.03 loops=158)
+                          Index Cond: (id = d_1.object_id)
+                          Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 132).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 134).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 136).col1))))))
+                          Index Searches: 5
+                          Buffers: shared hit=16
+                          SubPlan 132
+                            ->  Seq Scan on spaces s_8  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 131).col1))))
+                                  SubPlan 131
+                                    ->  Seq Scan on space_members m_26  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 130).col1))))
+                                          SubPlan 130
+                                            ->  Seq Scan on household_access household_access_27  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 134
+                            ->  Seq Scan on space_members m_27  (cost=1.07..2.19 rows=1 width=16) (actual time=0.007..0.008 rows=1.00 loops=1)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 133).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                  Rows Removed by Filter: 2
+                                  Buffers: shared hit=1
+                                  SubPlan 133
+                                    ->  Seq Scan on household_access household_access_28  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 136
+                            ->  Seq Scan on space_members m_28  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 135).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                  SubPlan 135
+                                    ->  Seq Scan on household_access household_access_29  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 153
+                    ->  Index Scan using tasks_id_audience_key on tasks t_2  (cost=8.00..16.03 rows=1 width=0) (actual time=0.001..0.001 rows=1.00 loops=153)
+                          Index Cond: (id = d_1.task_id)
+                          Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 148).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 150).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 152).col1))))))
+                          Index Searches: 153
+                          Buffers: shared hit=461
+                          SubPlan 148
+                            ->  Seq Scan on spaces s_9  (cost=2.19..3.33 rows=1 width=16) (actual time=0.010..0.012 rows=1.00 loops=1)
+                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 147).col1))))
+                                  Rows Removed by Filter: 3
+                                  Buffers: shared hit=1
+                                  SubPlan 147
+                                    ->  Seq Scan on space_members m_29  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 146).col1))))
+                                          SubPlan 146
+                                            ->  Seq Scan on household_access household_access_30  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 150
+                            ->  Seq Scan on space_members m_30  (cost=1.07..2.19 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 149).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                  Rows Removed by Filter: 2
+                                  Buffers: shared hit=1
+                                  SubPlan 149
+                                    ->  Seq Scan on household_access household_access_31  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 152
+                            ->  Seq Scan on space_members m_31  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 151).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                  SubPlan 151
+                                    ->  Seq Scan on household_access household_access_32  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 173
+                    ->  Index Scan using documents_id_audience_key on documents doc_2  (cost=8.00..18.48 rows=1 width=0) (never executed)
+                          Index Cond: (id = d_1.document_id)
+                          Filter: ((((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 164).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 166).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 168).col1)))))) AND ((NOT is_identity) OR (space_kind <> 'household'::space_kind) OR (NOT app.document_owner_is_child(owner_account_id)) OR (NOT (ANY (space_id = (hashed SubPlan 172).col1)))))
+                          Index Searches: 0
+                          SubPlan 164
+                            ->  Seq Scan on spaces s_10  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 163).col1))))
+                                  SubPlan 163
+                                    ->  Seq Scan on space_members m_32  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 162).col1))))
+                                          SubPlan 162
+                                            ->  Seq Scan on household_access household_access_33  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 166
+                            ->  Seq Scan on space_members m_33  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 165).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                  SubPlan 165
+                                    ->  Seq Scan on household_access household_access_34  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 168
+                            ->  Seq Scan on space_members m_34  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 167).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                  SubPlan 167
+                                    ->  Seq Scan on household_access household_access_35  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 172
+                            ->  Seq Scan on space_members viewer_1  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 171).col1))) AND (role = 'child'::member_role))
+                                  SubPlan 171
+                                    ->  Seq Scan on household_access household_access_36  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 193
+                    ->  Index Scan using contacts_id_audience_key on contacts c_2  (cost=8.00..16.04 rows=1 width=0) (never executed)
+                          Index Cond: (id = d_1.contact_id)
+                          Filter: ((deleted_at IS NULL) AND (kind = 'person'::text) AND (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 188).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 190).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 192).col1)))))) AND ((data ->> 'birthdayEnabled'::text) = 'true'::text))
+                          Index Searches: 0
+                          SubPlan 188
+                            ->  Seq Scan on spaces s_11  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 187).col1))))
+                                  SubPlan 187
+                                    ->  Seq Scan on space_members m_35  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 186).col1))))
+                                          SubPlan 186
+                                            ->  Seq Scan on household_access household_access_37  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 190
+                            ->  Seq Scan on space_members m_36  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 189).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                  SubPlan 189
+                                    ->  Seq Scan on household_access household_access_38  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 192
+                            ->  Seq Scan on space_members m_37  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 191).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                  SubPlan 191
+                                    ->  Seq Scan on household_access household_access_39  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                  SubPlan 211
+                    ->  Seq Scan on member_profiles p_2  (cost=0.00..10.81 rows=1 width=16) (actual time=0.002..0.003 rows=0.00 loops=1)
+                          Filter: (birthday_enabled AND (birth_date IS NOT NULL) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (account_id = (hashed SubPlan 210).col1))))
+                          Rows Removed by Filter: 3
+                          Buffers: shared hit=1
+                          SubPlan 210
+                            ->  Hash Join  (cost=2.15..3.25 rows=2 width=16) (never executed)
+                                  Hash Cond: (m_38.space_id = household_access_41.space_id)
+                                  ->  Seq Scan on space_members m_38  (cost=1.07..2.14 rows=2 width=32) (never executed)
+                                        Filter: ((left_at IS NULL) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 209).col1))))
+                                        SubPlan 209
+                                          ->  Seq Scan on household_access household_access_40  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                  ->  Hash  (cost=1.07..1.07 rows=1 width=16) (never executed)
+                                        ->  Seq Scan on household_access household_access_41  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                              Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+  CTE visible_meters
+    ->  Seq Scan on meters  (cost=7.73..7.73 rows=1 width=73) (actual time=0.001..0.003 rows=0.00 loops=1)
+          Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 216).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 218).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 220).col1))))))
+          SubPlan 216
+            ->  Seq Scan on spaces s_12  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 215).col1))))
+                  SubPlan 215
+                    ->  Seq Scan on space_members m_39  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 214).col1))))
+                          SubPlan 214
+                            ->  Seq Scan on household_access household_access_42  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 218
+            ->  Seq Scan on space_members m_40  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 217).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                  SubPlan 217
+                    ->  Seq Scan on household_access household_access_43  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 220
+            ->  Seq Scan on space_members m_41  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 219).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                  SubPlan 219
+                    ->  Seq Scan on household_access household_access_44  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+  CTE visible_payments
+    ->  GroupAggregate  (cost=7.74..7.76 rows=1 width=48) (actual time=0.004..0.005 rows=0.00 loops=1)
+          Group Key: utility_payments.parent_id
+          ->  Sort  (cost=7.74..7.74 rows=1 width=24) (actual time=0.004..0.005 rows=0.00 loops=1)
+                Sort Key: utility_payments.parent_id
+                Sort Method: quicksort  Memory: 25kB
+                ->  Seq Scan on utility_payments  (cost=7.73..7.73 rows=1 width=24) (actual time=0.001..0.003 rows=0.00 loops=1)
+                      Filter: ((deleted_at IS NULL) AND (cancelled_at IS NULL) AND (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 224).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 226).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 228).col1)))))))
+                      SubPlan 224
+                        ->  Seq Scan on spaces s_13  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                              Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 223).col1))))
+                              SubPlan 223
+                                ->  Seq Scan on space_members m_42  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                      Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 222).col1))))
+                                      SubPlan 222
+                                        ->  Seq Scan on household_access household_access_45  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                              Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                      SubPlan 226
+                        ->  Seq Scan on space_members m_43  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                              Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 225).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                              SubPlan 225
+                                ->  Seq Scan on household_access household_access_46  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                      Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                      SubPlan 228
+                        ->  Seq Scan on space_members m_44  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                              Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 227).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                              SubPlan 227
+                                ->  Seq Scan on household_access household_access_47  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                      Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+  CTE visible_charges
+    ->  Hash Left Join  (cost=7.76..73.61 rows=875 width=129) (actual time=0.025..0.527 rows=1000.00 loops=1)
+          Hash Cond: (c_3.id = p_3.parent_id)
+          Buffers: shared hit=32
+          ->  Seq Scan on utility_charges c_3  (cost=7.73..63.73 rows=875 width=65) (actual time=0.016..0.224 rows=1000.00 loops=1)
+                Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 232).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 234).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 236).col1))))))
+                Buffers: shared hit=32
+                SubPlan 232
+                  ->  Seq Scan on spaces s_14  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                        Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 231).col1))))
+                        SubPlan 231
+                          ->  Seq Scan on space_members m_45  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 230).col1))))
+                                SubPlan 230
+                                  ->  Seq Scan on household_access household_access_48  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                        Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                SubPlan 234
+                  ->  Seq Scan on space_members m_46  (cost=1.07..2.19 rows=1 width=16) (actual time=0.005..0.006 rows=1.00 loops=1)
+                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 233).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                        Rows Removed by Filter: 2
+                        Buffers: shared hit=1
+                        SubPlan 233
+                          ->  Seq Scan on household_access household_access_49  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                SubPlan 236
+                  ->  Seq Scan on space_members m_47  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 235).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                        SubPlan 235
+                          ->  Seq Scan on household_access household_access_50  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          ->  Hash  (cost=0.02..0.02 rows=1 width=48) (actual time=0.004..0.005 rows=0.00 loops=1)
+                Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                ->  CTE Scan on visible_payments p_3  (cost=0.00..0.02 rows=1 width=48) (actual time=0.004..0.004 rows=0.00 loops=1)
+                      Storage: Memory  Maximum Storage: 17kB
+  CTE visible_readings
+    ->  Seq Scan on meter_readings  (cost=7.73..7.73 rows=1 width=36) (never executed)
+          Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 240).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 242).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 244).col1))))))
+          SubPlan 240
+            ->  Seq Scan on spaces s_15  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 239).col1))))
+                  SubPlan 239
+                    ->  Seq Scan on space_members m_48  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 238).col1))))
+                          SubPlan 238
+                            ->  Seq Scan on household_access household_access_51  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 242
+            ->  Seq Scan on space_members m_49  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 241).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                  SubPlan 241
+                    ->  Seq Scan on household_access household_access_52  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 244
+            ->  Seq Scan on space_members m_50  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 243).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                  SubPlan 243
+                    ->  Seq Scan on household_access household_access_53  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+  CTE visible_objects
+    ->  Seq Scan on objects  (cost=7.73..66.73 rows=460 width=72) (actual time=0.010..0.212 rows=800.00 loops=1)
+          Filter: ((deleted_at IS NULL) AND (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 248).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 250).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 252).col1)))))))
+          Rows Removed by Filter: 200
+          Buffers: shared hit=36
+          SubPlan 248
+            ->  Seq Scan on spaces s_16  (cost=2.19..3.33 rows=1 width=16) (actual time=0.004..0.005 rows=1.00 loops=1)
+                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 247).col1))))
+                  Rows Removed by Filter: 3
+                  Buffers: shared hit=1
+                  SubPlan 247
+                    ->  Seq Scan on space_members m_51  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 246).col1))))
+                          SubPlan 246
+                            ->  Seq Scan on household_access household_access_54  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 250
+            ->  Seq Scan on space_members m_52  (cost=1.07..2.19 rows=1 width=16) (actual time=0.004..0.004 rows=1.00 loops=1)
+                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 249).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                  Rows Removed by Filter: 2
+                  Buffers: shared hit=1
+                  SubPlan 249
+                    ->  Seq Scan on household_access household_access_55  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 252
+            ->  Seq Scan on space_members m_53  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 251).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                  SubPlan 251
+                    ->  Seq Scan on household_access household_access_56  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+  CTE visible_contacts
+    ->  Seq Scan on contacts  (cost=7.73..75.23 rows=1 width=72) (actual time=0.105..0.106 rows=0.00 loops=1)
+          Filter: ((deleted_at IS NULL) AND (kind = 'person'::text) AND (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 256).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 258).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 260).col1)))))))
+          Rows Removed by Filter: 1000
+          Buffers: shared hit=40
+          SubPlan 256
+            ->  Seq Scan on spaces s_17  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 255).col1))))
+                  SubPlan 255
+                    ->  Seq Scan on space_members m_54  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 254).col1))))
+                          SubPlan 254
+                            ->  Seq Scan on household_access household_access_57  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 258
+            ->  Seq Scan on space_members m_55  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 257).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                  SubPlan 257
+                    ->  Seq Scan on household_access household_access_58  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          SubPlan 260
+            ->  Seq Scan on space_members m_56  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 259).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                  SubPlan 259
+                    ->  Seq Scan on household_access household_access_59  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+  CTE object_links
+    ->  Append  (cost=10.96..21.98 rows=2 width=48) (actual time=0.014..0.015 rows=0.00 loops=1)
+          ->  GroupAggregate  (cost=10.96..10.98 rows=1 width=48) (actual time=0.007..0.008 rows=0.00 loops=1)
+                Group Key: l.left_id
+                ->  Sort  (cost=10.96..10.96 rows=1 width=64) (actual time=0.007..0.007 rows=0.00 loops=1)
+                      Sort Key: l.left_id
+                      Sort Method: quicksort  Memory: 25kB
+                      ->  Hash Join  (cost=0.01..10.95 rows=1 width=64) (actual time=0.004..0.005 rows=0.00 loops=1)
+                            Hash Cond: (p_4.id = l.right_id)
+                            ->  CTE Scan on visible_objects p_4  (cost=0.00..9.20 rows=460 width=48) (never executed)
+                                  Storage: Memory  Maximum Storage: 97kB
+                            ->  Hash  (cost=0.00..0.00 rows=1 width=32) (actual time=0.002..0.002 rows=0.00 loops=1)
+                                  Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                                  ->  Seq Scan on record_links l  (cost=0.00..0.00 rows=1 width=32) (actual time=0.002..0.002 rows=0.00 loops=1)
+                                        Filter: ((deleted_at IS NULL) AND (right_table = 'objects'::text) AND app.record_ref_allowed(left_table, left_id, false) AND app.record_ref_allowed(right_table, right_id, false))
+          ->  GroupAggregate  (cost=10.96..10.98 rows=1 width=48) (actual time=0.006..0.006 rows=0.00 loops=1)
+                Group Key: l_1.right_id
+                ->  Sort  (cost=10.96..10.96 rows=1 width=64) (actual time=0.005..0.006 rows=0.00 loops=1)
+                      Sort Key: l_1.right_id
+                      Sort Method: quicksort  Memory: 25kB
+                      ->  Hash Join  (cost=0.01..10.95 rows=1 width=64) (actual time=0.003..0.004 rows=0.00 loops=1)
+                            Hash Cond: (p_5.id = l_1.left_id)
+                            ->  CTE Scan on visible_objects p_5  (cost=0.00..9.20 rows=460 width=48) (never executed)
+                                  Storage: Memory  Maximum Storage: 97kB
+                            ->  Hash  (cost=0.00..0.00 rows=1 width=32) (actual time=0.001..0.001 rows=0.00 loops=1)
+                                  Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                                  ->  Seq Scan on record_links l_1  (cost=0.00..0.00 rows=1 width=32) (actual time=0.001..0.001 rows=0.00 loops=1)
+                                        Filter: ((deleted_at IS NULL) AND (left_table = 'objects'::text) AND app.record_ref_allowed(left_table, left_id, false) AND app.record_ref_allowed(right_table, right_id, false))
+  CTE linked_objects
+    ->  HashAggregate  (cost=5.04..5.07 rows=2 width=48) (actual time=0.015..0.016 rows=0.00 loops=1)
+          Group Key: object_links.source_id
+          Batches: 1  Memory Usage: 32kB
+          ->  Nested Loop  (cost=0.00..4.04 rows=200 width=48) (actual time=0.014..0.014 rows=0.00 loops=1)
+                Disabled: true
+                ->  CTE Scan on object_links  (cost=0.00..0.04 rows=2 width=48) (actual time=0.014..0.014 rows=0.00 loops=1)
+                      Storage: Memory  Maximum Storage: 17kB
+                ->  Function Scan on jsonb_array_elements option  (cost=0.00..1.00 rows=100 width=32) (never executed)
+  CTE members
+    ->  Seq Scan on member_profiles  (cost=0.00..10.81 rows=2 width=25) (actual time=0.026..0.028 rows=3.00 loops=1)
+          Filter: ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (account_id = (hashed SubPlan 267).col1)))
+          Buffers: shared hit=4
+          SubPlan 267
+            ->  Hash Join  (cost=2.15..3.25 rows=2 width=16) (actual time=0.015..0.017 rows=3.00 loops=1)
+                  Hash Cond: (m_57.space_id = household_access_61.space_id)
+                  Buffers: shared hit=3
+                  ->  Seq Scan on space_members m_57  (cost=1.07..2.14 rows=2 width=32) (actual time=0.008..0.009 rows=3.00 loops=1)
+                        Filter: ((left_at IS NULL) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 266).col1))))
+                        Buffers: shared hit=2
+                        SubPlan 266
+                          ->  Seq Scan on household_access household_access_60  (cost=0.00..1.07 rows=1 width=16) (actual time=0.002..0.003 rows=1.00 loops=1)
+                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                Rows Removed by Filter: 2
+                                Buffers: shared hit=1
+                  ->  Hash  (cost=1.07..1.07 rows=1 width=16) (actual time=0.004..0.005 rows=1.00 loops=1)
+                        Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                        Buffers: shared hit=1
+                        ->  Seq Scan on household_access household_access_61  (cost=0.00..1.07 rows=1 width=16) (actual time=0.003..0.003 rows=1.00 loops=1)
+                              Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                              Rows Removed by Filter: 2
+                              Buffers: shared hit=1
+  CTE metadata
+    ->  Result  (cost=57.58..57.60 rows=1 width=49) (actual time=5.404..5.407 rows=1.00 loops=1)
+          Buffers: shared hit=1479
+          InitPlan 272
+            ->  Aggregate  (cost=5.52..5.53 rows=1 width=32) (actual time=0.044..0.045 rows=1.00 loops=1)
+                  Buffers: shared hit=3
+                  ->  Subquery Scan on h  (cost=5.50..5.52 rows=1 width=59) (actual time=0.034..0.036 rows=1.00 loops=1)
+                        Buffers: shared hit=3
+                        ->  Sort  (cost=5.50..5.51 rows=1 width=67) (actual time=0.032..0.033 rows=1.00 loops=1)
+                              Sort Key: s_18.name, s_18.id
+                              Sort Method: quicksort  Memory: 25kB
+                              Buffers: shared hit=3
+                              ->  Hash Join  (cost=4.38..5.49 rows=1 width=67) (actual time=0.027..0.029 rows=1.00 loops=1)
+                                    Hash Cond: (space_members.space_id = s_18.id)
+                                    Buffers: shared hit=3
+                                    ->  Seq Scan on space_members  (cost=1.07..2.18 rows=1 width=16) (actual time=0.010..0.011 rows=1.00 loops=1)
+                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 271).col1))))
+                                          Rows Removed by Filter: 2
+                                          Buffers: shared hit=1
+                                          SubPlan 271
+                                            ->  Seq Scan on household_access household_access_63  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                    ->  Hash  (cost=3.29..3.29 rows=1 width=54) (actual time=0.014..0.014 rows=1.00 loops=1)
+                                          Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                          Buffers: shared hit=2
+                                          ->  Seq Scan on spaces s_18  (cost=2.19..3.29 rows=1 width=54) (actual time=0.012..0.013 rows=1.00 loops=1)
+                                                Filter: (((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 270).col1))) AND (kind = 'household'::space_kind))
+                                                Rows Removed by Filter: 3
+                                                Buffers: shared hit=2
+                                                SubPlan 270
+                                                  ->  Seq Scan on space_members m_58  (cost=1.07..2.18 rows=1 width=16) (actual time=0.003..0.003 rows=1.00 loops=1)
+                                                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 269).col1))))
+                                                        Rows Removed by Filter: 2
+                                                        Buffers: shared hit=1
+                                                        SubPlan 269
+                                                          ->  Seq Scan on household_access household_access_62  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+          InitPlan 273
+            ->  CTE Scan on visible_deadlines d_2  (cost=0.00..44.08 rows=1 width=0) (actual time=4.079..4.079 rows=0.00 loops=1)
+                  Filter: ((deleted_at IS NULL) AND needs_refresh)
+                  Rows Removed by Filter: 2800
+                  Storage: Memory  Maximum Storage: 863kB
+                  Buffers: shared hit=371
+          InitPlan 276
+            ->  Hash Join  (cost=6.43..60.15 rows=35 width=0) (actual time=1.277..1.278 rows=0.00 loops=1)
+                  Hash Cond: (d_3.household_id = s_19.id)
+                  Join Filter: (o_3.time_zone <> s_19.time_zone)
+                  Rows Removed by Join Filter: 163
+                  Buffers: shared hit=1105
+                  ->  Hash Join  (cost=3.12..56.27 rows=94 width=48) (actual time=0.813..1.244 rows=163.00 loops=1)
+                        Hash Cond: (d_3.id = o_3.deadline_id)
+                        Buffers: shared hit=1103
+                        ->  CTE Scan on visible_deadlines d_3  (cost=0.00..44.08 rows=2167 width=32) (actual time=0.001..0.265 rows=2800.00 loops=1)
+                              Filter: (deleted_at IS NULL)
+                              Storage: Memory  Maximum Storage: 863kB
+                        ->  Hash  (cost=1.92..1.92 rows=96 width=48) (actual time=0.809..0.809 rows=163.00 loops=1)
+                              Buckets: 1024  Batches: 1  Memory Usage: 19kB
+                              Buffers: shared hit=1103
+                              ->  CTE Scan on visible_occurrences o_3  (cost=0.00..1.92 rows=96 width=48) (actual time=0.067..0.785 rows=163.00 loops=1)
+                                    Storage: Memory  Maximum Storage: 43kB
+                                    Buffers: shared hit=1103
+                  ->  Hash  (cost=3.29..3.29 rows=2 width=35) (actual time=0.011..0.011 rows=2.00 loops=1)
+                        Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                        Buffers: shared hit=2
+                        ->  Seq Scan on spaces s_19  (cost=2.19..3.29 rows=2 width=35) (actual time=0.008..0.010 rows=2.00 loops=1)
+                              Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 275).col1)))
+                              Rows Removed by Filter: 2
+                              Buffers: shared hit=2
+                              SubPlan 275
+                                ->  Seq Scan on space_members m_59  (cost=1.07..2.18 rows=1 width=16) (actual time=0.003..0.003 rows=1.00 loops=1)
+                                      Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 274).col1))))
+                                      Rows Removed by Filter: 2
+                                      Buffers: shared hit=1
+                                      SubPlan 274
+                                        ->  Seq Scan on household_access household_access_64  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                              Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+  ->  CTE Scan on metadata  (cost=0.00..0.02 rows=1 width=49) (actual time=5.405..5.405 rows=1.00 loops=1)
+        Storage: Memory  Maximum Storage: 17kB
+        Buffers: shared hit=1479
+  ->  Sort  (cost=3052.65..3052.65 rows=2 width=770) (actual time=6.539..6.574 rows=163.00 loops=1)
+        Sort Key: o.starts_at, o.id
+        Sort Method: quicksort  Memory: 139kB
+        Buffers: shared hit=313
+        ->  Hash Left Join  (cost=530.60..3052.64 rows=2 width=770) (actual time=4.391..6.476 rows=163.00 loops=1)
+              Hash Cond: (d.meter_id = m.id)
+              Buffers: shared hit=313
+              ->  Hash Left Join  (cost=520.67..3041.68 rows=2 width=1517) (actual time=4.339..5.384 rows=163.00 loops=1)
+                    Hash Cond: (d.utility_account_id = a.id)
+                    Buffers: shared hit=312
+                    ->  Hash Left Join  (cost=511.90..3032.90 rows=2 width=1321) (actual time=4.317..5.322 rows=163.00 loops=1)
+                          Hash Cond: (d.charge_id = c.id)
+                          Buffers: shared hit=310
+                          ->  Hash Left Join  (cost=483.46..3004.45 rows=2 width=1249) (actual time=4.106..5.074 rows=163.00 loops=1)
+                                Hash Cond: (COALESCE(d.profile_account_id, doc.owner_account_id, t.waiting_account_id) = related.account_id)
+                                Buffers: shared hit=310
+                                ->  Hash Left Join  (cost=483.40..3004.36 rows=2 width=1233) (actual time=4.102..5.029 rows=163.00 loops=1)
+                                      Hash Cond: (o.assignee_id = responsible.account_id)
+                                      Buffers: shared hit=310
+                                      ->  Hash Left Join  (cost=483.33..3004.27 rows=2 width=1185) (actual time=4.067..4.944 rows=163.00 loops=1)
+                                            Hash Cond: (COALESCE(d.contact_id, doc.owner_contact_id, t.waiting_contact_id) = person.id)
+                                            Buffers: shared hit=306
+                                            ->  Hash Left Join  (cost=483.30..3004.22 rows=2 width=1169) (actual time=3.959..4.796 rows=163.00 loops=1)
+                                                  Hash Cond: (COALESCE(d.object_id, doc.owner_object_id) = op.id)
+                                                  Buffers: shared hit=266
+                                                  ->  Hash Left Join  (cost=468.35..2989.24 rows=2 width=1137) (actual time=3.575..4.373 rows=163.00 loops=1)
+                                                        Hash Cond: (COALESCE(d.document_id, d.task_id, d.note_id) = lo.source_id)
+                                                        Buffers: shared hit=230
+                                                        ->  Hash Left Join  (cost=468.29..2989.16 rows=2 width=1105) (actual time=3.556..4.299 rows=163.00 loops=1)
+                                                              Hash Cond: ((d.id = ra.deadline_id) AND (o.date = ra.date) AND (app.radar_calendar_key(d.rule) = ra.calendar_key))
+                                                              Buffers: shared hit=230
+                                                              ->  Hash Left Join  (cost=468.27..2989.10 rows=2 width=1005) (actual time=3.502..3.606 rows=163.00 loops=1)
+                                                                    Hash Cond: (d.profile_account_id = bp.account_id)
+                                                                    Buffers: shared hit=230
+                                                                    ->  Hash Right Join  (cost=457.44..2978.27 rows=2 width=992) (actual time=3.473..3.542 rows=163.00 loops=1)
+                                                                          Hash Cond: (doc.id = d.document_id)
+                                                                          Filter: ((doc.deleted_at IS NULL) AND ((d.document_id IS NULL) OR ((doc.id IS NOT NULL) AND (doc.status = 'valid'::text))))
+                                                                          Buffers: shared hit=226
+                                                                          ->  Seq Scan on documents doc  (cost=7.73..2526.73 rows=484 width=134) (actual time=0.015..0.260 rows=800.00 loops=1)
+                                                                                Filter: ((((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 293).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 295).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 297).col1)))))) AND ((NOT is_identity) OR (space_kind <> 'household'::space_kind) OR (NOT app.document_owner_is_child(owner_account_id)) OR (NOT (ANY (space_id = (hashed SubPlan 301).col1)))))
+                                                                                Rows Removed by Filter: 200
+                                                                                Buffers: shared hit=46
+                                                                                SubPlan 293
+                                                                                  ->  Seq Scan on spaces s_20  (cost=2.19..3.33 rows=1 width=16) (actual time=0.004..0.006 rows=1.00 loops=1)
+                                                                                        Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 292).col1))))
+                                                                                        Rows Removed by Filter: 3
+                                                                                        Buffers: shared hit=1
+                                                                                        SubPlan 292
+                                                                                          ->  Seq Scan on space_members m_62  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 291).col1))))
+                                                                                                SubPlan 291
+                                                                                                  ->  Seq Scan on household_access household_access_66  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                        Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                SubPlan 295
+                                                                                  ->  Seq Scan on space_members m_63  (cost=1.07..2.19 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                                                                                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 294).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                        Rows Removed by Filter: 2
+                                                                                        Buffers: shared hit=1
+                                                                                        SubPlan 294
+                                                                                          ->  Seq Scan on household_access household_access_67  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                SubPlan 297
+                                                                                  ->  Seq Scan on space_members m_64  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 296).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                        SubPlan 296
+                                                                                          ->  Seq Scan on household_access household_access_68  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                SubPlan 301
+                                                                                  ->  Seq Scan on space_members viewer_2  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 300).col1))) AND (role = 'child'::member_role))
+                                                                                        SubPlan 300
+                                                                                          ->  Seq Scan on household_access household_access_69  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                          ->  Hash  (cost=449.69..449.69 rows=2 width=888) (actual time=3.170..3.179 rows=163.00 loops=1)
+                                                                                Buckets: 1024  Batches: 1  Memory Usage: 84kB
+                                                                                Buffers: shared hit=180
+                                                                                ->  Hash Right Join  (cost=331.04..449.69 rows=2 width=888) (actual time=2.686..3.128 rows=163.00 loops=1)
+                                                                                      Hash Cond: (n.id = d.note_id)
+                                                                                      Filter: (n.deleted_at IS NULL)
+                                                                                      Buffers: shared hit=180
+                                                                                      ->  Seq Scan on notes n  (cost=7.73..122.73 rows=969 width=81) (actual time=0.013..0.328 rows=1600.00 loops=1)
+                                                                                            Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 304).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 306).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 308).col1))))))
+                                                                                            Rows Removed by Filter: 400
+                                                                                            Buffers: shared hit=67
+                                                                                            SubPlan 304
+                                                                                              ->  Seq Scan on spaces s_21  (cost=2.19..3.33 rows=1 width=16) (actual time=0.005..0.006 rows=1.00 loops=1)
+                                                                                                    Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 303).col1))))
+                                                                                                    Rows Removed by Filter: 3
+                                                                                                    Buffers: shared hit=1
+                                                                                                    SubPlan 303
+                                                                                                      ->  Seq Scan on space_members m_65  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                            Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 302).col1))))
+                                                                                                            SubPlan 302
+                                                                                                              ->  Seq Scan on household_access household_access_70  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                    Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                            SubPlan 306
+                                                                                              ->  Seq Scan on space_members m_66  (cost=1.07..2.19 rows=1 width=16) (actual time=0.004..0.004 rows=1.00 loops=1)
+                                                                                                    Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 305).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                                    Rows Removed by Filter: 2
+                                                                                                    Buffers: shared hit=1
+                                                                                                    SubPlan 305
+                                                                                                      ->  Seq Scan on household_access household_access_71  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                            Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                            SubPlan 308
+                                                                                              ->  Seq Scan on space_members m_67  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                    Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 307).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                                    SubPlan 307
+                                                                                                      ->  Seq Scan on household_access household_access_72  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                            Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                      ->  Hash  (cost=323.29..323.29 rows=2 width=831) (actual time=2.670..2.678 rows=163.00 loops=1)
+                                                                                            Buckets: 1024  Batches: 1  Memory Usage: 83kB
+                                                                                            Buffers: shared hit=113
+                                                                                            ->  Hash Right Join  (cost=256.47..323.29 rows=2 width=831) (actual time=2.590..2.629 rows=163.00 loops=1)
+                                                                                                  Hash Cond: (bc.id = d.contact_id)
+                                                                                                  Buffers: shared hit=113
+                                                                                                  ->  Seq Scan on contacts bc  (cost=7.73..72.73 rows=484 width=186) (actual time=0.016..0.245 rows=800.00 loops=1)
+                                                                                                        Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 325).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 327).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 329).col1))))))
+                                                                                                        Rows Removed by Filter: 200
+                                                                                                        Buffers: shared hit=42
+                                                                                                        SubPlan 325
+                                                                                                          ->  Seq Scan on spaces s_24  (cost=2.19..3.33 rows=1 width=16) (actual time=0.005..0.006 rows=1.00 loops=1)
+                                                                                                                Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 324).col1))))
+                                                                                                                Rows Removed by Filter: 3
+                                                                                                                Buffers: shared hit=1
+                                                                                                                SubPlan 324
+                                                                                                                  ->  Seq Scan on space_members m_74  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 323).col1))))
+                                                                                                                        SubPlan 323
+                                                                                                                          ->  Seq Scan on household_access household_access_79  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                        SubPlan 327
+                                                                                                          ->  Seq Scan on space_members m_75  (cost=1.07..2.19 rows=1 width=16) (actual time=0.004..0.005 rows=1.00 loops=1)
+                                                                                                                Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 326).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                                                Rows Removed by Filter: 2
+                                                                                                                Buffers: shared hit=1
+                                                                                                                SubPlan 326
+                                                                                                                  ->  Seq Scan on household_access household_access_80  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                        Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                        SubPlan 329
+                                                                                                          ->  Seq Scan on space_members m_76  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                                Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 328).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                                                SubPlan 328
+                                                                                                                  ->  Seq Scan on household_access household_access_81  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                        Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                  ->  Hash  (cost=248.72..248.72 rows=2 width=661) (actual time=2.297..2.302 rows=163.00 loops=1)
+                                                                                                        Buckets: 1024  Batches: 1  Memory Usage: 83kB
+                                                                                                        Buffers: shared hit=71
+                                                                                                        ->  Hash Right Join  (cost=189.89..248.72 rows=2 width=661) (actual time=1.854..2.237 rows=163.00 loops=1)
+                                                                                                              Hash Cond: (t.id = d.task_id)
+                                                                                                              Filter: ((d.task_id IS NULL) OR ((t.id IS NOT NULL) AND (t.deleted_at IS NULL) AND (t.status = ANY ('{open,waiting}'::text[]))))
+                                                                                                              Buffers: shared hit=71
+                                                                                                              ->  Seq Scan on tasks t  (cost=7.73..64.73 rows=484 width=133) (actual time=0.010..0.263 rows=800.00 loops=1)
+                                                                                                                    Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 318).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 320).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 322).col1))))))
+                                                                                                                    Rows Removed by Filter: 200
+                                                                                                                    Buffers: shared hit=34
+                                                                                                                    SubPlan 318
+                                                                                                                      ->  Seq Scan on spaces s_23  (cost=2.19..3.33 rows=1 width=16) (actual time=0.004..0.005 rows=1.00 loops=1)
+                                                                                                                            Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 317).col1))))
+                                                                                                                            Rows Removed by Filter: 3
+                                                                                                                            Buffers: shared hit=1
+                                                                                                                            SubPlan 317
+                                                                                                                              ->  Seq Scan on space_members m_71  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                                                    Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 316).col1))))
+                                                                                                                                    SubPlan 316
+                                                                                                                                      ->  Seq Scan on household_access household_access_76  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                                            Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                                    SubPlan 320
+                                                                                                                      ->  Seq Scan on space_members m_72  (cost=1.07..2.19 rows=1 width=16) (actual time=0.010..0.010 rows=1.00 loops=1)
+                                                                                                                            Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 319).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                                                            Rows Removed by Filter: 2
+                                                                                                                            Buffers: shared hit=1
+                                                                                                                            SubPlan 319
+                                                                                                                              ->  Seq Scan on household_access household_access_77  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                                    Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                                    SubPlan 322
+                                                                                                                      ->  Seq Scan on space_members m_73  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                                            Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 321).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                                                            SubPlan 321
+                                                                                                                              ->  Seq Scan on household_access household_access_78  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                                    Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                              ->  Hash  (cost=182.14..182.14 rows=2 width=557) (actual time=1.840..1.844 rows=163.00 loops=1)
+                                                                                                                    Buckets: 1024  Batches: 1  Memory Usage: 73kB
+                                                                                                                    Buffers: shared hit=37
+                                                                                                                    ->  Merge Right Join  (cost=181.93..182.14 rows=2 width=557) (actual time=1.754..1.800 rows=163.00 loops=1)
+                                                                                                                          Merge Cond: (p.id = d.object_id)
+                                                                                                                          Filter: (p.deleted_at IS NULL)
+                                                                                                                          Buffers: shared hit=37
+                                                                                                                          ->  Index Scan using objects_pkey on objects p  (cost=8.00..99.00 rows=484 width=85) (actual time=0.013..0.032 rows=3.00 loops=1)
+                                                                                                                                Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 311).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 313).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 315).col1))))))
+                                                                                                                                Rows Removed by Filter: 1
+                                                                                                                                Index Searches: 1
+                                                                                                                                Buffers: shared hit=5
+                                                                                                                                SubPlan 311
+                                                                                                                                  ->  Seq Scan on spaces s_22  (cost=2.19..3.33 rows=1 width=16) (actual time=0.004..0.005 rows=1.00 loops=1)
+                                                                                                                                        Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 310).col1))))
+                                                                                                                                        Rows Removed by Filter: 3
+                                                                                                                                        Buffers: shared hit=1
+                                                                                                                                        SubPlan 310
+                                                                                                                                          ->  Seq Scan on space_members m_68  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                                                                Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 309).col1))))
+                                                                                                                                                SubPlan 309
+                                                                                                                                                  ->  Seq Scan on household_access household_access_73  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                                                        Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                                                SubPlan 313
+                                                                                                                                  ->  Seq Scan on space_members m_69  (cost=1.07..2.19 rows=1 width=16) (actual time=0.009..0.009 rows=1.00 loops=1)
+                                                                                                                                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 312).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                                                                        Rows Removed by Filter: 2
+                                                                                                                                        Buffers: shared hit=1
+                                                                                                                                        SubPlan 312
+                                                                                                                                          ->  Seq Scan on household_access household_access_74  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                                                SubPlan 315
+                                                                                                                                  ->  Seq Scan on space_members m_70  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                                                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 314).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                                                                        SubPlan 314
+                                                                                                                                          ->  Seq Scan on household_access household_access_75  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                                          ->  Sort  (cost=173.54..173.55 rows=2 width=480) (actual time=1.721..1.730 rows=163.00 loops=1)
+                                                                                                                                Sort Key: d.object_id
+                                                                                                                                Sort Method: quicksort  Memory: 86kB
+                                                                                                                                Buffers: shared hit=32
+                                                                                                                                ->  Hash Join  (cost=2.24..173.53 rows=2 width=480) (actual time=0.044..1.631 rows=163.00 loops=1)
+                                                                                                                                      Hash Cond: (d.id = o.deadline_id)
+                                                                                                                                      Join Filter: ((o.date <= (((CURRENT_TIMESTAMP AT TIME ZONE o.time_zone))::date + CASE WHEN (d.source_kind = ANY ('{document,birthday}'::text[])) THEN 365 ELSE 90 END)) AND ((d.source_kind <> 'readings'::text) OR ((o.ends_at >= CURRENT_TIMESTAMP) AND (o.completed_at IS NULL) AND (NOT (ANY (d.utility_account_id = (hashed SubPlan 289).col1)))) OR EXISTS(SubPlan 290)) AND ((d.source_kind <> 'payment'::text) OR CASE WHEN (d.charge_id IS NOT NULL) THEN (ANY (d.charge_id = (hashed SubPlan 285).col1)) ELSE (NOT EXISTS(SubPlan 286)) END))
+                                                                                                                                      Buffers: shared hit=32
+                                                                                                                                      ->  CTE Scan on visible_deadlines d  (cost=0.00..44.08 rows=2167 width=292) (actual time=0.001..0.297 rows=2800.00 loops=1)
+                                                                                                                                            Filter: (deleted_at IS NULL)
+                                                                                                                                            Storage: Memory  Maximum Storage: 863kB
+                                                                                                                                      ->  Hash  (cost=2.16..2.16 rows=6 width=188) (actual time=0.033..0.033 rows=163.00 loops=1)
+                                                                                                                                            Buckets: 1024  Batches: 1  Memory Usage: 36kB
+                                                                                                                                            ->  CTE Scan on visible_occurrences o  (cost=0.00..2.16 rows=6 width=188) (actual time=0.001..0.024 rows=163.00 loops=1)
+                                                                                                                                                  Filter: (date <= '2026-10-24'::date)
+                                                                                                                                                  Storage: Memory  Maximum Storage: 43kB
+                                                                                                                                      SubPlan 289
+                                                                                                                                        ->  CTE Scan on visible_meters m_60  (cost=0.00..0.02 rows=1 width=16) (never executed)
+                                                                                                                                              Filter: (is_active AND (deleted_at IS NULL))
+                                                                                                                                              Storage: Memory  Maximum Storage: 17kB
+                                                                                                                                      SubPlan 290
+                                                                                                                                        ->  Hash Anti Join  (cost=0.05..0.07 rows=1 width=0) (never executed)
+                                                                                                                                              Hash Cond: (m_61.id = r.parent_id)
+                                                                                                                                              ->  CTE Scan on visible_meters m_61  (cost=0.00..0.02 rows=1 width=16) (never executed)
+                                                                                                                                                    Filter: (is_active AND (deleted_at IS NULL) AND (utility_account_id = d.utility_account_id))
+                                                                                                                                                    Storage: Memory  Maximum Storage: 17kB
+                                                                                                                                              ->  Hash  (cost=0.04..0.04 rows=1 width=16) (never executed)
+                                                                                                                                                    ->  CTE Scan on visible_readings r  (cost=0.00..0.04 rows=1 width=16) (never executed)
+                                                                                                                                                          Filter: ((deleted_at IS NULL) AND (transmitted_at IS NOT NULL) AND (occurred_on >= ((o.starts_at AT TIME ZONE o.time_zone))::date) AND (occurred_on <= ((o.ends_at AT TIME ZONE o.time_zone))::date))
+                                                                                                                                                          Storage: Memory  Maximum Storage: 17kB
+                                                                                                                                      SubPlan 285
+                                                                                                                                        ->  CTE Scan on visible_charges c_4  (cost=0.00..17.50 rows=875 width=16) (actual time=0.027..0.832 rows=1000.00 loops=1)
+                                                                                                                                              Filter: ((deleted_at IS NULL) AND (cancelled_at IS NULL) AND (NOT is_paid))
+                                                                                                                                              Storage: Memory  Maximum Storage: 118kB
+                                                                                                                                              Buffers: shared hit=32
+                                                                                                                                      SubPlan 286
+                                                                                                                                        ->  CTE Scan on visible_charges c_5  (cost=0.00..26.25 rows=875 width=0) (never executed)
+                                                                                                                                              Filter: ((deleted_at IS NULL) AND (cancelled_at IS NULL) AND (parent_id = d.utility_account_id) AND (period = to_char((o.date - '1 mon'::interval), 'YYYY-MM'::text)))
+                                                                                                                                              Storage: Memory  Maximum Storage: 118kB
+                                                                    ->  Hash  (cost=10.81..10.81 rows=2 width=29) (actual time=0.025..0.026 rows=3.00 loops=1)
+                                                                          Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                                                          Buffers: shared hit=4
+                                                                          ->  Seq Scan on member_profiles bp  (cost=0.00..10.81 rows=2 width=29) (actual time=0.023..0.025 rows=3.00 loops=1)
+                                                                                Filter: ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (account_id = (hashed SubPlan 333).col1)))
+                                                                                Buffers: shared hit=4
+                                                                                SubPlan 333
+                                                                                  ->  Hash Join  (cost=2.15..3.25 rows=2 width=16) (actual time=0.015..0.017 rows=3.00 loops=1)
+                                                                                        Hash Cond: (m_77.space_id = household_access_83.space_id)
+                                                                                        Buffers: shared hit=3
+                                                                                        ->  Seq Scan on space_members m_77  (cost=1.07..2.14 rows=2 width=32) (actual time=0.007..0.009 rows=3.00 loops=1)
+                                                                                              Filter: ((left_at IS NULL) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 332).col1))))
+                                                                                              Buffers: shared hit=2
+                                                                                              SubPlan 332
+                                                                                                ->  Seq Scan on household_access household_access_82  (cost=0.00..1.07 rows=1 width=16) (actual time=0.003..0.003 rows=1.00 loops=1)
+                                                                                                      Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                      Rows Removed by Filter: 2
+                                                                                                      Buffers: shared hit=1
+                                                                                        ->  Hash  (cost=1.07..1.07 rows=1 width=16) (actual time=0.005..0.005 rows=1.00 loops=1)
+                                                                                              Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                                                                              Buffers: shared hit=1
+                                                                                              ->  Seq Scan on household_access household_access_83  (cost=0.00..1.07 rows=1 width=16) (actual time=0.003..0.004 rows=1.00 loops=1)
+                                                                                                    Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                    Rows Removed by Filter: 2
+                                                                                                    Buffers: shared hit=1
+                                                              ->  Hash  (cost=0.00..0.00 rows=1 width=168) (actual time=0.002..0.012 rows=0.00 loops=1)
+                                                                    Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                                                                    ->  Seq Scan on radar_actions ra  (cost=0.00..0.00 rows=1 width=168) (actual time=0.001..0.012 rows=0.00 loops=1)
+                                                                          Filter: EXISTS(SubPlan 439)
+                                                                          SubPlan 439
+                                                                            ->  Index Scan using deadlines_pkey on deadlines d_4  (cost=8.01..109.50 rows=1 width=0) (never executed)
+                                                                                  Index Cond: (id = ra.deadline_id)
+                                                                                  Filter: (((((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 336).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 338).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 340).col1)))))) AND (EXISTS(SubPlan 348) OR EXISTS(SubPlan 364) OR EXISTS(SubPlan 380) OR EXISTS(SubPlan 400) OR EXISTS(SubPlan 420))) OR (ANY (profile_account_id = (hashed SubPlan 438).col1)) OR ((pg_trigger_depth() > 0) AND (COALESCE(note_id, object_id, document_id, contact_id, profile_account_id, task_id) = (NULLIF(current_setting('app.deadline_source_id'::text, true), ''::text))::uuid)))
+                                                                                  Index Searches: 0
+                                                                                  SubPlan 336
+                                                                                    ->  Seq Scan on spaces s_25  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                                                                          Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 335).col1))))
+                                                                                          SubPlan 335
+                                                                                            ->  Seq Scan on space_members m_78  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 334).col1))))
+                                                                                                  SubPlan 334
+                                                                                                    ->  Seq Scan on household_access household_access_84  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                  SubPlan 338
+                                                                                    ->  Seq Scan on space_members m_79  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 337).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                          SubPlan 337
+                                                                                            ->  Seq Scan on household_access household_access_85  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                  SubPlan 340
+                                                                                    ->  Seq Scan on space_members m_80  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 339).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                          SubPlan 339
+                                                                                            ->  Seq Scan on household_access household_access_86  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                  SubPlan 348
+                                                                                    ->  Index Scan using notes_id_audience_key on notes n_3  (cost=8.00..16.04 rows=1 width=0) (never executed)
+                                                                                          Index Cond: (id = d_4.note_id)
+                                                                                          Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 343).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 345).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 347).col1))))))
+                                                                                          Index Searches: 0
+                                                                                          SubPlan 343
+                                                                                            ->  Seq Scan on spaces s_26  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 342).col1))))
+                                                                                                  SubPlan 342
+                                                                                                    ->  Seq Scan on space_members m_81  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 341).col1))))
+                                                                                                          SubPlan 341
+                                                                                                            ->  Seq Scan on household_access household_access_87  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 345
+                                                                                            ->  Seq Scan on space_members m_82  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 344).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                                  SubPlan 344
+                                                                                                    ->  Seq Scan on household_access household_access_88  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 347
+                                                                                            ->  Seq Scan on space_members m_83  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 346).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                                  SubPlan 346
+                                                                                                    ->  Seq Scan on household_access household_access_89  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                  SubPlan 364
+                                                                                    ->  Index Scan using objects_id_audience_key on objects o_4  (cost=8.00..16.03 rows=1 width=0) (never executed)
+                                                                                          Index Cond: (id = d_4.object_id)
+                                                                                          Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 359).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 361).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 363).col1))))))
+                                                                                          Index Searches: 0
+                                                                                          SubPlan 359
+                                                                                            ->  Seq Scan on spaces s_27  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 358).col1))))
+                                                                                                  SubPlan 358
+                                                                                                    ->  Seq Scan on space_members m_84  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 357).col1))))
+                                                                                                          SubPlan 357
+                                                                                                            ->  Seq Scan on household_access household_access_90  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 361
+                                                                                            ->  Seq Scan on space_members m_85  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 360).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                                  SubPlan 360
+                                                                                                    ->  Seq Scan on household_access household_access_91  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 363
+                                                                                            ->  Seq Scan on space_members m_86  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 362).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                                  SubPlan 362
+                                                                                                    ->  Seq Scan on household_access household_access_92  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                  SubPlan 380
+                                                                                    ->  Index Scan using tasks_id_audience_key on tasks t_3  (cost=8.00..16.03 rows=1 width=0) (never executed)
+                                                                                          Index Cond: (id = d_4.task_id)
+                                                                                          Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 375).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 377).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 379).col1))))))
+                                                                                          Index Searches: 0
+                                                                                          SubPlan 375
+                                                                                            ->  Seq Scan on spaces s_28  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 374).col1))))
+                                                                                                  SubPlan 374
+                                                                                                    ->  Seq Scan on space_members m_87  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 373).col1))))
+                                                                                                          SubPlan 373
+                                                                                                            ->  Seq Scan on household_access household_access_93  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 377
+                                                                                            ->  Seq Scan on space_members m_88  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 376).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                                  SubPlan 376
+                                                                                                    ->  Seq Scan on household_access household_access_94  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 379
+                                                                                            ->  Seq Scan on space_members m_89  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 378).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                                  SubPlan 378
+                                                                                                    ->  Seq Scan on household_access household_access_95  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                  SubPlan 400
+                                                                                    ->  Index Scan using documents_id_audience_key on documents doc_3  (cost=8.00..18.48 rows=1 width=0) (never executed)
+                                                                                          Index Cond: (id = d_4.document_id)
+                                                                                          Filter: ((((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 391).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 393).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 395).col1)))))) AND ((NOT is_identity) OR (space_kind <> 'household'::space_kind) OR (NOT app.document_owner_is_child(owner_account_id)) OR (NOT (ANY (space_id = (hashed SubPlan 399).col1)))))
+                                                                                          Index Searches: 0
+                                                                                          SubPlan 391
+                                                                                            ->  Seq Scan on spaces s_29  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 390).col1))))
+                                                                                                  SubPlan 390
+                                                                                                    ->  Seq Scan on space_members m_90  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 389).col1))))
+                                                                                                          SubPlan 389
+                                                                                                            ->  Seq Scan on household_access household_access_96  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 393
+                                                                                            ->  Seq Scan on space_members m_91  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 392).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                                  SubPlan 392
+                                                                                                    ->  Seq Scan on household_access household_access_97  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 395
+                                                                                            ->  Seq Scan on space_members m_92  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 394).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                                  SubPlan 394
+                                                                                                    ->  Seq Scan on household_access household_access_98  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 399
+                                                                                            ->  Seq Scan on space_members viewer_3  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 398).col1))) AND (role = 'child'::member_role))
+                                                                                                  SubPlan 398
+                                                                                                    ->  Seq Scan on household_access household_access_99  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                  SubPlan 420
+                                                                                    ->  Index Scan using contacts_id_audience_key on contacts c_6  (cost=8.00..16.04 rows=1 width=0) (never executed)
+                                                                                          Index Cond: (id = d_4.contact_id)
+                                                                                          Filter: ((deleted_at IS NULL) AND (kind = 'person'::text) AND (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 415).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 417).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 419).col1)))))) AND ((data ->> 'birthdayEnabled'::text) = 'true'::text))
+                                                                                          Index Searches: 0
+                                                                                          SubPlan 415
+                                                                                            ->  Seq Scan on spaces s_30  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 414).col1))))
+                                                                                                  SubPlan 414
+                                                                                                    ->  Seq Scan on space_members m_93  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                                                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 413).col1))))
+                                                                                                          SubPlan 413
+                                                                                                            ->  Seq Scan on household_access household_access_100  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 417
+                                                                                            ->  Seq Scan on space_members m_94  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 416).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                                                                                  SubPlan 416
+                                                                                                    ->  Seq Scan on household_access household_access_101  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                          SubPlan 419
+                                                                                            ->  Seq Scan on space_members m_95  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                                                                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 418).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                                                                                  SubPlan 418
+                                                                                                    ->  Seq Scan on household_access household_access_102  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                  SubPlan 438
+                                                                                    ->  Seq Scan on member_profiles p_6  (cost=0.00..10.81 rows=1 width=16) (never executed)
+                                                                                          Filter: (birthday_enabled AND (birth_date IS NOT NULL) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (account_id = (hashed SubPlan 437).col1))))
+                                                                                          SubPlan 437
+                                                                                            ->  Hash Join  (cost=2.15..3.25 rows=2 width=16) (never executed)
+                                                                                                  Hash Cond: (m_96.space_id = household_access_104.space_id)
+                                                                                                  ->  Seq Scan on space_members m_96  (cost=1.07..2.14 rows=2 width=32) (never executed)
+                                                                                                        Filter: ((left_at IS NULL) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 436).col1))))
+                                                                                                        SubPlan 436
+                                                                                                          ->  Seq Scan on household_access household_access_103  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                                                                  ->  Hash  (cost=1.07..1.07 rows=1 width=16) (never executed)
+                                                                                                        ->  Seq Scan on household_access household_access_104  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                                                                              Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                                        ->  Hash  (cost=0.04..0.04 rows=2 width=48) (actual time=0.016..0.016 rows=0.00 loops=1)
+                                                              Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                                                              ->  CTE Scan on linked_objects lo  (cost=0.00..0.04 rows=2 width=48) (actual time=0.015..0.015 rows=0.00 loops=1)
+                                                                    Storage: Memory  Maximum Storage: 17kB
+                                                  ->  Hash  (cost=9.20..9.20 rows=460 width=48) (actual time=0.380..0.380 rows=800.00 loops=1)
+                                                        Buckets: 1024  Batches: 1  Memory Usage: 90kB
+                                                        Buffers: shared hit=36
+                                                        ->  CTE Scan on visible_objects op  (cost=0.00..9.20 rows=460 width=48) (actual time=0.011..0.334 rows=800.00 loops=1)
+                                                              Storage: Memory  Maximum Storage: 97kB
+                                                              Buffers: shared hit=36
+                                            ->  Hash  (cost=0.02..0.02 rows=1 width=48) (actual time=0.105..0.105 rows=0.00 loops=1)
+                                                  Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                                                  Buffers: shared hit=40
+                                                  ->  CTE Scan on visible_contacts person  (cost=0.00..0.02 rows=1 width=48) (actual time=0.105..0.105 rows=0.00 loops=1)
+                                                        Storage: Memory  Maximum Storage: 17kB
+                                                        Buffers: shared hit=40
+                                      ->  Hash  (cost=0.04..0.04 rows=2 width=48) (actual time=0.031..0.031 rows=3.00 loops=1)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                            Buffers: shared hit=4
+                                            ->  CTE Scan on members responsible  (cost=0.00..0.04 rows=2 width=48) (actual time=0.028..0.030 rows=3.00 loops=1)
+                                                  Storage: Memory  Maximum Storage: 17kB
+                                                  Buffers: shared hit=4
+                                ->  Hash  (cost=0.04..0.04 rows=2 width=48) (actual time=0.001..0.001 rows=3.00 loops=1)
+                                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                      ->  CTE Scan on members related  (cost=0.00..0.04 rows=2 width=48) (actual time=0.000..0.001 rows=3.00 loops=1)
+                                            Storage: Memory  Maximum Storage: 17kB
+                          ->  Hash  (cost=17.50..17.50 rows=875 width=88) (actual time=0.207..0.208 rows=1000.00 loops=1)
+                                Buckets: 1024  Batches: 1  Memory Usage: 73kB
+                                ->  CTE Scan on visible_charges c  (cost=0.00..17.50 rows=875 width=88) (actual time=0.001..0.086 rows=1000.00 loops=1)
+                                      Storage: Memory  Maximum Storage: 118kB
+                    ->  Hash  (cost=8.75..8.75 rows=1 width=196) (actual time=0.018..0.020 rows=1.00 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                          Buffers: shared hit=2
+                          ->  Seq Scan on utility_accounts a  (cost=7.73..8.75 rows=1 width=196) (actual time=0.017..0.018 rows=1.00 loops=1)
+                                Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 548).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 550).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 552).col1))))))
+                                Buffers: shared hit=2
+                                SubPlan 548
+                                  ->  Seq Scan on spaces s_31  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                        Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 547).col1))))
+                                        SubPlan 547
+                                          ->  Seq Scan on space_members m_97  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                                Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 546).col1))))
+                                                SubPlan 546
+                                                  ->  Seq Scan on household_access household_access_105  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                        Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                SubPlan 550
+                                  ->  Seq Scan on space_members m_98  (cost=1.07..2.19 rows=1 width=16) (actual time=0.005..0.006 rows=1.00 loops=1)
+                                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 549).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                        Rows Removed by Filter: 2
+                                        Buffers: shared hit=1
+                                        SubPlan 549
+                                          ->  Seq Scan on household_access household_access_106  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                                SubPlan 552
+                                  ->  Seq Scan on space_members m_99  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                        Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 551).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                        SubPlan 551
+                                          ->  Seq Scan on household_access household_access_107  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+              ->  Hash  (cost=7.73..7.73 rows=1 width=48) (actual time=0.001..0.003 rows=0.00 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                    ->  Seq Scan on meters m  (cost=7.73..7.73 rows=1 width=48) (actual time=0.001..0.003 rows=0.00 loops=1)
+                          Filter: (((space_kind = 'personal'::space_kind) AND (ANY (space_id = (hashed SubPlan 555).col1))) OR ((space_kind = 'household'::space_kind) AND ((ANY (space_id = (hashed SubPlan 557).col1)) OR ((audience = 'household'::audience) AND (ANY (space_id = (hashed SubPlan 559).col1))))))
+                          SubPlan 555
+                            ->  Seq Scan on spaces s_32  (cost=2.19..3.33 rows=1 width=16) (never executed)
+                                  Filter: ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((owner_account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (id = (hashed SubPlan 554).col1))))
+                                  SubPlan 554
+                                    ->  Seq Scan on space_members m_100  (cost=1.07..2.18 rows=1 width=16) (never executed)
+                                          Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 553).col1))))
+                                          SubPlan 553
+                                            ->  Seq Scan on household_access household_access_108  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                  Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 557
+                            ->  Seq Scan on space_members m_101  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 556).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                                  SubPlan 556
+                                    ->  Seq Scan on household_access household_access_109  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+                          SubPlan 559
+                            ->  Seq Scan on space_members m_102  (cost=1.07..2.19 rows=1 width=16) (never executed)
+                                  Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 558).col1))) AND (role = ANY ('{admin,adult,child}'::member_role[])))
+                                  SubPlan 558
+                                    ->  Seq Scan on household_access household_access_110  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                          Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+              SubPlan 279
+                ->  Seq Scan on space_members member  (cost=1.07..2.19 rows=1 width=16) (actual time=0.004..0.005 rows=1.00 loops=1)
+                      Filter: ((left_at IS NULL) AND (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) AND ((account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid) OR (ANY (space_id = (hashed SubPlan 278).col1))) AND (role = ANY ('{admin,adult}'::member_role[])))
+                      Rows Removed by Filter: 2
+                      Buffers: shared hit=1
+                      SubPlan 278
+                        ->  Seq Scan on household_access household_access_65  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                              Filter: (account_id = (NULLIF(current_setting('app.account_id'::text, true), ''::text))::uuid)
+              SubPlan 280
+                ->  CTE Scan on members  (cost=0.00..0.04 rows=1 width=32) (never executed)
+                      Filter: (account_id = ra.actor_id)
+                      Storage: Memory  Maximum Storage: 17kB
+              SubPlan 281
+                ->  Aggregate  (cost=0.08..0.09 rows=1 width=4) (actual time=0.000..0.000 rows=1.00 loops=163)
+                      ->  Hash Anti Join  (cost=0.05..0.07 rows=1 width=0) (actual time=0.000..0.000 rows=0.00 loops=163)
+                            Hash Cond: (vm.id = vr.parent_id)
+                            ->  CTE Scan on visible_meters vm  (cost=0.00..0.02 rows=1 width=16) (actual time=0.000..0.000 rows=0.00 loops=163)
+                                  Filter: (is_active AND (deleted_at IS NULL) AND (utility_account_id = d.utility_account_id))
+                                  Storage: Memory  Maximum Storage: 17kB
+                            ->  Hash  (cost=0.04..0.04 rows=1 width=16) (never executed)
+                                  ->  CTE Scan on visible_readings vr  (cost=0.00..0.04 rows=1 width=16) (never executed)
+                                        Filter: ((deleted_at IS NULL) AND (transmitted_at IS NOT NULL) AND (occurred_on >= ((o.starts_at AT TIME ZONE o.time_zone))::date) AND (occurred_on <= ((o.ends_at AT TIME ZONE o.time_zone))::date))
+                                        Storage: Memory  Maximum Storage: 17kB
+              SubPlan 283
+                ->  CTE Scan on visible_meters vm_1  (cost=0.00..0.02 rows=1 width=16) (never executed)
+                      Filter: (is_active AND (deleted_at IS NULL))
+                      Storage: Memory  Maximum Storage: 17kB
+Planning:
+  Buffers: shared hit=78
+Planning Time: 35.471 ms
+Execution Time: 15.322 ms
+

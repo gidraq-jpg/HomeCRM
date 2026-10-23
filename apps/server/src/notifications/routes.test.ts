@@ -95,6 +95,7 @@ it('TASK-4: главное дело выключается лично, межд�
   });
   expect((await child.get('/api/notifications/settings')).json()).toMatchObject({
     todayMainEnabled: true,
+    firstEntryShown: false,
   });
   expect(
     (
@@ -130,6 +131,7 @@ it('TASK-4: главное дело выключается лично, межд�
   await other.request('PATCH', '/api/notifications/settings', { json: { todayMainEnabled: true } });
   expect((await adult.get('/api/notifications/settings')).json()).toMatchObject({
     todayMainEnabled: true,
+    firstEntryShown: false,
   });
 });
 it('DOC-2: перед отправкой смена роли закрывает удостоверение и отменяет доставку ребёнку', async () => {
@@ -196,6 +198,7 @@ it('API возвращает defaults, валидирует настройки �
     morningEnabled: true,
     weeklyEnabled: true,
     todayMainEnabled: true,
+    firstEntryShown: false,
   });
   expect((await admin.get('/api/push/subscriptions')).json()).toEqual([]);
   expect((await child.get('/api/push/subscriptions')).json()).toEqual([]);

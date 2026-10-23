@@ -89,6 +89,13 @@ export async function summaries(tx: Transaction, rows: Task[]) {
     rows.map((r) => sql`${r.id}::uuid`),
     sql`, `,
   )}]::uuid[]`;
+  const references = (field: 'waitingContactId' | 'waitingAccountId' | 'radarOccurrenceId') =>
+    sql`ARRAY[${sql.join(
+      [...new Set(rows.flatMap((row) => (row[field] ? [row[field]] : [])))].map(
+        (id) => sql`${id}::uuid`,
+      ),
+      sql`, `,
+    )}]::uuid[]`;
   const files = await tx
     .select()
     .from(taskFiles)
@@ -96,12 +103,12 @@ export async function summaries(tx: Transaction, rows: Task[]) {
     .orderBy(taskFiles.createdAt, taskFiles.id);
   const contacts = (
     await tx.execute<{ id: string; title: string }>(
-      sql`SELECT id,title FROM contacts WHERE id=ANY(ARRAY(SELECT waiting_contact_id FROM tasks WHERE id=ANY(${ids}))) AND deleted_at IS NULL`,
+      sql`SELECT id,title FROM contacts WHERE id=ANY(${references('waitingContactId')}) AND deleted_at IS NULL`,
     )
   ).rows;
   const members = (
     await tx.execute<{ id: string; title: string }>(
-      sql`SELECT account_id AS id,display_name AS title FROM member_profiles WHERE account_id=ANY(ARRAY(SELECT waiting_account_id FROM tasks WHERE id=ANY(${ids})))`,
+      sql`SELECT account_id AS id,display_name AS title FROM member_profiles WHERE account_id=ANY(${references('waitingAccountId')})`,
     )
   ).rows;
   const next = (
@@ -111,7 +118,7 @@ export async function summaries(tx: Transaction, rows: Task[]) {
   ).rows;
   const radar = (
     await tx.execute<{ id: string }>(
-      sql`SELECT id FROM deadline_occurrences WHERE id=ANY(ARRAY(SELECT radar_occurrence_id FROM tasks WHERE id=ANY(${ids}))) AND deleted_at IS NULL`,
+      sql`SELECT id FROM deadline_occurrences WHERE id=ANY(${references('radarOccurrenceId')}) AND deleted_at IS NULL`,
     )
   ).rows;
   return rows.map((row) => {
