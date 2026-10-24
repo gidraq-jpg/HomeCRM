@@ -82,7 +82,7 @@ def _complete(body, factory=None):
         if factory is None:
             from run_agent import AIAgent
             factory = AIAgent
-        agent = factory(model=os.environ.get("HOMECRM_HERMES_MODEL", "gpt-5.4"), provider="openai-codex", enabled_toolsets=[],
+        agent = factory(model=os.environ.get("HOMECRM_HERMES_MODEL", "gpt-6-luna"), provider="openai-codex", enabled_toolsets=[],
                         skip_memory=True, skip_context_files=True,
                         save_trajectories=False, verbose_logging=False,
                         quiet_mode=True, session_db=None, max_iterations=1)

@@ -8,8 +8,10 @@ param(
  [string]$HermesHome = 'E:\HomeCRM-data\hermes',
  [string]$KeyFile = 'E:\HomeCRM-data\secrets\ai\api-server-key',
  [string]$HermesRuntime = 'E:\HomeCRM-data\hermes-runtime',
- [ValidatePattern('^[A-Za-z0-9._/-]+$')][string]$HermesModel = 'gpt-5.4',
+ [ValidatePattern('^[A-Za-z0-9._/-]+$')][string]$HermesModel = 'gpt-6-luna',
  [ValidateRange(1024,65535)][int]$Port = 8643,
+ # Прокси к OpenAI; пусто — системный прокси Windows, если он включён.
+ [ValidatePattern('^(https?://[A-Za-z0-9.\[\]:-]+/?)?$')][string]$HttpsProxy = '',
  [Parameter(ParameterSetName='Install')][switch]$NoTask
 )
 $ErrorActionPreference='Stop'
@@ -45,6 +47,7 @@ if ($Install) {
   $pwsh=(Get-Process -Id $PID).Path
   # Планировщик получает пути, а не ключ или OAuth-токен.
   $arguments="-NoProfile -File `"$PSCommandPath`" -Run -HermesHome `"$HermesHome`" -KeyFile `"$KeyFile`" -HermesRuntime `"$HermesRuntime`" -Port $Port -HermesModel $HermesModel"
+  if ($HttpsProxy) { $arguments+=" -HttpsProxy $HttpsProxy" }
   $action=New-ScheduledTaskAction -Execute $pwsh -Argument $arguments
   $trigger=New-ScheduledTaskTrigger -AtLogOn -User ([Security.Principal.WindowsIdentity]::GetCurrent().Name)
   $settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
@@ -55,7 +58,8 @@ if ($Install) {
 }
 if ($Login) {
  Write-Output ('$env:HERMES_HOME = ''' + $HermesHome + '''')
- Write-Output ('& '''+(Join-Path $HermesRuntime '.venv/Scripts/hermes.exe')+''' login --provider openai-codex')
+ Write-Output '# OpenAI отвечает 403 на адреса из России: перед входом задайте $env:HTTPS_PROXY и $env:HTTP_PROXY.'
+ Write-Output ('& '''+(Join-Path $HermesRuntime '.venv/Scripts/hermes.exe')+''' auth add openai-codex --type oauth')
  Write-Output 'Вход выполняет владелец. Наличие auth.json ещё не подтверждает действительность входа.'
  exit
 }
@@ -69,6 +73,16 @@ if ($Run) {
  $env:HOMECRM_HERMES_MODEL=$HermesModel
  $env:API_SERVER_KEY=[IO.File]::ReadAllText($KeyFile).Trim()
  $env:PYTHONDONTWRITEBYTECODE='1'
+ if (!$HttpsProxy -and $IsWindows) {
+  # Задача планировщика не наследует прокси VPN-клиента: берём системный прокси Windows.
+  $inet=Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction SilentlyContinue
+  if ($inet.ProxyEnable -eq 1 -and $inet.ProxyServer -match '^(https?://)?[A-Za-z0-9.\[\]:-]+$') {
+   $HttpsProxy=if ($inet.ProxyServer -match '^https?://') { $inet.ProxyServer } else { 'http://'+$inet.ProxyServer }
+  }
+ }
+ if ($HttpsProxy) {
+  $env:HTTPS_PROXY=$HttpsProxy; $env:HTTP_PROXY=$HttpsProxy; $env:NO_PROXY='127.0.0.1,localhost'
+ }
  try { & $python $service; if ($LASTEXITCODE -ne 0) { throw 'HomeCRM Hermes stopped' } }
  finally { Remove-Item Env:API_SERVER_KEY -ErrorAction SilentlyContinue }
  exit
