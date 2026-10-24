@@ -62,7 +62,7 @@ if ($Login) {
 if ($Run) {
  if (!(Test-Path -LiteralPath $python)) { throw 'Prepare official Hermes v2026.6.5 runtime first; see runbook' }
  $revision=& git -C $HermesRuntime rev-parse HEAD
- if ($LASTEXITCODE -ne 0 -or $revision -ne 'd6b9cfa3e1f460f5729553ef42b174da28b765c7') { throw 'Unsupported Hermes revision' }
+ if ($LASTEXITCODE -ne 0 -or $revision -ne '3c231eb3979ab9c57d5cd6d02f1d577a3b718b43') { throw 'Unsupported Hermes revision' }
  $env:HERMES_HOME=$HermesHome
  $env:HOMECRM_HERMES_RUNTIME=$HermesRuntime
  $env:HOMECRM_AI_PORT=[string]$Port

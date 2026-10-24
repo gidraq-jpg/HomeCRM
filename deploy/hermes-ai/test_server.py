@@ -57,6 +57,24 @@ class Tests(unittest.TestCase):
             if path.is_file():
                 data=path.read_bytes()
                 self.assertFalse(b"fictional-request-marker" in data or b"fictional-response-marker" in data)
+    def test_failure_dump_is_removed(self):
+        # Как Hermes при 401/сетевом сбое: дамп запроса в sessions/, затем исключение.
+        home = Path(self.temp.name)
+        class FailingAgent(Agent):
+            def run_conversation(self, **kwargs):
+                (home / "sessions").mkdir(exist_ok=True)
+                (home / "sessions" / "request_dump_1.json").write_text("fictional-dump-marker", encoding="utf-8")
+                raise RuntimeError("provider failed")
+        self.server.shutdown(); self.server.server_close(); self.thread.join()
+        self.server = service.make_server(0, "fictional-test-service-key", FailingAgent)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        self.url = "http://127.0.0.1:" + str(self.server.server_port)
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            self.send({"model":"hermes-agent","messages":[{"role":"user","content":"fictional-dump-marker"}]})
+        self.assertEqual(caught.exception.code,503)
+        caught.exception.close()
+        self.assertEqual([p for p in home.rglob("*") if p.is_file()], [])
     def test_auth_and_origin(self):
         for headers in [{"key":"wrong"},{"Origin":"https://example.test"}]:
             with self.assertRaises(urllib.error.HTTPError) as caught:

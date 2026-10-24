@@ -392,7 +392,7 @@ loopback 127.0.0.1:8643, без CORS, 15 МБ, один разбор однов�
 на каждый запрос создаётся новый AIAgent. Навыки auto_load пусты; cron/gateway не запускаются. Временных файлов с содержимым сервис не создаёт.
 Hermes сам обслуживает `openai-codex` и ChatGPT OAuth. Наш сервис не читает auth.json или токены.
 
-Закреплена официальная версия **v2026.6.5**, commit `d6b9cfa3e1f460f5729553ef42b174da28b765c7`.
+Закреплена официальная версия **v2026.6.5**, commit `3c231eb3979ab9c57d5cd6d02f1d577a3b718b43`.
 Владелец готовит отдельный официальный checkout и его Python-окружение в `E:\HomeCRM-data\hermes-runtime`
 по [руководству Hermes](https://github.com/NousResearch/hermes-agent/blob/v2026.6.5/website/docs/guides/python-library.md).
 Скрипт ожидает `.venv/Scripts/python.exe`, при запуске сверяет commit и не использует личный Hermes.

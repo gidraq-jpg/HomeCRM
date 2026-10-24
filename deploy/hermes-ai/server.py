@@ -15,11 +15,35 @@ import sys
 import threading
 
 MAX_BYTES = 15 * 1024 * 1024
-HERMES_REVISION = "d6b9cfa3e1f460f5729553ef42b174da28b765c7"
+# Коммит метки v2026.6.5 (не объект аннотированной метки d6b9cfa…).
+HERMES_REVISION = "3c231eb3979ab9c57d5cd6d02f1d577a3b718b43"
 logging.disable(logging.CRITICAL)
 
 
+def _home_files():
+    home = Path(os.environ["HERMES_HOME"])
+    return {path for path in home.rglob("*") if path.is_file()}
+
+
+def _remove_new_files(before):
+    # Hermes при сбое провайдера пишет полный запрос в sessions/request_dump_*.json.
+    # Всё новое, кроме файлов входа (auth*), удаляется: содержимое семьи не остаётся на диске.
+    for path in _home_files() - before:
+        if path.name.startswith("auth"):
+            continue
+        with contextlib.suppress(OSError):
+            path.unlink()
+
+
 def complete(body, factory=None):
+    before = _home_files()
+    try:
+        return _complete(body, factory)
+    finally:
+        _remove_new_files(before)
+
+
+def _complete(body, factory=None):
     if set(body) - {"model", "messages", "response_format", "stream"} or body.get("stream"):
         raise ValueError("invalid request")
     if body.get("model", "hermes-agent") != "hermes-agent":
@@ -88,6 +112,7 @@ def bounded_complete(body):
     context = multiprocessing.get_context("spawn")
     receive, send = context.Pipe(duplex=False)
     process = context.Process(target=_worker, args=(body, send), daemon=True)
+    before = _home_files()
     try:
         process.start()
         send.close()
@@ -105,6 +130,8 @@ def bounded_complete(body):
             if process.is_alive():
                 process.terminate()
                 process.join()
+        # Остановленный по тайм-ауту процесс не успевает убрать за собой — убирает родитель.
+        _remove_new_files(before)
 
 
 def make_server(port, key, factory=None):
