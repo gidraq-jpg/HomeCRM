@@ -18,6 +18,16 @@ export function aiError(error: unknown) {
     return 'Не удалось разобрать. Поправьте фразу или введите вручную.';
   return 'Служба ИИ недоступна. Проверьте, включён ли компьютер семьи, или введите вручную.';
 }
+export function useAiStatus(house: string | null) {
+  const { me } = useHousehold();
+  return useQuery({
+    queryKey: ['ai-status', me.id, house],
+    enabled: !!house,
+    queryFn: ({ signal }) =>
+      apiRequest('GET', `ai/status?spaceId=${house}`, AiStatus, undefined, signal),
+    staleTime: 0,
+  });
+}
 export function AiCapture({
   text,
   house,
@@ -30,13 +40,7 @@ export function AiCapture({
   beforeExtract: () => void;
 }) {
   const { me } = useHousehold();
-  const status = useQuery({
-    queryKey: ['ai-status', me.id, house],
-    enabled: !!house,
-    queryFn: ({ signal }) =>
-      apiRequest('GET', `ai/status?spaceId=${house}`, AiStatus, undefined, signal),
-    staleTime: 0,
-  });
+  const status = useAiStatus(house);
   const [consent, setConsent] = useState(false);
   const [pending, setPending] = useState(false);
   const busy = useRef(false);

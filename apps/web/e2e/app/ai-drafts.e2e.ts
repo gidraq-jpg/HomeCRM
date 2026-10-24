@@ -110,3 +110,59 @@ test('AI-3: выключенный ИИ скрывает кнопки разбо
     await expect(page.getByRole('button', { name: 'Разобрать', exact: true })).toHaveCount(0);
   }
 });
+
+test('AI-2, SHOP-4: надиктованная фраза покупок идёт в ИИ только после согласия', async ({
+  page,
+  family,
+}, info) => {
+  const phrase = 'завтра проверить насос и купить лампочки';
+  await page.addInitScript((text) => {
+    class Recognition {
+      onresult:
+        | ((event: {
+            resultIndex: number;
+            results: { isFinal: boolean; 0: { transcript: string } }[];
+          }) => void)
+        | null = null;
+      onend: (() => void) | null = null;
+      start() {
+        setTimeout(() => {
+          this.onresult?.({
+            resultIndex: 0,
+            results: [{ isFinal: true, 0: { transcript: text } }],
+          });
+          this.onend?.();
+        }, 50);
+      }
+      stop() {
+        this.onend?.();
+      }
+      abort() {
+        this.onend?.();
+      }
+    }
+    for (const name of ['SpeechRecognition', 'webkitSpeechRecognition'])
+      Object.defineProperty(window, name, { value: Recognition, configurable: true });
+  }, phrase);
+  await enable(family);
+  await signInAs(page, family, 'adult');
+  await openSection(page, '/more/shopping', 'Покупки');
+  await expect(page.getByRole('button', { name: 'Разобрать', exact: true })).toBeVisible();
+  let requests = 0;
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/ai/extract')) requests++;
+  });
+  await page.getByRole('button', { name: 'Надиктовать', exact: true }).click();
+  await expect(page.getByLabel('Добавить одной строкой', { exact: true })).toHaveValue(phrase);
+  await expect(page.getByRole('dialog', { name: 'Надиктованные покупки' })).toHaveCount(0);
+  expect(requests).toBe(0);
+  await page.getByRole('button', { name: 'Разобрать', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Разбор с помощью ИИ' })).toBeVisible();
+  expect(requests).toBe(0);
+  await page.getByRole('button', { name: 'Согласен, разобрать' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Черновики ИИ' });
+  await expect(dialog.getByRole('region', { name: 'Дело 1' })).toBeVisible();
+  await expect(dialog.getByRole('region', { name: 'Покупка 2' })).toBeVisible();
+  expect(requests).toBe(1);
+  await checkApp(page, info, 'ai-voice-shopping');
+});

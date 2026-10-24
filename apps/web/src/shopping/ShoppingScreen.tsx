@@ -6,7 +6,7 @@ import { AccessBadge } from '../access/AccessBadge.tsx';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
-import { AiCapture } from '../ai/AiCapture.tsx';
+import { AiCapture, useAiStatus } from '../ai/AiCapture.tsx';
 import { ApiError, errorMessage } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHouseNames } from '../deadlines/useHouseNames.ts';
@@ -29,6 +29,7 @@ import { Page, Section } from '../ui/Page.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
 import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';
+import { appendDictation } from '../voice/recognition.ts';
 import { dictatedDrafts, type ShoppingDraft } from '../voice/shopping-dictation.ts';
 import {
   createShopping,
@@ -79,9 +80,17 @@ export function ShoppingScreen() {
   );
   const [details, setDetails] = useState(false);
   const [drafts, setDrafts] = useState<ShoppingDraft[] | null>(null);
+  const ai = useAiStatus(house || null);
   // SHOP-4: надиктованное сначала показывается черновиками, ничего не добавляется само.
   // Фраза без позиций («и», «, ,», тишина) не открывает пустой лист, а просит повторить.
   const dictation = useDictation((text) => {
+    // D25: при включённом ИИ фраза остаётся в строке до явного «Разобрать» и согласия.
+    if (ai.data?.enabled) {
+      if (!text.trim()) return 'Ничего не расслышали. Скажите ещё раз.';
+      setTitle((current) => appendDictation(current, text));
+      setDuplicate(false);
+      return undefined;
+    }
     const result = dictatedDrafts(text);
     if ('error' in result) return result.error;
     setDrafts(result.drafts);
@@ -290,7 +299,7 @@ export function ShoppingScreen() {
                   id="shopping-quick-title"
                   className="input"
                   value={title}
-                  maxLength={200}
+                  maxLength={ai.data?.enabled ? 20000 : 200}
                   placeholder="Что купить?"
                   required
                   enterKeyHint="done"
