@@ -185,6 +185,9 @@ test('SHOP-4, AI-6: надиктованная строка без «Разоб�
     if (request.url().endsWith('/api/ai/extract')) requests++;
   });
   await page.getByRole('button', { name: 'Надиктовать', exact: true }).click();
+  await expect(page.getByLabel('Добавить одной строкой', { exact: true })).toHaveValue(
+    'молоко, хлеб и яйца',
+  );
   await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Надиктованные покупки' })).toBeVisible();
   expect(requests).toBe(0);
