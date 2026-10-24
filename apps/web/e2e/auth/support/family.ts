@@ -6,6 +6,7 @@ import { extname, resolve, sep } from 'node:path';
 import { createAppDatabase, createAuthDatabase, createWorkerDatabase } from '@homecrm/db';
 import { createTestDatabase } from '@homecrm/db/testing';
 import type { Role } from '@homecrm/shared';
+import { loadAiConfig } from '../../../../server/src/ai/config.ts';
 import { buildApp } from '../../../../server/src/app.ts';
 import { createHousehold, provisionAccount } from '../../../../server/src/auth/provision.ts';
 import { createAuthModule } from '../../../../server/src/auth/routes.ts';
@@ -110,6 +111,7 @@ export async function createFamily() {
     { LOG_LEVEL: 'silent', APP_VERSION: 'e2e', VAPID_PUBLIC_KEY: vapidPublicKey },
     {
       auth: module,
+      ai: loadAiConfig({ AI_EXTRACT_PROVIDER: 'fake', AI_STT_PROVIDER: 'fake' }),
       worker: createWorkerDatabase(database.worker),
       files: {
         storage: new DirectoryStorage(filesDir),

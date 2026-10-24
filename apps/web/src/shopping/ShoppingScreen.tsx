@@ -6,6 +6,7 @@ import { AccessBadge } from '../access/AccessBadge.tsx';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
+import { AiCapture, useAiStatus } from '../ai/AiCapture.tsx';
 import { ApiError, errorMessage } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHouseNames } from '../deadlines/useHouseNames.ts';
@@ -28,6 +29,7 @@ import { Page, Section } from '../ui/Page.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
 import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';
+import { appendDictation } from '../voice/recognition.ts';
 import { dictatedDrafts, type ShoppingDraft } from '../voice/shopping-dictation.ts';
 import {
   createShopping,
@@ -78,9 +80,20 @@ export function ShoppingScreen() {
   );
   const [details, setDetails] = useState(false);
   const [drafts, setDrafts] = useState<ShoppingDraft[] | null>(null);
+  const ai = useAiStatus(house || null);
+  // Надиктованная строка без «Разобрать» (отказ от ИИ, сбой, предел) делится на позиции как в SHOP-4.
+  const [dictated, setDictated] = useState(false);
   // SHOP-4: надиктованное сначала показывается черновиками, ничего не добавляется само.
   // Фраза без позиций («и», «, ,», тишина) не открывает пустой лист, а просит повторить.
   const dictation = useDictation((text) => {
+    // D25: при включённом ИИ фраза остаётся в строке до явного «Разобрать» и согласия.
+    if (ai.data?.enabled) {
+      if (!text.trim()) return 'Ничего не расслышали. Скажите ещё раз.';
+      setTitle((current) => appendDictation(current, text));
+      setDictated(true);
+      setDuplicate(false);
+      return undefined;
+    }
     const result = dictatedDrafts(text);
     if ('error' in result) return result.error;
     setDrafts(result.drafts);
@@ -109,6 +122,15 @@ export function ShoppingScreen() {
     if (state.disabled) return;
     const value = title.trim();
     if (!value) return;
+    if (dictated || value.length > 200) {
+      const result = dictatedDrafts(value);
+      if (!('error' in result)) {
+        setDrafts(result.drafts);
+        setTitle('');
+        setDictated(false);
+        return;
+      }
+    }
     const placement = newPlacement(place, house || null);
     const body = { title: value, ...(placement ? { placement } : {}) };
     void state.run(async () => {
@@ -283,23 +305,31 @@ export function ShoppingScreen() {
               <label className="field__label" htmlFor="shopping-quick-title">
                 Добавить одной строкой
               </label>
-              <div className="shopping-quick__line">
+              <div className="shopping-quick__line voice-line">
                 <input
                   ref={input}
                   id="shopping-quick-title"
                   className="input"
                   value={title}
-                  maxLength={200}
+                  maxLength={ai.data?.enabled ? 20000 : 200}
                   placeholder="Что купить?"
                   required
                   enterKeyHint="done"
                   readOnly={state.disabled}
                   onChange={(event) => {
                     setTitle(event.target.value);
+                    if (!event.target.value) setDictated(false);
                     setDuplicate(false);
                   }}
                 />
                 <DictationButton dictation={dictation} />
+                <AiCapture
+                  key={house}
+                  text={title}
+                  house={house || null}
+                  place={place}
+                  beforeExtract={dictation.abort}
+                />
                 <button type="submit" className="btn btn--primary" disabled={state.disabled}>
                   Добавить
                 </button>
