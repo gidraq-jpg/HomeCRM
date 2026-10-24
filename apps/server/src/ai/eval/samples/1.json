@@ -1,0 +1,26 @@
+{
+  "kind": "task",
+  "text": "Полить вымышленный фикус",
+  "expected": {
+    "title": {
+      "value": "Полить вымышленный фикус",
+      "confident": true
+    },
+    "date": {
+      "value": null,
+      "confident": true
+    },
+    "time": {
+      "value": null,
+      "confident": true
+    },
+    "assigneeId": {
+      "value": null,
+      "confident": true
+    },
+    "objectId": {
+      "value": null,
+      "confident": true
+    }
+  }
+}

@@ -295,6 +295,7 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'ai_daily_usage', // ai-matrix.test.ts: расход лимита только участниками своего дома.
       'api_operations', // birthdays-matrix.test.ts: собственные неизменяемые ключи.
       'template_applications', // charges-matrix.test.ts: собственные неизменяемые квитанции.
       'export_events', // export-matrix.test.ts: область экспорта, чтение и неизменяемость журнала.

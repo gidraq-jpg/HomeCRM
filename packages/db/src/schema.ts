@@ -34,6 +34,7 @@ import {
   pgPolicy,
   pgRole,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -1240,3 +1241,24 @@ export const passwordResets = pgTable(
     }),
   ],
 );
+
+/** Только служебные счётчики AI-7: нет содержимого, поиска, корзины или экспорта. */
+export const aiDailyUsage = pgTable(
+  'ai_daily_usage',
+  {
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => spaces.id),
+    usageDate: date('usage_date').notNull(),
+    requests: integer('requests').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.houseId, t.usageDate] }),
+    check('ai_daily_usage_requests_check', sql`${t.requests} > 0`),
+    pgPolicy('ai_usage_member', {
+      to: appRole,
+      using: sql`house_id IN (SELECT space_id FROM space_members WHERE account_id=app.current_account_id() AND left_at IS NULL)`,
+      withCheck: sql`house_id IN (SELECT space_id FROM space_members WHERE account_id=app.current_account_id() AND left_at IS NULL)`,
+    }),
+  ],
+).enableRLS();

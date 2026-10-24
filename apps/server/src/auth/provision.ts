@@ -10,7 +10,7 @@ import {
   eq,
   isNull,
   spaceMembers,
-  spaces,
+  sql,
   type Transaction,
 } from '@homecrm/db';
 import type { Role, Viewer } from '@homecrm/shared';
@@ -82,10 +82,12 @@ export async function insertAccount(tx: Transaction, input: NewAccount): Promise
     providerId: 'credential',
     password: input.passwordHash,
   });
-  const [space] = await tx
-    .insert(spaces)
-    .values({ kind: 'personal', name: `Личное: ${input.displayName}`, ownerAccountId: account.id })
-    .returning({ id: spaces.id });
+  // Явные колонки сохраняют совместимость подготовки старых баз в тестах миграций.
+  const {
+    rows: [space],
+  } = await tx.execute<{ id: string }>(
+    sql`INSERT INTO spaces(kind,name,owner_account_id) VALUES('personal',${`Личное: ${input.displayName}`},${account.id}) RETURNING id`,
+  );
   if (space === undefined) throw new Error('insertAccount: no personal space returned');
   await input.beforeMembership?.(tx, account.id);
   await tx
@@ -114,10 +116,11 @@ export async function provisionAccount(
 
 /** Общее пространство дома: его создаёт администратор при первой настройке (SPACE-2). */
 export async function createHousehold(db: Database, name: string): Promise<string> {
-  const [house] = await db
-    .insert(spaces)
-    .values({ kind: 'household', name })
-    .returning({ id: spaces.id });
+  const {
+    rows: [house],
+  } = await db.execute<{ id: string }>(
+    sql`INSERT INTO spaces(kind,name) VALUES('household',${name}) RETURNING id`,
+  );
   if (house === undefined) throw new Error('createHousehold: no row returned');
   return house.id;
 }

@@ -133,6 +133,7 @@ export const spaces = pgTable(
     name: text('name').notNull(),
     /** NULL только до первого запуска с прежней HOME_TIME_ZONE; личное берёт пояс выбранного дома. */
     timeZone: text('time_zone'),
+    aiEnabled: boolean('ai_enabled').notNull().default(false),
     ownerAccountId: uuid('owner_account_id').references(() => accounts.id),
     createdAt: createdAt(),
   },

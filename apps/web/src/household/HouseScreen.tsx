@@ -7,6 +7,7 @@ import { NoHousehold } from '../screens/PeopleScreen.tsx';
 import { Section } from '../ui/Page.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
+import { AiSettings } from './AiSettings.tsx';
 import { useHousehold } from './HouseholdContext.tsx';
 import { HOME_ZONES, zoneLabel } from './zones.ts';
 
@@ -101,6 +102,7 @@ export function HouseScreen() {
           <Notice>Менять часовой пояс дома может только администратор.</Notice>
         )}
       </Section>
+      <AiSettings spaceId={householdId} isAdmin={isAdmin} />
     </Page>
   );
 }

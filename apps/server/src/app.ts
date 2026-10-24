@@ -1,6 +1,8 @@
 import { type Database, deadlines, eq, notificationSettings, spaces } from '@homecrm/db';
 import { NotificationSettings } from '@homecrm/shared';
 import { type FastifyInstance, fastify } from 'fastify';
+import { type AiConfig, loadAiConfig } from './ai/config.ts';
+import { aiRoutes } from './ai/routes.ts';
 import { createAccountReader } from './auth/account.ts';
 import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
@@ -24,6 +26,7 @@ import { taskRoutes } from './tasks/routes.ts';
 import { utilityRoutes } from './utilities/routes.ts';
 
 export interface AppDependencies {
+  ai?: AiConfig;
   files?: FileServices;
   /** Вход и учётные записи (ADR-0005). Пока подключается только в тестах: в main.ts — вместе с базой в R0.1. */
   auth?: AuthModule;
@@ -158,6 +161,7 @@ export function buildApp(
       }
       return payload;
     });
+    void app.register(aiRoutes, { ...auth, ai: dependencies.ai ?? loadAiConfig() });
     void app.register(authRoutes, auth);
     void app.register(exportRoutes, {
       ...auth,
