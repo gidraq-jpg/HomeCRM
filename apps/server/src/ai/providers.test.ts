@@ -71,6 +71,28 @@ it('AI: совместимый ответ проходит схему; запр�
   expect(await p.extractor.extract(input)).toEqual(fakeDraft(input));
   expect(structured).toBe(true);
 });
+it('AI-2: провайдер отправляет короткий контекст, а не внутренние данные', async () => {
+  const p = await setup((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => {
+      const sent = JSON.parse(JSON.parse(body).messages[1].content[0].text);
+      expect(Object.keys(sent.context)).toEqual(['today', 'members', 'objects']);
+      expect(sent.context.today).toBe('2026-10-24 суббота');
+      res.end(
+        JSON.stringify({ choices: [{ message: { content: JSON.stringify(fakeDraft(input)) } }] }),
+      );
+    });
+  });
+  await p.extractor.extract({
+    ...input,
+    context: {
+      ...input.context,
+      now: new Date('2026-10-23T22:30:00Z'),
+      timeZone: 'Asia/Yekaterinburg',
+    },
+  });
+});
 it('AI: неверная схема повторяется один раз; содержимое ответа не попадает в ошибку', async () => {
   let calls = 0;
   const p = await setup((_req, res) => {
@@ -96,6 +118,13 @@ it('AI: отказ авторизации не раскрывает ключ и�
     expect(text.includes(input.text ?? '')).toBe(false);
     expect(text).toContain('AI_UNAVAILABLE');
   }
+});
+it('AI-6: занятость поставщика отличается от выключенного компьютера', async () => {
+  const p = await setup((_req, res) => {
+    res.statusCode = 429;
+    res.end();
+  });
+  await expect(p.extractor.extract(input)).rejects.toMatchObject({ status: 429, code: 'AI_BUSY' });
 });
 it('AI: тайм-аут ограничен, один сетевой повтор', async () => {
   let calls = 0;

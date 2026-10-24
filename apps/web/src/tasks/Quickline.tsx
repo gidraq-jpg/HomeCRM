@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import { defaultVisibility, VISIBILITY_LABELS, type Visibility } from '../access/visibility.ts';
+import { AiCapture } from '../ai/AiCapture.tsx';
 import { ApiError } from '../auth/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
@@ -164,6 +165,13 @@ export function Quickline({
                 }}
               />
               <DictationButton dictation={dictation} />
+              <AiCapture
+                key={householdId}
+                text={raw}
+                house={householdId}
+                place={who}
+                beforeExtract={dictation.abort}
+              />
             </div>
           </div>
           <DictationStatus dictation={dictation} />

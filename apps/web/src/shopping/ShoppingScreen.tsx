@@ -6,6 +6,7 @@ import { AccessBadge } from '../access/AccessBadge.tsx';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
+import { AiCapture } from '../ai/AiCapture.tsx';
 import { ApiError, errorMessage } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHouseNames } from '../deadlines/useHouseNames.ts';
@@ -283,7 +284,7 @@ export function ShoppingScreen() {
               <label className="field__label" htmlFor="shopping-quick-title">
                 Добавить одной строкой
               </label>
-              <div className="shopping-quick__line">
+              <div className="shopping-quick__line voice-line">
                 <input
                   ref={input}
                   id="shopping-quick-title"
@@ -300,6 +301,13 @@ export function ShoppingScreen() {
                   }}
                 />
                 <DictationButton dictation={dictation} />
+                <AiCapture
+                  key={house}
+                  text={title}
+                  house={house || null}
+                  place={place}
+                  beforeExtract={dictation.abort}
+                />
                 <button type="submit" className="btn btn--primary" disabled={state.disabled}>
                   Добавить
                 </button>

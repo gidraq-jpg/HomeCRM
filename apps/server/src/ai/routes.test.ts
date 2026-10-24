@@ -15,7 +15,12 @@ afterAll(async () => {
 it('AI: выключенный дом запрещает разбор, настройку меняет только администратор; журналы без текста', async () => {
   const adult = world.device();
   await adult.signIn(world.boris.username, world.boris.password);
-  const body = { spaceId: world.houseId, kind: 'note', text: 'Секретный вымышленный образец D24' };
+  const body = {
+    spaceId: world.houseId,
+    kind: 'note',
+    text: 'Секретный вымышленный образец D24',
+    consent: true,
+  };
   expect((await adult.post('/api/ai/extract', body)).status).toBe(403);
   expect(
     (
@@ -43,6 +48,25 @@ it('AI: выключенный дом запрещает разбор, наст�
     },
   );
   await app.ready();
+  const headers = {
+    cookie: [...adult.cookies].map(([k, v]) => `${k}=${v}`).join('; '),
+    origin: 'http://homecrm.test',
+  };
+  const { consent: _consent, ...withoutConsent } = body;
+  expect(
+    (await app.inject({ method: 'POST', url: '/api/ai/extract', headers, payload: withoutConsent }))
+      .statusCode,
+  ).toBe(400);
+  expect(
+    (
+      await app.inject({
+        method: 'POST',
+        url: '/api/ai/extract',
+        headers,
+        payload: { ...body, consent: false },
+      })
+    ).statusCode,
+  ).toBe(400);
   // Тот же cookie устройства, поддельный поставщик; логи не содержат запрос/черновик.
   const response = await app.inject({
     method: 'POST',
@@ -54,6 +78,18 @@ it('AI: выключенный дом запрещает разбор, наст�
     payload: body,
   });
   expect(response.statusCode).toBe(200);
+  const mixed = await app.inject({
+    method: 'POST',
+    url: '/api/ai/extract',
+    headers,
+    payload: {
+      ...body,
+      kind: 'auto',
+      text: 'завтра проверить вымышленный насос и купить вымышленные лампочки',
+    },
+  });
+  expect(mixed.statusCode).toBe(200);
+  expect(mixed.json().map((row: { kind: string }) => row.kind)).toEqual(['task', 'shopping']);
   const form = new FormData();
   form.set(
     'file',
@@ -94,5 +130,7 @@ it('AI: выключенный дом запрещает разбор, наст�
   });
   expect(rejected.statusCode).toBe(413);
   expect(world.requestLog.join('').includes(body.text)).toBe(false);
+  expect(world.requestLog.join('').includes('вымышленный насос')).toBe(false);
+  expect(world.requestLog.join('').includes('вымышленные лампочки')).toBe(false);
   await app.close();
 });

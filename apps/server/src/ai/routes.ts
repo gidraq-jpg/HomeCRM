@@ -1,5 +1,15 @@
 import multipart from '@fastify/multipart';
-import { and, eq, isNull, objects, spaceMembers, spaces, sql } from '@homecrm/db';
+import {
+  and,
+  desc,
+  eq,
+  isNull,
+  objects,
+  recordLinks,
+  spaceMembers,
+  spaces,
+  sql,
+} from '@homecrm/db';
 import { AiStatus, canView, canViewMembership, ExtractInput } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { parseBuffer } from 'music-metadata';
@@ -103,7 +113,16 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
       const visibleObjects = await tx
         .select()
         .from(objects)
-        .where(and(eq(objects.spaceId, body.spaceId), isNull(objects.deletedAt)));
+        .where(and(eq(objects.spaceId, body.spaceId), isNull(objects.deletedAt)))
+        // Частота использования — число видимых активных связей; RLS скрывает чужие концы.
+        .orderBy(
+          desc(
+            sql`(SELECT count(*) FROM ${recordLinks} WHERE ${recordLinks.deletedAt} IS NULL AND ((${recordLinks.leftTable}='objects' AND ${recordLinks.leftId}=${objects.id}) OR (${recordLinks.rightTable}='objects' AND ${recordLinks.rightId}=${objects.id})))`,
+          ),
+          desc(objects.updatedAt),
+          objects.id,
+        )
+        .limit(50);
       const members = await tx
         .select()
         .from(spaceMembers)
@@ -116,6 +135,7 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
           .filter((m) => canViewMembership(account.viewer, m.accountId, body.spaceId))
           .map((m) => ({ id: m.accountId, name: m.displayName })),
         timeZone: row.timeZone ?? options.homeTimeZone,
+        now: new Date(),
       };
     });
     // Короткая транзакция заканчивается ДО сетевого вызова; расход лимита переживает сбой поставщика.
@@ -131,8 +151,12 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
     if (!consumed)
       throw new Failure(429, 'AI_DAILY_LIMIT', 'Дневной предел ИИ исчерпан. Можно ввести вручную.');
     const started = Date.now();
+    let code = 'OK';
     try {
       return await providers.extractor.extract({ kind: body.kind, text: body.text, context });
+    } catch (error) {
+      code = error instanceof Failure ? error.code : 'AI_UNAVAILABLE';
+      throw error;
     } finally {
       request.log.info(
         {
@@ -140,6 +164,7 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
           provider: ai.AI_EXTRACT_PROVIDER,
           durationMs: Date.now() - started,
           size: Buffer.byteLength(body.text),
+          code,
         },
         'AI operation finished',
       );

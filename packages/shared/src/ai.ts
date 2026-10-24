@@ -27,11 +27,18 @@ export const DraftSchemas = {
   shopping: z.array(ShoppingDraft).min(1).max(100),
   note: NoteDraft,
 };
+export const AutoDraft = z.discriminatedUnion('kind', [
+  TaskDraft.extend({ kind: z.literal('task') }),
+  ShoppingDraft.extend({ kind: z.literal('shopping') }),
+  NoteDraft.extend({ kind: z.literal('note') }),
+]);
+export const AutoDrafts = z.array(AutoDraft).min(1).max(10);
+export type AutoDraft = z.infer<typeof AutoDraft>;
 export type DraftKind = keyof typeof DraftSchemas;
 export type TaskDraft = z.infer<typeof TaskDraft>;
 export type ShoppingDraft = z.infer<typeof ShoppingDraft>;
 export type NoteDraft = z.infer<typeof NoteDraft>;
-export type Draft = TaskDraft | ShoppingDraft[] | NoteDraft;
+export type Draft = TaskDraft | ShoppingDraft[] | NoteDraft | AutoDraft[];
 export const AiStatus = z.object({
   enabled: z.boolean(),
   speech: z.boolean(),
@@ -39,7 +46,8 @@ export const AiStatus = z.object({
   remaining: z.number().int().nonnegative(),
 });
 export const ExtractInput = z.strictObject({
-  kind: z.enum(['task', 'shopping', 'note']),
+  kind: z.enum(['task', 'shopping', 'note', 'auto']),
   text: z.string().trim().min(1).max(20000),
   spaceId: z.uuid(),
+  consent: z.literal(true),
 });
