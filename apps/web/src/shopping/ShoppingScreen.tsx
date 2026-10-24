@@ -81,6 +81,8 @@ export function ShoppingScreen() {
   const [details, setDetails] = useState(false);
   const [drafts, setDrafts] = useState<ShoppingDraft[] | null>(null);
   const ai = useAiStatus(house || null);
+  // Надиктованная строка без «Разобрать» (отказ от ИИ, сбой, предел) делится на позиции как в SHOP-4.
+  const [dictated, setDictated] = useState(false);
   // SHOP-4: надиктованное сначала показывается черновиками, ничего не добавляется само.
   // Фраза без позиций («и», «, ,», тишина) не открывает пустой лист, а просит повторить.
   const dictation = useDictation((text) => {
@@ -88,6 +90,7 @@ export function ShoppingScreen() {
     if (ai.data?.enabled) {
       if (!text.trim()) return 'Ничего не расслышали. Скажите ещё раз.';
       setTitle((current) => appendDictation(current, text));
+      setDictated(true);
       setDuplicate(false);
       return undefined;
     }
@@ -119,6 +122,15 @@ export function ShoppingScreen() {
     if (state.disabled) return;
     const value = title.trim();
     if (!value) return;
+    if (dictated || value.length > 200) {
+      const result = dictatedDrafts(value);
+      if (!('error' in result)) {
+        setDrafts(result.drafts);
+        setTitle('');
+        setDictated(false);
+        return;
+      }
+    }
     const placement = newPlacement(place, house || null);
     const body = { title: value, ...(placement ? { placement } : {}) };
     void state.run(async () => {
@@ -306,6 +318,7 @@ export function ShoppingScreen() {
                   readOnly={state.disabled}
                   onChange={(event) => {
                     setTitle(event.target.value);
+                    if (!event.target.value) setDictated(false);
                     setDuplicate(false);
                   }}
                 />

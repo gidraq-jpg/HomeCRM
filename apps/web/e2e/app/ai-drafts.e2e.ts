@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
 import { openQuick } from '../support/helpers.ts';
 import { checkApp, expect, openSection, signInAs } from './support.ts';
@@ -111,11 +112,7 @@ test('AI-3: выключенный ИИ скрывает кнопки разбо
   }
 });
 
-test('AI-2, SHOP-4: надиктованная фраза покупок идёт в ИИ только после согласия', async ({
-  page,
-  family,
-}, info) => {
-  const phrase = 'завтра проверить насос и купить лампочки';
+async function mockSpeech(page: Page, phrase: string) {
   await page.addInitScript((text) => {
     class Recognition {
       onresult:
@@ -144,6 +141,14 @@ test('AI-2, SHOP-4: надиктованная фраза покупок идё�
     for (const name of ['SpeechRecognition', 'webkitSpeechRecognition'])
       Object.defineProperty(window, name, { value: Recognition, configurable: true });
   }, phrase);
+}
+
+test('AI-2, SHOP-4: надиктованная фраза покупок идёт в ИИ только после согласия', async ({
+  page,
+  family,
+}, info) => {
+  const phrase = 'завтра проверить насос и купить лампочки';
+  await mockSpeech(page, phrase);
   await enable(family);
   await signInAs(page, family, 'adult');
   await openSection(page, '/more/shopping', 'Покупки');
@@ -165,6 +170,24 @@ test('AI-2, SHOP-4: надиктованная фраза покупок идё�
   await expect(dialog.getByRole('region', { name: 'Покупка 2' })).toBeVisible();
   expect(requests).toBe(1);
   await checkApp(page, info, 'ai-voice-shopping');
+});
+
+test('SHOP-4, AI-6: надиктованная строка без «Разобрать» делится на позиции без ИИ', async ({
+  page,
+  family,
+}) => {
+  await mockSpeech(page, 'молоко, хлеб и яйца');
+  await enable(family);
+  await signInAs(page, family, 'adult');
+  await openSection(page, '/more/shopping', 'Покупки');
+  let requests = 0;
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/ai/extract')) requests++;
+  });
+  await page.getByRole('button', { name: 'Надиктовать', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Надиктованные покупки' })).toBeVisible();
+  expect(requests).toBe(0);
 });
 
 test('AI-2, SHOP-4: дубли в одной фразе и в существующем списке не добавляются', async ({
