@@ -36,6 +36,9 @@ export function taskFeeds(route: DataRoute) {
         to = shiftTaskDate(from, q.days);
       if (view === 'plan' && (from < today || from > shiftTaskDate(today, 3650)))
         throw new Failure(400, 'INVALID_CURSOR');
+      // С собранной статистикой стоимость 1000 дел под вложенным RLS выше порога JIT: компиляция
+      // (~130 мс) дороже самого запроса. Только в этой транзакции, как в радаре и аналитике.
+      await tx.execute(sql`SET LOCAL jit=off`);
       const rows = await tx
         .select({
           ...getTableColumns(tasks),

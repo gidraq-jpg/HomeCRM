@@ -52,10 +52,14 @@ it('TASK-4/5/6: 1000 дел, ленты и радар p95 <300 мс; число 
     counts.set(url, queries);
   }
   await seed(900);
+  // Статистика — как в рабочей базе. Без неё исход решал autoanalyze: если он успевал до замера, оценка
+  // Today превышала порог JIT и компиляция добавляла ~130 мс (CI: 281–284 мс при обычных 100–210).
+  await world.database.admin.query('VACUUM (ANALYZE) tasks, deadlines, deadline_occurrences');
   for (const url of [...urls, '/api/deadlines?from=2000-01-01&to=2099-12-31']) {
-    for (let i = 0; i < 3; i++) await adult.get(url);
+    // Разогрев и 40 замеров: при 20 p95 по ближайшему рангу — второй худший, один сбой runner решал исход.
+    for (let i = 0; i < 5; i++) await adult.get(url);
     const timings = [];
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 40; i++) {
       queries = 0;
       const started = performance.now(),
         r = await adult.get(url);
@@ -66,7 +70,11 @@ it('TASK-4/5/6: 1000 дел, ленты и радар p95 <300 мс; число 
         expect(r.json<{ tasks: unknown[] }>().tasks).toHaveLength(1000);
     }
     const p95 = percentile(timings, 0.95);
-    console.info(`Tasks feed ${url.split('?')[0]}: p95=${p95.toFixed(1)} ms, SQL=${queries}`);
-    expect(p95).toBeLessThanOrEqual(url === '/api/tasks/today' ? 210 : 300);
+    console.info(
+      `Tasks feed ${url.split('?')[0]}: p95=${p95.toFixed(1)} ms, median=${percentile(timings, 0.5).toFixed(1)} ms, max=${Math.max(...timings).toFixed(1)} ms, SQL=${queries}`,
+    );
+    // Предел PRD (раздел 13). Прежний предел Today 210 мс брал запас 30% от локального замера, а обычный p95
+    // того же кода на runner CI — 100–211 мс. Возврат JIT (~320 мс) этот предел ловит, рост SQL — проверка выше.
+    expect(p95).toBeLessThanOrEqual(300);
   }
 }, 120000);
