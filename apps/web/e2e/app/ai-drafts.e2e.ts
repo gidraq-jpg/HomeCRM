@@ -166,3 +166,30 @@ test('AI-2, SHOP-4: надиктованная фраза покупок идё�
   expect(requests).toBe(1);
   await checkApp(page, info, 'ai-voice-shopping');
 });
+
+test('AI-2, SHOP-4: дубли в одной фразе и в существующем списке не добавляются', async ({
+  page,
+  family,
+}, info) => {
+  await enable(family);
+  await signInAs(page, family, 'adult');
+  await openSection(page, '/more/shopping', 'Покупки');
+  const input = page.getByLabel('Добавить одной строкой', { exact: true });
+  await input.fill('купить хлеб и купить хлеб');
+  await page.getByRole('button', { name: 'Разобрать', exact: true }).click();
+  await page.getByRole('button', { name: 'Согласен, разобрать' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Черновики ИИ' });
+  await dialog.getByRole('button', { name: 'Сохранить все', exact: true }).click();
+  await expect(dialog.getByText('Уже в списке', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('region')).toHaveCount(1);
+  await dialog.getByRole('button', { name: 'Закрыть черновики' }).click();
+  await input.fill('купить хлеб');
+  await page.getByRole('button', { name: 'Разобрать', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect(dialog.getByText('Уже в списке', { exact: true })).toBeVisible();
+  const result = await family.database.admin.query(
+    "SELECT count(*)::int AS count FROM shopping_items WHERE title='хлеб'",
+  );
+  expect(result.rows[0]?.count).toBe(1);
+  await checkApp(page, info, 'ai-shopping-duplicate');
+});

@@ -10,12 +10,13 @@ import { creatableVisibilities, newPlacement, viewerOf } from '../notes/abilitie
 import { createNote } from '../notes/api.ts';
 import { uuid } from '../offline/store.ts';
 import { createShopping } from '../shopping/api.ts';
+import { listedNames, shoppingName } from '../shopping/duplicates.ts';
 import { mutateTask } from '../tasks/api.ts';
 import { createBody } from '../tasks/NewTaskScreen.tsx';
 import { RecordPicker, useTaskMembers } from '../tasks/options.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 
-type Row = { id: string; draft: AutoDraft; place: Visibility };
+type Row = { id: string; draft: AutoDraft; place: Visibility; duplicate?: boolean };
 const kinds = { task: 'Дело', shopping: 'Покупка', note: 'Заметка' };
 export function AiDrafts({
   drafts,
@@ -58,6 +59,7 @@ export function AiDrafts({
         row.id === id
           ? {
               ...row,
+              duplicate: false,
               draft: {
                 ...row.draft,
                 [key]: {
@@ -72,6 +74,7 @@ export function AiDrafts({
   }
   async function save(selected: Row[]) {
     await state.run(async () => {
+      const lists = new Map<Visibility, Set<string>>();
       for (const row of selected) {
         const draft = row.draft;
         const placement = newPlacement(row.place, house);
@@ -95,12 +98,25 @@ export function AiDrafts({
           );
           await mutateTask('tasks', { ...body, idempotencyKey: operationKey(row.id, body) });
         } else if (draft.kind === 'shopping') {
+          let names = lists.get(row.place);
+          if (!names) {
+            names = await listedNames(row.place, house);
+            lists.set(row.place, names);
+          }
+          const name = shoppingName(draft.title.value);
+          if (names.has(name)) {
+            setRows((current) =>
+              current.map((item) => (item.id === row.id ? { ...item, duplicate: true } : item)),
+            );
+            continue;
+          }
           const body = {
             title: draft.title.value.trim(),
             quantity: draft.quantity.value?.trim() || null,
             ...(placement ? { placement } : {}),
           };
           await createShopping({ ...body, idempotencyKey: operationKey(row.id, body) });
+          names.add(name);
         } else {
           await createNote(
             {
@@ -213,9 +229,12 @@ export function AiDrafts({
                 value={row.place}
                 options={options(row.draft.kind)}
                 onChange={(place) =>
-                  setRows((current) => current.map((r) => (r.id === row.id ? { ...r, place } : r)))
+                  setRows((current) =>
+                    current.map((r) => (r.id === row.id ? { ...r, place, duplicate: false } : r)),
+                  )
                 }
               />
+              {row.duplicate ? <p role="status">Уже в списке</p> : null}
               <div className="btn-row">
                 <button type="button" className="btn btn--primary" onClick={() => void save([row])}>
                   Сохранить
