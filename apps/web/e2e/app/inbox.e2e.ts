@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { AiStatus } from '@homecrm/shared';
+import { AiStatus, DOCUMENT_LABELS, DocumentDraft, DraftSchemas } from '@homecrm/shared';
 import type { Page } from '@playwright/test';
 import { identityPage, meterPage } from '../../../server/src/ai/eval/inbox.ts';
+import { fakeDraft } from '../../../server/src/ai/providers.ts';
 import type { Family } from '../auth/support/family.ts';
 import { test } from '../auth/support/fixtures.ts';
 import { apiAs } from './notes-support.ts';
@@ -202,3 +203,61 @@ for (const automatic of [true, false])
     await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
     await checkApp(page, info, automatic ? 'inbox-reopen' : 'inbox-parse-button');
   });
+
+test('INBOX-4: предпросмотр показывает рубли, русские даты и тип документа', async ({
+  page,
+  family,
+}, info) => {
+  const api = await apiAs(family, 'adult');
+  await signInAs(page, family, 'adult');
+  for (const kind of ['document', 'receipt'] as const) {
+    const id = randomUUID();
+    expect(
+      (
+        await api.post('inbox', {
+          id,
+          idempotencyKey: id,
+          ownerAccountId: family.person('adult').id,
+          offline: true,
+          source: 'text',
+          text: 'Учебная карточка формата',
+          houseId: family.houseId,
+        })
+      ).status,
+    ).toBe(201);
+    const raw = fakeDraft({
+      kind,
+      text: 'Учебный образец',
+      context: { objects: [], members: [], timeZone: 'Asia/Yekaterinburg' },
+    });
+    const fields =
+      kind === 'document'
+        ? { ...DocumentDraft.parse(raw), issuedOn: { value: '2026-10-05', confident: true } }
+        : DraftSchemas.receipt.parse(raw);
+    const draft = {
+      classification: {
+        kind,
+        objectId: { value: null, confident: false },
+        personId: { value: null, confident: false },
+        meterId: { value: null, confident: false },
+        newObject: null,
+        shoppingText: null,
+      },
+      fields,
+      additional: [],
+    };
+    await family.database.admin.query(
+      "UPDATE inbox_items SET status='ready',draft=$2::jsonb WHERE id=$1",
+      [id, JSON.stringify(draft)],
+    );
+    await openSection(page, `/more/inbox/${id}`, 'Входящее');
+    if (kind === 'document') {
+      await expect(page.getByText(DOCUMENT_LABELS.contract, { exact: true })).toBeVisible();
+      await expect(page.getByText(/5\sокт\.\s2026/)).toBeVisible();
+    } else {
+      await expect(page.getByText(/1\s234,56\s₽/)).toBeVisible();
+      await expect(page.getByText(/25\sокт\.\s2026/)).toBeVisible();
+    }
+    await checkApp(page, info, `inbox-preview-${kind}`);
+  }
+});

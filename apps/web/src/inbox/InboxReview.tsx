@@ -1,6 +1,8 @@
 import {
+  DOCUMENT_LABELS,
   DocumentData,
   DocumentDraft,
+  type DocumentType,
   DraftSchemas,
   INBOX_KINDS,
   type InboxDraft,
@@ -36,6 +38,7 @@ import { ShoppingEditor } from '../shopping/ShoppingScreen.tsx';
 import { mutateTask } from '../tasks/api.ts';
 import { createBody } from '../tasks/NewTaskScreen.tsx';
 import { TaskForm } from '../tasks/TaskForm.tsx';
+import { type DateOnly, formatFullDate, formatRub } from '../ui/format.ts';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import {
   type InboxItem,
@@ -63,7 +66,7 @@ const labels: Record<string, string> = {
   objectId: 'Объект',
   assigneeId: 'Ответственный',
   accountId: 'Лицевой счёт',
-  totalCents: 'Сумма, коп.',
+  totalCents: 'Сумма',
   period: 'Период',
   dueOn: 'Оплатить до',
   supplier: 'Поставщик',
@@ -78,7 +81,18 @@ function fieldsOf(fields: InboxDraft['fields']) {
           {
             key,
             label: labels[key] ?? key,
-            value: String(field.value ?? 'Не указано'),
+            value:
+              key === 'totalCents' && typeof field.value === 'number'
+                ? formatRub(field.value)
+                : ['date', 'issuedOn', 'expiresOn', 'dueOn'].includes(key) &&
+                    typeof field.value === 'string' &&
+                    /^\d{4}-\d{2}-\d{2}$/.test(field.value)
+                  ? formatFullDate(field.value as DateOnly)
+                  : key === 'type' &&
+                      typeof field.value === 'string' &&
+                      field.value in DOCUMENT_LABELS
+                    ? DOCUMENT_LABELS[field.value as DocumentType]
+                    : String(field.value ?? 'Не указано'),
             confident: field.confident,
           },
         ];
