@@ -1,0 +1,204 @@
+import { randomUUID } from 'node:crypto';
+import { AiStatus } from '@homecrm/shared';
+import type { Page } from '@playwright/test';
+import { identityPage, meterPage } from '../../../server/src/ai/eval/inbox.ts';
+import type { Family } from '../auth/support/family.ts';
+import { test } from '../auth/support/fixtures.ts';
+import { apiAs } from './notes-support.ts';
+import { checkApp, expect, openSection, signInAs } from './support.ts';
+
+async function enable(family: Family) {
+  await family.database.admin.query('UPDATE spaces SET ai_enabled=true WHERE id=$1', [
+    family.houseId,
+  ]);
+}
+async function capture(page: Page, text: string) {
+  await openSection(page, '/more/inbox/new', 'Входящие');
+  await page.getByLabel('Текст или диктовка').fill(text);
+  await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
+  const consent = page.getByRole('button', { name: 'Согласен, разобрать', exact: true });
+  if (await consent.isVisible()) await consent.click();
+  await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
+  await page.getByRole('link', { name: 'Открыть', exact: true }).first().click();
+}
+test('INBOX-1/2/4: во входящие → app fake → сохранить как предложено', async ({
+  page,
+  family,
+}, info) => {
+  await enable(family);
+  await signInAs(page, family, 'adult');
+  await capture(page, 'Позвонить в учебную мастерскую');
+  await checkApp(page, info, 'inbox-ready');
+  await page.getByRole('button', { name: 'Сохранить как предложено', exact: true }).click();
+  await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
+  expect(
+    (await family.database.admin.query('SELECT title FROM tasks')).rows.map((r) => r.title),
+  ).toContain('Позвонить в учебную мастерскую');
+});
+test('INBOX-4: Изменить открывает обычную форму, исправленные поля сохраняются', async ({
+  page,
+  family,
+}, info) => {
+  await enable(family);
+  await signInAs(page, family, 'adult');
+  await capture(page, 'Позвонить в учебную мастерскую');
+  await page.getByRole('link', { name: 'Изменить', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Новая запись: Дело', exact: true }),
+  ).toBeVisible();
+  await page.getByLabel('Название дела', { exact: true }).fill('Учебная исправленная задача');
+  await checkApp(page, info, 'inbox-edit-task');
+  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
+  expect(
+    (await family.database.admin.query('SELECT title FROM tasks')).rows.map((r) => r.title),
+  ).toContain('Учебная исправленная задача');
+});
+test('AI-4: фото документа личности → пустая ручная форма → файл документа', async ({
+  page,
+  family,
+}, info) => {
+  await enable(family);
+  await signInAs(page, family, 'adult');
+  await openSection(page, '/more/inbox/new', 'Входящие');
+  const bytes = await identityPage();
+  await page
+    .getByLabel('Галерея или файл — можно несколько страниц')
+    .setInputFiles({ name: 'Учебный документ.png', mimeType: 'image/png', buffer: bytes });
+  await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
+  await page.getByRole('button', { name: 'Согласен, разобрать', exact: true }).click();
+  await expect(
+    page.getByText('Документ личности — заполните вручную', { exact: true }),
+  ).toBeVisible({ timeout: 20000 });
+  await page.getByRole('link', { name: 'Заполнить вручную', exact: true }).click();
+  await page.getByRole('link', { name: 'Заполнить вручную', exact: true }).click();
+  await expect(page.getByLabel('Название', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Номер', { exact: true })).toHaveValue('');
+  await checkApp(page, info, 'inbox-identity-manual');
+  await page.getByLabel('Название', { exact: true }).fill('Учебный документ вручную');
+  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
+  expect((await family.database.admin.query('SELECT draft FROM inbox_items')).rows).toEqual([
+    { draft: null },
+  ]);
+  expect((await family.database.admin.query('SELECT id FROM document_files')).rowCount).toBe(1);
+});
+test('INBOX-3: карточка нового объекта → обычная форма → привязка', async ({
+  page,
+  family,
+}, info) => {
+  await enable(family);
+  await signInAs(page, family, 'adult');
+  await capture(page, 'Заметка: новый объект: Учебный насос; гарантия лежит в ящике');
+  await page.getByRole('link', { name: 'Создать объект', exact: true }).click();
+  await expect(page.getByLabel('Название', { exact: true })).toHaveValue('Учебный насос');
+  await checkApp(page, info, 'inbox-new-object');
+  await page.getByRole('button', { name: 'Создать объект', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Входящее', exact: true })).toBeVisible();
+  expect(
+    (await family.database.admin.query('SELECT title FROM objects')).rows.map((r) => r.title),
+  ).toContain('Учебный насос');
+  const row = (await family.database.admin.query('SELECT draft FROM inbox_items')).rows[0];
+  expect(row.draft.classification.newObject).toBeNull();
+  expect(row.draft.classification.objectId.value).toBeTruthy();
+});
+test('INBOX-1: офлайн-захват → очередь → отправка без дубликата', async ({
+  page,
+  family,
+  context,
+}, info) => {
+  await enable(family);
+  await signInAs(page, family, 'adult');
+  const status = page.waitForResponse((r) => r.url().includes('/api/ai/status'));
+  await openSection(page, '/more/inbox/new', 'Входящие');
+  await status;
+  await context.setOffline(true);
+  await page.getByLabel('Текст или диктовка').fill('Учебная мысль без сети');
+  await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
+  await page.getByRole('button', { name: 'Согласен, разобрать', exact: true }).click();
+  await expect(page.getByText('Сохранено на устройстве.', { exact: false })).toBeVisible();
+  await checkApp(page, info, 'inbox-offline');
+  await context.setOffline(false);
+  await expect(page.getByText('Учебная мысль без сети', { exact: true })).toBeVisible({
+    timeout: 20000,
+  });
+  expect((await family.database.admin.query('SELECT id FROM inbox_items')).rowCount).toBe(1);
+  await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
+});
+
+for (const mixed of [false, true])
+  test(`AI-5: ${mixed ? 'покупка и заметка — фото у заметки' : 'покупка — предупреждение и удаление фото'}`, async ({
+    page,
+    family,
+  }, info) => {
+    await enable(family);
+    await signInAs(page, family, 'adult');
+    await openSection(page, '/more/inbox/new', 'Входящие');
+    await page
+      .getByLabel('Текст или диктовка')
+      .fill(
+        mixed
+          ? 'Купить учебный блокнот и заметка: гарантия насоса в ящике'
+          : 'Купить учебный блокнот',
+      );
+    await page.getByLabel('Галерея или файл — можно несколько страниц').setInputFiles({
+      name: 'Учебное фото.png',
+      mimeType: 'image/png',
+      buffer: await meterPage(),
+    });
+    await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
+    await page.getByRole('button', { name: 'Согласен, разобрать', exact: true }).click();
+    await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
+    await page.getByRole('link', { name: 'Открыть', exact: true }).click();
+    if (!mixed) await expect(page.getByText('Фото не сохранится', { exact: true })).toBeVisible();
+    else
+      await expect(
+        page.getByRole('heading', { name: 'Также сохранится', exact: true }),
+      ).toBeVisible();
+    await checkApp(page, info, mixed ? 'inbox-mixed' : 'inbox-shopping-photo');
+    await page.getByRole('button', { name: 'Сохранить как предложено', exact: true }).click();
+    await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
+    expect((await family.database.admin.query('SELECT id FROM shopping_items')).rowCount).toBe(1);
+    expect((await family.database.admin.query('SELECT id FROM inbox_files')).rowCount).toBe(0);
+    expect((await family.database.admin.query('SELECT id FROM note_files')).rowCount).toBe(
+      mixed ? 1 : 0,
+    );
+  });
+
+for (const automatic of [true, false])
+  test(`INBOX-2: ${automatic ? 'новое разбирается при открытии входящих' : 'без согласия ждёт кнопки Разобрать'}`, async ({
+    page,
+    family,
+  }, info) => {
+    await enable(family);
+    const api = await apiAs(family, 'adult');
+    const status = AiStatus.parse((await api.get(`ai/status?spaceId=${family.houseId}`)).body);
+    const id = randomUUID();
+    expect(
+      (
+        await api.post('inbox', {
+          id,
+          idempotencyKey: id,
+          ownerAccountId: family.person('adult').id,
+          offline: true,
+          source: 'text',
+          text: 'Заметка: учебный код калитки 0000',
+          houseId: family.houseId,
+          consent: automatic ? `v4:${status.provider}` : null,
+        })
+      ).status,
+    ).toBe(201);
+    await signInAs(page, family, 'adult');
+    expect(
+      (await family.database.admin.query('SELECT status FROM inbox_items WHERE id=$1', [id]))
+        .rows[0].status,
+    ).toBe('new');
+    await openSection(page, '/more/inbox', 'Входящие');
+    if (!automatic) {
+      await page.getByRole('link', { name: 'Открыть', exact: true }).click();
+      await page.getByRole('button', { name: 'Разобрать', exact: true }).click();
+      await page.getByRole('button', { name: 'Согласен, разобрать', exact: true }).click();
+    }
+    await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
+    await checkApp(page, info, automatic ? 'inbox-reopen' : 'inbox-parse-button');
+  });

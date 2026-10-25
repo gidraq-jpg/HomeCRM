@@ -52,7 +52,10 @@ describe('матрица доступа: база отвечает так же, 
         }
         // Матрица не вырождена: в каждой операции есть и разрешённые, и запрещённые попытки.
         // Удаление мимо корзины и подмена автора, времени создания и id запрещены всем.
-        if (FORBIDDEN_FOR_ALL.includes(operation)) {
+        if (
+          FORBIDDEN_FOR_ALL.includes(operation) ||
+          (operation === 'move' && types?.[0] === 'inbox_item')
+        ) {
           expect(report.allowedByReference).toBe(0);
         } else {
           expect(report.allowedByReference).toBeGreaterThan(0);

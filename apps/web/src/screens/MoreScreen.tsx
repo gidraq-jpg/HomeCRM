@@ -13,6 +13,7 @@ import {
   Trash,
   UserCircle,
 } from '@phosphor-icons/react';
+import { InboxLink } from '../inbox/InboxScreen.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 
@@ -20,6 +21,7 @@ import { StudioPage as Page } from '../ui/StudioPage.tsx';
 export function MoreScreen() {
   return (
     <Page service title="Ещё" eyebrow="Под рукой" back={{ to: '/today', label: 'Сегодня' }}>
+      <InboxLink />
       <RowList label="Разделы">
         <Row
           to="/more/shopping"

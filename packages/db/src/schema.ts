@@ -485,6 +485,83 @@ const fileColumns = () => ({
   previewStorageKey: uuid('preview_storage_key'),
   previewEnvelope: jsonb('preview_envelope'),
 });
+/** INBOX-5: не индексируется поиском; личный экспорт и общая корзина. */
+const inboxDefinition = recordTable(
+  'inbox_items',
+  'inbox_item',
+  {
+    source: text('source').notNull().default('text'),
+    text: text('text').notNull().default(''),
+    status: text('status').notNull().default('new'),
+    houseId: uuid('house_id').references(() => spaces.id),
+    consent: text('consent'),
+    captureHash: text('capture_hash').notNull().default(''),
+    draft: jsonb('draft'),
+    errorCode: text('error_code'),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    restoredAt: timestamp('restored_at', { withTimezone: true }),
+    target: jsonb('target').$type<{
+      type: string;
+      id: string;
+      additional?: { type: string; id: string }[];
+    }>(),
+  },
+  {
+    extraChecks: [
+      check(
+        'inbox_items_personal',
+        sql`space_kind='personal' AND audience IS NULL AND assignee_id=author_id`,
+      ),
+      check('inbox_items_status', sql`status IN ('new','processing','ready','error','identity')`),
+      check('inbox_items_source', sql`source IN ('photo','file','text','voice')`),
+      check('inbox_items_identity_empty', sql`status<>'identity' OR draft IS NULL`),
+    ],
+    extraPolicies: [
+      pgPolicy('inbox_items_worker_select', {
+        for: 'select',
+        to: workerRole,
+        using: sql`resolved_at IS NULL AND coalesce(restored_at,created_at)<=now()-interval '30 days'`,
+      }),
+      pgPolicy('inbox_items_worker_expire', {
+        for: 'update',
+        to: workerRole,
+        using: sql`deleted_at IS NULL AND resolved_at IS NULL AND coalesce(restored_at,created_at)<=now()-interval '30 days'`,
+        withCheck: sql`deleted_at IS NOT NULL AND deleted_at<=now() AND resolved_at IS NULL AND coalesce(restored_at,created_at)<=now()-interval '30 days'`,
+      }),
+    ],
+  },
+);
+export const inboxItems = inboxDefinition.table;
+export const inboxItemsHistory = inboxDefinition.history;
+const inboxFilesDefinition = recordTable('inbox_files', 'inbox_file', fileColumns(), {
+  parent: inboxItems,
+  extraPolicies: [
+    pgPolicy('inbox_files_worker_expire_select', {
+      for: 'select',
+      to: workerRole,
+      using: sql`EXISTS(SELECT 1 FROM inbox_items i WHERE i.id=parent_id AND i.deleted_at IS NOT NULL)`,
+    }),
+    pgPolicy('inbox_files_worker_expire', {
+      for: 'update',
+      to: workerRole,
+      using: sql`EXISTS(SELECT 1 FROM inbox_items i WHERE i.id=parent_id AND i.deleted_at IS NOT NULL)`,
+      withCheck: sql`deleted_at IS NOT NULL AND EXISTS(SELECT 1 FROM inbox_items i WHERE i.id=parent_id AND i.deleted_at=inbox_files.deleted_at)`,
+    }),
+    pgPolicy('inbox_files_resolved_delete', {
+      for: 'delete',
+      to: appRole,
+      using: sql`author_id=app.current_account_id() AND EXISTS(SELECT 1 FROM inbox_items i WHERE i.id=parent_id AND i.resolved_at IS NOT NULL)`,
+    }),
+  ],
+  extraChecks: [
+    check(
+      'inbox_files_personal',
+      sql`space_kind='personal' AND audience IS NULL AND assignee_id=author_id`,
+    ),
+  ],
+});
+export const inboxFiles = inboxFilesDefinition.table;
+export const inboxFilesHistory = inboxFilesDefinition.history;
 const noteFilesDefinition = recordTable('note_files', 'note_file', fileColumns(), {
   parent: notes,
 });
@@ -822,6 +899,8 @@ export const templateApplications = pgTable(
 
 /** Таблица-пример для каждого вида записи. */
 export const RECORD_TABLES = {
+  inbox_item: inboxItems,
+  inbox_file: inboxFiles,
   note: notes,
   note_item: noteItems,
   shopping_item: shoppingItems,
@@ -845,6 +924,8 @@ export const RECORD_TABLES = {
 
 /** История изменений каждого вида записи (OBJ-6). */
 export const RECORD_HISTORY_TABLES = {
+  inbox_item: inboxItemsHistory,
+  inbox_file: inboxFilesHistory,
   note: notesHistory,
   note_item: noteItemsHistory,
   shopping_item: shoppingItemsHistory,

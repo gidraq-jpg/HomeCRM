@@ -50,6 +50,19 @@ export interface RecordFacts {
 
 const ADULT_ROLES: ReadonlySet<Role> = new Set(['admin', 'adult']);
 
+/** INBOX-5: входящие принадлежат только автору в его личном пространстве. */
+export function canViewInbox(viewer: Viewer, record: RecordFacts): boolean {
+  return (
+    record.authorId === viewer.accountId &&
+    record.placement.kind === 'personal' &&
+    record.placement.ownerId === viewer.accountId
+  );
+}
+/** AI-5: после подтверждения исходный файл захвата больше не хранится во входящих. */
+export function canDiscardInboxFile(viewer: Viewer, file: RecordFacts, resolved: boolean): boolean {
+  return resolved && file.type === 'inbox_file' && canViewInbox(viewer, file);
+}
+
 export function roleIn(viewer: Viewer, spaceId: string): Role | undefined {
   return viewer.memberships.get(spaceId);
 }
@@ -161,6 +174,8 @@ export function canViewTimelineEvent(
  * Запись в корзине не меняют и не переносят: её можно только восстановить (`canRestore`).
  */
 export function canWrite(viewer: Viewer, record: RecordFacts): boolean {
+  if (record.type === 'inbox_item' || record.type === 'inbox_file')
+    return !record.trashed && canViewInbox(viewer, record);
   const { placement } = record;
   if (record.trashed === true) return false;
   if (!canView(viewer, placement)) return false;
@@ -185,6 +200,7 @@ export function canMove(
   target: Placement,
   hasOtherContributions = true,
 ): boolean {
+  if (record.type === 'inbox_item' || record.type === 'inbox_file') return false;
   if (!canWrite(viewer, record)) return false;
   if (record.placement.kind === 'personal' && target.kind === 'household')
     return (
@@ -218,6 +234,8 @@ export function canChangeAudience(viewer: Viewer, record: RecordFacts, target: P
 
 /** Может ли участник убрать запись в корзину. В общем — только взрослые. */
 export function canTrash(viewer: Viewer, record: RecordFacts): boolean {
+  if (record.type === 'inbox_item' || record.type === 'inbox_file')
+    return canViewInbox(viewer, record);
   const { placement } = record;
   if (record.type === 'utility_payment' || record.type === 'utility_charge') return false;
   if (!canView(viewer, placement)) return false;
@@ -228,6 +246,8 @@ export function canTrash(viewer: Viewer, record: RecordFacts): boolean {
 
 /** Может ли участник восстановить запись из корзины. В общем — администратор или взрослый-автор. */
 export function canRestore(viewer: Viewer, record: RecordFacts): boolean {
+  if (record.type === 'inbox_item' || record.type === 'inbox_file')
+    return canViewInbox(viewer, record);
   const { placement } = record;
   if (record.type === 'utility_payment' || record.type === 'utility_charge') return false;
   if (!canView(viewer, placement)) return false;

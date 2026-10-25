@@ -5,6 +5,7 @@ export * from './contacts.ts';
 export * from './deadlines.ts';
 export * from './documents.ts';
 export * from './export.ts';
+export * from './inbox.ts';
 export * from './meters.ts';
 export * from './notes.ts';
 export * from './notifications.ts';

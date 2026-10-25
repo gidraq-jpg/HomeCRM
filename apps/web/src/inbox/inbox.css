@@ -1,0 +1,40 @@
+.inbox-capture {
+  display: grid;
+  gap: var(--space-4, 16px);
+  margin-block: 24px;
+  max-width: 44rem;
+}
+.inbox-list {
+  list-style: none;
+  padding: 0;
+  margin-block: 24px;
+}
+.inbox-list > li {
+  padding-block: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.inbox-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.inbox-status {
+  font-weight: 600;
+}
+.inbox-empty {
+  margin-block: 32px;
+  max-width: 48ch;
+}
+.inbox-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.inbox-fields > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+.inbox-fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

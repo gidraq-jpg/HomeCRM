@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import {
   CalendarDate,
@@ -14,7 +15,9 @@ import { Failure } from '../objects/support.ts';
 import type { AiConfig } from './config.ts';
 import { normalizeResponse, ResponseSchemas, requestContext } from './drafts.ts';
 import { common } from './prompts/common.ts';
+import { document } from './prompts/document.ts';
 import { identity } from './prompts/identity.ts';
+import { inbox } from './prompts/inbox.ts';
 import { meter } from './prompts/meter.ts';
 import { note } from './prompts/note.ts';
 import { receipt } from './prompts/receipt.ts';
@@ -34,6 +37,7 @@ export interface ExtractRequest {
   kind: DraftKind | 'auto';
   text?: string;
   image?: { bytes: Buffer; classification: 'ordinary' | 'passport' | 'medical' };
+  images?: { bytes: Buffer; classification: 'ordinary' | 'passport' | 'medical' }[];
   deadline?: number;
   context: {
     objects: readonly { id: string; title: string }[];
@@ -41,6 +45,7 @@ export interface ExtractRequest {
     timeZone: string;
     now?: Date;
     accounts?: readonly { id: string; number: string }[];
+    meters?: readonly { id: string; title: string }[];
     meter?: Pick<MeterData, 'resource' | 'zones' | 'integerDigits' | 'fractionDigits' | 'unit'> & {
       previous: string[] | null;
     };
@@ -54,6 +59,10 @@ const unavailable = () =>
   new Failure(503, 'AI_UNAVAILABLE', 'Служба ИИ недоступна. Можно ввести вручную.');
 const invalid = () =>
   new Failure(422, 'AI_INVALID_RESPONSE', 'Не удалось разобрать. Можно ввести вручную.');
+const limitMessage = (text: string) =>
+  /usage limit|rate limit|quota exceeded|limit reached|лимит.{0,30}(?:исчерпан|достигнут)|достигнут.{0,30}лимит/iu.test(
+    text,
+  );
 const audioTypes = [
   'audio/webm',
   'audio/ogg',
@@ -62,6 +71,25 @@ const audioTypes = [
   'audio/wav',
   'audio/x-wav',
 ];
+let fakeIdentityHashes: Promise<Set<string>> | undefined;
+async function fakeExtract(input: ExtractRequest) {
+  if (input.kind === 'identity' && input.image) {
+    // Только fake: известные вымышленные страницы нужны сквозным проверкам барьера AI-4.
+    const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+    fakeIdentityHashes ??= Promise.all(
+      Array.from({ length: 5 }, async (_, i) =>
+        hash(
+          await preparePhoto(
+            await readFile(new URL(`./eval/samples/identity/${i + 1}.jpg`, import.meta.url)),
+          ),
+        ),
+      ),
+    ).then((rows) => new Set(rows));
+    if ((await fakeIdentityHashes).has(hash(await preparePhoto(input.image.bytes))))
+      return { identity: 'yes' as const };
+  }
+  return fakeDraft(input);
+}
 export function validateAudio(audio: Audio) {
   if (
     !audioTypes.includes(audio.mime) ||
@@ -76,7 +104,8 @@ export function validateAudio(audio: Audio) {
 export function guardInput(input: ExtractRequest) {
   if (
     !(input.kind in ResponseSchemas) ||
-    (input.image && input.image.classification !== 'ordinary')
+    (input.image && input.image.classification !== 'ordinary') ||
+    input.images?.some((image) => image.classification !== 'ordinary')
   )
     throw new Failure(400, 'AI_PRIVATE_DOCUMENT');
   if (!input.text && !input.image) throw new Failure(400, 'INVALID_INPUT');
@@ -96,7 +125,44 @@ export async function preparePhoto(bytes: Buffer) {
 export function fakeDraft(input: ExtractRequest): Draft {
   guardInput(input);
   const f = <T>(value: T) => ({ value, confident: true });
-  if (input.kind === 'identity') return { identity: 'no' };
+  if (input.kind === 'inbox')
+    return {
+      shoppingText: null,
+      kind: /^купить/iu.test(input.text ?? '')
+        ? 'shopping'
+        : /^заметка:/iu.test(input.text ?? '')
+          ? 'note'
+          : /договор|гаранти/iu.test(input.text ?? '')
+            ? 'document'
+            : 'task',
+      objectId: f(input.context.objects.find((o) => input.text?.includes(o.title))?.id ?? null),
+      personId: f(null),
+      meterId: f(null),
+      newObject: /новый объект:\s*([^;]+)/iu.exec(input.text ?? '')?.[1]
+        ? {
+            title: /новый объект:\s*([^;]+)/iu.exec(input.text ?? '')?.[1]?.trim() ?? '',
+            objectType: 'other' as const,
+          }
+        : null,
+    };
+  if (input.kind === 'document')
+    return {
+      type: f('contract'),
+      title: f('Учебный договор'),
+      issuedOn: f(null),
+      expiresOn: f(null),
+      ownerId: f(null),
+      fields: [],
+    };
+  if (input.kind === 'identity')
+    return {
+      identity:
+        /паспорт|снилс|водительское удостоверение|полис омс|полис дмс|свидетельство о (?:рождении|браке)/iu.test(
+          input.text ?? '',
+        )
+          ? 'yes'
+          : 'no',
+    };
   if (input.kind === 'receipt')
     return {
       supplier: f('Учебный поставщик'),
@@ -172,13 +238,15 @@ export function createProviders(
     meter?: string;
     identity?: string;
     receipt?: string;
+    inbox?: string;
+    document?: string;
   } = {
     task,
     shopping,
     note,
   },
 ) {
-  const rules = { meter, identity, receipt, ...prompts };
+  const rules = { meter, identity, receipt, inbox, document, ...prompts };
   // Прокси применяется только к внешнему разбору; локальная речь остаётся в локальной сети.
   const dispatcher = config.AI_HTTPS_PROXY ? new ProxyAgent(config.AI_HTTPS_PROXY) : undefined;
   async function request(
@@ -291,7 +359,7 @@ export function createProviders(
         Date.now() + Math.min(timeout.total ?? 120000, 120000),
       );
       guardInput(input);
-      if (config.AI_EXTRACT_PROVIDER === 'fake') return fakeDraft(input);
+      if (config.AI_EXTRACT_PROVIDER === 'fake') return fakeExtract(input);
       if (config.AI_EXTRACT_PROVIDER !== 'openai-compatible') throw unavailable();
       let key: string;
       try {
@@ -311,8 +379,8 @@ export function createProviders(
           }),
         },
       ];
-      if (input.image) {
-        const image = await preparePhoto(input.image.bytes);
+      for (const source of [...(input.image ? [input.image] : []), ...(input.images ?? [])]) {
+        const image = await preparePhoto(source.bytes);
         content.push({
           type: 'image_url',
           image_url: { url: `data:image/jpeg;base64,${image.toString('base64')}` },
@@ -350,6 +418,7 @@ export function createProviders(
           timeout.extraction,
           deadline,
         );
+        if (!r.ok && limitMessage(await r.clone().text())) throw new Failure(429, 'AI_QUOTA');
         if (r.status === 400 && structured) {
           structured = false;
           continue;
@@ -377,9 +446,11 @@ export function createProviders(
             })
             .parse(await r.json());
           const text = envelope.choices[0]?.message.content ?? '';
+          if (limitMessage(text)) throw new Failure(429, 'AI_QUOTA');
           const json = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/)?.[0] ?? text;
           return normalizeResponse(JSON.parse(json), input);
-        } catch {
+        } catch (error) {
+          if (error instanceof Failure && error.status === 429) throw error;
           if (++schemaFailures > 1) throw invalid();
           messages.push({
             role: 'user',

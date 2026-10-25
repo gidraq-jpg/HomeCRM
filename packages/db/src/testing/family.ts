@@ -40,6 +40,8 @@ const HOUSES: ReadonlyArray<{ name: string; members: Partial<Record<PersonKey, R
 ];
 
 export const TYPE_LABELS: Readonly<Record<RecordType, string>> = {
+  inbox_item: 'входящее',
+  inbox_file: 'файл входящего',
   note: 'заметка',
   note_item: 'пункт заметки',
   shopping_item: 'покупка',
@@ -191,13 +193,23 @@ export function buildFamily(): Family {
   const taskParents = new Map<Placement, string>();
   const documentParents = new Map<Placement, string>();
   const chargeParents = new Map<Placement, string>();
+  const inboxParents = new Map<Placement, string>();
   for (const type of RECORD_TYPES) {
     for (const placement of placements) {
+      if (type.startsWith('inbox_') && placement.kind !== 'personal') continue;
       for (const authorId of authorCandidates(placement)) {
+        if (
+          type.startsWith('inbox_') &&
+          placement.kind === 'personal' &&
+          authorId !== placement.ownerId
+        )
+          continue;
         for (const assigneeId of eligibleAssignees(placement)) {
           for (const trashed of [false, true]) {
             const facts: RecordFacts = { placement, type, authorId, assigneeId, trashed };
             const id = randomUUID();
+            if (type === 'inbox_item' && !trashed && !inboxParents.has(placement))
+              inboxParents.set(placement, id);
             if (type === 'contact' && !trashed && !contactParents.has(placement))
               contactParents.set(placement, id);
             if (type === 'task' && !trashed && !taskParents.has(placement))
@@ -221,26 +233,30 @@ export function buildFamily(): Family {
   }
   const parentIdFor = (placement: Placement, type: RecordType = 'note_item'): string => {
     const found = (
-      type === 'task_file'
-        ? taskParents
-        : type === 'contact_interaction'
-          ? contactParents
-          : type === 'document_file'
-            ? documentParents
-            : type === 'utility_charge'
-              ? accountParents
-              : type === 'utility_payment'
-                ? chargeParents
-                : type === 'meter_reading'
-                  ? meterParents
-                  : ['note_item', 'note_file'].includes(type)
-                    ? parents
-                    : objectParents
+      type === 'inbox_file'
+        ? inboxParents
+        : type === 'task_file'
+          ? taskParents
+          : type === 'contact_interaction'
+            ? contactParents
+            : type === 'document_file'
+              ? documentParents
+              : type === 'utility_charge'
+                ? accountParents
+                : type === 'utility_payment'
+                  ? chargeParents
+                  : type === 'meter_reading'
+                    ? meterParents
+                    : ['note_item', 'note_file'].includes(type)
+                      ? parents
+                      : objectParents
     ).get(placement);
     if (found === undefined) throw new Error('No parent note in this place');
     return found;
   };
   for (const record of records) {
+    if (record.type === 'inbox_file')
+      record.parentId = parentIdFor(record.facts.placement, 'inbox_file');
     if (record.type === 'note_item' || record.type === 'note_file')
       record.parentId = parentIdFor(record.facts.placement);
     if (
@@ -372,6 +388,7 @@ export function fileFixture(type: RecordType) {
     return { paidOn: '2026-10-08', amountCents: 1, payer: { kind: 'tenant' }, method: 'tenant' };
   if (type === 'meter_reading') return { occurredOn: '2026-10-01' };
   return type === 'note_file' ||
+    type === 'inbox_file' ||
     type === 'object_file' ||
     type === 'document_file' ||
     type === 'task_file'

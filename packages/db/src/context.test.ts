@@ -68,7 +68,7 @@ const SEEDED = new Set([
   'space_members',
   'spaces',
   ...RECORD_NAMES,
-  ...RECORD_NAMES.map((name) => `${name}_history`),
+  ...RECORD_NAMES.filter((name) => !name.startsWith('inbox_')).map((name) => `${name}_history`),
 ]);
 
 beforeAll(async () => {

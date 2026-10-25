@@ -3,6 +3,7 @@ import { TimeZone } from '@homecrm/shared';
 import { z } from 'zod';
 import { startDeadlineJobs } from './deadlines/jobs.ts';
 import { reportWorkerError } from './deadlines/logging.ts';
+import { startInboxJobs } from './inbox/jobs.ts';
 import { createPushSender, VapidConfig } from './notifications/transport.ts';
 
 const Environment = z.object({
@@ -28,9 +29,10 @@ try {
     report,
     vapid.success ? createPushSender(vapid.data) : undefined,
   );
+  const stopInbox = await startInboxJobs(pool, report);
   for (const signal of ['SIGINT', 'SIGTERM'] as const)
     process.once(signal, () => {
-      void stop()
+      void Promise.all([stop(), stopInbox()])
         .then(() => pool.end())
         .then(
           () => process.exit(0),

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 
 const http = z.url().refine((v) => URL.canParse(v) && /^https?:$/.test(new URL(v).protocol));
@@ -23,6 +24,19 @@ const Schema = z
       ctx.addIssue({ code: 'custom', message: 'Incomplete AI configuration' });
   });
 export type AiConfig = z.infer<typeof Schema>;
+export function aiProvider(ai: AiConfig) {
+  const version = createHash('sha256')
+    .update(JSON.stringify([ai.AI_EXTRACT_PROVIDER, ai.AI_EXTRACT_URL, ai.AI_EXTRACT_MODEL]))
+    .digest('hex')
+    .slice(0, 16);
+  const supplier =
+    ai.AI_EXTRACT_PROVIDER === 'fake'
+      ? 'Учебный поставщик'
+      : ai.AI_EXTRACT_MODEL === 'hermes-agent'
+        ? 'Hermes → OpenAI'
+        : 'Совместимый поставщик';
+  return `${supplier}:${version}`;
+}
 export function loadAiConfig(env: NodeJS.ProcessEnv = process.env): AiConfig {
   const result = Schema.safeParse(env);
   if (!result.success) throw new Error('Invalid AI configuration');

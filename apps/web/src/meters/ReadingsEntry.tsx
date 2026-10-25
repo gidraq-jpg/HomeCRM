@@ -37,10 +37,18 @@ interface MeterFieldProps {
   submitted: boolean;
   photoProblem: string | undefined;
   onPhotoProblem: (text: string | undefined) => void;
+  showPhotos?: boolean;
 }
 
 /** Один счётчик: место, прошлое значение, поля по зонам, расход, фото (UTIL-7). */
-function MeterField({ meter, ctx, submitted, photoProblem, onPhotoProblem }: MeterFieldProps) {
+export function MeterField({
+  meter,
+  ctx,
+  submitted,
+  photoProblem,
+  onPhotoProblem,
+  showPhotos = true,
+}: MeterFieldProps) {
   const base = useId();
   const picker = useRef<HTMLInputElement>(null);
   const [replacing, setReplacing] = useState(false);
@@ -186,7 +194,7 @@ function MeterField({ meter, ctx, submitted, photoProblem, onPhotoProblem }: Met
           )}
         </p>
 
-        {ctx.canWrite ? (
+        {ctx.canWrite && showPhotos ? (
           <div className="reading__photos">
             <input
               ref={picker}

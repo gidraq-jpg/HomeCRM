@@ -3,6 +3,7 @@ import { useScope } from '../access/ScopeContext.tsx';
 import { useRadar } from '../deadlines/useRadar.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMyProfile } from '../household/queries.ts';
+import { InboxLink } from '../inbox/InboxScreen.tsx';
 import { listScopeOf } from '../notes/queries.ts';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectsList } from '../objects/queries.ts';
@@ -112,6 +113,7 @@ export function TodayHero({
   return (
     <div className="today-hero">
       <h1 className="visually-hidden">Сегодня</h1>
+      <InboxLink />
       <p className="page-heading__eyebrow today-hero__date">
         {date
           ? `${weekdayName(date)}, ${formatLongDate(date)}`

@@ -24,6 +24,8 @@ const RawAuto = z
   .min(1)
   .max(10);
 export const ResponseSchemas = {
+  inbox: DraftSchemas.inbox,
+  document: DraftSchemas.document,
   receipt: DraftSchemas.receipt.omit({ totalCents: true }).extend({
     total: z.strictObject({ value: z.string().max(100).nullable(), confident: z.boolean() }),
   }),
@@ -66,6 +68,27 @@ export function normalizeTask(raw: z.infer<typeof RawTask>, input: ExtractReques
   return { ...task, ...taskDates(whenText, input) };
 }
 export function normalizeResponse(value: unknown, input: ExtractRequest) {
+  if (input.kind === 'inbox' || input.kind === 'document') {
+    const raw = DraftSchemas[input.kind].parse(value);
+    const entries = {
+      objectId: input.context.objects,
+      personId: input.context.members,
+      ownerId: [...input.context.objects, ...input.context.members],
+      meterId: input.context.meters ?? [],
+    };
+    for (const [key, choices] of Object.entries(entries)) {
+      if (!(key in raw)) continue;
+      const field = (raw as Record<string, unknown>)[key] as {
+        value: string | null;
+        confident: boolean;
+      };
+      if (!choices.some((entry) => entry.id === field.value)) {
+        field.value = null;
+        field.confident = false;
+      }
+    }
+    return raw;
+  }
   if (input.kind === 'receipt') {
     const { total, ...raw } = ResponseSchemas.receipt.parse(value);
     const cents = receiptKopecks(total.value);
@@ -122,7 +145,14 @@ export function normalizeResponse(value: unknown, input: ExtractRequest) {
 }
 // API проверяет ExtractInput.consent=true до чтения контекста и вызова поставщика.
 // Здесь остаются только данные из п. 2 D25; eval использует вымышленную семью.
-export function requestContext(input: ExtractRequest) {
+export function requestContext(input: ExtractRequest): {
+  today?: string;
+  members?: string;
+  objects?: string;
+  meters?: string;
+  meter?: ExtractRequest['context']['meter'];
+  accounts?: string;
+} {
   if (input.kind === 'identity') return {};
   if (input.kind === 'meter') return { meter: input.context.meter };
   if (input.kind === 'receipt')
@@ -136,6 +166,9 @@ export function requestContext(input: ExtractRequest) {
   return {
     today: `${localDate(now, input.context.timeZone)} ${new Intl.DateTimeFormat('ru', { weekday: 'long', timeZone: input.context.timeZone }).format(now)}`,
     members: input.context.members.map((m) => `${m.id}: ${line(m.name)}`).join('\n'),
+    ...(input.kind === 'inbox'
+      ? { meters: input.context.meters?.map((m) => `${m.id}: ${line(m.title)}`).join('\n') ?? '' }
+      : {}),
     objects: input.context.objects
       .slice(0, 50)
       .map((o) => `${o.id}: ${line(o.title)}`)

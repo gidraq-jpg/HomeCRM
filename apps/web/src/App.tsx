@@ -12,6 +12,8 @@ import { DocumentsScreen } from './documents/DocumentsScreen.tsx';
 import { NewDocumentScreen } from './documents/NewDocumentScreen.tsx';
 import { HouseholdProvider } from './household/HouseholdContext.tsx';
 import { HouseScreen } from './household/HouseScreen.tsx';
+import { InboxReview } from './inbox/InboxReview.tsx';
+import { InboxScreen } from './inbox/InboxScreen.tsx';
 import { ObjectMeters } from './meters/ObjectMeters.tsx';
 import { ReadingsEntry } from './meters/ReadingsEntry.tsx';
 import { ReadingsLayout } from './meters/ReadingsLayout.tsx';
@@ -87,6 +89,11 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
       <OfflineBridge />
       <Routes>
         <Route index element={<Navigate to="/today" replace />} />
+        <Route path="more/inbox" element={<InboxScreen />} />
+        <Route path="more/inbox/new" element={<InboxScreen capture />} />
+        <Route path="more/inbox/trash" element={<InboxScreen trash />} />
+        <Route path="more/inbox/:inboxId" element={<InboxReview />} />
+        <Route path="more/inbox/:inboxId/edit/:editKind" element={<InboxReview />} />
         <Route path="today" element={<TasksScreen />} />
         <Route path="today/plan" element={<TasksScreen view="plan" />} />
         <Route path="today/all" element={<TasksScreen view="all" />} />

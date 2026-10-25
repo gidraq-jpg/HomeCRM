@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { BillingPeriod, Cents } from './charges.ts';
 import { CalendarDate } from './deadlines.ts';
+import { DocumentDraft, InboxClassification } from './inbox.ts';
 import { UtilityAccountData } from './utilities.ts';
 
 const field = <T extends z.ZodType>(value: T) => z.strictObject({ value, confident: z.boolean() });
@@ -58,6 +59,8 @@ export const ReceiptAccount = z.strictObject({
 export const ReceiptAccounts = z.array(ReceiptAccount);
 export type ReceiptAccount = z.infer<typeof ReceiptAccount>;
 export const DraftSchemas = {
+  inbox: InboxClassification,
+  document: DocumentDraft,
   task: TaskDraft,
   shopping: z.array(ShoppingDraft).min(1).max(100),
   note: NoteDraft,
@@ -70,6 +73,21 @@ export const AutoDraft = z.discriminatedUnion('kind', [
   ShoppingDraft.extend({ kind: z.literal('shopping') }),
   NoteDraft.extend({ kind: z.literal('note') }),
 ]);
+export const InboxEntry = z.strictObject({
+  classification: InboxClassification,
+  fields: z.union([
+    TaskDraft,
+    DraftSchemas.shopping,
+    NoteDraft,
+    MeterPhotoDraft,
+    ReceiptPhotoDraft,
+    DocumentDraft,
+  ]),
+});
+export type InboxDraft = z.infer<typeof InboxDraft>;
+export const InboxDraft = InboxEntry.extend({
+  additional: z.array(InboxEntry).max(10).default([]),
+});
 export const AutoDrafts = z.array(AutoDraft).min(1).max(10);
 export type AutoDraft = z.infer<typeof AutoDraft>;
 export type DraftKind = keyof typeof DraftSchemas;
@@ -77,6 +95,8 @@ export type TaskDraft = z.infer<typeof TaskDraft>;
 export type ShoppingDraft = z.infer<typeof ShoppingDraft>;
 export type NoteDraft = z.infer<typeof NoteDraft>;
 export type Draft =
+  | z.infer<typeof InboxClassification>
+  | z.infer<typeof DocumentDraft>
   | TaskDraft
   | ShoppingDraft[]
   | NoteDraft

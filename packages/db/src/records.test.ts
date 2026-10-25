@@ -86,7 +86,8 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
         ].includes(name)
           ? { [`${name}_search`]: 'sync_search_entry' }
           : {}),
-        [`${name}_defaults`]: 'record_defaults',
+        [`${name}_defaults`]: name.startsWith('inbox_') ? 'inbox_defaults' : 'record_defaults',
+        ...(name === 'inbox_items' ? { inbox_items_00_guard: 'inbox_worker_guard' } : {}),
         ...(['tasks', 'objects', 'documents'].includes(name)
           ? { [`${name}_assignment_push`]: 'record_assignment_notification' }
           : {}),
@@ -124,11 +125,11 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
           ? { [`${name}_deadlines`]: 'utility_source_deadlines' }
           : {}),
         ...(name === 'note_items' ? { note_items_00_parent_lock: 'lock_note_parent' } : {}),
-        [`${name}_links_purge`]: 'purge_record_links',
+        [`${name}_links_purge`]: name === 'inbox_files' ? 'inbox_file_purge' : 'purge_record_links',
         ...(['notes', 'objects'].includes(name)
           ? { [`${name}_files_placement`]: 'cascade_file_placement' }
           : {}),
-        ...(['note_files', 'object_files', 'task_files'].includes(name)
+        ...(['inbox_files', 'note_files', 'object_files', 'task_files'].includes(name)
           ? { [`${name}_00_lifecycle`]: 'file_lifecycle' }
           : {}),
         ...(name === 'objects' ? { objects_placement: 'cascade_object_placement' } : {}),
@@ -189,6 +190,19 @@ describe.each(RECORD_DEFINITIONS.map((definition) => [definition.name, definitio
       expect(rows.map((row) => `${row.tablename}.${row.policyname}:${row.cmd}`).sort()).toEqual(
         [
           `${name}.${name}_select:SELECT`,
+          ...(name === 'inbox_files'
+            ? [
+                'inbox_files.inbox_files_resolved_delete:DELETE',
+                'inbox_files.inbox_files_worker_expire_select:SELECT',
+                'inbox_files.inbox_files_worker_expire:UPDATE',
+              ]
+            : []),
+          ...(name === 'inbox_items'
+            ? [
+                'inbox_items.inbox_items_worker_select:SELECT',
+                'inbox_items.inbox_items_worker_expire:UPDATE',
+              ]
+            : []),
           ...(['tasks', 'objects', 'documents', 'notes'].includes(name)
             ? [`${name}.${name}_notification_owner:SELECT`]
             : []),
