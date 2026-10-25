@@ -7,6 +7,7 @@ import { buildArchive } from '../export/archive.ts';
 import { FileCipher } from '../files/crypto.ts';
 import type { FileServices } from '../files/service.ts';
 import { fileTransactions } from '../files/service.ts';
+import { redactUrl } from '../logging.ts';
 import { signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type World } from '../testing/world.ts';
 import { cleanupInbox } from './jobs.ts';
@@ -202,6 +203,12 @@ afterAll(async () => {
   await world?.close();
 });
 const config = loadAiConfig({ AI_EXTRACT_PROVIDER: 'fake' });
+it('INBOX-5: журнал удаляет query и произвольные сегменты URL входящих', () => {
+  const id = randomUUID();
+  expect(redactUrl(`/api/inbox?q=fictional-secret&text=fictional`)).toBe('/api/inbox');
+  expect(redactUrl(`/api/inbox/${id}/parse?text=fictional-secret`)).toBe(`/api/inbox/${id}/parse`);
+  expect(redactUrl('/api/inbox/fictional-secret/resolve')).toBe('/api/inbox/[redacted]/resolve');
+});
 function capture(text: string, id = randomUUID()) {
   return {
     id,
