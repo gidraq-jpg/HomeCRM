@@ -642,10 +642,16 @@ Linux Playwright проверяет захват, заполненную обы�
 новый объект, офлайн-захват с разбором после отправки, покупку с предупреждением,
 смешанный разбор, открытие новых и кнопку «Разобрать» на 360/412 px с axe.
 Итог: **18/18**, серьёзных и критичных нарушений axe нет.
+Входы на «Сегодня» и в «Ещё» дополнительно проверены существующей навигацией:
+**2/2** сценария на 360/412 px, контраст и цели нажатия проходят.
 Скриншоты: [360 px](screenshots/D27/inbox-ready-w360.png),
 [412 px](screenshots/D27/inbox-ready-w412.png),
 [покупка](screenshots/D27/inbox-shopping-photo-w360.png),
 [смешанный элемент](screenshots/D27/inbox-mixed-w412.png),
 [ручной документ](screenshots/D27/inbox-identity-manual-w360.png).
+[Сегодня 360](screenshots/D27/inbox-entry-today-w360.png),
+[412](screenshots/D27/inbox-entry-today-w412.png),
+[Ещё 360](screenshots/D27/inbox-entry-more-w360.png),
+[412](screenshots/D27/inbox-entry-more-w412.png).
 Это локальная Linux-проверка: камера и диктовка настоящего телефона требуют
 обычной проверки владельца перед выпуском. Новых зависимостей нет.

@@ -30,7 +30,7 @@ export function InboxLink() {
       <Link className="btn btn--secondary" to="/more/inbox/new">
         Во входящие
       </Link>
-      <Link className="text-button" to="/more/inbox">
+      <Link className="btn btn--secondary" to="/more/inbox">
         Входящие{data.data || pending ? ` · ${(data.data?.length ?? 0) + pending}` : ''}
       </Link>
     </div>
