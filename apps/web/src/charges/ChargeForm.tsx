@@ -35,6 +35,7 @@ interface ChargeFormProps {
   period: string;
   today: string;
   state: ReturnType<typeof useAction>;
+  initial?: ReceiptPhotoDraft;
   onSubmit: (input: ChargeInput, accountId: string, objectId: string) => Promise<void>;
   onCancel: () => void;
 }
@@ -57,10 +58,19 @@ export function ChargeForm({
   period,
   today,
   state,
+  initial,
   onSubmit,
   onCancel,
 }: ChargeFormProps) {
-  const [draft, setDraft] = useState<ChargeDraft>(() => emptyChargeDraft(period));
+  const [draft, setDraft] = useState<ChargeDraft>(() =>
+    initial
+      ? {
+          ...emptyChargeDraft(initial.period.value ?? period),
+          total: initial.totalCents.value === null ? '' : kopecksToInput(initial.totalCents.value),
+          dueOn: initial.dueOn.value ?? '',
+        }
+      : emptyChargeDraft(period),
+  );
   const [errors, setErrors] = useState<ChargeErrors | null>(null);
   const [nextKey, setNextKey] = useState(1);
   const [candidates, setCandidates] = useState<ReceiptAccount[]>([]);

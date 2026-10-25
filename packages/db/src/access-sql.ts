@@ -8,6 +8,8 @@
 import { ROLES, type Role } from '@homecrm/shared';
 
 export const RECORD_TYPES = [
+  'inbox_item',
+  'inbox_file',
   'note',
   'note_item',
   'shopping_item',
@@ -124,6 +126,15 @@ export function recordPolicySql(type: RecordType): {
   updateCheck: string;
 } {
   const live = 'deleted_at IS NULL';
+  if (type === 'inbox_item' || type === 'inbox_file') {
+    const own = `space_kind='personal' AND author_id=${ME} AND space_id IN ${MY_PERSONAL_SPACE}`;
+    return {
+      select: own,
+      insert: `deleted_at IS NULL AND ${own}`,
+      updateUsing: own,
+      updateCheck: own,
+    };
+  }
   const trashed = 'deleted_at IS NOT NULL';
   return {
     select: canViewSql(),

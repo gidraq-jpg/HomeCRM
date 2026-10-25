@@ -9,6 +9,7 @@ import { buildRows, filterRows } from '../deadlines/radar.ts';
 import { useHouseNames } from '../deadlines/useHouseNames.ts';
 import { isOpenWindow } from '../deadlines/utility.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { InboxLink } from '../inbox/InboxScreen.tsx';
 import { listScopeOf } from '../notes/queries.ts';
 import { PushCard } from '../notifications/PushCard.tsx';
 import { useSettings } from '../notifications/queries.ts';
@@ -249,6 +250,7 @@ function TodayFeed({ house }: { house: string | null }) {
           )}
         </Section>
       ) : null}
+      <InboxLink />
       <FirstRunCard />
       {!moving ? <OperationNotice operation={operation} /> : null}
       {!loadingFeed && query.data ? (

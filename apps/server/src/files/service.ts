@@ -3,6 +3,7 @@ import {
   type AppDatabase,
   documentFiles,
   eq,
+  inboxFiles,
   memberProfiles,
   noteFiles,
   objectFiles,
@@ -16,32 +17,44 @@ import { columnsOf, deny, placementOf, type Row } from '../objects/support.ts';
 import type { FileCipher } from './crypto.ts';
 import type { FileStorage } from './storage.ts';
 
-export type ParentType = 'note' | 'object' | 'document' | 'task';
+export type ParentType = 'note' | 'object' | 'document' | 'task' | 'inbox_item';
 export const fileTable = (type: ParentType) =>
-  type === 'task'
-    ? taskFiles
-    : type === 'note'
-      ? noteFiles
-      : type === 'document'
-        ? documentFiles
-        : objectFiles;
+  type === 'inbox_item'
+    ? inboxFiles
+    : type === 'task'
+      ? taskFiles
+      : type === 'note'
+        ? noteFiles
+        : type === 'document'
+          ? documentFiles
+          : objectFiles;
 export type FileRow = typeof noteFiles.$inferSelect;
 export interface FileServices {
   storage: FileStorage;
   cipher: FileCipher;
 }
-const transactions = new WeakMap<Transaction, { services: FileServices; keys: string[] }>();
+const transactions = new WeakMap<
+  Transaction,
+  { services: FileServices; keys: string[]; discard: string[] }
+>();
+/** AI-5: исходные блоки захвата удаляются только после подтверждённого COMMIT. */
+export function discardAfterCommit(tx: Transaction, keys: string[]) {
+  const context = transactions.get(tx);
+  if (!context) throw new Error('File transaction is unavailable');
+  context.discard.push(...keys);
+}
 /** После успешного тела исход COMMIT может быть неизвестен: блоки проверяет фоновая сверка. */
 export function fileTransactions(db: AppDatabase, services: FileServices): AppDatabase {
   return {
     async withAccount(accountId, fn, options) {
       const keys: string[] = [];
+      const discard: string[] = [];
       let bodyFinished = false;
       try {
-        return await db.withAccount(
+        const result = await db.withAccount(
           accountId,
           async (tx) => {
-            transactions.set(tx, { services, keys });
+            transactions.set(tx, { services, keys, discard });
             try {
               const result = await fn(tx);
               bodyFinished = true;
@@ -52,6 +65,8 @@ export function fileTransactions(db: AppDatabase, services: FileServices): AppDa
           },
           options,
         );
+        for (const key of discard) await services.storage.delete(key);
+        return result;
       } catch (error) {
         if (bodyFinished) throw error;
         const cleanup = await Promise.allSettled(keys.map((key) => services.storage.delete(key)));

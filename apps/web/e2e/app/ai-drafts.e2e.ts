@@ -186,10 +186,19 @@ test('SHOP-4, AI-6: надиктованная строка без «Разоб�
   page,
   family,
 }) => {
+  await page.route(
+    '**/api/ai/status?**',
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await route.continue();
+    },
+    { times: 1 },
+  );
   await mockSpeech(page, 'молоко, хлеб и яйца');
   await enable(family);
   await signInAs(page, family, 'adult');
   await openSection(page, '/more/shopping', 'Покупки');
+  await expect(page.getByRole('button', { name: 'Разобрать', exact: true })).toBeVisible();
   let requests = 0;
   page.on('request', (request) => {
     if (request.url().endsWith('/api/ai/extract')) requests++;

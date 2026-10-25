@@ -573,16 +573,22 @@ export function ShoppingCardScreen() {
 
 import { Sheet } from '../ui/Sheet.tsx';
 
-function ShoppingEditor({
+export function ShoppingEditor({
   card,
   house,
   initialTitle = '',
+  initialQuantity = '',
+  notice,
+  onCreated,
   onClose,
   onSaved,
 }: {
   card?: ShoppingCard;
   house: string | null;
   initialTitle?: string;
+  initialQuantity?: string;
+  notice?: string;
+  onCreated?: (id: string) => Promise<void>;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
@@ -590,7 +596,8 @@ function ShoppingEditor({
   const state = useAction();
   const key = useOperationKey();
   const [title, setTitle] = useState(card?.title ?? initialTitle);
-  const [quantity, setQuantity] = useState(card?.quantity ?? '');
+  const [quantity, setQuantity] = useState(card?.quantity ?? initialQuantity);
+  const createdId = useRef<string | null>(null);
   const [note, setNote] = useState(card?.data.note ?? '');
   const [store, setStore] = useState(card?.data.store ?? '');
   const [category, setCategory] = useState(card?.data.category ?? '');
@@ -619,20 +626,26 @@ function ShoppingEditor({
             idempotencyKey: key({ ...body, base: conflict?.updatedAt ?? editBase }),
           });
         else {
-          if (await alreadyListed(body.title, visibility, house)) {
+          if (!createdId.current && (await alreadyListed(body.title, visibility, house))) {
             setDuplicate(true);
             return;
           }
           const placement = newPlacement(visibility, house);
-          await createShopping({
-            ...body,
-            ...(placement ? { placement } : {}),
-            links: [
-              ...(object ? [{ type: 'object' as const, id: object }] : []),
-              ...(task ? [{ type: 'task' as const, id: task }] : []),
-            ],
-            idempotencyKey: key({ body, placement, object, task }),
-          });
+          const created = createdId.current
+            ? { id: createdId.current }
+            : await createShopping({
+                ...body,
+                ...(placement ? { placement } : {}),
+                links: [
+                  ...(object ? [{ type: 'object' as const, id: object }] : []),
+                  ...(task ? [{ type: 'task' as const, id: task }] : []),
+                ],
+                idempotencyKey: key({ body, placement, object, task }),
+              });
+          if (onCreated) {
+            createdId.current = created.id;
+            await onCreated(created.id);
+          }
         }
       } catch (error) {
         if (card && error instanceof ApiError && error.status === 409) {
@@ -653,6 +666,7 @@ function ShoppingEditor({
       title={card ? 'Править покупку' : 'Добавить покупку'}
       description="Количество, заметка, магазин и категория"
     >
+      {notice ? <Notice>{notice}</Notice> : null}
       <form className="auth-form" onSubmit={save}>
         <label>
           Название

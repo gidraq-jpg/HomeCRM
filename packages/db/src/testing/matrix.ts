@@ -317,6 +317,15 @@ function attemptsFor(
       return family.people.flatMap((viewer) =>
         types.flatMap((type) =>
           family.placements.flatMap((placement) => {
+            const inboxParent =
+              type === 'inbox_file'
+                ? (family.records.find(
+                    (r) =>
+                      r.type === 'inbox_item' &&
+                      !r.trashed &&
+                      r.facts.placement.spaceId === placement.spaceId,
+                  )?.id ?? crypto.randomUUID())
+                : undefined;
             const parentId = [
               'note_item',
               'object_field',
@@ -333,7 +342,7 @@ function attemptsFor(
               'utility_payment',
             ].includes(type)
               ? family.parentIdFor(placement, type)
-              : undefined;
+              : inboxParent;
             const insert = (
               tx: Transaction,
               values: { authorId: string; assigneeId: string | null; deletedAt?: Date },
@@ -412,15 +421,17 @@ function attemptsFor(
 async function lockMatrixParent(tx: Transaction, record: SeededRecord): Promise<void> {
   if (record.parentId === undefined) return;
   const table =
-    record.type === 'document_file'
-      ? RECORD_TABLES.document
-      : record.type === 'note_item' || record.type === 'note_file'
-        ? RECORD_TABLES.note
-        : record.type === 'object_file'
-          ? RECORD_TABLES.object
-          : record.type === 'task_file'
-            ? RECORD_TABLES.task
-            : undefined;
+    record.type === 'inbox_file'
+      ? RECORD_TABLES.inbox_item
+      : record.type === 'document_file'
+        ? RECORD_TABLES.document
+        : record.type === 'note_item' || record.type === 'note_file'
+          ? RECORD_TABLES.note
+          : record.type === 'object_file'
+            ? RECORD_TABLES.object
+            : record.type === 'task_file'
+              ? RECORD_TABLES.task
+              : undefined;
   if (table === undefined) return;
   // Обычная роль приложения и RLS: отсутствие строки не подменяет результат исходной попытки.
   await tx.select({ id: table.id }).from(table).where(eq(table.id, record.parentId)).for('update');

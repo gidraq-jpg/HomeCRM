@@ -14,6 +14,7 @@ import { exportRoutes } from './export/routes.ts';
 import { filesRoutes } from './files/routes.ts';
 import { type FileServices, fileTransactions } from './files/service.ts';
 import { householdRoutes } from './household/routes.ts';
+import { inboxRoutes } from './inbox/routes.ts';
 import { serializeRequest } from './logging.ts';
 import { notesRoutes } from './notes/routes.ts';
 import { notificationRoutes } from './notifications/routes.ts';
@@ -162,6 +163,11 @@ export function buildApp(
       return payload;
     });
     void app.register(aiRoutes, { ...auth, ai: dependencies.ai ?? loadAiConfig() });
+    void app.register(inboxRoutes, {
+      ...auth,
+      ai: dependencies.ai ?? loadAiConfig(),
+      ...(dependencies.files ? { files: dependencies.files } : {}),
+    });
     void app.register(authRoutes, auth);
     void app.register(exportRoutes, {
       ...auth,

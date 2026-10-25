@@ -162,7 +162,7 @@ it('AI: тайм-аут ограничен, один сетевой повтор
   await expect(p.extractor.extract(input)).rejects.toMatchObject({ code: 'AI_UNAVAILABLE' });
   expect(calls).toBe(2);
 });
-it('AI: паспорт, медицина и document отклоняются до HTTP', async () => {
+it('AI: запрещённая классификация фото и неизвестный вид отклоняются до HTTP', async () => {
   let calls = 0;
   const p = await setup(() => {
     calls++;
@@ -172,7 +172,7 @@ it('AI: паспорт, медицина и document отклоняются до
       p.extractor.extract({ ...input, image: { bytes: Buffer.from('fiction'), classification } }),
     ).rejects.toMatchObject({ code: 'AI_PRIVATE_DOCUMENT' });
   await expect(
-    p.extractor.extract({ ...input, kind: 'document' as ExtractRequest['kind'] }),
+    p.extractor.extract({ ...input, kind: 'passport' as ExtractRequest['kind'] }),
   ).rejects.toMatchObject({ code: 'AI_PRIVATE_DOCUMENT' });
   expect(calls).toBe(0);
 });

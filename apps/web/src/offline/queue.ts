@@ -1,4 +1,6 @@
 import {
+  InboxCapture,
+  OfflineMetadata,
   OfflineNoteCreate,
   OfflineNotePatch,
   OfflineReadingCreate,
@@ -10,6 +12,7 @@ import {
 } from '@homecrm/shared';
 import type { z } from 'zod';
 import { Me } from '../auth/api.ts';
+import { parseCapturedInbox } from '../inbox/parse.ts';
 import {
   assertIdentity,
   blockIdentity,
@@ -24,6 +27,12 @@ import { exactVersion } from './snapshots.ts';
 import { type Identity, type Intent, LIMITS, offlineDB, type StoredBlob, uuid } from './store.ts';
 
 const definitions: { method: string; route: RegExp; operation: string; schema: z.ZodType }[] = [
+  {
+    method: 'POST',
+    route: /^inbox$/,
+    operation: 'inbox_create',
+    schema: InboxCapture.extend(OfflineMetadata.shape),
+  },
   { method: 'POST', route: /^tasks$/, operation: 'task_create', schema: OfflineTaskCreate },
   {
     method: 'PATCH',
@@ -708,6 +717,9 @@ export async function synchronize(): Promise<void> {
               receipt: receipt.data,
               response: json,
               code: undefined,
+              ...(row.operation === 'inbox_create'
+                ? { body: { id: row.body.id }, frozenBody: undefined, inputFingerprint: undefined }
+                : {}),
             });
             await offlineDB.drafts.delete(row.id);
             if (row.operation === 'reading_create' || row.operation === 'readings_create') {
@@ -717,6 +729,11 @@ export async function synchronize(): Promise<void> {
           },
         );
         changed();
+        if (row.operation === 'inbox_create' && typeof row.body.id === 'string') {
+          // Долгий разбор не задерживает отправку остальных изменений и не меняет квитанцию захвата.
+          const id = row.body.id;
+          void parseCapturedInbox(id).catch(() => changed());
+        }
       } catch (error) {
         if (error instanceof LocalFailure && error.code === 'ACCOUNT_CHANGED') return;
         const attempts = row.attempts + 1;

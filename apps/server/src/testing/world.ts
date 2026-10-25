@@ -12,6 +12,7 @@ import { createTestDatabase, type TestDatabase } from '@homecrm/db/testing';
 import type { Role } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { inject } from 'vitest';
+import type { AiConfig } from '../ai/config.ts';
 import { buildApp } from '../app.ts';
 import type { Mailer } from '../auth/auth.ts';
 import { createHousehold, provisionAccount } from '../auth/provision.ts';
@@ -65,6 +66,7 @@ export interface World {
 }
 
 export interface WorldOptions {
+  ai?: AiConfig;
   /** Старая база для реальной проверки обновления с сохранёнными квитанциями. */
   migrationsFolder?: string;
   files?: FileServices;
@@ -126,6 +128,7 @@ export async function createWorld(options: WorldOptions = {}): Promise<World> {
     {
       auth: module,
       ...(options.files ? { files: options.files } : {}),
+      ...(options.ai ? { ai: options.ai } : {}),
       worker: createWorkerDatabase(database.worker),
       logStream: { write: (line) => void requestLog.push(line) },
     },

@@ -3,6 +3,7 @@ import multipart from '@fastify/multipart';
 import {
   documents,
   eq,
+  inboxItems,
   notes,
   objects,
   profileFiles,
@@ -64,7 +65,15 @@ async function parentOf(
   const reference = await readReference(tx, account, { type, id });
   if (!lock) return reference;
   const table =
-    type === 'task' ? tasks : type === 'note' ? notes : type === 'document' ? documents : objects;
+    type === 'inbox_item'
+      ? inboxItems
+      : type === 'task'
+        ? tasks
+        : type === 'note'
+          ? notes
+          : type === 'document'
+            ? documents
+            : objects;
   const [row] = await tx.select().from(table).where(eq(table.id, id)).for('update');
   if (!row) deny();
   return { row, facts: factsOf(row, type) };
@@ -329,7 +338,7 @@ export async function filesRoutes(
         await tx.execute(
           sql`select pg_advisory_xact_lock_shared(hashtextextended('file-block-cleanup',0))`,
         );
-        for (const type of ['note', 'object', 'document', 'task'] as const) {
+        for (const type of ['inbox_item', 'note', 'object', 'document', 'task'] as const) {
           const table = fileTable(type);
           const [file] = await tx.select().from(table).where(eq(table.id, id));
           if (!file) continue;

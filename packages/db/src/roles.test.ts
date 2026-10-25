@@ -82,6 +82,10 @@ describe('роли базы', () => {
             'utility_payments_summary_worker',
             'shopping_items_bought_cleanup_select',
             'shopping_items_bought_cleanup_update',
+            'inbox_items_worker_select',
+            'inbox_items_worker_expire',
+            'inbox_files_worker_expire_select',
+            'inbox_files_worker_expire',
           ].includes(policyname)
         )
           continue;

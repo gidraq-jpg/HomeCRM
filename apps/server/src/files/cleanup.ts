@@ -3,6 +3,7 @@ import {
   documentFiles,
   eq,
   fileBlobs,
+  inboxFiles,
   noteFiles,
   objectFiles,
   profileFiles,
@@ -34,7 +35,7 @@ export async function cleanupFileBlocks(
 }
 /** Файлы в корзине физически удаляет только worker после 30 дней (DATA-1). */
 export async function cleanupFiles(worker: Database, storage: FileStorage, before?: Date) {
-  for (const table of [noteFiles, objectFiles, documentFiles, taskFiles, profileFiles])
+  for (const table of [inboxFiles, noteFiles, objectFiles, documentFiles, taskFiles, profileFiles])
     await worker.delete(table).where(sql`${table.deletedAt} < now()-interval '30 days'`);
   return cleanupFileBlocks(worker, storage, before);
 }

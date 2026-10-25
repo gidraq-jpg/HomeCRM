@@ -244,11 +244,12 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
         ...(name === 'tasks' ? ['household_id', 'status', 'done_at'] : []),
         ...(name === 'utility_payments' ? ['created_at', 'cancelled_at'] : []),
         ...(name === 'shopping_items' ? ['bought_at'] : []),
+        ...(name === 'inbox_items' ? ['created_at', 'resolved_at', 'restored_at'] : []),
       ],
       UPDATE: [
         'assignee_id',
         ...(name === 'object_events' ? ['contact_table', 'contact_id'] : []),
-        ...(name === 'shopping_items' ? ['deleted_at'] : []),
+        ...(['shopping_items', 'inbox_items', 'inbox_files'].includes(name) ? ['deleted_at'] : []),
       ],
       DELETE: 'all',
     };
@@ -258,6 +259,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     app[name] = { SELECT: 'all', INSERT: 'all' };
     worker[name] = { INSERT: 'all' };
   }
+  app.inbox_files = { ...app.inbox_files, DELETE: 'all' };
   return { [DB_ROLES.app]: app, [DB_ROLES.worker]: worker, [DB_ROLES.auth]: auth };
 }
 

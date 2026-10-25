@@ -25,6 +25,7 @@ export const EXPORT_PAGE_SIZE = 100;
 export const EXPORT_TEMP_PREFIX = `homecrm-export-${process.pid}-`;
 const OMIT = sql`ARRAY['search_text','is_active','is_paid','is_identity','has_other_contributions','assignee_house_id','assignee_adult_id','assignee_adult_flag','storage_key','envelope','preview_storage_key','preview_envelope','needs_refresh']::text[]`;
 const TABLES = [
+  'inbox_items',
   'notes',
   'note_items',
   'objects',
@@ -43,6 +44,7 @@ const TABLES = [
   'deadlines',
 ] as const;
 const FILE_TABLES = [
+  'inbox_files',
   'note_files',
   'object_files',
   'document_files',
@@ -111,13 +113,15 @@ async function checkFile(tx: Transaction, account: Account, table: string, row: 
     return;
   }
   const type =
-    table === 'task_files'
-      ? 'task'
-      : table === 'note_files'
-        ? 'note'
-        : table === 'document_files'
-          ? 'document'
-          : 'object';
+    table === 'inbox_files'
+      ? 'inbox_item'
+      : table === 'task_files'
+        ? 'task'
+        : table === 'note_files'
+          ? 'note'
+          : table === 'document_files'
+            ? 'document'
+            : 'object';
   const parent = await readReference(tx, account, { type, id: String(row.parent_id) });
   if (
     !canViewFile(
