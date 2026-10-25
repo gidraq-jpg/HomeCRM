@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import multipart from '@fastify/multipart';
 import {
   and,
@@ -26,6 +27,15 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
   const providers = createProviders(ai);
   app.addHook('onClose', () => providers.close());
   let active = 0;
+  let health: { expires: number; result: Promise<boolean[]> } | undefined;
+  function providerHealth() {
+    if (!health || health.expires <= Date.now())
+      health = {
+        expires: Date.now() + 30000,
+        result: Promise.all([providers.speech.health(), providers.extractor.health()]),
+      };
+    return health.result;
+  }
   app.addHook('onRoute', (route) => {
     if (route.method !== 'POST') return;
     const handler = route.handler;
@@ -80,10 +90,20 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
     if (!account) return reply;
     const { spaceId } = parse(House, request.query);
     const { row, remaining } = await house(account.id, spaceId);
-    const [speech, extraction] = row.aiEnabled
-      ? await Promise.all([providers.speech.health(), providers.extractor.health()])
-      : [false, false];
-    return AiStatus.parse({ enabled: row.aiEnabled, speech, extraction, remaining });
+    const [speech, extraction] = row.aiEnabled ? await providerHealth() : [false, false];
+    const supplier =
+      ai.AI_EXTRACT_MODEL === 'hermes-agent' ? 'Hermes → OpenAI' : 'Совместимый поставщик';
+    const version = createHash('sha256')
+      .update(JSON.stringify([ai.AI_EXTRACT_PROVIDER, ai.AI_EXTRACT_URL, ai.AI_EXTRACT_MODEL]))
+      .digest('hex')
+      .slice(0, 16);
+    return AiStatus.parse({
+      enabled: row.aiEnabled,
+      speech,
+      extraction,
+      remaining,
+      provider: `${ai.AI_EXTRACT_PROVIDER === 'fake' ? 'Учебный поставщик' : supplier}:${version}`,
+    });
   });
   app.patch('/api/ai/settings', async (request, reply) => {
     const account = await accountReader(request, reply);
@@ -121,8 +141,7 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
           ),
           desc(objects.updatedAt),
           objects.id,
-        )
-        .limit(50);
+        );
       const members = await tx
         .select()
         .from(spaceMembers)
@@ -130,6 +149,7 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
       return {
         objects: visibleObjects
           .filter((o) => canView(account.viewer, factsOf(o).placement))
+          .slice(0, 50)
           .map((o) => ({ id: o.id, title: o.title })),
         members: members
           .filter((m) => canViewMembership(account.viewer, m.accountId, body.spaceId))

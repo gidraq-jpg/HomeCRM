@@ -48,6 +48,16 @@ test('AI-2: фраза → смешанные черновики → правк�
   await expect(dialog.getByRole('region', { name: 'Дело 1' })).toHaveCount(0);
   await expect(dialog.getByRole('region', { name: 'Покупка 1' })).toBeVisible();
   await page.unroute('**/api/shopping');
+  let loseNoteResponse = true;
+  await page.route('**/api/notes', async (route) => {
+    if (route.request().method() !== 'POST' || !loseNoteResponse) return route.continue();
+    loseNoteResponse = false;
+    await route.fetch();
+    await route.fulfill({ status: 503, json: { code: 'UNAVAILABLE' } });
+  });
+  await dialog.getByRole('button', { name: 'Сохранить все', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toBeVisible();
+  await expect(dialog.getByRole('region', { name: 'Заметка 1' })).toBeVisible();
   await dialog.getByRole('button', { name: 'Сохранить все', exact: true }).click();
   await expect(dialog.getByText('Черновиков не осталось')).toBeVisible();
   await dialog.getByRole('button', { name: 'Закрыть черновики' }).click();

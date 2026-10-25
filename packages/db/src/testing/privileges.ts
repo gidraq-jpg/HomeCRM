@@ -28,7 +28,7 @@ const FROZEN = ['id', 'author_id', 'created_at', 'updated_at', 'invalidated_at']
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
-    ai_daily_usage: { SELECT: 'all', INSERT: 'all', UPDATE: 'all' },
+    ai_daily_usage: { SELECT: 'all', INSERT: 'all' },
     radar_actions: {
       SELECT: 'all',
       INSERT: 'all',

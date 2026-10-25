@@ -93,7 +93,7 @@ export function fetchNote(id: string, signal?: AbortSignal) {
 }
 
 /** Без `placement` заметка создаётся личной — в пространстве автора. */
-export function createNote(input: NoteInput, placement?: Placement) {
+export function createNote(input: NoteInput & { idempotencyKey?: string }, placement?: Placement) {
   return apiRequest('POST', 'notes', NoteCard, { ...input, ...(placement ? { placement } : {}) });
 }
 

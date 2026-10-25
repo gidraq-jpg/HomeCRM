@@ -40,6 +40,7 @@ export type ShoppingDraft = z.infer<typeof ShoppingDraft>;
 export type NoteDraft = z.infer<typeof NoteDraft>;
 export type Draft = TaskDraft | ShoppingDraft[] | NoteDraft | AutoDraft[];
 export const AiStatus = z.object({
+  provider: z.string(),
   enabled: z.boolean(),
   speech: z.boolean(),
   extraction: z.boolean(),

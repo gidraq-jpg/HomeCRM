@@ -53,3 +53,66 @@ it('AI-7: выключение, чужой дом и атомарный днев
   expect(results.filter(Boolean)).toHaveLength(2);
   expect(await consume('boris')).toBe(false);
 });
+
+it('AI-7: ни одна роль участника не сбрасывает счётчик; прямой INSERT только расходует', async () => {
+  const house = scene.home('household').spaceId;
+  await db.admin.query('UPDATE spaces SET ai_enabled=true WHERE id=$1', [house]);
+  for (const person of scene.family.people) {
+    await expect(
+      scene.as(person.key, (tx) =>
+        tx.execute(sql`UPDATE ai_daily_usage SET requests=1 WHERE house_id=${house}`),
+      ),
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
+    await expect(
+      scene.as(person.key, (tx) =>
+        tx.execute(sql`DELETE FROM ai_daily_usage WHERE house_id=${house}`),
+      ),
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
+  }
+  const before = (
+    await db.admin.query('SELECT requests FROM ai_daily_usage WHERE house_id=$1', [house])
+  ).rows[0].requests;
+  await scene.as('vera', (tx) =>
+    tx.execute(
+      sql`INSERT INTO ai_daily_usage(house_id,usage_date,requests) SELECT ${house},(now() AT TIME ZONE coalesce(time_zone,'UTC'))::date,100 FROM spaces WHERE id=${house}`,
+    ),
+  );
+  expect(
+    (await db.admin.query('SELECT requests FROM ai_daily_usage WHERE house_id=$1', [house])).rows[0]
+      .requests,
+  ).toBe(before + 1);
+  await expect(
+    scene.as('gleb', (tx) =>
+      tx.execute(sql`INSERT INTO ai_daily_usage VALUES(${house},current_date,100)`),
+    ),
+  ).rejects.toMatchObject({ cause: { code: '42501' } });
+  await expect(
+    scene.as('vera', (tx) =>
+      tx.execute(sql`INSERT INTO ai_daily_usage VALUES(${house},current_date-1,100)`),
+    ),
+  ).rejects.toMatchObject({ cause: { code: '42501' } });
+  expect(
+    (await db.admin.query('SELECT requests FROM ai_daily_usage WHERE house_id=$1', [house])).rows[0]
+      .requests,
+  ).toBe(before + 1);
+});
+
+it('AI-7: день расхода и остатка совпадает с поясом дома', async () => {
+  const house = scene.home('household').spaceId;
+  await db.admin.query('UPDATE spaces SET ai_enabled=true,time_zone=$2 WHERE id=$1', [
+    house,
+    'Pacific/Kiritimati',
+  ]);
+  await scene.as('vera', (tx) =>
+    tx.execute(sql`SELECT app.consume_ai_request(${house}::uuid,100)`),
+  );
+  const rows = await db.admin.query(
+    "SELECT usage_date=(now() AT TIME ZONE 'Pacific/Kiritimati')::date AS local FROM ai_daily_usage WHERE house_id=$1 ORDER BY usage_date DESC LIMIT 1",
+    [house],
+  );
+  expect(rows.rows[0].local).toBe(true);
+  const remaining = await scene.as('vera', (tx) =>
+    tx.execute<{ n: number }>(sql`SELECT app.ai_remaining(${house}::uuid,100) AS n`),
+  );
+  expect(remaining.rows[0]?.n).toBeLessThan(100);
+});

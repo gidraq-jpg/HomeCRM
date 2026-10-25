@@ -1256,9 +1256,19 @@ export const aiDailyUsage = pgTable(
     primaryKey({ columns: [t.houseId, t.usageDate] }),
     check('ai_daily_usage_requests_check', sql`${t.requests} > 0`),
     pgPolicy('ai_usage_member', {
+      for: 'select',
       to: appRole,
       using: sql`house_id IN (SELECT space_id FROM space_members WHERE account_id=app.current_account_id() AND left_at IS NULL)`,
-      withCheck: sql`house_id IN (SELECT space_id FROM space_members WHERE account_id=app.current_account_id() AND left_at IS NULL)`,
+    }),
+    pgPolicy('ai_usage_consume', {
+      for: 'insert',
+      to: appRole,
+      withCheck: sql`house_id IN (SELECT s.id FROM spaces s JOIN space_members m ON m.space_id=s.id WHERE s.kind='household' AND s.ai_enabled AND m.account_id=app.current_account_id() AND m.left_at IS NULL AND usage_date=(now() AT TIME ZONE coalesce(s.time_zone,'UTC'))::date)`,
+    }),
+    pgPolicy('ai_usage_increment', {
+      to: pgRole('homecrm_owner').existing(),
+      using: sql`pg_trigger_depth()=1`,
+      withCheck: sql`pg_trigger_depth()=1`,
     }),
   ],
 ).enableRLS();

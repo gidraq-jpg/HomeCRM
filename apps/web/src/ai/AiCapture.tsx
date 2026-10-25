@@ -13,6 +13,10 @@ export function aiError(error: unknown) {
   const code = error instanceof ApiError ? error.code : '';
   if (code === 'AI_DAILY_LIMIT') return 'Дневной предел ИИ исчерпан. Можно ввести вручную.';
   if (code === 'AI_BUSY') return 'Служба ИИ занята. Повторите чуть позже.';
+  if (code === 'AI_FORBIDDEN')
+    return 'Поставщик ИИ отклонил доступ. Обратитесь к администратору дома.';
+  if (code === 'AI_NOT_FOUND')
+    return 'Модель или адрес службы ИИ не найдены. Обратитесь к администратору дома.';
   if (code === 'AI_DISABLED') return 'ИИ выключен в доме. Можно ввести вручную.';
   if (code === 'AI_INVALID_RESPONSE')
     return 'Не удалось разобрать. Поправьте фразу или введите вручную.';
@@ -46,7 +50,7 @@ export function AiCapture({
   const busy = useRef(false);
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<AutoDraft[] | null>(null);
-  const key = `homecrm:ai-consent:v1:${me.id}:${house}`;
+  const key = `homecrm:ai-consent:v2:${status.data?.provider}:${me.id}:${house}`;
   const accepted = useRef(new Set<string>());
   function hasConsent() {
     try {
@@ -106,11 +110,12 @@ export function AiCapture({
         >
           <p>
             Фраза, сегодняшняя дата, имена участников и названия доступных вам объектов дома уйдут
-            через Hermes на компьютере семьи во внешнюю модель (сейчас OpenAI).
+            через поставщика ИИ ({status.data?.provider.split(':')[0]}). При выборе фото оно тоже
+            отправляется.
           </p>
           <p>
-            Другие записи и файлы не отправляются. Фото паспортов, удостоверений и медицинские
-            документы во внешнюю модель не уходят.
+            Другие записи и файлы не отправляются. Документы личности заполняются вручную; ИИ может
+            только проверить, похоже ли фото на такой документ, без извлечения полей.
           </p>
           <p>
             ИИ предложит черновики. Ничего не сохранится, пока вы не проверите их и не нажмёте

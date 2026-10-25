@@ -117,7 +117,10 @@ export function fakeDraft(input: ExtractRequest): Draft {
 }
 export function createProviders(
   config: AiConfig,
-  timeout = { speech: 60000, extraction: 90000 },
+  timeout: { speech: number; extraction: number; total?: number } = {
+    speech: 60000,
+    extraction: 90000,
+  },
   prompts = { task, shopping, note },
 ) {
   // Прокси применяется только к внешнему разбору; локальная речь остаётся в локальной сети.
@@ -127,10 +130,17 @@ export function createProviders(
     init: RequestInit,
     external: boolean,
     ms: number,
+    deadline = Date.now() + 120000,
   ): Promise<Response> {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const options = { ...init, redirect: 'error' as const, signal: AbortSignal.timeout(ms) };
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) throw unavailable();
+        const options = {
+          ...init,
+          redirect: 'error' as const,
+          signal: AbortSignal.timeout(Math.min(ms, remaining)),
+        };
         if (external && dispatcher)
           return (await proxyFetch(url, {
             ...options,
@@ -220,6 +230,7 @@ export function createProviders(
       }
     },
     async extract(input) {
+      const deadline = Date.now() + Math.min(timeout.total ?? 120000, 120000);
       guardInput(input);
       if (config.AI_EXTRACT_PROVIDER === 'fake') return fakeDraft(input);
       if (config.AI_EXTRACT_PROVIDER !== 'openai-compatible') throw unavailable();
@@ -288,12 +299,25 @@ export function createProviders(
           },
           true,
           timeout.extraction,
+          deadline,
         );
         if (r.status === 400 && structured) {
           structured = false;
           continue;
         }
         if (r.status === 429) throw new Failure(429, 'AI_BUSY');
+        if (r.status === 403)
+          throw new Failure(
+            503,
+            'AI_FORBIDDEN',
+            'Поставщик ИИ отклонил доступ. Обратитесь к администратору дома.',
+          );
+        if (r.status === 404)
+          throw new Failure(
+            503,
+            'AI_NOT_FOUND',
+            'Модель или адрес службы ИИ не найдены. Обратитесь к администратору дома.',
+          );
         if (!r.ok) throw unavailable();
         try {
           const envelope = z

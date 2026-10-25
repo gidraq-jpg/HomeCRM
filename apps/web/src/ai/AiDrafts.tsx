@@ -118,12 +118,16 @@ export function AiDrafts({
           await createShopping({ ...body, idempotencyKey: operationKey(row.id, body) });
           names.add(name);
         } else {
+          const body = {
+            title: draft.title.value.trim(),
+            body: draft.body.value ?? '',
+            pinned: false,
+            checklist: [],
+          };
           await createNote(
             {
-              title: draft.title.value.trim(),
-              body: draft.body.value ?? '',
-              pinned: false,
-              checklist: [],
+              ...body,
+              idempotencyKey: operationKey(row.id, { ...body, placement }),
             },
             placement,
           );

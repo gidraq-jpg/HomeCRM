@@ -79,7 +79,13 @@ it('AI-2: контекст под RLS, 50 самых используемых о
   const keyFile = join(directory, 'key');
   await writeFile(keyFile, randomBytes(32).toString('hex'));
   const contexts: { objects: string; members: string }[] = [];
+  let healthCalls = 0;
   const server = createServer((req, res) => {
+    if (req.method === 'GET') {
+      healthCalls++;
+      res.end(JSON.stringify({ ok: true, authPresent: true }));
+      return;
+    }
     let body = '';
     req.on('data', (chunk) => (body += chunk));
     req.on('end', () => {
@@ -130,6 +136,17 @@ it('AI-2: контекст под RLS, 50 самых используемых о
         spaceId: world.houseId,
         consent: true,
       };
+      for (let i = 0; i < 2; i++) {
+        const status = await app.inject({
+          method: 'GET',
+          url: `/api/ai/status?spaceId=${world.houseId}`,
+          headers,
+        });
+        expect(status.statusCode).toBe(200);
+        expect(status.json().extraction).toBe(true);
+        expect(status.json().provider).not.toContain(keyFile);
+      }
+      expect(healthCalls).toBe(1);
       expect(
         (await app.inject({ method: 'POST', url: '/api/ai/extract', headers, payload })).statusCode,
       ).toBe(200);

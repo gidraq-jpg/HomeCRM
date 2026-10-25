@@ -25,7 +25,7 @@ afterEach(async () => {
     });
   if (directory) await rm(directory, { recursive: true, force: true });
 });
-async function setup(handler: RequestListener, ms = 1000) {
+async function setup(handler: RequestListener, ms = 1000, total?: number) {
   directory = await mkdtemp(join(tmpdir(), 'homecrm-ai-'));
   const key = randomBytes(32).toString('hex');
   await writeFile(join(directory, 'key'), key);
@@ -42,7 +42,7 @@ async function setup(handler: RequestListener, ms = 1000) {
       AI_EXTRACT_URL: `${url}/v1`,
       AI_EXTRACT_KEY_FILE: join(directory, 'key'),
     }),
-    { speech: ms, extraction: ms },
+    { speech: ms, extraction: ms, total },
   );
   close = providers.close;
   return { ...providers, key };
@@ -125,6 +125,34 @@ it('AI-6: занятость поставщика отличается от вы
     res.end();
   });
   await expect(p.extractor.extract(input)).rejects.toMatchObject({ status: 429, code: 'AI_BUSY' });
+});
+it.each([
+  [403, 'AI_FORBIDDEN'],
+  [404, 'AI_NOT_FOUND'],
+] as const)('AI-6: HTTP %i даёт отдельное безопасное сообщение', async (status, code) => {
+  const p = await setup((_req, res) => {
+    res.statusCode = status;
+    res.end('sensitive provider response');
+  });
+  await expect(p.extractor.extract(input)).rejects.toMatchObject({ code });
+});
+it('AI-6: общий срок включает отказ схемы, сетевые повторы и чтение тела', async () => {
+  let calls = 0;
+  const p = await setup(
+    (_req, res) => {
+      calls++;
+      if (calls === 1) {
+        res.statusCode = 400;
+        res.end();
+      }
+    },
+    1000,
+    80,
+  );
+  const started = Date.now();
+  await expect(p.extractor.extract(input)).rejects.toMatchObject({ code: 'AI_UNAVAILABLE' });
+  expect(Date.now() - started).toBeLessThan(500);
+  expect(calls).toBe(2);
 });
 it('AI: тайм-аут ограничен, один сетевой повтор', async () => {
   let calls = 0;
