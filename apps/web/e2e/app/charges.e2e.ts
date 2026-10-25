@@ -93,7 +93,7 @@ test('начисление с перерасчётом и квитанцией; 
 
   // Квитанция: загружается тут же и выбирается в списке.
   await form
-    .locator('input[type="file"]')
+    .getByLabel('Квитанция: новый файл', { exact: true })
     .setInputFiles({ name: 'kvitancia.png', mimeType: 'image/png', buffer: makePng(64, 64) });
   await expect(form.getByLabel('Квитанция', { exact: true })).toHaveValue(/.+/);
   await checkApp(page, info, 'charge-form');

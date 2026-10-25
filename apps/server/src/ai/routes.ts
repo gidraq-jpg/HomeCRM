@@ -12,6 +12,7 @@ import {
   spaceMembers,
   spaces,
   sql,
+  utilityAccounts,
 } from '@homecrm/db';
 import {
   AiStatus,
@@ -20,11 +21,13 @@ import {
   ExtractInput,
   MeterData,
   MeterPhotoDraft,
+  ReceiptAccounts,
+  ReceiptPhotoDraft,
 } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { parseBuffer } from 'music-metadata';
 import { z } from 'zod';
-import { createAccountReader } from '../auth/account.ts';
+import { type Account, createAccountReader } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import { Failure, factsOf, parse } from '../objects/support.ts';
 import type { AiConfig } from './config.ts';
@@ -107,6 +110,84 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
     if (!ok)
       throw new Failure(429, 'AI_DAILY_LIMIT', 'Дневной предел ИИ исчерпан. Можно ввести вручную.');
   }
+  async function visibleAccounts(account: Account, spaceId: string) {
+    return options.appDb.withAccount(account.id, async (tx) => {
+      const rows = await tx
+        .select({ account: utilityAccounts, object: objects })
+        .from(utilityAccounts)
+        .innerJoin(objects, eq(utilityAccounts.parentId, objects.id))
+        .where(and(isNull(utilityAccounts.deletedAt), isNull(objects.deletedAt)))
+        .orderBy(utilityAccounts.id);
+      return ReceiptAccounts.parse(
+        rows
+          .filter(
+            (row) =>
+              (row.account.spaceKind === 'personal' || row.account.spaceId === spaceId) &&
+              canView(account.viewer, factsOf(row.account).placement) &&
+              canView(account.viewer, factsOf(row.object).placement),
+          )
+          .map((row) => ({
+            id: row.account.id,
+            title: row.account.title,
+            objectId: row.account.parentId,
+            objectTitle: row.object.title,
+            data: row.account.data,
+          })),
+      );
+    });
+  }
+  app.get('/api/ai/receipt-accounts', async (request, reply) => {
+    const account = await accountReader(request, reply);
+    if (!account) return reply;
+    const { spaceId } = parse(House, request.query);
+    await house(account.id, spaceId);
+    return visibleAccounts(account, spaceId);
+  });
+  app.post('/api/ai/receipt-photo', async (request, reply) => {
+    const account = await accountReader(request, reply);
+    if (!account) return reply;
+    const { spaceId } = parse(House.extend({ consent: z.literal('true') }), request.query);
+    const { row } = await house(account.id, spaceId);
+    if (!row.aiEnabled) throw new Failure(403, 'AI_DISABLED');
+    if (ai.AI_EXTRACT_PROVIDER === 'disabled') throw new Failure(503, 'AI_UNAVAILABLE');
+    const accounts = await visibleAccounts(account, spaceId);
+    const file = await request.file();
+    if (file?.fieldname !== 'file') throw new Failure(400, 'INVALID_INPUT');
+    const original = await file.toBuffer();
+    if (file.file.truncated) throw new Failure(413, 'INVALID_INPUT');
+    const bytes = await preparePhoto(original);
+    await consume(account.id, spaceId);
+    const started = Date.now();
+    let code = 'OK';
+    try {
+      return ReceiptPhotoDraft.parse(
+        await providers.photo({
+          kind: 'receipt',
+          image: { bytes, classification: 'ordinary' },
+          context: {
+            objects: [],
+            members: [],
+            timeZone: row.timeZone ?? options.homeTimeZone,
+            accounts: accounts.map((account) => ({ id: account.id, number: account.data.number })),
+          },
+        }),
+      );
+    } catch (error) {
+      code = error instanceof Failure ? error.code : 'AI_UNAVAILABLE';
+      throw error;
+    } finally {
+      request.log.info(
+        {
+          operation: 'receipt-photo',
+          provider: ai.AI_EXTRACT_PROVIDER,
+          durationMs: Date.now() - started,
+          size: bytes.length,
+          code,
+        },
+        'AI operation finished',
+      );
+    }
+  });
   app.post('/api/ai/meter-photo', async (request, reply) => {
     const account = await accountReader(request, reply);
     if (!account) return reply;

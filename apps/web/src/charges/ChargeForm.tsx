@@ -1,8 +1,13 @@
+import type { ReceiptAccount, ReceiptPhotoDraft } from '@homecrm/shared';
 import { Plus, Trash } from '@phosphor-icons/react';
-import { type FormEvent, useId, useState } from 'react';
+import { type FormEvent, useId, useRef, useState } from 'react';
 import type { AccountCard } from '../accounts/api.ts';
 import type { useAction } from '../auth/components.tsx';
+import { uploadFile } from '../files/api.ts';
+import { prepareForUpload } from '../files/prepare.ts';
 import type { ObjectCard } from '../objects/api.ts';
+import { useObjectCard } from '../objects/queries.ts';
+import { CheckLine } from '../ui/CheckLine.tsx';
 import type { DateOnly } from '../ui/format.ts';
 import { formatRub, formatShortDate } from '../ui/format.ts';
 import { useOperationKey } from '../ui/useOperationKey.ts';
@@ -13,22 +18,24 @@ import {
   type ChargeErrors,
   defaultDueOn,
   emptyChargeDraft,
+  kopecksToInput,
   type LineDraft,
   linesTotal,
   MAX_LINE_TITLE,
   MAX_LINES,
   toChargeInput,
 } from './form.ts';
+import { ReceiptCapture } from './ReceiptCapture.tsx';
 import { ReceiptField } from './ReceiptField.tsx';
 
 interface ChargeFormProps {
   card: Pick<ObjectCard, 'id' | 'files'>;
-  account: Pick<AccountCard, 'data'>;
+  account: Pick<AccountCard, 'id' | 'title' | 'data'>;
   /** Расчётный месяц по умолчанию: предыдущий. */
   period: string;
   today: string;
   state: ReturnType<typeof useAction>;
-  onSubmit: (input: ChargeInput) => void;
+  onSubmit: (input: ChargeInput, accountId: string, objectId: string) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -56,13 +63,37 @@ export function ChargeForm({
   const [draft, setDraft] = useState<ChargeDraft>(() => emptyChargeDraft(period));
   const [errors, setErrors] = useState<ChargeErrors | null>(null);
   const [nextKey, setNextKey] = useState(1);
+  const [candidates, setCandidates] = useState<ReceiptAccount[]>([]);
+  const [targetId, setTargetId] = useState(account.id);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [keepPhoto, setKeepPhoto] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  const [readingReceipt, setReadingReceipt] = useState(false);
+  const [photoProblem, setPhotoProblem] = useState('');
+  const [uncertain, setUncertain] = useState<string[]>([]);
+  const [supplier, setSupplier] = useState<string | null>(null);
+  const uploaded = useRef<{ file: File; objectId: string; id: string } | null>(null);
+  const saving = useRef(false);
+  const target = candidates.find((item) => item.id === targetId);
+  const targetObjectId = target?.objectId ?? card.id;
+  const targetCard = useObjectCard(targetObjectId !== card.id ? targetObjectId : undefined);
+  const receiptCard = targetObjectId === card.id ? card : targetCard.data;
   const base = useId();
   const keyOf = useOperationKey();
   const id = (name: string) => `${base}-${name}`;
-  const set = (change: Partial<ChargeDraft>) =>
+  const set = (change: Partial<ChargeDraft>) => {
     setDraft((previous) => ({ ...previous, ...change }));
+    setUncertain((current) =>
+      current.filter(
+        (key) =>
+          !(key === 'totalCents' && change.total !== undefined) &&
+          !(key === 'period' && change.period !== undefined) &&
+          !(key === 'dueOn' && change.dueOn !== undefined),
+      ),
+    );
+  };
 
-  const rule = account.data.paymentRule;
+  const rule = (target ?? account).data.paymentRule;
   const suggested = defaultDueOn(draft.period, rule);
   const total = linesTotal(draft.lines);
 
@@ -75,8 +106,9 @@ export function ChargeForm({
     set({ lines: draft.lines.map((line) => (line.key === key ? { ...line, ...change } : line)) });
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving.current || !targetId || !receiptCard) return;
     const result = toChargeInput(draft, rule);
     if (!result.ok) {
       setErrors(result.errors);
@@ -92,14 +124,103 @@ export function ChargeForm({
       return;
     }
     setErrors(null);
-    onSubmit({ ...result.input, idempotencyKey: keyOf(result.input) });
+    saving.current = true;
+    setPreparing(true);
+    setPhotoProblem('');
+    try {
+      let receiptId = result.input.receiptId;
+      if (photo && keepPhoto) {
+        let known = uploaded.current;
+        if (known?.file !== photo || known.objectId !== targetObjectId) {
+          const prepared = await prepareForUpload(photo);
+          const file = await uploadFile({ kind: 'object', id: targetObjectId }, prepared);
+          known = { file: photo, objectId: targetObjectId, id: file.id };
+          uploaded.current = known;
+        }
+        receiptId = known.id;
+      }
+      const body = { ...result.input, receiptId };
+      await onSubmit(
+        { ...body, idempotencyKey: keyOf({ ...body, accountId: targetId }) },
+        targetId,
+        targetObjectId,
+      );
+    } catch {
+      setPhotoProblem('Не удалось приложить фото. Поля сохранены; повторите сохранение.');
+    } finally {
+      saving.current = false;
+      setPreparing(false);
+    }
+  }
+
+  function fromReceipt(result: ReceiptPhotoDraft, file: File, accounts: ReceiptAccount[]) {
+    setCandidates(accounts);
+    setTargetId(
+      accounts.some((account) => account.id === result.accountId.value)
+        ? (result.accountId.value ?? '')
+        : '',
+    );
+    setPhoto(file);
+    setKeepPhoto(false);
+    uploaded.current = null;
+    set({
+      period: result.period.value ?? draft.period,
+      total:
+        result.totalCents.value === null ? draft.total : kopecksToInput(result.totalCents.value),
+      dueOn: result.dueOn.value ?? '',
+      lines: [],
+      receiptId: '',
+    });
+    setUncertain(
+      Object.entries(result)
+        .filter(([, field]) => !field.confident || field.value === null)
+        .map(([key]) => key),
+    );
+    setSupplier(result.supplier.value);
   }
 
   return (
     <form className="charge-form" onSubmit={submit} aria-busy={state.pending} noValidate>
+      <ReceiptCapture
+        onDraft={fromReceipt}
+        disabled={preparing || state.disabled}
+        onPending={setReadingReceipt}
+      />
+      {photo ? (
+        <>
+          {supplier ? <p>Поставщик из квитанции: {supplier}</p> : null}
+          <label className="field">
+            <span>Счёт из квитанции{uncertain.includes('accountId') ? ' — проверьте' : ''}</span>
+            <select
+              className="select"
+              value={targetId}
+              onChange={(event) => {
+                setTargetId(event.target.value);
+                set({ receiptId: '' });
+                setUncertain((current) => current.filter((key) => key !== 'accountId'));
+              }}
+            >
+              <option value="">Выберите лицевой счёт</option>
+              {candidates.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title} · {item.data.number} · {item.objectTitle}
+                </option>
+              ))}
+            </select>
+          </label>
+          {target ? (
+            <p>
+              Сохранится для объекта «{target.objectTitle}», счёт «{target.title}».
+            </p>
+          ) : null}
+          <CheckLine checked={keepPhoto} onChange={setKeepPhoto}>
+            Приложить фото квитанции
+          </CheckLine>
+        </>
+      ) : null}
       <div className="field">
         <label className="field__label" htmlFor={id('period')}>
-          Расчётный месяц
+          Расчётный месяц{uncertain.includes('period') ? ' — проверьте' : ''}
         </label>
         <input
           id={id('period')}
@@ -197,7 +318,7 @@ export function ChargeForm({
       {draft.lines.length === 0 ? (
         <div className="field">
           <label className="field__label" htmlFor={id('total')}>
-            Итог, ₽
+            Итог, ₽{uncertain.includes('totalCents') ? ' — проверьте' : ''}
           </label>
           <input
             id={id('total')}
@@ -226,7 +347,7 @@ export function ChargeForm({
 
       <div className="field">
         <label className="field__label" htmlFor={id('due')}>
-          Срок оплаты
+          Срок оплаты{uncertain.includes('dueOn') ? ' — проверьте' : ''}
         </label>
         <input
           id={id('due')}
@@ -245,19 +366,34 @@ export function ChargeForm({
         <FieldError id={id('due-error')} text={errors?.dueOn} />
       </div>
 
-      <ReceiptField
-        card={card}
-        label="Квитанция"
-        value={draft.receiptId}
-        onChange={(receiptId) => set({ receiptId })}
-      />
+      {receiptCard ? (
+        <ReceiptField
+          key={targetObjectId}
+          card={receiptCard}
+          label="Квитанция"
+          value={draft.receiptId}
+          onChange={(receiptId) => set({ receiptId })}
+        />
+      ) : (
+        <p role="status">Загружаем объект выбранного счёта…</p>
+      )}
+      {photoProblem ? <p role="alert">{photoProblem}</p> : null}
 
       <ChargeError error={state.error} action="charge" />
       <div className="btn-row">
-        <button type="submit" className="btn btn--primary" disabled={state.disabled}>
-          {state.pending ? 'Сохраняем…' : 'Сохранить начисление'}
+        <button
+          type="submit"
+          className="btn btn--primary"
+          disabled={state.disabled || preparing || readingReceipt || !targetId || !receiptCard}
+        >
+          {state.pending || preparing ? 'Сохраняем…' : 'Сохранить начисление'}
         </button>
-        <button type="button" className="btn btn--secondary" onClick={onCancel}>
+        <button
+          type="button"
+          className="btn btn--secondary"
+          disabled={preparing || state.pending}
+          onClick={onCancel}
+        >
           Отмена
         </button>
       </div>

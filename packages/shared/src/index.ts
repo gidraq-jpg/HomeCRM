@@ -12,6 +12,7 @@ export * from './objects.ts';
 export * from './offline.ts';
 export * from './quickline.ts';
 export * from './radar.ts';
+export * from './receipt.ts';
 export * from './shopping.ts';
 export * from './task-repeats.ts';
 export * from './tasks.ts';

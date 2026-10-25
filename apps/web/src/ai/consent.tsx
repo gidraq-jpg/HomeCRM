@@ -3,7 +3,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 
 export const consentKey = (member: string, house: string | null, provider?: string) =>
-  `homecrm:ai-consent:v3:${provider}:${member}:${house}`;
+  `homecrm:ai-consent:v4:${provider}:${member}:${house}`;
 
 export function useAiConsent(house: string | null, provider?: string) {
   const { me } = useHousehold();
@@ -32,7 +32,8 @@ export function useAiConsent(house: string | null, provider?: string) {
       <p>
         Выбранные текст или фото, сегодняшняя дата, имена участников и названия доступных вам
         объектов уйдут через поставщика ИИ ({provider?.split(':')[0]}). Для счётчика передаются его
-        ресурс, зоны, разрядность, единица и прошлое значение.
+        ресурс, зоны, разрядность, единица и прошлое значение. Для квитанции — номера доступных вам
+        лицевых счетов.
       </p>
       <p>
         Другие записи и файлы не отправляются. Документы личности заполняются вручную; ИИ может

@@ -1,6 +1,6 @@
 import { CaretLeft, Plus } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { useAccounts } from '../accounts/queries.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
@@ -24,6 +24,7 @@ const chargeCount = (count: number) => countWord(count, ['начисление',
  */
 export function ChargesScreen() {
   const { accountId = '' } = useParams();
+  const navigate = useNavigate();
   const { card, abilities } = useObjectContext();
   const { me } = useHousehold();
   const toast = useToast();
@@ -59,12 +60,14 @@ export function ChargesScreen() {
     );
   }
 
-  function submit(input: ChargeInput) {
-    void create.run(async () => {
-      await createCharge(accountId, input);
+  function submit(input: ChargeInput, targetAccountId: string, targetObjectId: string) {
+    return create.run(async () => {
+      await createCharge(targetAccountId, input);
       await refresh();
       setAdding(false);
       toast.show({ message: 'Начисление сохранено' });
+      if (targetAccountId !== accountId)
+        navigate(`/home/${targetObjectId}/accounts/${targetAccountId}/charges`);
     });
   }
 

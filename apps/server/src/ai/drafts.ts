@@ -5,6 +5,7 @@ import {
   meterDecimal,
   meterUnits,
   parseQuickline,
+  receiptKopecks,
   type TaskDraft,
 } from '@homecrm/shared';
 import { z } from 'zod';
@@ -23,6 +24,9 @@ const RawAuto = z
   .min(1)
   .max(10);
 export const ResponseSchemas = {
+  receipt: DraftSchemas.receipt.omit({ totalCents: true }).extend({
+    total: z.strictObject({ value: z.string().max(100).nullable(), confident: z.boolean() }),
+  }),
   meter: z.strictObject({
     values: z
       .array(z.strictObject({ value: z.string().max(50).nullable(), confident: z.boolean() }))
@@ -62,6 +66,22 @@ export function normalizeTask(raw: z.infer<typeof RawTask>, input: ExtractReques
   return { ...task, ...taskDates(whenText, input) };
 }
 export function normalizeResponse(value: unknown, input: ExtractRequest) {
+  if (input.kind === 'receipt') {
+    const { total, ...raw } = ResponseSchemas.receipt.parse(value);
+    const cents = receiptKopecks(total.value);
+    const matched = input.context.accounts?.find((account) => account.id === raw.accountId.value);
+    if (
+      !matched ||
+      input.context.accounts?.filter(
+        (account) => account.number.replace(/\s/g, '') === matched.number.replace(/\s/g, ''),
+      ).length !== 1
+    )
+      raw.accountId = { value: null, confident: false };
+    return DraftSchemas.receipt.parse({
+      ...raw,
+      totalCents: { value: cents, confident: cents !== null && total.confident },
+    });
+  }
   if (input.kind === 'identity') return DraftSchemas.identity.parse(value);
   if (input.kind === 'meter') {
     const raw = ResponseSchemas.meter.parse(value);
@@ -105,6 +125,12 @@ export function normalizeResponse(value: unknown, input: ExtractRequest) {
 export function requestContext(input: ExtractRequest) {
   if (input.kind === 'identity') return {};
   if (input.kind === 'meter') return { meter: input.context.meter };
+  if (input.kind === 'receipt')
+    return {
+      accounts:
+        input.context.accounts?.map((account) => `${account.id}: ${account.number}`).join('\n') ??
+        '',
+    };
   const now = input.context.now ?? new Date();
   const line = (value: string) => value.replace(/[\r\n]+/g, ' ');
   return {

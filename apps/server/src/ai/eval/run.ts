@@ -8,11 +8,13 @@ import { loadAiConfig } from '../config.ts';
 import { identity } from '../prompts/identity.ts';
 import { meter } from '../prompts/meter.ts';
 import { note } from '../prompts/note.ts';
+import { receipt } from '../prompts/receipt.ts';
 import { shopping } from '../prompts/shopping.ts';
 import { task } from '../prompts/task.ts';
 import { createProviders } from '../providers.ts';
 import { cases, context } from './cases.ts';
 import { evaluateIdentity, evaluatePhotos } from './photo.ts';
+import { evaluateReceipts } from './receipts.ts';
 
 const Sample = z.strictObject({
   kind: z.enum(['task', 'shopping', 'note', 'auto']),
@@ -22,7 +24,7 @@ const Sample = z.strictObject({
 const index = process.argv.indexOf('--samples');
 const directory =
   index >= 0 ? resolve(process.argv[index + 1] ?? '') : join(import.meta.dirname, 'samples');
-const prompts = { task, shopping, note, meter, identity };
+const prompts = { task, shopping, note, meter, identity, receipt };
 if (process.argv.includes('--rules-only')) {
   for (const kind of Object.keys(prompts) as (keyof typeof prompts)[])
     prompts[kind] = prompts[kind].split('\n')[0] ?? '';
@@ -63,7 +65,9 @@ function score(field: string, matched: boolean) {
 }
 const started = Date.now();
 try {
-  if (process.argv.includes('--kind=identity')) {
+  if (process.argv.includes('--kind=receipt')) {
+    await evaluateReceipts(providers, config.AI_EXTRACT_PROVIDER === 'fake', prompts);
+  } else if (process.argv.includes('--kind=identity')) {
     await evaluateIdentity(providers, config.AI_EXTRACT_PROVIDER === 'fake', prompts);
   } else if (process.argv.includes('--kind=meter')) {
     await evaluatePhotos(providers, config.AI_EXTRACT_PROVIDER === 'fake', prompts);

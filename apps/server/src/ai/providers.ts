@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import {
+  CalendarDate,
   type Draft,
   type DraftKind,
   IdentityCheck,
@@ -16,6 +17,7 @@ import { common } from './prompts/common.ts';
 import { identity } from './prompts/identity.ts';
 import { meter } from './prompts/meter.ts';
 import { note } from './prompts/note.ts';
+import { receipt } from './prompts/receipt.ts';
 import { shopping } from './prompts/shopping.ts';
 import { task } from './prompts/task.ts';
 
@@ -38,6 +40,7 @@ export interface ExtractRequest {
     members: readonly { id: string; name: string }[];
     timeZone: string;
     now?: Date;
+    accounts?: readonly { id: string; number: string }[];
     meter?: Pick<MeterData, 'resource' | 'zones' | 'integerDigits' | 'fractionDigits' | 'unit'> & {
       previous: string[] | null;
     };
@@ -94,6 +97,14 @@ export function fakeDraft(input: ExtractRequest): Draft {
   guardInput(input);
   const f = <T>(value: T) => ({ value, confident: true });
   if (input.kind === 'identity') return { identity: 'no' };
+  if (input.kind === 'receipt')
+    return {
+      supplier: f('Учебный поставщик'),
+      accountId: f(input.context.accounts?.[0]?.id ?? null),
+      period: f('2026-09'),
+      totalCents: f(123456),
+      dueOn: f(CalendarDate.parse('2026-10-25')),
+    };
   if (input.kind === 'meter')
     return {
       values: (input.context.meter?.zones ?? ['Основная']).map(() =>
@@ -154,13 +165,20 @@ export function createProviders(
     speech: 60000,
     extraction: 90000,
   },
-  prompts: { task: string; shopping: string; note: string; meter?: string; identity?: string } = {
+  prompts: {
+    task: string;
+    shopping: string;
+    note: string;
+    meter?: string;
+    identity?: string;
+    receipt?: string;
+  } = {
     task,
     shopping,
     note,
   },
 ) {
-  const rules = { meter, identity, ...prompts };
+  const rules = { meter, identity, receipt, ...prompts };
   // Прокси применяется только к внешнему разбору; локальная речь остаётся в локальной сети.
   const dispatcher = config.AI_HTTPS_PROXY ? new ProxyAgent(config.AI_HTTPS_PROXY) : undefined;
   async function request(

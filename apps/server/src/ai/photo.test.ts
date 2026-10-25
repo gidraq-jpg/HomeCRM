@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { MeterPhotoDraft } from '@homecrm/shared';
+import { MeterPhotoDraft, ReceiptPhotoDraft } from '@homecrm/shared';
 import { expect, it } from 'vitest';
 import { normalizeResponse } from './drafts.ts';
 import type { ExtractRequest } from './providers.ts';
@@ -76,4 +76,55 @@ it('AI-5: подготовка фото снимает метаданные и �
   expect(meta.exif).toBeUndefined();
   expect(meta.xmp).toBeUndefined();
   expect(meta.iptc).toBeUndefined();
+});
+
+it('UTIL-9: ответ модели не привязывает чужой счёт; сумма строкой переводится сервером', () => {
+  const f = <T>(value: T) => ({ value, confident: true });
+  const request: ExtractRequest = {
+    kind: 'receipt',
+    context: {
+      objects: [],
+      members: [],
+      timeZone: 'UTC',
+      accounts: [{ id: '11111111-1111-4111-8111-111111111111', number: 'TEST-777' }],
+    },
+  };
+  const result = ReceiptPhotoDraft.parse(
+    normalizeResponse(
+      {
+        supplier: f('Учебный поставщик'),
+        accountId: f('22222222-2222-4222-8222-222222222222'),
+        period: f('2026-09'),
+        total: f('1 234,56 руб.'),
+        dueOn: f('2026-10-25'),
+      },
+      request,
+    ),
+  );
+  expect(result.totalCents.value).toBe(123456);
+  expect(result.accountId).toEqual({ value: null, confident: false });
+  const allowed = request.context.accounts?.[0];
+  if (!allowed) throw new Error('Missing fixture');
+  const ambiguous = ReceiptPhotoDraft.parse(
+    normalizeResponse(
+      {
+        supplier: f('Учебное'),
+        accountId: f(allowed.id),
+        period: f('2026-09'),
+        total: f('1234,56'),
+        dueOn: f('2026-10-25'),
+      },
+      {
+        ...request,
+        context: {
+          ...request.context,
+          accounts: [
+            allowed,
+            { id: '33333333-3333-4333-8333-333333333333', number: allowed.number },
+          ],
+        },
+      },
+    ),
+  );
+  expect(ambiguous.accountId).toEqual({ value: null, confident: false });
 });

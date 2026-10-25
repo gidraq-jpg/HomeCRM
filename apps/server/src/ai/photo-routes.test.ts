@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { buildApp } from '../app.ts';
+import { signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type World } from '../testing/world.ts';
 import { loadAiConfig } from './config.ts';
 
@@ -8,6 +9,86 @@ let world: World;
 beforeAll(async () => {
   world = await createWorld();
 });
+it('UTIL-9: список счетов работает без ИИ, чужое личное скрыто; разбор не хранит фото и начисление', async () => {
+  const device = world.device();
+  await device.signIn(world.boris.username, world.boris.password);
+  const property = await device.post('/api/objects', {
+    title: 'Учебная квитанция',
+    objectType: 'property',
+    placement: { spaceId: world.houseId, audience: 'adults' },
+  });
+  const account = await device.post(`/api/objects/${property.json().id}/accounts`, {
+    title: 'Учебная вода',
+    data: { number: '9900000010' },
+  });
+  expect(account.status).toBe(201);
+  const { device: admin } = await signedInAdmin(world);
+  const personal = await admin.post('/api/objects', {
+    title: 'Личное Анны для проверки',
+    objectType: 'property',
+    placement: { spaceId: world.anna.personalSpaceId },
+  });
+  const hidden = await admin.post(`/api/objects/${personal.json().id}/accounts`, {
+    title: 'Личный счёт Анны',
+    data: { number: 'SECRET-ACCOUNT' },
+  });
+  expect(hidden.status).toBe(201);
+  await world.database.admin.query('UPDATE spaces SET ai_enabled=false WHERE id=$1', [
+    world.houseId,
+  ]);
+  const list = await device.get(`/api/ai/receipt-accounts?spaceId=${world.houseId}`);
+  expect(list.status).toBe(200);
+  expect(list.json<{ id: string }[]>().map((item) => item.id)).toContain(account.json().id);
+  expect(list.text).not.toContain('SECRET-ACCOUNT');
+  expect(list.text).not.toContain(hidden.json().id);
+  await world.database.admin.query('UPDATE spaces SET ai_enabled=true WHERE id=$1', [
+    world.houseId,
+  ]);
+  const app = buildApp(
+    { LOG_LEVEL: 'info', APP_VERSION: 'test' },
+    {
+      auth: world.module,
+      ai: loadAiConfig({ AI_EXTRACT_PROVIDER: 'fake' }),
+      logStream: { write: (line) => world.requestLog.push(line) },
+    },
+  );
+  try {
+    const form = new FormData();
+    form.set(
+      'file',
+      new Blob([await readFile(new URL('./eval/samples/receipts/1.jpg', import.meta.url))], {
+        type: 'image/jpeg',
+      }),
+      'fiction-receipt.jpg',
+    );
+    const multipart = new Response(form);
+    const result = await app.inject({
+      method: 'POST',
+      url: `/api/ai/receipt-photo?spaceId=${world.houseId}&consent=true`,
+      headers: {
+        cookie: [...device.cookies].map(([k, v]) => `${k}=${v}`).join('; '),
+        origin: 'http://homecrm.test',
+        'content-type': multipart.headers.get('content-type') ?? '',
+      },
+      payload: Buffer.from(await multipart.arrayBuffer()),
+    });
+    expect(result.statusCode).toBe(200);
+    expect(result.json().accountId.value).toBe(account.json().id);
+    expect(result.json().totalCents.value).toBe(123456);
+    expect(
+      (await world.database.admin.query('SELECT count(*)::int AS n FROM utility_charges')).rows[0]
+        .n,
+    ).toBe(0);
+    expect(
+      (await world.database.admin.query('SELECT count(*)::int AS n FROM object_files')).rows[0].n,
+    ).toBe(0);
+    for (const text of ['SECRET-ACCOUNT', '9900000010', 'fiction-receipt.jpg', 'data:image/jpeg'])
+      expect(world.requestLog.join('')).not.toContain(text);
+  } finally {
+    await app.close();
+  }
+});
+
 afterAll(async () => {
   await world?.close();
 });
