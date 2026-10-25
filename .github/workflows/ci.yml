@@ -55,8 +55,9 @@ jobs:
   auth-screens:
     name: Вход · 360 и 412 px · axe
     runs-on: ubuntu-latest
-    # Общий e2e и подготовка контейнера: запас для нагрузки runner. Матрица форм 200%/клавиатура — отдельно в compose UI-7.
-    timeout-minutes: 45
+    # Полный e2e с проверкой движения UI-8; запас для нагрузки runner согласован владельцем.
+    # Тайм-ауты отдельных сценариев не меняются.
+    timeout-minutes: 60
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     services:

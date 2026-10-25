@@ -134,9 +134,30 @@ interface CheckOptions {
 
 /** Ждёт конца анимаций: пока панель выезжает и проявляется, цвета смешаны и контраст не тот. */
 export async function settle(page: Page): Promise<void> {
+  await expect(page.locator('html')).not.toHaveAttribute(
+    'data-motion-direction',
+    /^(forward|back)$/,
+  );
   await page.evaluate(async () => {
     await document.fonts.ready;
-    await Promise.allSettled(document.getAnimations().map((animation) => animation.finished));
+    // Presence и View Transitions могут начать рисунок в следующем кадре.
+    for (;;) {
+      await new Promise(requestAnimationFrame);
+      const animations = document
+        .getAnimations()
+        .filter(
+          (animation) =>
+            animation.playState === 'running' &&
+            animation.effect?.getTiming().iterations !== Infinity,
+        );
+      if (!animations.length) break;
+      // Удаление инертной копии может заменить finished у CSS-анимации.
+      // Кадр позволяет заново проверить playState, не зависая на старом Promise.
+      await Promise.race([
+        Promise.allSettled(animations.map((animation) => animation.finished)),
+        new Promise(requestAnimationFrame),
+      ]);
+    }
   });
 }
 
@@ -160,11 +181,14 @@ export async function setScope(page: Page, label: 'Всё' | 'Общее' | 'Л�
   const inSheet = (await trigger.count()) > 0;
   if (inSheet) await trigger.click();
   await page.getByRole('radio', { name: label, exact: true }).check();
-  if (inSheet)
+  if (inSheet) {
     await page
       .getByRole('dialog', { name: 'Пространство', exact: true })
       .getByRole('button', { name: 'Закрыть', exact: true })
       .click();
+    await expect(page.getByRole('dialog', { name: 'Пространство', exact: true })).toHaveCount(0);
+  }
+  await settle(page);
 }
 
 /** Нижнее меню: перейти в раздел. */
@@ -199,9 +223,12 @@ export async function openQuick(page: Page): Promise<void> {
 }
 
 export async function openObjectActions(page: Page): Promise<void> {
+  await settle(page);
   if (await page.locator('.ui6-record-page').count()) {
     if (!(await page.getByRole('dialog').count()))
       await page.getByRole('button', { name: 'Ещё: действия с записью' }).click();
+    await expect(page.getByRole('dialog', { name: 'Ещё', exact: true })).toBeVisible();
+    await settle(page);
     return;
   }
   if (/^#\/home\/[a-f0-9-]+(?:\/|$)/.test(new URL(page.url()).hash))
@@ -211,6 +238,10 @@ export async function openObjectActions(page: Page): Promise<void> {
     !(await page.getByRole('dialog', { name: 'Ещё', exact: true }).count())
   )
     await page.getByRole('button', { name: 'Ещё: действия с объектом' }).click();
+  if (await page.locator('.object-page').count()) {
+    await expect(page.getByRole('dialog', { name: 'Ещё', exact: true })).toBeVisible();
+    await settle(page);
+  }
 }
 export async function openObjectAccess(page: Page): Promise<void> {
   if ((await page.locator('.object-page').count()) && !(await page.getByRole('dialog').count()))

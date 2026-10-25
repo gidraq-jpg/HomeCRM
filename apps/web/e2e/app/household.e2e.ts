@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test } from '../auth/support/fixtures.ts';
+import { settle } from '../support/helpers.ts';
 import { checkApp, expect, openSection, seedProfiles, signInAs } from './support.ts';
 
 // Состав дома, «Обо мне» и экраны администратора (R0.3b, R0.9b): SPACE-8…10, AUTH-5.
@@ -290,6 +291,7 @@ test('ссылка сброса пароля ребёнку: условия, п�
   await openSection(page, '/people', 'Люди');
   // Взрослому ссылку не выдать: кнопки нет.
   await members(page).getByRole('link', { name: /Борис/ }).click();
+  await settle(page);
   await expect(page.getByRole('button', { name: 'Ссылка для сброса пароля' })).toHaveCount(0);
   await page.goBack();
 

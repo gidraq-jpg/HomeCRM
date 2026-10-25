@@ -26,6 +26,8 @@ import { TaskTabs } from '../tasks/TaskTabs.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
 import { countWord } from '../ui/format.ts';
 import { groupBy } from '../ui/groupBy.ts';
+import { MotionGroups } from '../ui/MotionGroups.tsx';
+import { MotionList } from '../ui/MotionList.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';
@@ -170,9 +172,13 @@ export function ShoppingScreen() {
   }
   function rows(items: ShoppingCard[]) {
     return (
-      <ul className="task-list">
+      <MotionList className="task-list" version={items.map((card) => card.id).join(',')}>
         {items.map((card) => (
-          <li key={card.id} className={card.boughtAt ? 'task-row task-row--done' : 'task-row'}>
+          <li
+            key={card.id}
+            data-motion-key={card.id}
+            className={card.boughtAt ? 'task-row task-row--done' : 'task-row'}
+          >
             {!trash ? (
               <CheckToggle
                 checked={!!card.boughtAt}
@@ -195,19 +201,20 @@ export function ShoppingScreen() {
             <AccessBadge visibility={visibilityOf(card)} />
           </li>
         ))}
-      </ul>
+      </MotionList>
     );
   }
   function list(items: ShoppingCard[]) {
     const open = items.filter((card) => !card.boughtAt);
     const bought = items.filter((card) => !!card.boughtAt);
     return (
-      <>
+      <MotionGroups version={items.map((card) => card.id + String(!!card.boughtAt)).join(',')}>
         {open.length ? (
           [...groupBy(open, (card) => card.data.category || card.data.store || 'Без магазина')].map(
             ([category, items]) => (
               <Section
                 key={category}
+                motionKey={category}
                 title={category}
                 aside={<span className="muted">{items.length}</span>}
               >
@@ -227,7 +234,7 @@ export function ShoppingScreen() {
             </p>
           </details>
         ) : null}
-      </>
+      </MotionGroups>
     );
   }
   return (

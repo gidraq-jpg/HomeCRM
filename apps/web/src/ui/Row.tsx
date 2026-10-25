@@ -1,12 +1,20 @@
 import { CaretRight, CheckCircle, Info, Warning, WarningOctagon } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
+import { Children, type ReactNode, useRef } from 'react';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { Link } from '../shell/motion.tsx';
+import { useListMotion } from './useListMotion.ts';
 
 export function RowList({ children, label }: { children: ReactNode; label?: string }) {
+  const ref = useRef<HTMLUListElement>(null);
+  useListMotion(
+    ref,
+    Children.toArray(children)
+      .map((child) => (typeof child === 'object' && 'key' in child ? child.key : ''))
+      .join(','),
+  );
   return (
-    <ul className="row-list" aria-label={label}>
+    <ul className="row-list" aria-label={label} ref={ref}>
       {children}
     </ul>
   );

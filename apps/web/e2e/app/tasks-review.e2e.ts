@@ -687,7 +687,7 @@ test('A2: сроки дела и коммуналки отвечают EDIT_SOUR
   for (const [title, source] of [
     ['Источник дела', `/today/tasks/${row.id}`],
     ['Источник коммуналки', `/home/${property.id}`],
-  ]) {
+  ] as const) {
     await page.goto('#/more/radar');
     const item = page
       .getByRole('listitem')
@@ -701,7 +701,7 @@ test('A2: сроки дела и коммуналки отвечают EDIT_SOUR
         exact: true,
       })
       .click();
-    expect(new URL(page.url()).hash).toContain(source);
+    await expect(page).toHaveURL(new RegExp(source));
   }
   await check(page, info, 'a2-utility-source');
 });

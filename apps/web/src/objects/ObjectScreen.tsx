@@ -1,6 +1,6 @@
 import { CaretLeft, DotsThree, PencilSimple } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
-import { Outlet, useLocation, useMatch, useParams } from 'react-router';
+import { Outlet, useLocation, useMatch, useNavigate, useParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
@@ -11,7 +11,7 @@ import { viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { formatArea } from '../property/property.ts';
 import { AddAction } from '../shell/AddAction.tsx';
-import { Link, useNavigate } from '../shell/motion.tsx';
+import { Link, useScreenMode } from '../shell/motion.tsx';
 import { FormHeading } from '../ui/FormHeading.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import { Page } from '../ui/Page.tsx';
@@ -61,14 +61,19 @@ function ObjectView({ card }: { card: ObjectCard }) {
   const base = `/home/${card.id}`;
   const trashed = card.deletedAt !== null;
   const property = card.objectType === 'property';
+  // Возврат на «Обзор» входит в переход режима, без вложенного View Transition.
   const navigate = useNavigate();
   const location = useLocation();
   const panelNavigation = useRef(false);
-  const [panel, setPanel] = useState<'edit' | 'more' | null>(null);
+  const [panel, setPanel, resetPanel] = useScreenMode<'edit' | 'more' | null>(
+    null,
+    (value) => value === 'edit',
+  );
   // biome-ignore lint/correctness/useExhaustiveDependencies: смена адреса закрывает локальную панель, кроме явного открытия из шапки.
   useEffect(() => {
     if (panelNavigation.current) panelNavigation.current = false;
-    else setPanel(null);
+    // История и переход по вкладке закрывают форму сразу, без нового перехода из effect.
+    else resetPanel(null);
   }, [location.key]);
   const editing = useMatch({ path: base, end: true }) !== null && panel === 'edit';
   const [accessOpen, setAccessOpen] = useState(false);
@@ -99,9 +104,10 @@ function ObjectView({ card }: { card: ObjectCard }) {
                   className="icon-button"
                   aria-label="Править"
                   onClick={() => {
-                    setPanel('edit');
-                    panelNavigation.current = true;
-                    navigate(base);
+                    setPanel('edit', () => {
+                      panelNavigation.current = true;
+                      navigate(base);
+                    });
                   }}
                 >
                   <PencilSimple size={22} aria-hidden />
@@ -112,9 +118,10 @@ function ObjectView({ card }: { card: ObjectCard }) {
                 className="icon-button"
                 aria-label="Ещё: действия с объектом"
                 onClick={() => {
-                  setPanel('more');
-                  panelNavigation.current = true;
-                  navigate(base);
+                  setPanel('more', () => {
+                    panelNavigation.current = true;
+                    navigate(base);
+                  });
                 }}
               >
                 <DotsThree size={24} aria-hidden />

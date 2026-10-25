@@ -73,6 +73,16 @@ test('UI-7: короткая проверка всех форм правки', a
   const task = await api.post('tasks', { title: 'Вымышленное дело' });
   expect(task.status).toBe(201);
   await signInAs(page, family, 'adult');
+  await page.evaluate(() => {
+    const start = document.startViewTransition.bind(document);
+    document.documentElement.dataset.formTransitionCount = '0';
+    document.startViewTransition = (update) => {
+      document.documentElement.dataset.formTransitionCount = String(
+        Number(document.documentElement.dataset.formTransitionCount) + 1,
+      );
+      return start(update);
+    };
+  });
   for (const [name, route] of [
     ['task', `/today/tasks/${(task.body as { id: string }).id}`],
     ['note', `/more/notes/${note.id}`],
@@ -89,6 +99,9 @@ test('UI-7: короткая проверка всех форм правки', a
       .getByRole('button', { name: /^Править/ })
       .click();
     await checkForm(page, info, `ui7-edit-${name}`);
+    expect(
+      Number(await page.locator('html').getAttribute('data-form-transition-count')),
+    ).toBeGreaterThan(0);
     if (name === 'document') {
       const badge = page.locator('.ui7-form-heading .status');
       await expect(badge).toBeVisible();
@@ -96,8 +109,14 @@ test('UI-7: короткая проверка всех форм правки', a
     }
     const title = `Вымышленная правка ${name}`;
     await page.locator('form input[type="text"], form input:not([type])').first().fill(title);
+    const beforeSave = Number(
+      await page.locator('html').getAttribute('data-form-transition-count'),
+    );
     await page.locator('form button[type="submit"]').click();
     await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
     await expect(page.locator('.ui7-fullscreen-form')).toHaveCount(0);
+    expect(
+      Number(await page.locator('html').getAttribute('data-form-transition-count')),
+    ).toBeGreaterThan(beforeSave);
   }
 });

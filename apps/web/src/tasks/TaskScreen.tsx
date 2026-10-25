@@ -12,7 +12,7 @@ import { FilesSection } from '../files/FilesSection.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { useSettings } from '../notifications/queries.ts';
-import { Link } from '../shell/motion.tsx';
+import { Link, useScreenMode } from '../shell/motion.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
@@ -65,7 +65,7 @@ function TaskView({ card }: { card: TimedTask }) {
   const viewer = viewerOf(me);
   const targetHouse = card.householdId ?? householdId;
   const recordActions = useRef<HTMLButtonElement>(null);
-  const [editing, setEditing] = useState<TaskCard | null>(null);
+  const [editing, setEditing] = useScreenMode<TaskCard | null>(null, (value) => value !== null);
   const [editPending, setEditPending] = useState(false);
   const editRequest = useRef<AbortController | null>(null);
   useEffect(() => {

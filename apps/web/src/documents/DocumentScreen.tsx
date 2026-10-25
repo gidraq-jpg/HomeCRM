@@ -10,7 +10,7 @@ import { noteAbilities, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { assigneeChoices } from '../objects/abilities.ts';
 import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
-import { Link, useNavigate } from '../shell/motion.tsx';
+import { Link, useNavigate, useScreenMode } from '../shell/motion.tsx';
 import { ResponsibleField } from '../tasks/ResponsibleField.tsx';
 import { Page } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';
@@ -89,13 +89,15 @@ function DocumentView({ card }: { card: DocumentCard }) {
   const quick = useAction();
   const save = useAction();
   const [search] = useSearchParams();
-  const [mode, setMode] = useState<'view' | 'edit' | 'renew'>(() =>
-    search.get('action') === 'renew' &&
-    card.status === 'valid' &&
-    card.deletedAt === null &&
-    noteAbilities(viewerOf(me), card, householdId, DOCUMENT_TYPE).edit
-      ? 'renew'
-      : 'view',
+  const [mode, setMode] = useScreenMode<'view' | 'edit' | 'renew'>(
+    () =>
+      search.get('action') === 'renew' &&
+      card.status === 'valid' &&
+      card.deletedAt === null &&
+      noteAbilities(viewerOf(me), card, householdId, DOCUMENT_TYPE).edit
+        ? 'renew'
+        : 'view',
+    (value) => value !== 'view',
   );
   const [assignee, setAssignee] = useState<string | null>(null);
   const assigneeId = useId();

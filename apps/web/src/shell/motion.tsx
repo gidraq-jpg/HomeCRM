@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   type LinkProps,
@@ -19,6 +19,9 @@ const sections = new Set(['/today', '/home', '/documents', '/people', '/more']);
 export function motionDirection(from: string, to: string): 'forward' | 'back' | null {
   if (from === to || (sections.has(from) && sections.has(to)) || (feeds.has(from) && feeds.has(to)))
     return null;
+  const form = (path: string) => /\/(new|edit|invite)$/.test(path);
+  if (form(to)) return 'forward';
+  if (form(from)) return 'back';
   const depth = (path: string) => path.split('/').filter(Boolean).length;
   if (depth(to) < depth(from)) return 'back';
   if (depth(to) > depth(from)) return 'forward';
@@ -26,24 +29,74 @@ export function motionDirection(from: string, to: string): 'forward' | 'back' | 
 }
 
 let current: ViewTransition | undefined;
+let epoch = 0;
+/** Возврат по истории не должен быть затёрт ещё не снявшим снимок переходом. */
+export function cancelMotionNavigation() {
+  epoch++;
+  current?.skipTransition();
+  current = undefined;
+  delete document.documentElement.dataset.motionDirection;
+}
 export function navigateWithMotion(from: string, to: string, navigate: () => void) {
   const direction = motionDirection(from, to);
-  if (!document.startViewTransition || !direction) {
-    current?.skipTransition();
-    navigate();
+  changeScreenWithMotion(direction, navigate);
+}
+
+export function changeScreenWithMotion(direction: 'forward' | 'back' | null, update: () => void) {
+  if (
+    document.documentElement.dataset.design !== 'studio' ||
+    !document.startViewTransition ||
+    !direction
+  ) {
+    cancelMotionNavigation();
+    update();
     return;
   }
   current?.skipTransition();
+  const activeEpoch = ++epoch;
   document.documentElement.dataset.motionDirection = direction;
-  const transition = document.startViewTransition(() => flushSync(navigate));
+  const transition = document.startViewTransition(() => {
+    if (activeEpoch !== epoch) return;
+    try {
+      flushSync(update);
+    } catch (error) {
+      reportError(error);
+      throw error;
+    }
+  });
   current = transition;
-  void transition.finished
-    .catch(() => {})
-    .finally(() => {
-      if (current !== transition) return;
-      current = undefined;
-      delete document.documentElement.dataset.motionDirection;
-    });
+  // Отмена или несостоявшийся снимок меняют только рисунок; ошибка обновления сообщается выше.
+  void transition.ready?.catch(() => {});
+  const clear = () => {
+    if (current !== transition) return;
+    current = undefined;
+    delete document.documentElement.dataset.motionDirection;
+  };
+  void transition.finished.then(clear, clear);
+}
+
+/** Полноэкранная правка может быть режимом карточки, сохраняя её адрес и черновик. */
+export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => boolean) {
+  const [value, setValue] = useState(initial);
+  const form = useRef(isForm(value));
+  const predicate = useRef(isForm);
+  predicate.current = isForm;
+  const set = useCallback((next: T, alongside?: () => void) => {
+    const nextForm = predicate.current(next);
+    const previous = form.current;
+    const update = () => {
+      form.current = nextForm;
+      setValue(next);
+      alongside?.();
+    };
+    if (previous === nextForm) update();
+    else changeScreenWithMotion(nextForm ? 'forward' : 'back', update);
+  }, []);
+  const reset = useCallback((next: T) => {
+    form.current = predicate.current(next);
+    setValue(next);
+  }, []);
+  return [value, set, reset] as const;
 }
 
 /** HashRouter остаётся декларативным; системная история работает мгновенно. */
@@ -53,7 +106,7 @@ export function useNavigate(): NavigateFunction {
   return useCallback(
     (to: To | number, options?: NavigateOptions) => {
       if (typeof to === 'number') {
-        current?.skipTransition();
+        cancelMotionNavigation();
         return navigate(to);
       }
       navigateWithMotion(pathname, resolvePath(to, pathname).pathname, () => {
@@ -83,12 +136,19 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
           event.altKey ||
           event.shiftKey ||
           (target && target !== '_self') ||
-          reloadDocument ||
-          event.currentTarget.closest('.tabs, .bottom-nav, .side-nav')
+          reloadDocument
         )
           return;
         const direction = motionDirection(from.pathname, to.pathname);
-        if (!direction || !document.startViewTransition) return;
+        if (
+          document.documentElement.dataset.design !== 'studio' ||
+          !direction ||
+          event.currentTarget.closest('.tabs, .bottom-nav, .side-nav') ||
+          !document.startViewTransition
+        ) {
+          cancelMotionNavigation();
+          return;
+        }
         event.preventDefault();
         navigateWithMotion(from.pathname, to.pathname, () => {
           void navigate(props.to, {

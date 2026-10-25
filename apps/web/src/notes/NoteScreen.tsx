@@ -8,7 +8,7 @@ import { FilesSection } from '../files/FilesSection.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
 import { LinksSection } from '../links/LinksSection.tsx';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate, useScreenMode } from '../shell/motion.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';
@@ -86,7 +86,7 @@ function NoteView({ card }: { card: NoteCard }) {
   const save = useAction(true);
   const recordActions = useRef<HTMLButtonElement>(null);
   const [accessActive, setAccessActive] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useScreenMode<boolean>(false, (value) => value);
   const [editBase, setEditBase] = useState(card.updatedAt);
   const [conflict, setConflict] = useState(false);
 

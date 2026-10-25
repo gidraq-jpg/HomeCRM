@@ -1,5 +1,4 @@
 import { ArrowCounterClockwise, Trash } from '@phosphor-icons/react';
-import { useState } from 'react';
 import { useParams } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
@@ -10,7 +9,7 @@ import { usePersonName } from '../objects/context.ts';
 import { ContactObjects } from '../people/ContactObjects.tsx';
 import { PhoneRows, QuickActions } from '../people/ContactParts.tsx';
 import { InteractionsSection } from '../people/InteractionsSection.tsx';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate, useScreenMode } from '../shell/motion.tsx';
 import { EXTERNAL_LINK } from '../ui/link.ts';
 import { Page } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';
@@ -72,7 +71,7 @@ export function OrganizationView({
   const nameOf = usePersonName();
   const quick = useAction();
   const save = useAction();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useScreenMode<boolean>(false, (value) => value);
 
   const abilities = organizationAbilities(viewerOf(me), card, householdId);
   const visibility = visibilityOf(card);

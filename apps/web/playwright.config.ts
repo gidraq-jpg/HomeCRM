@@ -30,6 +30,8 @@ export default defineConfig({
     locale: 'ru-RU',
     timezoneId: 'Europe/Moscow',
     colorScheme: 'light',
+    // Обычные проверки поведения не ждут полного движения; UI-8 явно проверяет оба режима.
+    reducedMotion: 'reduce',
     serviceWorkers: 'allow',
     permissions: ['clipboard-read', 'clipboard-write'],
   },

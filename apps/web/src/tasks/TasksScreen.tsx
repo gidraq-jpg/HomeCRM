@@ -20,6 +20,7 @@ import { FirstRunCard } from '../templates/FirstRunCard.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
+import { MotionGroups } from '../ui/MotionGroups.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { FeedTaskCard, type TaskCard, type TaskFilters, type Today } from './api.ts';
@@ -372,6 +373,7 @@ function AllFeed({ house }: { house: string | null }) {
       label={title}
       today={today}
       pending={operation.pending}
+      completionFailed={!!operation.error || !!operation.confirmation}
       dates
       complete={actions.complete}
       resume={actions.resume}
@@ -494,23 +496,29 @@ function AllFeed({ house }: { house: string | null }) {
       {query.data && !selected.length ? (
         <p className="muted">Дел под выбранные условия нет.</p>
       ) : null}
-      {today
-        ? groups.map((group) =>
-            group.tasks.length ? (
-              <Section
-                key={group.title}
-                title={group.title}
-                aside={
-                  <span className="muted">
-                    {group.tasks.filter((task) => ['open', 'waiting'].includes(task.status)).length}
-                  </span>
-                }
-              >
-                {rows(group.tasks, group.title)}
-              </Section>
-            ) : null,
-          )
-        : rows(selected, 'Все дела')}
+      <MotionGroups version={selected.map((card) => card.id + card.status).join(',')}>
+        {today
+          ? groups.map((group) =>
+              group.tasks.length ? (
+                <Section
+                  key={group.title}
+                  motionKey={group.title}
+                  title={group.title}
+                  aside={
+                    <span className="muted">
+                      {
+                        group.tasks.filter((task) => ['open', 'waiting'].includes(task.status))
+                          .length
+                      }
+                    </span>
+                  }
+                >
+                  {rows(group.tasks, group.title)}
+                </Section>
+              ) : null,
+            )
+          : rows(selected, 'Все дела')}
+      </MotionGroups>
       <LoadMore query={query} label="Показать ещё дела" />
       {moving && timeZone ? (
         <MoveTaskSheet

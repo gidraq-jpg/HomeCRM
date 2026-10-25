@@ -3,6 +3,7 @@ import { motionTime, reducedMotion } from './motion.ts';
 
 interface Snapshot {
   node: HTMLElement;
+  source: HTMLElement;
   height: number;
   next: string | undefined;
 }
@@ -14,10 +15,11 @@ export function useListMotion(
   kind: 'list' | 'toast' = 'list',
 ) {
   const previous = useRef(new Map<string, Snapshot>());
+  const initialized = useRef(false);
   // biome-ignore lint/correctness/useExhaustiveDependencies: снимок меняется вместе с составом и состояниями строк
   useLayoutEffect(() => {
     const list = ref.current;
-    if (!list) return;
+    if (!list || document.documentElement.dataset.design !== 'studio') return;
     const rows = [...list.children].filter(
       (node): node is HTMLElement =>
         node instanceof HTMLElement && !node.hasAttribute('data-motion-ghost'),
@@ -33,10 +35,11 @@ export function useListMotion(
       const height = row.getBoundingClientRect().height;
       next.set(key, {
         node: row.cloneNode(true) as HTMLElement,
+        source: row,
         height,
         next: rows[index + 1]?.dataset.motionKey,
       });
-      if (previous.current.size && !previous.current.has(key)) {
+      if ((initialized.current || kind === 'toast') && !previous.current.has(key)) {
         const animation = row.animate(
           reduce
             ? [{ opacity: 0 }, { opacity: 1 }]
@@ -57,6 +60,11 @@ export function useListMotion(
     for (const [key, snapshot] of previous.current) {
       if (next.has(key)) continue;
       const ghost = snapshot.node;
+      if (
+        snapshot.source.dataset.motionCompleted === 'true' ||
+        snapshot.source.querySelector('[data-motion-completed="true"]')
+      )
+        ghost.dataset.motionCompleted = 'true';
       ghost.dataset.motionGhost = '';
       ghost.inert = true;
       ghost.setAttribute('aria-hidden', 'true');
@@ -65,9 +73,18 @@ export function useListMotion(
       });
       ghost.removeAttribute('id');
       ghost.style.overflow = 'hidden';
+      ghost.style.minHeight = '0';
       const following = rows.find((row) => row.dataset.motionKey === snapshot.next);
       list.insertBefore(ghost, following ?? null);
       const completed = ghost.dataset.motionCompleted === 'true';
+      if (completed) {
+        ghost.querySelectorAll('.plan-circle').forEach((circle) => {
+          circle.classList.add('plan-circle--done');
+          if (!circle.querySelector('svg'))
+            circle.innerHTML =
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="4 12 9 17 20 6" /></svg>';
+        });
+      }
       const animation = ghost.animate(
         reduce
           ? [{ opacity: 1 }, { opacity: 0 }]
@@ -97,6 +114,7 @@ export function useListMotion(
       });
     }
     previous.current = next;
+    initialized.current = true;
     return () => {
       for (const clean of cleanup) clean();
     };

@@ -49,7 +49,13 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
     const up = (event: PointerEvent) => {
       const origin = start;
       cancel();
-      if (!origin || origin.pointerId !== event.pointerId || blocked()) return;
+      if (
+        !origin ||
+        origin.pointerId !== event.pointerId ||
+        blocked() ||
+        (event.target instanceof Element && event.target.closest('[data-row-gesture]'))
+      )
+        return;
       const direction = swipeDirection(
         origin,
         { x: event.clientX, y: event.clientY, time: event.timeStamp },

@@ -98,7 +98,9 @@ export async function openDocuments(page: Page) {
   await expect(
     page.getByRole('heading', { level: 1, name: 'Документы', exact: true }),
   ).toBeVisible();
-  await expect(page.getByText('Загружаем документы…')).toHaveCount(0);
+  await expect(page.getByRole('status', { name: 'Загружаем документы…', exact: true })).toHaveCount(
+    0,
+  );
 }
 
 /** Ссылки списка документов по названию. */

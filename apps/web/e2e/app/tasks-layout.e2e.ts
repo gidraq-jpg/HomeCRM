@@ -29,7 +29,7 @@ async function check(page: Page, name: string) {
 }
 async function openFeed(page: Page, view: 'today' | 'plan' | 'all') {
   await page.goto(view === 'today' ? '#/today' : `#/today/${view}`);
-  await expect(page.getByText('Загружаем дела…', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('status', { name: 'Загружаем дела…', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     view === 'today' ? 'Сегодня' : view === 'plan' ? 'План' : 'Все дела',
   );
