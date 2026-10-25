@@ -1,5 +1,11 @@
 import { readFile } from 'node:fs/promises';
-import { type Draft, type DraftKind, parseQuickline } from '@homecrm/shared';
+import {
+  type Draft,
+  type DraftKind,
+  IdentityCheck,
+  type MeterData,
+  parseQuickline,
+} from '@homecrm/shared';
 import sharp from 'sharp';
 import { ProxyAgent, type RequestInit as ProxyRequestInit, fetch as proxyFetch } from 'undici';
 import { z } from 'zod';
@@ -7,6 +13,8 @@ import { Failure } from '../objects/support.ts';
 import type { AiConfig } from './config.ts';
 import { normalizeResponse, ResponseSchemas, requestContext } from './drafts.ts';
 import { common } from './prompts/common.ts';
+import { identity } from './prompts/identity.ts';
+import { meter } from './prompts/meter.ts';
 import { note } from './prompts/note.ts';
 import { shopping } from './prompts/shopping.ts';
 import { task } from './prompts/task.ts';
@@ -24,11 +32,15 @@ export interface ExtractRequest {
   kind: DraftKind | 'auto';
   text?: string;
   image?: { bytes: Buffer; classification: 'ordinary' | 'passport' | 'medical' };
+  deadline?: number;
   context: {
     objects: readonly { id: string; title: string }[];
     members: readonly { id: string; name: string }[];
     timeZone: string;
     now?: Date;
+    meter?: Pick<MeterData, 'resource' | 'zones' | 'integerDigits' | 'fractionDigits' | 'unit'> & {
+      previous: string[] | null;
+    };
   };
 }
 export interface Extractor {
@@ -66,9 +78,30 @@ export function guardInput(input: ExtractRequest) {
     throw new Failure(400, 'AI_PRIVATE_DOCUMENT');
   if (!input.text && !input.image) throw new Failure(400, 'INVALID_INPUT');
 }
+export async function preparePhoto(bytes: Buffer) {
+  if (bytes.length > 10 * 1024 * 1024) throw new Failure(413, 'INVALID_INPUT');
+  try {
+    return await sharp(bytes, { limitInputPixels: 40000000 })
+      .rotate()
+      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+      .jpeg()
+      .toBuffer();
+  } catch {
+    throw new Failure(400, 'INVALID_INPUT');
+  }
+}
 export function fakeDraft(input: ExtractRequest): Draft {
   guardInput(input);
   const f = <T>(value: T) => ({ value, confident: true });
+  if (input.kind === 'identity') return { identity: 'no' };
+  if (input.kind === 'meter')
+    return {
+      values: (input.context.meter?.zones ?? ['Основная']).map(() =>
+        f(
+          `1${input.context.meter?.fractionDigits ? `.${'2'.repeat(input.context.meter.fractionDigits)}` : ''}`,
+        ),
+      ),
+    };
   const title = input.text?.trim() || 'Вымышленный образец';
   if (input.kind === 'auto')
     return title
@@ -121,8 +154,13 @@ export function createProviders(
     speech: 60000,
     extraction: 90000,
   },
-  prompts = { task, shopping, note },
+  prompts: { task: string; shopping: string; note: string; meter?: string; identity?: string } = {
+    task,
+    shopping,
+    note,
+  },
 ) {
+  const rules = { meter, identity, ...prompts };
   // Прокси применяется только к внешнему разбору; локальная речь остаётся в локальной сети.
   const dispatcher = config.AI_HTTPS_PROXY ? new ProxyAgent(config.AI_HTTPS_PROXY) : undefined;
   async function request(
@@ -230,7 +268,10 @@ export function createProviders(
       }
     },
     async extract(input) {
-      const deadline = Date.now() + Math.min(timeout.total ?? 120000, 120000);
+      const deadline = Math.min(
+        input.deadline ?? Infinity,
+        Date.now() + Math.min(timeout.total ?? 120000, 120000),
+      );
       guardInput(input);
       if (config.AI_EXTRACT_PROVIDER === 'fake') return fakeDraft(input);
       if (config.AI_EXTRACT_PROVIDER !== 'openai-compatible') throw unavailable();
@@ -253,17 +294,7 @@ export function createProviders(
         },
       ];
       if (input.image) {
-        if (input.image.bytes.length > 10 * 1024 * 1024) throw new Failure(413, 'INVALID_INPUT');
-        let image: Buffer;
-        try {
-          image = await sharp(input.image.bytes, { limitInputPixels: 40000000 })
-            .rotate()
-            .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
-            .jpeg()
-            .toBuffer();
-        } catch {
-          throw new Failure(400, 'INVALID_INPUT');
-        }
+        const image = await preparePhoto(input.image.bytes);
         content.push({
           type: 'image_url',
           image_url: { url: `data:image/jpeg;base64,${image.toString('base64')}` },
@@ -272,7 +303,7 @@ export function createProviders(
       const messages: unknown[] = [
         {
           role: 'system',
-          content: `${common}\n${input.kind === 'auto' ? Object.values(prompts).join('\n') : prompts[input.kind]}\n${JSON.stringify(jsonSchema)}`,
+          content: `${common}\n${input.kind === 'auto' ? [rules.task, rules.shopping, rules.note].join('\n') : rules[input.kind]}\n${JSON.stringify(jsonSchema)}`,
         },
         { role: 'user', content },
       ];
@@ -344,6 +375,15 @@ export function createProviders(
   return {
     speech,
     extractor,
+    async photo(input: ExtractRequest) {
+      const deadline = Date.now() + Math.min(timeout.total ?? 120000, 120000);
+      const check = IdentityCheck.parse(
+        await extractor.extract({ ...input, kind: 'identity', deadline }),
+      );
+      if (check.identity !== 'no')
+        throw new Failure(422, 'AI_PRIVATE_DOCUMENT', 'Документ личности — заполните вручную.');
+      return extractor.extract({ ...input, deadline });
+    },
     close: async () => {
       await dispatcher?.close();
     },

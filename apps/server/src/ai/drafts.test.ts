@@ -96,7 +96,7 @@ it('AI-2: контекст — только местная дата/день и 
   expect(Object.keys(sent)).toEqual(['today', 'members', 'objects']);
   expect(sent.today).toBe('2026-10-24 суббота');
   expect(sent.members).toBe(context.members.map((m) => `${m.id}: ${m.name}`).join('\n'));
-  expect(sent.objects.split('\n')).toHaveLength(50);
+  expect(sent.objects?.split('\n')).toHaveLength(50);
   expect(sent.objects).not.toContain('object-50');
-  expect(sent.objects.split('\n')[0]).toBe('object-0: Учебный объект');
+  expect(sent.objects?.split('\n')[0]).toBe('object-0: Учебный объект');
 });

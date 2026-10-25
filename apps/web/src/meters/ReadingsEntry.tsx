@@ -16,6 +16,7 @@ import { type MeterListItem, ReadingCard } from './api.ts';
 import { showDecimal, showWithUnit } from './decimal.ts';
 import { RESOURCE_UNITS, zoneLabel } from './labels.ts';
 import { ReplaceSheet } from './MeterForms.tsx';
+import { MeterPhoto } from './MeterPhoto.tsx';
 import { useRefreshMeters } from './queries.ts';
 import { type ReadingsContext, useReadings } from './ReadingsLayout.tsx';
 import {
@@ -114,6 +115,7 @@ function MeterField({ meter, ctx, submitted, photoProblem, onPhotoProblem }: Met
           )}
         </p>
 
+        {ctx.canWrite ? <MeterPhoto meter={meter} ctx={ctx} /> : null}
         {ctx.canWrite
           ? meter.data.zones.map((zone, index) => {
               const inputId = `${base}-value-${index}`;

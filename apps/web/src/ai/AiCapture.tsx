@@ -5,8 +5,8 @@ import type { Visibility } from '../access/visibility.ts';
 import { ApiError, apiRequest } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { Sheet } from '../ui/Sheet.tsx';
 import { AiDrafts } from './AiDrafts.tsx';
+import { consentKey, useAiConsent } from './consent.tsx';
 import './ai.css';
 
 export function aiError(error: unknown) {
@@ -45,20 +45,12 @@ export function AiCapture({
 }) {
   const { me } = useHousehold();
   const status = useAiStatus(house);
-  const [consent, setConsent] = useState(false);
+  const consent = useAiConsent(house, status.data?.provider);
   const [pending, setPending] = useState(false);
   const busy = useRef(false);
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<AutoDraft[] | null>(null);
-  const key = `homecrm:ai-consent:v2:${status.data?.provider}:${me.id}:${house}`;
-  const accepted = useRef(new Set<string>());
-  function hasConsent() {
-    try {
-      return accepted.current.has(key) || localStorage.getItem(key) === 'yes';
-    } catch {
-      return accepted.current.has(key);
-    }
-  }
+  const key = consentKey(me.id, house, status.data?.provider);
   async function extract() {
     if (busy.current || !house || !text.trim()) return;
     busy.current = true;
@@ -89,8 +81,7 @@ export function AiCapture({
           className="btn btn--secondary ai-trigger"
           disabled={pending || !text.trim()}
           onClick={() => {
-            if (hasConsent()) void extract();
-            else setConsent(true);
+            consent.ask(() => void extract());
           }}
         >
           {pending ? 'Разбираем…' : 'Разобрать'}
@@ -101,50 +92,7 @@ export function AiCapture({
           <Notice error>{error} Введённый текст сохранён.</Notice>
         </div>
       ) : null}
-      {consent ? (
-        <Sheet
-          open
-          title="Разбор с помощью ИИ"
-          description="Перед первой отправкой"
-          onOpenChange={setConsent}
-        >
-          <p>
-            Фраза, сегодняшняя дата, имена участников и названия доступных вам объектов дома уйдут
-            через поставщика ИИ ({status.data?.provider.split(':')[0]}). При выборе фото оно тоже
-            отправляется.
-          </p>
-          <p>
-            Другие записи и файлы не отправляются. Документы личности заполняются вручную; ИИ может
-            только проверить, похоже ли фото на такой документ, без извлечения полей.
-          </p>
-          <p>
-            ИИ предложит черновики. Ничего не сохранится, пока вы не проверите их и не нажмёте
-            «Сохранить».
-          </p>
-          <p className="muted">Согласие запомнится для вас и этого дома в этом браузере.</p>
-          <div className="btn-row">
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => {
-                accepted.current.add(key);
-                try {
-                  localStorage.setItem(key, 'yes');
-                } catch {
-                  /* При запрете хранилища согласие действует до закрытия страницы. */
-                }
-                setConsent(false);
-                void extract();
-              }}
-            >
-              Согласен, разобрать
-            </button>
-            <button type="button" className="btn btn--secondary" onClick={() => setConsent(false)}>
-              Отмена
-            </button>
-          </div>
-        </Sheet>
-      ) : null}
+      {consent.dialog}
       {drafts ? (
         <AiDrafts
           key={key}

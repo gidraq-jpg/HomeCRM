@@ -254,3 +254,30 @@ it('AI: local-stt отклоняет неверную схему ответа', 
     ),
   ).rejects.toMatchObject({ code: 'AI_INVALID_RESPONSE' });
 });
+
+it.each(['yes', 'unsure'])(
+  'AI-4: %s останавливает фото до извлечения любых полей',
+  async (identity) => {
+    let calls = 0;
+    const p = await setup((req, res) => {
+      calls++;
+      let body = '';
+      req.on('data', (chunk) => (body += chunk));
+      req.on('end', () => {
+        const schema = JSON.parse(body).response_format.json_schema.schema;
+        expect(Object.keys(schema.properties)).toEqual(['identity']);
+        res.end(
+          JSON.stringify({ choices: [{ message: { content: JSON.stringify({ identity }) } }] }),
+        );
+      });
+    });
+    const bytes = await (await import('sharp'))
+      .default({ create: { width: 10, height: 10, channels: 3, background: 'white' } })
+      .jpeg()
+      .toBuffer();
+    await expect(
+      p.photo({ ...input, kind: 'meter', image: { bytes, classification: 'ordinary' } }),
+    ).rejects.toMatchObject({ code: 'AI_PRIVATE_DOCUMENT' });
+    expect(calls).toBe(1);
+  },
+);
