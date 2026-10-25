@@ -13,12 +13,17 @@ async function enable(family: Family) {
     family.houseId,
   ]);
 }
-async function capture(page: Page, text: string) {
+async function openCapture(page: Page) {
+  const status = page.waitForResponse((response) => response.url().includes('/api/ai/status?'));
   await openSection(page, '/more/inbox/new', 'Входящие');
+  expect(AiStatus.parse(await (await status).json()).enabled).toBe(true);
+}
+async function capture(page: Page, text: string) {
+  await openCapture(page);
   await page.getByLabel('Текст или диктовка').fill(text);
   await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
   const consent = page.getByRole('button', { name: 'Согласен, разобрать', exact: true });
-  if (await consent.isVisible()) await consent.click();
+  await consent.click();
   await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
   await page.getByRole('link', { name: 'Открыть', exact: true }).first().click();
 }
@@ -26,6 +31,14 @@ test('INBOX-1/2/4: во входящие → app fake → сохранить к�
   page,
   family,
 }, info) => {
+  await page.route(
+    '**/api/ai/status?**',
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await route.continue();
+    },
+    { times: 1 },
+  );
   await enable(family);
   await signInAs(page, family, 'adult');
   await capture(page, 'Позвонить в учебную мастерскую');
@@ -61,7 +74,7 @@ test('AI-4: фото документа личности → пустая руч
 }, info) => {
   await enable(family);
   await signInAs(page, family, 'adult');
-  await openSection(page, '/more/inbox/new', 'Входящие');
+  await openCapture(page);
   const bytes = await identityPage();
   await page
     .getByLabel('Галерея или файл — можно несколько страниц')
@@ -110,9 +123,7 @@ test('INBOX-1: офлайн-захват → очередь → отправка
 }, info) => {
   await enable(family);
   await signInAs(page, family, 'adult');
-  const status = page.waitForResponse((r) => r.url().includes('/api/ai/status'));
-  await openSection(page, '/more/inbox/new', 'Входящие');
-  await status;
+  await openCapture(page);
   await context.setOffline(true);
   await page.getByLabel('Текст или диктовка').fill('Учебная мысль без сети');
   await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
@@ -134,7 +145,7 @@ for (const mixed of [false, true])
   }, info) => {
     await enable(family);
     await signInAs(page, family, 'adult');
-    await openSection(page, '/more/inbox/new', 'Входящие');
+    await openCapture(page);
     await page
       .getByLabel('Текст или диктовка')
       .fill(
