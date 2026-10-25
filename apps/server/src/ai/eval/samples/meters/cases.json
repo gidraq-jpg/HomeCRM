@@ -1,0 +1,146 @@
+[
+  {
+    "image": "1.jpg",
+    "meter": {
+      "resource": "cold_water",
+      "integerDigits": 5,
+      "fractionDigits": 3,
+      "zones": ["T1"],
+      "unit": "м³",
+      "previous": null
+    },
+    "expected": ["123.456"]
+  },
+  {
+    "image": "2.jpg",
+    "meter": {
+      "resource": "hot_water",
+      "integerDigits": 5,
+      "fractionDigits": 3,
+      "zones": ["T1"],
+      "unit": "м³",
+      "previous": null
+    },
+    "expected": ["321.078"]
+  },
+  {
+    "image": "3.jpg",
+    "meter": {
+      "resource": "cold_water",
+      "integerDigits": 5,
+      "fractionDigits": 3,
+      "zones": ["T1"],
+      "unit": "м³",
+      "previous": null
+    },
+    "expected": ["1234.567"]
+  },
+  {
+    "image": "4.jpg",
+    "meter": {
+      "resource": "hot_water",
+      "integerDigits": 5,
+      "fractionDigits": 3,
+      "zones": ["T1"],
+      "unit": "м³",
+      "previous": null
+    },
+    "expected": ["9.013"]
+  },
+  {
+    "image": "5.jpg",
+    "meter": {
+      "resource": "electricity",
+      "integerDigits": 6,
+      "fractionDigits": 0,
+      "zones": ["T1"],
+      "unit": "кВт·ч",
+      "previous": null
+    },
+    "expected": ["12345"]
+  },
+  {
+    "image": "6.jpg",
+    "meter": {
+      "resource": "electricity",
+      "integerDigits": 6,
+      "fractionDigits": 1,
+      "zones": ["T1"],
+      "unit": "кВт·ч",
+      "previous": null
+    },
+    "expected": ["32145.6"]
+  },
+  {
+    "image": "7.jpg",
+    "meter": {
+      "resource": "electricity",
+      "integerDigits": 6,
+      "fractionDigits": 2,
+      "zones": ["T1", "T2"],
+      "unit": "кВт·ч",
+      "previous": null
+    },
+    "expected": ["12345.67", "23456.78"]
+  },
+  {
+    "image": "8.jpg",
+    "meter": {
+      "resource": "electricity",
+      "integerDigits": 6,
+      "fractionDigits": 1,
+      "zones": ["T1", "T2", "T3"],
+      "unit": "кВт·ч",
+      "previous": null
+    },
+    "expected": ["1234.5", "2345.6", "3456.7"]
+  },
+  {
+    "image": "9.jpg",
+    "meter": {
+      "resource": "gas",
+      "integerDigits": 5,
+      "fractionDigits": 3,
+      "zones": ["T1"],
+      "unit": "м³",
+      "previous": null
+    },
+    "expected": ["210.309"]
+  },
+  {
+    "image": "10.jpg",
+    "meter": {
+      "resource": "cold_water",
+      "integerDigits": 5,
+      "fractionDigits": 3,
+      "zones": ["T1"],
+      "unit": "м³",
+      "previous": null
+    },
+    "expected": ["9999.999"]
+  },
+  {
+    "image": "11.jpg",
+    "meter": {
+      "resource": "electricity",
+      "integerDigits": 5,
+      "fractionDigits": 2,
+      "zones": ["T1", "T2", "T3"],
+      "unit": "кВт·ч",
+      "previous": null
+    },
+    "expected": ["1234.01", "2345.02", "3456.03"]
+  },
+  {
+    "image": "12.jpg",
+    "meter": {
+      "resource": "cold_water",
+      "integerDigits": 5,
+      "fractionDigits": 3,
+      "zones": ["T1"],
+      "unit": "м³",
+      "previous": null
+    },
+    "expected": ["0.120"]
+  }
+]

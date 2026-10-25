@@ -1,24 +1,37 @@
+import { createHash } from 'node:crypto';
 import multipart from '@fastify/multipart';
 import {
   and,
   desc,
   eq,
   isNull,
+  meterReadings,
+  meters,
   objects,
   recordLinks,
   spaceMembers,
   spaces,
   sql,
+  utilityAccounts,
 } from '@homecrm/db';
-import { AiStatus, canView, canViewMembership, ExtractInput } from '@homecrm/shared';
+import {
+  AiStatus,
+  canView,
+  canViewMembership,
+  ExtractInput,
+  MeterData,
+  MeterPhotoDraft,
+  ReceiptAccounts,
+  ReceiptPhotoDraft,
+} from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { parseBuffer } from 'music-metadata';
 import { z } from 'zod';
-import { createAccountReader } from '../auth/account.ts';
+import { type Account, createAccountReader } from '../auth/account.ts';
 import type { AuthModule } from '../auth/routes.ts';
 import { Failure, factsOf, parse } from '../objects/support.ts';
 import type { AiConfig } from './config.ts';
-import { createProviders, validateAudio } from './providers.ts';
+import { createProviders, preparePhoto, validateAudio } from './providers.ts';
 
 const House = z.strictObject({ spaceId: z.uuid() });
 export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai: AiConfig }) {
@@ -26,6 +39,15 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
   const providers = createProviders(ai);
   app.addHook('onClose', () => providers.close());
   let active = 0;
+  let health: { expires: number; result: Promise<boolean[]> } | undefined;
+  function providerHealth() {
+    if (!health || health.expires <= Date.now())
+      health = {
+        expires: Date.now() + 30000,
+        result: Promise.all([providers.speech.health(), providers.extractor.health()]),
+      };
+    return health.result;
+  }
   app.addHook('onRoute', (route) => {
     if (route.method !== 'POST') return;
     const handler = route.handler;
@@ -75,15 +97,190 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
       return { row, remaining: usage.rows[0]?.remaining ?? 0 };
     });
   }
+  async function consume(accountId: string, spaceId: string) {
+    const ok = await options.appDb.withAccount(
+      accountId,
+      async (tx) =>
+        (
+          await tx.execute<{ ok: boolean }>(
+            sql`SELECT app.consume_ai_request(${spaceId}::uuid,${ai.AI_DAILY_LIMIT}::integer) AS ok`,
+          )
+        ).rows[0]?.ok,
+    );
+    if (!ok)
+      throw new Failure(429, 'AI_DAILY_LIMIT', 'Дневной предел ИИ исчерпан. Можно ввести вручную.');
+  }
+  async function visibleAccounts(account: Account, spaceId: string) {
+    return options.appDb.withAccount(account.id, async (tx) => {
+      const rows = await tx
+        .select({ account: utilityAccounts, object: objects })
+        .from(utilityAccounts)
+        .innerJoin(objects, eq(utilityAccounts.parentId, objects.id))
+        .where(and(isNull(utilityAccounts.deletedAt), isNull(objects.deletedAt)))
+        .orderBy(utilityAccounts.id);
+      return ReceiptAccounts.parse(
+        rows
+          .filter(
+            (row) =>
+              (row.account.spaceKind === 'personal' || row.account.spaceId === spaceId) &&
+              canView(account.viewer, factsOf(row.account).placement) &&
+              canView(account.viewer, factsOf(row.object).placement),
+          )
+          .map((row) => ({
+            id: row.account.id,
+            title: row.account.title,
+            objectId: row.account.parentId,
+            objectTitle: row.object.title,
+            data: row.account.data,
+          })),
+      );
+    });
+  }
+  app.get('/api/ai/receipt-accounts', async (request, reply) => {
+    const account = await accountReader(request, reply);
+    if (!account) return reply;
+    const { spaceId } = parse(House, request.query);
+    await house(account.id, spaceId);
+    return visibleAccounts(account, spaceId);
+  });
+  app.post('/api/ai/receipt-photo', async (request, reply) => {
+    const account = await accountReader(request, reply);
+    if (!account) return reply;
+    const { spaceId } = parse(House.extend({ consent: z.literal('true') }), request.query);
+    const { row } = await house(account.id, spaceId);
+    if (!row.aiEnabled) throw new Failure(403, 'AI_DISABLED');
+    if (ai.AI_EXTRACT_PROVIDER === 'disabled') throw new Failure(503, 'AI_UNAVAILABLE');
+    const accounts = await visibleAccounts(account, spaceId);
+    const file = await request.file();
+    if (file?.fieldname !== 'file') throw new Failure(400, 'INVALID_INPUT');
+    const original = await file.toBuffer();
+    if (file.file.truncated) throw new Failure(413, 'INVALID_INPUT');
+    const bytes = await preparePhoto(original);
+    await consume(account.id, spaceId);
+    const started = Date.now();
+    let code = 'OK';
+    try {
+      return ReceiptPhotoDraft.parse(
+        await providers.photo({
+          kind: 'receipt',
+          image: { bytes, classification: 'ordinary' },
+          context: {
+            objects: [],
+            members: [],
+            timeZone: row.timeZone ?? options.homeTimeZone,
+            accounts: accounts.map((account) => ({ id: account.id, number: account.data.number })),
+          },
+        }),
+      );
+    } catch (error) {
+      code = error instanceof Failure ? error.code : 'AI_UNAVAILABLE';
+      throw error;
+    } finally {
+      request.log.info(
+        {
+          operation: 'receipt-photo',
+          provider: ai.AI_EXTRACT_PROVIDER,
+          durationMs: Date.now() - started,
+          size: bytes.length,
+          code,
+        },
+        'AI operation finished',
+      );
+    }
+  });
+  app.post('/api/ai/meter-photo', async (request, reply) => {
+    const account = await accountReader(request, reply);
+    if (!account) return reply;
+    const body = parse(
+      House.extend({ meterId: z.uuid(), consent: z.literal('true') }),
+      request.query,
+    );
+    const { row } = await house(account.id, body.spaceId);
+    if (!row.aiEnabled) throw new Failure(403, 'AI_DISABLED');
+    if (ai.AI_EXTRACT_PROVIDER === 'disabled') throw new Failure(503, 'AI_UNAVAILABLE');
+    const meter = await options.appDb.withAccount(account.id, async (tx) => {
+      const [entry] = await tx
+        .select()
+        .from(meters)
+        .where(and(eq(meters.id, body.meterId), isNull(meters.deletedAt)));
+      if (
+        !entry ||
+        !canView(account.viewer, factsOf(entry).placement) ||
+        (entry.spaceKind === 'household' && entry.spaceId !== body.spaceId)
+      )
+        throw new Failure(404, 'NOT_FOUND');
+      const [previous] = await tx
+        .select({ values: meterReadings.values })
+        .from(meterReadings)
+        .where(and(eq(meterReadings.parentId, entry.id), isNull(meterReadings.deletedAt)))
+        .orderBy(desc(meterReadings.occurredOn), desc(meterReadings.createdAt))
+        .limit(1);
+      const data = MeterData.parse(entry.data);
+      return {
+        resource: data.resource,
+        zones: data.zones,
+        integerDigits: data.integerDigits,
+        fractionDigits: data.fractionDigits,
+        unit: data.unit,
+        previous: previous?.values ?? null,
+      };
+    });
+    const file = await request.file();
+    if (file?.fieldname !== 'file') throw new Failure(400, 'INVALID_INPUT');
+    const original = await file.toBuffer();
+    if (file.file.truncated) throw new Failure(413, 'INVALID_INPUT');
+    const bytes = await preparePhoto(original);
+    await consume(account.id, body.spaceId);
+    const started = Date.now();
+    let code = 'OK';
+    try {
+      return MeterPhotoDraft.parse(
+        await providers.photo({
+          kind: 'meter',
+          image: { bytes, classification: 'ordinary' },
+          context: {
+            objects: [],
+            members: [],
+            timeZone: row.timeZone ?? options.homeTimeZone,
+            meter,
+          },
+        }),
+      );
+    } catch (error) {
+      code = error instanceof Failure ? error.code : 'AI_UNAVAILABLE';
+      throw error;
+    } finally {
+      request.log.info(
+        {
+          operation: 'meter-photo',
+          provider: ai.AI_EXTRACT_PROVIDER,
+          durationMs: Date.now() - started,
+          size: bytes.length,
+          code,
+        },
+        'AI operation finished',
+      );
+    }
+  });
   app.get('/api/ai/status', async (request, reply) => {
     const account = await accountReader(request, reply);
     if (!account) return reply;
     const { spaceId } = parse(House, request.query);
     const { row, remaining } = await house(account.id, spaceId);
-    const [speech, extraction] = row.aiEnabled
-      ? await Promise.all([providers.speech.health(), providers.extractor.health()])
-      : [false, false];
-    return AiStatus.parse({ enabled: row.aiEnabled, speech, extraction, remaining });
+    const [speech, extraction] = row.aiEnabled ? await providerHealth() : [false, false];
+    const supplier =
+      ai.AI_EXTRACT_MODEL === 'hermes-agent' ? 'Hermes → OpenAI' : 'Совместимый поставщик';
+    const version = createHash('sha256')
+      .update(JSON.stringify([ai.AI_EXTRACT_PROVIDER, ai.AI_EXTRACT_URL, ai.AI_EXTRACT_MODEL]))
+      .digest('hex')
+      .slice(0, 16);
+    return AiStatus.parse({
+      enabled: row.aiEnabled,
+      speech,
+      extraction,
+      remaining,
+      provider: `${ai.AI_EXTRACT_PROVIDER === 'fake' ? 'Учебный поставщик' : supplier}:${version}`,
+    });
   });
   app.patch('/api/ai/settings', async (request, reply) => {
     const account = await accountReader(request, reply);
@@ -121,8 +318,7 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
           ),
           desc(objects.updatedAt),
           objects.id,
-        )
-        .limit(50);
+        );
       const members = await tx
         .select()
         .from(spaceMembers)
@@ -130,6 +326,7 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
       return {
         objects: visibleObjects
           .filter((o) => canView(account.viewer, factsOf(o).placement))
+          .slice(0, 50)
           .map((o) => ({ id: o.id, title: o.title })),
         members: members
           .filter((m) => canViewMembership(account.viewer, m.accountId, body.spaceId))
@@ -139,17 +336,7 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
       };
     });
     // Короткая транзакция заканчивается ДО сетевого вызова; расход лимита переживает сбой поставщика.
-    const consumed = await options.appDb.withAccount(
-      account.id,
-      async (tx) =>
-        (
-          await tx.execute<{ ok: boolean }>(
-            sql`SELECT app.consume_ai_request(${body.spaceId}::uuid,${ai.AI_DAILY_LIMIT}::integer) AS ok`,
-          )
-        ).rows[0]?.ok,
-    );
-    if (!consumed)
-      throw new Failure(429, 'AI_DAILY_LIMIT', 'Дневной предел ИИ исчерпан. Можно ввести вручную.');
+    await consume(account.id, body.spaceId);
     const started = Date.now();
     let code = 'OK';
     try {

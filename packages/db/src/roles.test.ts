@@ -91,6 +91,7 @@ describe('роли базы', () => {
       } else if (roles[0] === DB_ROLES.owner) {
         expect([
           'household_access_sync',
+          'ai_usage_increment',
           'household_access_document_owner',
           'household_access_birthday_lookup',
           'contacts_birthday_lookup',
@@ -137,6 +138,7 @@ describe('роли базы', () => {
         'birthday_delivery_name',
         'claim_push_endpoint',
         'document_owner_is_child',
+        'increment_ai_usage',
         'initialize_member_profile',
         'passport_birth_visible',
         'process_task_overdue',
