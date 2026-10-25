@@ -1,12 +1,13 @@
 import { ROLE_LABELS } from '@homecrm/shared';
 import { Phone } from '@phosphor-icons/react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { AccessCaption } from '../access/AccessBadge.tsx';
 import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { ActionError, Avatar } from '../household/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
+import { Link } from '../shell/motion.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { type DateOnly, formatFullDate, toTelHref } from '../ui/format.ts';

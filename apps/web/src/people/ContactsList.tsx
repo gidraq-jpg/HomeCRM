@@ -1,15 +1,15 @@
 import { AddressBook, Plus } from '@phosphor-icons/react';
 import { useDeferredValue, useId, useState } from 'react';
-import { Link } from 'react-router';
-import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { creatableOrganizationVisibilities } from '../organizations/abilities.ts';
 import { useCanCreateOrganization } from '../organizations/CreateOrganization.tsx';
 import { ORGANIZATION_TYPE_LABELS } from '../organizations/form.ts';
+import { Link } from '../shell/motion.tsx';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
 import type { ContactFilters, PersonCategory } from './api.ts';
 import { CATEGORY_FILTER_LABELS, categoriesLabel } from './labels.ts';
@@ -145,7 +145,7 @@ export function ContactsList() {
         onChange={setChoice}
       />
 
-      {query.isPending ? <Notice>Загружаем контакты…</Notice> : null}
+      {query.isPending ? <ListSkeleton label="Загружаем контакты…" /> : null}
       {query.isError && items.length === 0 ? (
         <>
           <ObjectError error={query.error} action="load" />

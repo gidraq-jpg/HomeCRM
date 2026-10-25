@@ -1,6 +1,5 @@
 import { Camera, Gauge, X } from '@phosphor-icons/react';
 import { useId, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { LOCAL_MESSAGES } from '../files/errors.ts';
 import { localProblem } from '../files/prepare.ts';
@@ -8,6 +7,7 @@ import { ObjectError } from '../objects/components.tsx';
 import { LocalSaved } from '../offline/identity.ts';
 import { enqueueReadings, synchronize } from '../offline/queue.ts';
 import { offlineDB } from '../offline/store.ts';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { CheckLine } from '../ui/CheckLine.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { type DateOnly, formatShortDate } from '../ui/format.ts';

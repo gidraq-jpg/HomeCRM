@@ -1,9 +1,9 @@
 import type { RadarActionInput } from '@homecrm/shared';
 import { useRef, useState } from 'react';
-import { Link } from 'react-router';
 import { ApiError } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
 import { todayIn } from '../objects/dates.ts';
+import { Link } from '../shell/motion.tsx';
 import { formatShortDate } from '../ui/format.ts';
 import { fetchRadar, saveRadarAction } from './api.ts';
 import { useRefreshDeadlines } from './queries.ts';

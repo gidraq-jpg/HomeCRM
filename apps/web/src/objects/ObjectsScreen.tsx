@@ -1,12 +1,12 @@
 import { ListChecks, Receipt } from '@phosphor-icons/react';
-import { Link } from 'react-router';
 import { VISIBILITY_LABELS } from '../access/visibility.ts';
-import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
+import { Link } from '../shell/motion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
@@ -81,7 +81,7 @@ export function ObjectsScreen() {
   if (query.isPending) {
     return (
       <StudioPage title="Дом">
-        <Notice>Загружаем объекты…</Notice>
+        <ListSkeleton label="Загружаем объекты…" />
       </StudioPage>
     );
   }

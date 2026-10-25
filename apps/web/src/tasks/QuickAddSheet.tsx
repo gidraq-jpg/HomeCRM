@@ -1,7 +1,8 @@
 import { CalendarDate } from '@homecrm/shared';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
+import { Link } from '../shell/motion.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { Quickline } from './Quickline.tsx';
 import { useToday } from './queries.ts';

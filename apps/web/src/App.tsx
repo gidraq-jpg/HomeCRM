@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router';
+import { Navigate, Route, Routes } from 'react-router';
 import { ScopeProvider } from './access/ScopeContext.tsx';
 import { ObjectAccounts } from './accounts/ObjectAccounts.tsx';
 import type { Me } from './auth/api.ts';
@@ -51,6 +51,7 @@ import { SearchScreen } from './screens/SearchScreen.tsx';
 import { SpacesScreen } from './screens/SpacesScreen.tsx';
 import { AddMenu } from './shell/AddMenu.tsx';
 import { AppShell } from './shell/AppShell.tsx';
+import { useNavigate } from './shell/motion.tsx';
 import { SECTIONS } from './shell/sections.ts';
 import { ShoppingCardScreen, ShoppingScreen } from './shopping/ShoppingScreen.tsx';
 import { NewTaskScreen } from './tasks/NewTaskScreen.tsx';

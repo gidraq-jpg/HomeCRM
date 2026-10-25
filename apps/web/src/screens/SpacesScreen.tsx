@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { VISIBILITIES, VISIBILITY_HINTS, VISIBILITY_LABELS } from '../access/visibility.ts';
 import { ErrorNotice } from '../auth/components.tsx';
 import { saveSettings } from '../notifications/api.ts';
+import { Link } from '../shell/motion.tsx';
 import { Section } from '../ui/Page.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 

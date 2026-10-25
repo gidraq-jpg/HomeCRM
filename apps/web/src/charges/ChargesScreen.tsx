@@ -1,11 +1,12 @@
 import { CaretLeft, Plus } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { useAccounts } from '../accounts/queries.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useObjectContext } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { useToast } from '../ui/Toast.tsx';

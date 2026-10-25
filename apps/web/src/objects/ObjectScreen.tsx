@@ -1,6 +1,6 @@
 import { CaretLeft, DotsThree, PencilSimple } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
-import { Link, Outlet, useLocation, useMatch, useNavigate, useParams } from 'react-router';
+import { Outlet, useLocation, useMatch, useParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
@@ -11,6 +11,7 @@ import { viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { formatArea } from '../property/property.ts';
 import { AddAction } from '../shell/AddAction.tsx';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { FormHeading } from '../ui/FormHeading.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import { Page } from '../ui/Page.tsx';

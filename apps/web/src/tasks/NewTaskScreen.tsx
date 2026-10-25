@@ -1,5 +1,5 @@
 import { TaskFields } from '@homecrm/shared';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { defaultVisibility } from '../access/visibility.ts';
 import { Notice } from '../auth/components.tsx';
@@ -7,6 +7,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { newPlacement, visibilityOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { useObjectCard } from '../objects/queries.ts';
+import { useNavigate } from '../shell/motion.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';

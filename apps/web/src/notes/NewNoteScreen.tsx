@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { defaultVisibility, type Visibility } from '../access/visibility.ts';
 import { useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { clearDraft } from '../offline/drafts.ts';
 import { changed, LocalSaved } from '../offline/identity.ts';
+import { useNavigate } from '../shell/motion.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { creatableVisibilities, newPlacement, viewerOf } from './abilities.ts';

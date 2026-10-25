@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router';
 import { routeFromMessage } from '../pwa/push-message.ts';
+import { useNavigate } from '../shell/motion.tsx';
 import { resyncPush } from './push.ts';
 
 /**

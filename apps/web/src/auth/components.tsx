@@ -1,6 +1,6 @@
 import { WifiSlash } from '@phosphor-icons/react';
 import { type FormEvent, type ReactNode, useEffect, useId, useState } from 'react';
-import { Link } from 'react-router';
+import { Link } from '../shell/motion.tsx';
 import { StudioBrand } from '../shell/StudioBrand.tsx';
 import { usePageTitle } from '../ui/Page.tsx';
 import { errorMessage } from './api.ts';

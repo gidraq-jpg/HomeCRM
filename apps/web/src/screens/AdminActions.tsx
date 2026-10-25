@@ -1,7 +1,6 @@
 import { ROLE_LABELS, type Role } from '@homecrm/shared';
 import { Key, ShieldCheck, SignOut, UserSwitch } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
 import {
@@ -16,6 +15,7 @@ import { isResponsibilityPending } from '../household/errors.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useRefresh } from '../household/queries.ts';
 import { RoleChoice } from '../household/RoleChoice.tsx';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';

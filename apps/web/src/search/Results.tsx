@@ -6,9 +6,9 @@ import {
   Note,
   ShoppingCart,
 } from '@phosphor-icons/react';
-import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { markdownText } from '../notes/markdown.tsx';
+import { Link } from '../shell/motion.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { countWord } from '../ui/format.ts';
 import { Section } from '../ui/Page.tsx';

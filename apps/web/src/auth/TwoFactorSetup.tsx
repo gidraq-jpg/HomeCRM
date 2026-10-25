@@ -1,6 +1,6 @@
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link } from '../shell/motion.tsx';
 import { action, api, Enrollment } from './api.ts';
 import {
   AuthForm,

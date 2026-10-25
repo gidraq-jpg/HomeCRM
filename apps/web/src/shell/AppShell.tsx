@@ -1,10 +1,11 @@
 import { Plus } from '@phosphor-icons/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
 import { ToastRegion } from '../ui/Toast.tsx';
 import { AddActionContext } from './AddAction.tsx';
 import { BottomNav, type ShellSection } from './BottomNav.tsx';
+import { useNavigate } from './motion.tsx';
 import { SideNav } from './SideNav.tsx';
 import { sectionAdd } from './section-add.ts';
 import { isStudio } from './studio.ts';

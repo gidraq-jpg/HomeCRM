@@ -1,6 +1,6 @@
 import { ArrowCounterClockwise, Trash } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
@@ -10,6 +10,7 @@ import { usePersonName } from '../objects/context.ts';
 import { organizationAbilities } from '../organizations/abilities.ts';
 import { OrganizationView } from '../organizations/OrganizationScreen.tsx';
 import { useOrganizationOptions } from '../organizations/queries.ts';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { EXTERNAL_LINK } from '../ui/link.ts';
 import { Page } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';

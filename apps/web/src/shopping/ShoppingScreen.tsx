@@ -1,7 +1,7 @@
 import { canRestore, canTrash, canWrite } from '@homecrm/shared';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
@@ -20,6 +20,7 @@ import {
 } from '../notes/abilities.ts';
 import { uuid } from '../offline/store.ts';
 import { AddActionContext } from '../shell/AddAction.tsx';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { RecordPicker } from '../tasks/options.tsx';
 import { TaskTabs } from '../tasks/TaskTabs.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';

@@ -1,9 +1,9 @@
 import { ArrowSquareOut, CheckCircle, Copy, PaperPlaneTilt, Phone } from '@phosphor-icons/react';
-import { Link, useNavigate } from 'react-router';
 import { describeTransmission, type Transmission } from '../accounts/labels.ts';
 import { useAccounts } from '../accounts/queries.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { ObjectError } from '../objects/components.tsx';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { CopyButton, copyText } from '../ui/CopyButton.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { type DateOnly, formatShortDate, toTelHref } from '../ui/format.ts';

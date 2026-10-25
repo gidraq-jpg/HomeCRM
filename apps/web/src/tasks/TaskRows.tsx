@@ -1,13 +1,13 @@
 import { canWrite } from '@homecrm/shared';
 import { Check, Clock, ListChecks, Star } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { RadarItem } from '../deadlines/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { fetchLinks } from '../objects/api.ts';
 import { useObjectsList } from '../objects/queries.ts';
+import { Link } from '../shell/motion.tsx';
 import { formatRub } from '../ui/format.ts';
 import { RowContent, RowList } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';

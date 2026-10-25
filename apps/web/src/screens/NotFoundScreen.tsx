@@ -1,5 +1,5 @@
 import { MagnifyingGlass } from '@phosphor-icons/react';
-import { Link } from 'react-router';
+import { Link } from '../shell/motion.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 

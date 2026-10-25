@@ -1,13 +1,13 @@
 import { canWriteLink, type RecordFacts } from '@homecrm/shared';
 import { Buildings, Check, Plus } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
-import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
 import { createLink, MAX_ROLE, type RecordLink, restoreLink, trashLink } from '../objects/api.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { useLinks, useObjectCard } from '../objects/queries.ts';
+import { Link } from '../shell/motion.tsx';
 import { normalizeText } from '../ui/format.ts';
 import { RowContent, RowList } from '../ui/Row.tsx';
 import { Sheet } from '../ui/Sheet.tsx';

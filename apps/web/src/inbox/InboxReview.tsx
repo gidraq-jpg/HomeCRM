@@ -11,7 +11,7 @@ import {
 } from '@homecrm/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import { VISIBILITY_LABELS, type Visibility } from '../access/visibility.ts';
 import { useAiStatus } from '../ai/AiCapture.tsx';
@@ -34,6 +34,7 @@ import { createNote } from '../notes/api.ts';
 import { EMPTY_DRAFT, NoteForm } from '../notes/NoteForm.tsx';
 import { createObject } from '../objects/api.ts';
 import { EMPTY_DRAFT as EMPTY_OBJECT, ObjectForm } from '../objects/ObjectForm.tsx';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { createShopping } from '../shopping/api.ts';
 import { ShoppingEditor } from '../shopping/ShoppingScreen.tsx';
 import { mutateTask } from '../tasks/api.ts';

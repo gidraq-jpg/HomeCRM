@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import * as z from 'zod';
 import { App } from '../App.tsx';
 import { usePendingRoute } from '../notifications/pending-route.ts';
@@ -14,6 +14,7 @@ import {
   ticket,
 } from '../offline/identity.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
+import { useNavigate } from '../shell/motion.tsx';
 import { ApiError, action, api, appURL, consumeLink, Me } from './api.ts';
 import { AuthPage, ErrorNotice, Notice, OfflineBanner, useAction } from './components.tsx';
 import { formatDay } from './dates.ts';

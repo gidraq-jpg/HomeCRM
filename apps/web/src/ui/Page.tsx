@@ -1,7 +1,7 @@
 import { CaretLeft } from '@phosphor-icons/react';
 import { type ReactNode, useEffect } from 'react';
-import { Link } from 'react-router';
 import { AddAction } from '../shell/AddAction.tsx';
+import { Link } from '../shell/motion.tsx';
 import { isStudio } from '../shell/studio.ts';
 
 /** Название вкладки браузера и читалок экрана меняется вместе с экраном. */

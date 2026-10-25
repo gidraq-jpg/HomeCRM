@@ -1,6 +1,12 @@
 /* Calm Focus: токены из мобильного прототипа LifeOS (src/prototype.css).
    Шрифты системные, без загрузки: на Android это Roboto и Noto Serif. */
 :root {
+  --motion-fast: 160ms;
+  --motion-base: 240ms;
+  --motion-screen: 350ms;
+  --motion-sheet: 420ms;
+  --ease-out: cubic-bezier(0.22, 0.8, 0.24, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
   --paper: #f7f7f2;
   --surface: #ffffff;
   --ink: #232d28;

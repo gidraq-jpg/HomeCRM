@@ -390,11 +390,11 @@ html[data-keyboard="open"] .chrome {
 /* Анимации — только если человек не просил убрать движение (WCAG 2.3.3). */
 @media (prefers-reduced-motion: no-preference) {
   .sheet-overlay {
-    animation: fade-in 160ms ease-out;
+    animation: fade-in var(--motion-fast) var(--ease-out);
   }
 
   .sheet {
-    animation: sheet-in 200ms ease-out;
+    animation: sheet-in var(--motion-sheet) var(--ease-sheet);
   }
 }
 

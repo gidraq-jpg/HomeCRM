@@ -1,6 +1,6 @@
 import { ArrowCounterClockwise, ArrowsClockwise, ShareNetwork, Trash } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
 import { FilesSection } from '../files/FilesSection.tsx';
@@ -10,6 +10,7 @@ import { noteAbilities, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { assigneeChoices } from '../objects/abilities.ts';
 import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { ResponsibleField } from '../tasks/ResponsibleField.tsx';
 import { Page } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';

@@ -1,11 +1,11 @@
 import { AddressBook, Plus } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
-import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { matchesScope, SCOPE_LABELS } from '../access/scope.ts';
 import { Notice } from '../auth/components.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
+import { Link } from '../shell/motion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Row, RowList, Status } from '../ui/Row.tsx';

@@ -1,9 +1,9 @@
-import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMeters } from '../meters/queries.ts';
 import { todayIn } from '../objects/dates.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
+import { Link } from '../shell/motion.tsx';
 import { Section } from '../ui/Page.tsx';
 import type { RadarRow } from './radar.ts';
 import { filterRows } from './radar.ts';

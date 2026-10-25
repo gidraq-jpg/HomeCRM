@@ -1,8 +1,9 @@
 import { canWrite } from '@homecrm/shared';
 import { Check, Clock } from '@phosphor-icons/react';
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
+import { Link } from '../shell/motion.tsx';
 import type { FeedTaskCard, TaskCard } from './api.ts';
 import { formatDateOnly } from './fields.tsx';
 import { useTaskMembers } from './options.tsx';

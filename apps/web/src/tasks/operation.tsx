@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import { VISIBILITY_LABELS } from '../access/visibility.ts';
 import { ApiError, type ApiMethod, type Me } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
@@ -8,6 +8,7 @@ import { ME_KEY } from '../auth/session-cache.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { clearDraft } from '../offline/drafts.ts';
 import { changed, LocalFailure, LocalSaved } from '../offline/identity.ts';
+import { useNavigate } from '../shell/motion.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';

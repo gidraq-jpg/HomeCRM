@@ -1,6 +1,5 @@
 import type { DocumentType } from '@homecrm/shared';
 import { useId, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
@@ -10,6 +9,7 @@ import { useMembers } from '../household/queries.ts';
 import { creatableVisibilities, viewerOf } from '../notes/abilities.ts';
 import { accessToast } from '../notes/toasts.ts';
 import { assigneeChoices } from '../objects/abilities.ts';
+import { useNavigate } from '../shell/motion.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {

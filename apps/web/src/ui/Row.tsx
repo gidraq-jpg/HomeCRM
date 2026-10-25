@@ -1,8 +1,8 @@
 import { CaretRight, CheckCircle, Info, Warning, WarningOctagon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
+import { Link } from '../shell/motion.tsx';
 
 export function RowList({ children, label }: { children: ReactNode; label?: string }) {
   return (

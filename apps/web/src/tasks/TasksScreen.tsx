@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { Notice } from '../auth/components.tsx';
 import { RadarRows } from '../deadlines/RadarScreen.tsx';
@@ -15,9 +15,11 @@ import { PushCard } from '../notifications/PushCard.tsx';
 import { useSettings } from '../notifications/queries.ts';
 import { todayIn } from '../objects/dates.ts';
 import { useQueue } from '../offline/OfflinePanel.tsx';
+import { Link } from '../shell/motion.tsx';
 import { FirstRunCard } from '../templates/FirstRunCard.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { FeedTaskCard, type TaskCard, type TaskFilters, type Today } from './api.ts';
@@ -204,13 +206,7 @@ function TodayFeed({ house }: { house: string | null }) {
       house={house}
       hero={<TodayHero data={query.data} error={query.error} house={house} />}
     >
-      {loadingFeed ? (
-        <div className="today-feed-skeleton" role="status">
-          <span className="visually-hidden">Загружаем дела…</span>
-        </div>
-      ) : (
-        <QueryNotice query={query} />
-      )}
+      {loadingFeed ? <ListSkeleton label="Загружаем дела…" /> : <QueryNotice query={query} />}
       {settings.error ? (
         <Notice error>
           Не удалось загрузить настройку главного дела.{' '}
@@ -537,7 +533,7 @@ export function QueryNotice({
 }) {
   return (
     <>
-      {query.isPending ? <Notice>Загружаем дела…</Notice> : null}
+      {query.isPending ? <ListSkeleton label="Загружаем дела…" /> : null}
       {query.error ? (
         <Notice error>
           {taskError(query.error)}{' '}

@@ -1,6 +1,5 @@
 import { PencilSimple, Plus, Trash } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
@@ -11,6 +10,7 @@ import { RESOURCE_UNITS, zoneLabel } from '../meters/labels.ts';
 import { useMeters } from '../meters/queries.ts';
 import { viewerOf } from '../notes/abilities.ts';
 import { KIND_LABELS } from '../people/labels.ts';
+import { Link } from '../shell/motion.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
 import { useToast } from '../ui/Toast.tsx';

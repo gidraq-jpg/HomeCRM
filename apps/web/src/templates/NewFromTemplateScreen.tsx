@@ -1,7 +1,8 @@
 import { HouseLine, Key, Tree } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { Notice } from '../auth/components.tsx';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';

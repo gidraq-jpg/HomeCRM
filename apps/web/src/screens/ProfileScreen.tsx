@@ -1,7 +1,6 @@
 import { ROLE_LABELS } from '@homecrm/shared';
 import { Phone, SignOut } from '@phosphor-icons/react';
 import { type FormEvent, useId, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useRefreshDeadlines } from '../deadlines/queries.ts';
@@ -10,6 +9,7 @@ import { ActionError, Avatar } from '../household/components.tsx';
 import { isResponsibilityPending } from '../household/errors.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMyProfile, useRefresh } from '../household/queries.ts';
+import { useNavigate } from '../shell/motion.tsx';
 import { CheckLine } from '../ui/CheckLine.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { type DateOnly, formatFullDate, toTelHref } from '../ui/format.ts';

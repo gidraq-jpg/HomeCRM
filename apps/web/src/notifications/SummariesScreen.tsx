@@ -1,7 +1,7 @@
 import { SummaryMetadata, SummaryResponse } from '@homecrm/shared';
 import { CalendarBlank } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { z } from 'zod';
 import { apiRequest } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
@@ -10,6 +10,7 @@ import { RadarRows } from '../deadlines/RadarScreen.tsx';
 import { buildRows } from '../deadlines/radar.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
+import { Link } from '../shell/motion.tsx';
 import { type DateOnly, formatShortDate } from '../ui/format.ts';
 import { Section } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';

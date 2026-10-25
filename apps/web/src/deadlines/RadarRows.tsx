@@ -1,8 +1,8 @@
 import { CalendarBlank, DotsThreeVertical, Drop, FileText, Receipt } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { PROPERTY_STATUS_LABELS } from '../property/property.ts';
+import { Link } from '../shell/motion.tsx';
 import { useTaskMembers } from '../tasks/options.tsx';
 import { TakeFromRadar } from '../tasks/TakeFromRadar.tsx';
 import { formatRub } from '../ui/format.ts';

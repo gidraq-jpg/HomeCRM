@@ -1,13 +1,13 @@
 import { NOTIFICATION_KINDS } from '@homecrm/shared';
 import { ListChecks } from '@phosphor-icons/react';
 import { type FormEvent, useId, useState } from 'react';
-import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { zoneLabel } from '../household/zones.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { NoHousehold } from '../screens/PeopleScreen.tsx';
+import { Link } from '../shell/motion.tsx';
 import { CheckLine } from '../ui/CheckLine.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';

@@ -1,9 +1,9 @@
 import { CaretLeft, DotsThree, PencilSimple } from '@phosphor-icons/react';
 import { type ReactNode, type RefObject, useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { AddAction } from '../shell/AddAction.tsx';
+import { Link } from '../shell/motion.tsx';
 import { FormHeading } from './FormHeading.tsx';
 import { Page } from './Page.tsx';
 import { Sheet } from './Sheet.tsx';
