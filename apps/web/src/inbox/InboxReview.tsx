@@ -6,6 +6,7 @@ import {
   DraftSchemas,
   INBOX_KINDS,
   type InboxDraft,
+  type ShoppingDraft,
   TaskFields,
 } from '@homecrm/shared';
 import { useQueryClient } from '@tanstack/react-query';
@@ -73,48 +74,52 @@ const labels: Record<string, string> = {
   personId: 'Человек',
   meterId: 'Счётчик',
 };
-function fieldsOf(fields: InboxDraft['fields']) {
-  return Object.entries(Array.isArray(fields) ? (fields[0] ?? {}) : fields).flatMap(
-    ([key, field]) => {
-      if (field && typeof field === 'object' && 'value' in field)
-        return [
-          {
-            key,
-            label: labels[key] ?? key,
-            value:
-              key === 'totalCents' && typeof field.value === 'number'
-                ? formatRub(field.value)
-                : ['date', 'issuedOn', 'expiresOn', 'dueOn'].includes(key) &&
+function fieldsOf(
+  fields: InboxDraft['fields'] | ShoppingDraft,
+): { key: string; label: string; value: string; confident: boolean }[] {
+  if (Array.isArray(fields))
+    return fields.flatMap((entry, index) =>
+      fieldsOf(entry).map((field) => ({ ...field, key: `${index}:${field.key}` })),
+    );
+  return Object.entries(fields).flatMap(([key, field]) => {
+    if (field && typeof field === 'object' && 'value' in field)
+      return [
+        {
+          key,
+          label: labels[key] ?? key,
+          value:
+            key === 'totalCents' && typeof field.value === 'number'
+              ? formatRub(field.value)
+              : ['date', 'issuedOn', 'expiresOn', 'dueOn'].includes(key) &&
+                  typeof field.value === 'string' &&
+                  /^\d{4}-\d{2}-\d{2}$/.test(field.value)
+                ? formatFullDate(field.value as DateOnly)
+                : key === 'type' &&
                     typeof field.value === 'string' &&
-                    /^\d{4}-\d{2}-\d{2}$/.test(field.value)
-                  ? formatFullDate(field.value as DateOnly)
-                  : key === 'type' &&
-                      typeof field.value === 'string' &&
-                      field.value in DOCUMENT_LABELS
-                    ? DOCUMENT_LABELS[field.value as DocumentType]
-                    : String(field.value ?? 'Не указано'),
-            confident: field.confident,
-          },
-        ];
-      if (Array.isArray(field))
-        return field.map((f, i) =>
-          'name' in f
-            ? {
-                key: `${key}-${i}`,
-                label: f.name,
-                value: f.value.value,
-                confident: f.value.confident,
-              }
-            : {
-                key: `${key}-${i}`,
-                label: `Зона ${i + 1}`,
-                value: f.value ?? 'Не указано',
-                confident: f.confident,
-              },
-        );
-      return [];
-    },
-  );
+                    field.value in DOCUMENT_LABELS
+                  ? DOCUMENT_LABELS[field.value as DocumentType]
+                  : String(field.value ?? 'Не указано'),
+          confident: field.confident,
+        },
+      ];
+    if (Array.isArray(field))
+      return field.map((f, i) =>
+        'name' in f
+          ? {
+              key: `${key}-${i}`,
+              label: f.name,
+              value: f.value.value,
+              confident: f.value.confident,
+            }
+          : {
+              key: `${key}-${i}`,
+              label: `Зона ${i + 1}`,
+              value: f.value ?? 'Не указано',
+              confident: f.confident,
+            },
+      );
+    return [];
+  });
 }
 export function InboxReview() {
   const { inboxId, editKind } = useParams();

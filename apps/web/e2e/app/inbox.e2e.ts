@@ -204,7 +204,7 @@ for (const automatic of [true, false])
     await checkApp(page, info, automatic ? 'inbox-reopen' : 'inbox-parse-button');
   });
 
-test('INBOX-4: предпросмотр показывает рубли, русские даты и тип документа', async ({
+test('INBOX-4: предпросмотр показывает рубли, русские даты, тип и все сопутствующие покупки', async ({
   page,
   family,
 }, info) => {
@@ -234,6 +234,16 @@ test('INBOX-4: предпросмотр показывает рубли, рус�
       kind === 'document'
         ? { ...DocumentDraft.parse(raw), issuedOn: { value: '2026-10-05', confident: true } }
         : DraftSchemas.receipt.parse(raw);
+    const purchases = [
+      {
+        title: { value: 'Учебная бумага', confident: true },
+        quantity: { value: '2 пачки', confident: true },
+      },
+      {
+        title: { value: 'Учебный клей', confident: true },
+        quantity: { value: '1 тюбик', confident: false },
+      },
+    ];
     const draft = {
       classification: {
         kind,
@@ -244,7 +254,22 @@ test('INBOX-4: предпросмотр показывает рубли, рус�
         shoppingText: null,
       },
       fields,
-      additional: [],
+      additional:
+        kind === 'document'
+          ? [
+              {
+                classification: {
+                  kind: 'shopping',
+                  objectId: { value: null, confident: false },
+                  personId: { value: null, confident: false },
+                  meterId: { value: null, confident: false },
+                  newObject: null,
+                  shoppingText: null,
+                },
+                fields: purchases,
+              },
+            ]
+          : [],
     };
     await family.database.admin.query(
       "UPDATE inbox_items SET status='ready',draft=$2::jsonb WHERE id=$1",
@@ -254,10 +279,24 @@ test('INBOX-4: предпросмотр показывает рубли, рус�
     if (kind === 'document') {
       await expect(page.getByText(DOCUMENT_LABELS.contract, { exact: true })).toBeVisible();
       await expect(page.getByText(/5\sокт\.\s2026/)).toBeVisible();
+      await expect(page.getByText('Название: Учебная бумага', { exact: true })).toBeVisible();
+      await expect(page.getByText('Название: Учебный клей', { exact: true })).toBeVisible();
+      await expect(
+        page.getByText('Количество: 1 тюбик — проверьте', { exact: true }),
+      ).toBeVisible();
     } else {
       await expect(page.getByText(/1\s234,56\s₽/)).toBeVisible();
       await expect(page.getByText(/25\sокт\.\s2026/)).toBeVisible();
     }
     await checkApp(page, info, `inbox-preview-${kind}`);
+    if (kind === 'document') {
+      await page.getByRole('button', { name: 'Сохранить как предложено', exact: true }).click();
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'Входящие', exact: true }),
+      ).toBeVisible();
+      expect(
+        (await family.database.admin.query('SELECT title FROM shopping_items ORDER BY title')).rows,
+      ).toEqual([{ title: 'Учебная бумага' }, { title: 'Учебный клей' }]);
+    }
   }
 });
