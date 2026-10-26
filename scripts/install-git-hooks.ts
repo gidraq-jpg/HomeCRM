@@ -1,4 +1,4 @@
-// Подключает ловушки git из .githooks: перед `git push` запускается `pnpm check`.
+// Подключает ловушки git из .githooks: перед push выбираются полные проверки или документы.
 // Вызывается автоматически из `pnpm install` (скрипт prepare).
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';

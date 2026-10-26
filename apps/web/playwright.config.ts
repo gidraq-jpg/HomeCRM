@@ -6,6 +6,7 @@ import { defineConfig } from '@playwright/test';
 // конфигурацией (playwright.prototype.config.ts, `pnpm test:e2e:prototype`).
 
 const DESKTOP_ONLY = '**/desktop.e2e.ts';
+const SHARD_IGNORE = process.env.HOMECRM_E2E_SHARD_MAIN === '1' ? ['**/app/studio2.e2e.ts'] : [];
 
 const phone = {
   browserName: 'chromium',
@@ -38,12 +39,12 @@ export default defineConfig({
   projects: [
     {
       name: 'w360',
-      testIgnore: ['**/prototype/**', DESKTOP_ONLY],
+      testIgnore: ['**/prototype/**', DESKTOP_ONLY, ...SHARD_IGNORE],
       use: { ...phone, viewport: { width: 360, height: 740 } },
     },
     {
       name: 'w412',
-      testIgnore: ['**/prototype/**', DESKTOP_ONLY],
+      testIgnore: ['**/prototype/**', DESKTOP_ONLY, ...SHARD_IGNORE],
       use: { ...phone, viewport: { width: 412, height: 915 } },
     },
     // Компьютер: боковое меню вместо нижнего. Только сценарии из desktop.e2e.ts.

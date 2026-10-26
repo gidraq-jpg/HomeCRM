@@ -10,11 +10,11 @@ import { E2E_PREFIX } from './support/static-server.ts';
 // - full: приложение, прототип и полная матрица UI-7; full-compose запускает это в Linux.
 const require = createRequire(import.meta.url);
 process.env.WEB_BASE = E2E_PREFIX;
-async function runCommand(command: string, args: string[]) {
+async function runCommand(command: string, args: string[], env = process.env) {
   const code = await new Promise<number>((done, reject) => {
     const child = spawn(command, args, {
       stdio: 'inherit',
-      env: process.env,
+      env,
       windowsHide: true,
     });
     child.on('error', reject);
@@ -22,7 +22,8 @@ async function runCommand(command: string, args: string[]) {
   });
   if (code !== 0) throw new Error(`Test command failed (exit code ${code})`);
 }
-const run = (file: string, args: string[]) => runCommand(process.execPath, [file, ...args]);
+const run = (file: string, args: string[], env = process.env) =>
+  runCommand(process.execPath, [file, ...args], env);
 
 if (process.argv[2] === 'full-compose') {
   const compose = [
@@ -60,14 +61,31 @@ const modes = ['app', 'auth', 'prototype', 'all', 'full'];
 const first = process.argv[2] ?? '';
 const mode = modes.includes(first) ? first : 'all';
 const rest = process.argv.slice(modes.includes(first) ? 3 : 2);
+// Коллаж Studio 2 читает снимки w360: этот файл целиком идёт в первой части,
+// сначала w360, затем w412. Остальные тесты по-прежнему делит Playwright.
+const studioShard =
+  process.env.HOMECRM_E2E_GROUP_STUDIO === '1'
+    ? rest.find((arg) => /^--shard=\d+\/\d+$/.test(arg))
+    : undefined;
 
 if (mode !== 'prototype') {
   await run(vite, ['build']);
-  await run(playwright, [
-    'test',
-    ...rest,
-    ...(mode === 'full' ? ['--output=test-results/artifacts/app'] : []),
-  ]);
+  await run(
+    playwright,
+    ['test', ...rest, ...(mode === 'full' ? ['--output=test-results/artifacts/app'] : [])],
+    studioShard ? { ...process.env, HOMECRM_E2E_SHARD_MAIN: '1' } : process.env,
+  );
+  if (studioShard?.startsWith('--shard=1/')) {
+    for (const project of ['w360', 'w412']) {
+      await run(playwright, [
+        'test',
+        ...rest.filter((arg) => arg !== studioShard),
+        'app/studio2.e2e.ts',
+        `--project=${project}`,
+        `--output=test-results/artifacts/studio2-${project}`,
+      ]);
+    }
+  }
   if (mode === 'full') {
     await run(playwright, [
       'test',
