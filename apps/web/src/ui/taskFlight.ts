@@ -66,9 +66,14 @@ export function flyTask(id: string, kind: 'done' | 'trash') {
     ...document.querySelectorAll<HTMLElement>('.swipe-task:not([data-motion-ghost])'),
   ].find((node) => node.dataset.motionKey === id && visible(node));
   const targets = [...document.querySelectorAll<HTMLElement>(`[data-motion-target="${kind}"]`)];
+  // Без счётчика на экране цель — текущая вкладка ленты; корзина живёт в «Ещё».
+  const fallback = document.querySelector<HTMLElement>(
+    kind === 'done' ? '.tabs__link[aria-current="page"]' : '.bottom-nav__link[href="#/more"]',
+  );
   const target =
     targets.find((node) => node.classList.contains('task-counts') && visible(node)) ??
-    targets.find(visible);
+    targets.find(visible) ??
+    (fallback && visible(fallback) ? fallback : undefined);
   const source = row?.querySelector<HTMLElement>('.swipe-task__surface');
   if (!row || !source || !target) return;
   const box = source.getBoundingClientRect();

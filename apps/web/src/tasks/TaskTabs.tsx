@@ -1,9 +1,8 @@
-import { CheckCircle, Trash } from '@phosphor-icons/react';
 import { useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router';
 import { AddAction } from '../shell/AddAction.tsx';
-import { cancelMotionNavigation, changeScreenWithMotion, Link } from '../shell/motion.tsx';
+import { cancelMotionNavigation, changeScreenWithMotion } from '../shell/motion.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import { motionTime, reducedMotion } from '../ui/motion.ts';
 import { rowSwipeDirection, type SwipePoint, swipeDirection } from './swipe.ts';
@@ -271,22 +270,6 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
         ]}
       />
       <AddAction />
-      <Link
-        className="icon-button"
-        to="/more/trash"
-        aria-label="Корзина"
-        data-motion-target="trash"
-      >
-        <Trash size={22} aria-hidden />
-      </Link>
-      <Link
-        className="icon-button"
-        to={`/today/all${houseQuery ? `${houseQuery}&` : '?'}status=done`}
-        aria-label="Выполнено"
-        data-motion-target="done"
-      >
-        <CheckCircle size={22} aria-hidden />
-      </Link>
       <span className="visually-hidden" role="status" aria-live="polite">
         {pathname === '/today'
           ? 'Сегодня'
