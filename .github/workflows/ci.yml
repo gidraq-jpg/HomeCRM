@@ -16,8 +16,43 @@ permissions:
   contents: read
 
 jobs:
-  check:
-    name: pnpm check
+  changes:
+    name: Выбор проверок · кодировка
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.changes.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:encoding
+      - run: node --test scripts/select-checks.test.ts
+      - name: Выбрать проверки по изменённым путям
+        id: changes
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/select-checks.ts ci "$BASE" "$HEAD"
+      - name: Только документы · проверить формат
+        if: steps.changes.outputs.docs_only == 'true'
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node scripts/select-checks.ts docs "$BASE" "$HEAD"
+          echo 'Только документы: кодировка и формат проверены; тяжёлые проверки не требуются.' >> "$GITHUB_STEP_SUMMARY"
+
+  check-full:
+    name: Полные проверки · Vitest и p95
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Одноразовая PostgreSQL 18 для тестов пакета db и матрицы доступа (ADR-0004, ADR-0013).
@@ -52,12 +87,17 @@ jobs:
         env:
           HOMECRM_TEST_PG_ADMIN_URL: postgres://postgres@localhost:${{ job.services.postgres.ports['5432'] }}/postgres
 
-  auth-screens:
-    name: Вход · 360 и 412 px · axe
+  auth-shards:
+    name: Браузерные сценарии · часть ${{ matrix.shard }}/3
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
-    # Полный e2e с проверкой движения UI-8; запас для нагрузки runner согласован владельцем.
-    # Тайм-ауты отдельных сценариев не меняются.
-    timeout-minutes: 60
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    # У каждой части свой runner, PostgreSQL и свободные порты серверов сценариев.
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     services:
@@ -82,13 +122,55 @@ jobs:
       # Checkout доверяет каталогу во временных настройках; prepare вызывает git из обычных.
       - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @homecrm/web test:e2e:auth
+      - run: pnpm --filter @homecrm/web test:e2e:auth --shard=${{ matrix.shard }}/3
         env:
           HOMECRM_TEST_PG_ADMIN_URL: postgres://postgres@postgres:5432/postgres
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: auth-screens-360-412
+          name: auth-screens-360-412-shard-${{ matrix.shard }}
           path: apps/web/test-results
           if-no-files-found: error
           retention-days: 14
+
+  check:
+    name: pnpm check
+    needs: [changes, check-full]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Проверить итог
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+          FULL: ${{ needs.check-full.result }}
+        run: |
+          test "$CHANGES" = success
+          if [ "$DOCS_ONLY" = true ]; then
+            test "$FULL" = skipped
+            echo 'Только документы: кодировка и формат проверены.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            test "$FULL" = success
+          fi
+
+  auth-screens:
+    name: Вход · 360 и 412 px · axe
+    needs: [changes, auth-shards]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Проверить все три части
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+          SHARDS: ${{ needs.auth-shards.result }}
+        run: |
+          test "$CHANGES" = success
+          if [ "$DOCS_ONLY" = true ]; then
+            test "$SHARDS" = skipped
+            echo 'Только документы: браузерные сценарии не требуются, кодировка и формат проверены.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            test "$SHARDS" = success
+          fi
