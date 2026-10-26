@@ -1,5 +1,5 @@
 /** CSS-токены остаются единственным источником времени, включая JS-анимации. */
-export function motionTime(name: 'fast' | 'base' | 'screen' | 'sheet'): number {
+export function motionTime(name: 'fast' | 'base' | 'screen' | 'sheet' | 'fly'): number {
   return (
     Number.parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue(`--motion-${name}`),

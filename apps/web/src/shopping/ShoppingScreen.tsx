@@ -288,168 +288,170 @@ export function ShoppingScreen() {
       >
         <div className="studio-panel studio-list-panel">
           <TaskTabs houseQuery={house && house !== householdId ? `?householdId=${house}` : ''} />
-          {me.roles.length > 1 ? (
-            <label className="field">
-              Дом
-              <select
-                aria-label="Дом"
-                className="input"
-                value={house}
-                onChange={(event) => {
-                  setHouse(event.target.value);
-                  setPlace(selectedList);
-                }}
-              >
-                {me.roles.map((role) => (
-                  <option key={role.householdId} value={role.householdId}>
-                    {houseNames(role.householdId)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          {!trash ? (
-            <form className="shopping-quick" onSubmit={add}>
-              <label className="field__label" htmlFor="shopping-quick-title">
-                Добавить одной строкой
-              </label>
-              <div className="shopping-quick__line voice-line">
-                <input
-                  ref={input}
-                  id="shopping-quick-title"
+          <div className="task-feed-content">
+            {me.roles.length > 1 ? (
+              <label className="field">
+                Дом
+                <select
+                  aria-label="Дом"
                   className="input"
-                  value={title}
-                  maxLength={ai.data?.enabled ? 20000 : 200}
-                  placeholder="Что купить?"
-                  required
-                  enterKeyHint="done"
-                  readOnly={state.disabled}
+                  value={house}
                   onChange={(event) => {
-                    setTitle(event.target.value);
-                    if (!event.target.value) setDictated(false);
-                    setDuplicate(false);
+                    setHouse(event.target.value);
+                    setPlace(selectedList);
                   }}
-                />
-                <DictationButton dictation={dictation} />
-                <AiCapture
-                  key={house}
-                  text={title}
-                  house={house || null}
-                  place={place}
-                  beforeExtract={dictation.abort}
-                />
-                <button type="submit" className="btn btn--primary" disabled={state.disabled}>
-                  Добавить
+                >
+                  {me.roles.map((role) => (
+                    <option key={role.householdId} value={role.householdId}>
+                      {houseNames(role.householdId)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {!trash ? (
+              <form className="shopping-quick" onSubmit={add}>
+                <label className="field__label" htmlFor="shopping-quick-title">
+                  Добавить одной строкой
+                </label>
+                <div className="shopping-quick__line voice-line">
+                  <input
+                    ref={input}
+                    id="shopping-quick-title"
+                    className="input"
+                    value={title}
+                    maxLength={ai.data?.enabled ? 20000 : 200}
+                    placeholder="Что купить?"
+                    required
+                    enterKeyHint="done"
+                    readOnly={state.disabled}
+                    onChange={(event) => {
+                      setTitle(event.target.value);
+                      if (!event.target.value) setDictated(false);
+                      setDuplicate(false);
+                    }}
+                  />
+                  <DictationButton dictation={dictation} />
+                  <AiCapture
+                    key={house}
+                    text={title}
+                    house={house || null}
+                    place={place}
+                    beforeExtract={dictation.abort}
+                  />
+                  <button type="submit" className="btn btn--primary" disabled={state.disabled}>
+                    Добавить
+                  </button>
+                </div>
+                <DictationStatus dictation={dictation} />
+                {duplicate ? <p role="status">Уже в списке</p> : null}
+                <details className="studio-list-options">
+                  <summary>Параметры покупки</summary>
+                  <VisibilityPicker
+                    value={options.includes(place) ? place : 'personal'}
+                    options={options}
+                    onChange={setPlace}
+                  />
+                  <button type="button" className="text-button" onClick={() => setDetails(true)}>
+                    Количество, заметка и связи
+                  </button>
+                </details>
+                <ShoppingError error={state.error} />
+              </form>
+            ) : null}
+            {query.isPending ? (
+              <Notice>Загружаем покупки…</Notice>
+            ) : query.isError ? (
+              <>
+                <ShoppingError error={query.error} />
+                <button
+                  className="btn btn--secondary"
+                  type="button"
+                  onClick={() => void query.refetch()}
+                >
+                  Повторить загрузку
+                </button>
+              </>
+            ) : all.length === 0 ? (
+              <p className="muted">{trash ? 'Удалённых покупок нет' : 'Добавьте первую покупку'}</p>
+            ) : (
+              <>
+                {scope !== 'personal' && all.some((card) => card.spaceKind === 'household') ? (
+                  <section aria-label="Общий список">
+                    {list(all.filter((card) => card.spaceKind === 'household'))}
+                  </section>
+                ) : null}
+                {scope !== 'shared' && all.some((card) => card.spaceKind === 'personal') ? (
+                  <section aria-label="Мой список">
+                    {list(all.filter((card) => card.spaceKind === 'personal'))}
+                  </section>
+                ) : null}
+              </>
+            )}
+            <ShoppingError error={action.error} />
+            <details className="studio-list-options shopping-tools">
+              <summary>Ещё</summary>
+              <div className="btn-row">
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  aria-pressed={!trash}
+                  onClick={() => setTrash(false)}
+                >
+                  Купить
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  aria-pressed={trash}
+                  onClick={() => setTrash(true)}
+                >
+                  Удалённые покупки
                 </button>
               </div>
-              <DictationStatus dictation={dictation} />
-              {duplicate ? <p role="status">Уже в списке</p> : null}
-              <details className="studio-list-options">
-                <summary>Параметры покупки</summary>
-                <VisibilityPicker
-                  value={options.includes(place) ? place : 'personal'}
-                  options={options}
-                  onChange={setPlace}
-                />
-                <button type="button" className="text-button" onClick={() => setDetails(true)}>
-                  Количество, заметка и связи
-                </button>
-              </details>
-              <ShoppingError error={state.error} />
-            </form>
-          ) : null}
-          {query.isPending ? (
-            <Notice>Загружаем покупки…</Notice>
-          ) : query.isError ? (
-            <>
-              <ShoppingError error={query.error} />
-              <button
-                className="btn btn--secondary"
-                type="button"
-                onClick={() => void query.refetch()}
-              >
-                Повторить загрузку
-              </button>
-            </>
-          ) : all.length === 0 ? (
-            <p className="muted">{trash ? 'Удалённых покупок нет' : 'Добавьте первую покупку'}</p>
-          ) : (
-            <>
-              {scope !== 'personal' && all.some((card) => card.spaceKind === 'household') ? (
-                <section aria-label="Общий список">
-                  {list(all.filter((card) => card.spaceKind === 'household'))}
-                </section>
-              ) : null}
-              {scope !== 'shared' && all.some((card) => card.spaceKind === 'personal') ? (
-                <section aria-label="Мой список">
-                  {list(all.filter((card) => card.spaceKind === 'personal'))}
-                </section>
-              ) : null}
-            </>
-          )}
-          <ShoppingError error={action.error} />
-          <details className="studio-list-options shopping-tools">
-            <summary>Ещё</summary>
-            <div className="btn-row">
+            </details>
+            {state.disabled && !state.pending ? (
+              <p className="muted">Без сети покупки доступны только для чтения.</p>
+            ) : null}
+            {query.hasNextPage ? (
               <button
                 type="button"
-                className="btn btn--secondary"
-                aria-pressed={!trash}
-                onClick={() => setTrash(false)}
+                className="btn btn--secondary btn--block"
+                disabled={query.isFetchingNextPage}
+                onClick={() => void query.fetchNextPage()}
               >
-                Купить
+                Ещё покупки
               </button>
-              <button
-                type="button"
-                className="btn btn--secondary"
-                aria-pressed={trash}
-                onClick={() => setTrash(true)}
-              >
-                Удалённые покупки
-              </button>
-            </div>
-          </details>
-          {state.disabled && !state.pending ? (
-            <p className="muted">Без сети покупки доступны только для чтения.</p>
-          ) : null}
-          {query.hasNextPage ? (
-            <button
-              type="button"
-              className="btn btn--secondary btn--block"
-              disabled={query.isFetchingNextPage}
-              onClick={() => void query.fetchNextPage()}
-            >
-              Ещё покупки
-            </button>
-          ) : null}
-          {drafts ? (
-            <ShoppingDrafts
-              drafts={drafts}
-              place={place}
-              house={house || null}
-              onClose={() => {
-                dictation.abort();
-                setDrafts(null);
-              }}
-              onAdded={async (added, duplicates) => {
-                await client.cancelQueries({ queryKey: ['shopping', account] });
-                await refresh();
-                toast.show({ message: draftsMessage(added, duplicates) });
-              }}
-            />
-          ) : null}
-          {details ? (
-            <ShoppingEditor
-              initialTitle={title}
-              house={house || null}
-              onClose={() => setDetails(false)}
-              onSaved={async () => {
-                setDetails(false);
-                setTitle('');
-                await refresh();
-              }}
-            />
-          ) : null}
+            ) : null}
+            {drafts ? (
+              <ShoppingDrafts
+                drafts={drafts}
+                place={place}
+                house={house || null}
+                onClose={() => {
+                  dictation.abort();
+                  setDrafts(null);
+                }}
+                onAdded={async (added, duplicates) => {
+                  await client.cancelQueries({ queryKey: ['shopping', account] });
+                  await refresh();
+                  toast.show({ message: draftsMessage(added, duplicates) });
+                }}
+              />
+            ) : null}
+            {details ? (
+              <ShoppingEditor
+                initialTitle={title}
+                house={house || null}
+                onClose={() => setDetails(false)}
+                onSaved={async () => {
+                  setDetails(false);
+                  setTitle('');
+                  await refresh();
+                }}
+              />
+            ) : null}
+          </div>
         </div>
       </Page>
     </AddActionContext.Provider>

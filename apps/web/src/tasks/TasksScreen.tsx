@@ -22,6 +22,7 @@ import { countWord } from '../ui/format.ts';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { MotionGroups } from '../ui/MotionGroups.tsx';
 import { Page, Section } from '../ui/Page.tsx';
+import { RollingNumber } from '../ui/RollingNumber.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { FeedTaskCard, type TaskCard, type TaskFilters, type Today } from './api.ts';
 import { taskError } from './errors.ts';
@@ -97,20 +98,22 @@ function TasksPage({
   const content = (
     <>
       {view !== 'plan' ? feedTabs : null}
-      {scope !== 'all' ? <p className="muted">{EMPTY_SCOPE_EXPLANATION[scope]}</p> : null}
-      {me.roles.length > 1 ? (
-        <SelectField
-          label="Выбранный дом"
-          value={house ?? ''}
-          onChange={(value) => setParams({ householdId: value })}
-          options={me.roles.map((role) => ({
-            value: role.householdId,
-            label: houseNames(role.householdId),
-          }))}
-        />
-      ) : null}
-      {children}
-      {view === 'today' ? actions : null}
+      <div className="task-feed-content">
+        {scope !== 'all' ? <p className="muted">{EMPTY_SCOPE_EXPLANATION[scope]}</p> : null}
+        {me.roles.length > 1 ? (
+          <SelectField
+            label="Выбранный дом"
+            value={house ?? ''}
+            onChange={(value) => setParams({ householdId: value })}
+            options={me.roles.map((role) => ({
+              value: role.householdId,
+              label: houseNames(role.householdId),
+            }))}
+          />
+        ) : null}
+        {children}
+        {view === 'today' ? actions : null}
+      </div>
     </>
   );
   return (
@@ -263,6 +266,10 @@ function TodayFeed({ house }: { house: string | null }) {
               pending={operation.pending}
             />
           </Section>
+          <p data-motion-target="done" className="task-counts">
+            Осталось <RollingNumber value={query.data.tasks.length} /> · Выполнено{' '}
+            <RollingNumber value={query.data.completed.length} />
+          </p>
           {query.data.completed.length ? (
             <details className="task-completed">
               <summary>Выполнено сегодня ({query.data.completed.length})</summary>
@@ -313,9 +320,11 @@ function AllFeed({ house }: { house: string | null }) {
     setParams((current) => {
       const next = new URLSearchParams(current);
       next.delete('list');
+      next.delete('status');
       return next;
     });
-  const query = useTaskList(filters, false, house);
+  const selectedStatus = params.get('status') === 'done' ? 'done' : filters.status;
+  const query = useTaskList({ ...filters, status: selectedStatus }, false, house);
   const cachedToday = client.getQueryData<Today>(['tasks', me.id, house, 'today', scope]);
   const timeZone = !house || house === householdId ? me.timeZone : cachedToday?.timeZone;
   const today = timeZone ? todayIn(timeZone) : '';
@@ -337,7 +346,7 @@ function AllFeed({ house }: { house: string | null }) {
       ? active
       : tasks.filter(
           (task) =>
-            filters.status ||
+            selectedStatus ||
             ['open', 'waiting'].includes(task.status) ||
             (timeZone && todayIn(timeZone, new Date(task.updatedAt)) >= today),
         );
@@ -365,7 +374,7 @@ function AllFeed({ house }: { house: string | null }) {
     );
   });
   const { operation, moving } = actions;
-  const unfiltered = !filters.filter && !filters.status && !filters.objectId;
+  const unfiltered = !filters.filter && !selectedStatus && !filters.objectId;
   const summary = query.data && !query.error && !query.hasNextPage && unfiltered;
   const rows = (items: typeof tasks, title: string) => (
     <PlanRows
@@ -457,7 +466,7 @@ function AllFeed({ house }: { house: string | null }) {
         <summary>Статус дел</summary>
         <SelectField
           label="Статус дел"
-          value={filters.status ?? ''}
+          value={selectedStatus ?? ''}
           onChange={(value) => {
             clearList();
             setFilters((current) => ({

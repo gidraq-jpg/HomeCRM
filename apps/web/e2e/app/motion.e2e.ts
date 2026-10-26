@@ -37,7 +37,17 @@ async function drag(page: Page, target: Locator, dx: number, dy = 0, slow = fals
   await target.scrollIntoViewIfNeeded();
   const box = await target.boundingBox();
   if (!box) throw new Error('Gesture target is missing');
-  const x = Math.min((page.viewportSize()?.width ?? 360) - 40, Math.max(40, box.x + box.width / 2));
+  const width = page.viewportSize()?.width ?? 360;
+  const longRowSwipe = dx !== 0 && !slow;
+  const x = Math.min(
+    width - 40,
+    Math.max(
+      40,
+      longRowSwipe ? (dx > 0 ? box.x + 8 : box.x + box.width - 8) : box.x + box.width / 2,
+    ),
+  );
+  // Длинный жест проходит больше половины строки независимо от загрузки CI.
+  const travel = longRowSwipe ? (dx > 0 ? width - 28 - x : 28 - x) : dx;
   const y = box.y + Math.min(30, box.height / 2);
   const session = await page.context().newCDPSession(page);
   try {
@@ -45,7 +55,7 @@ async function drag(page: Page, target: Locator, dx: number, dy = 0, slow = fals
     for (let step = 1; step <= 8; step++) {
       await session.send('Input.dispatchTouchEvent', {
         type: 'touchMove',
-        touchPoints: [{ x: x + (dx * step) / 8, y: y + (dy * step) / 8 }],
+        touchPoints: [{ x: x + (travel * step) / 8, y: y + (dy * step) / 8 }],
       });
       if (slow) await page.waitForTimeout(80);
     }
@@ -342,6 +352,9 @@ for (const reduce of [false, true]) {
           await route.continue();
         });
         await page.goto(`#${path}`);
+        // Прямой переход может сохранить свежий кэш уже открытого Today.
+        // Проверяем первичную загрузку, а не скорость фонового refetch.
+        await page.reload();
         await expect(page.locator('.list-skeleton').first()).toBeVisible();
         await check(page, info, `loading-${path?.replaceAll('/', '-')}-${reduce}`);
         release();
