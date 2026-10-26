@@ -11,6 +11,7 @@ import { enqueue, synchronize } from '../offline/queue.ts';
 import { offlineDB, uuid } from '../offline/store.ts';
 import { Link } from '../shell/motion.tsx';
 import { countWord } from '../ui/format.ts';
+import { RollingNumber } from '../ui/RollingNumber.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';
 import { inboxAction, KIND_LABELS, STATUS_LABELS, useInbox } from './api.ts';
@@ -31,7 +32,13 @@ export function InboxLink() {
         Во входящие
       </Link>
       <Link className="btn btn--secondary" to="/more/inbox">
-        Входящие{data.data || pending ? ` · ${(data.data?.length ?? 0) + pending}` : ''}
+        Входящие
+        {data.data || pending ? (
+          <>
+            {' '}
+            · <RollingNumber value={(data.data?.length ?? 0) + pending} />
+          </>
+        ) : null}
       </Link>
     </div>
   );

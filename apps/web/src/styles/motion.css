@@ -1,4 +1,11 @@
 /* UI-8: время и кривые определены только в tokens.css. */
+:root[data-design="studio"]::view-transition,
+:root[data-design="studio"]::view-transition-group(*),
+:root[data-design="studio"]::view-transition-image-pair(*),
+:root[data-design="studio"]::view-transition-old(*),
+:root[data-design="studio"]::view-transition-new(*) {
+  pointer-events: none;
+}
 :root[data-design="studio"] .main {
   view-transition-name: screen;
 }
@@ -10,6 +17,58 @@
 }
 :root[data-design="studio"] .topbar {
   view-transition-name: header;
+}
+:root[data-design="studio"] .main > .page > .page-heading {
+  view-transition-name: page-heading;
+}
+:root[data-motion-feed] .main {
+  view-transition-name: none;
+}
+:root[data-motion-feed] .task-feed-content {
+  view-transition-name: screen;
+}
+:root[data-design="studio"] .main[data-task-feed] {
+  overflow-x: clip;
+}
+html[data-motion-feed] {
+  touch-action: pan-y pinch-zoom;
+}
+.rolling-number {
+  position: relative;
+  display: inline-flex;
+  overflow: clip;
+  vertical-align: bottom;
+  font-variant-numeric: tabular-nums;
+}
+.rolling-number > span {
+  display: inline-block;
+}
+.rolling-number__old {
+  position: absolute;
+  inset: 0;
+}
+.task-counts {
+  margin-block: 16px;
+  color: var(--muted);
+}
+[data-motion-flight] {
+  pointer-events: none;
+}
+::view-transition-group(page-heading) {
+  animation: none;
+  z-index: 2;
+}
+::view-transition-old(page-heading) {
+  animation: motion-fade-out var(--motion-fast) var(--ease-out) both;
+}
+::view-transition-new(page-heading) {
+  animation: motion-fade-in var(--motion-fast) var(--ease-out) both;
+}
+html[data-motion-header="changed"]::view-transition-old(header) {
+  animation: motion-fade-out var(--motion-fast) var(--ease-out) both;
+}
+html[data-motion-header="changed"]::view-transition-new(header) {
+  animation: motion-fade-in var(--motion-fast) var(--ease-out) both;
 }
 ::view-transition-old(root),
 ::view-transition-new(root),
@@ -40,6 +99,16 @@
 ::view-transition-old(screen),
 ::view-transition-new(screen) {
   mix-blend-mode: normal;
+}
+html:not([data-motion-feed])::view-transition-new(screen),
+html:not([data-motion-feed])::view-transition-old(screen) {
+  background: var(--paper);
+  border-radius: 32px 32px 0 0;
+}
+html[data-motion-direction="forward"]:not([data-motion-feed])::view-transition-new(screen),
+html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(screen) {
+  z-index: 1;
+  box-shadow: -16px 0 32px rgb(0 0 0 / 24%);
 }
 
 .list-skeleton {
@@ -204,17 +273,41 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
 @keyframes motion-screen-out {
   from {
     transform: translateX(0);
+    filter: brightness(1);
   }
   to {
     transform: translateX(-30%);
+    filter: brightness(0.85);
   }
 }
 @keyframes motion-screen-back-in {
   from {
     transform: translateX(-30%);
+    filter: brightness(0.85);
   }
   to {
     transform: translateX(0);
+    filter: brightness(1);
+  }
+}
+@keyframes motion-feed-out {
+  from {
+    transform: translateX(var(--feed-start));
+    opacity: 1;
+  }
+  to {
+    transform: translateX(calc(var(--feed-sign) * -1 * var(--feed-distance)));
+    opacity: 0;
+  }
+}
+@keyframes motion-feed-in {
+  from {
+    transform: translateX(calc(var(--feed-sign) * var(--feed-distance) + var(--feed-start)));
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 @keyframes motion-screen-back-out {
@@ -251,22 +344,34 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  html[data-motion-feed="swipe"] {
+    --feed-distance: 100%;
+  }
+  html[data-motion-feed="tab"] {
+    --feed-distance: 30%;
+  }
+  html[data-motion-feed]::view-transition-old(screen) {
+    animation: motion-feed-out var(--motion-base) var(--ease-out) both;
+  }
+  html[data-motion-feed]::view-transition-new(screen) {
+    animation: motion-feed-in var(--motion-base) var(--ease-out) both;
+  }
   .swipe-task__surface {
     transition: transform var(--motion-base) var(--ease-out);
   }
   .swipe-task__surface[data-dragging="true"] {
     transition: none;
   }
-  html[data-motion-direction="forward"]::view-transition-new(screen) {
+  html[data-motion-direction="forward"]:not([data-motion-feed])::view-transition-new(screen) {
     animation: motion-screen-in var(--motion-screen) var(--ease-out) both;
   }
-  html[data-motion-direction="forward"]::view-transition-old(screen) {
+  html[data-motion-direction="forward"]:not([data-motion-feed])::view-transition-old(screen) {
     animation: motion-screen-out var(--motion-screen) var(--ease-out) both;
   }
-  html[data-motion-direction="back"]::view-transition-new(screen) {
+  html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-new(screen) {
     animation: motion-screen-back-in var(--motion-screen) var(--ease-out) both;
   }
-  html[data-motion-direction="back"]::view-transition-old(screen) {
+  html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(screen) {
     animation: motion-screen-back-out var(--motion-screen) var(--ease-out) both;
   }
   .sheet:not(.sheet--full) {

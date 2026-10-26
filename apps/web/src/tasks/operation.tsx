@@ -11,6 +11,7 @@ import { changed, LocalFailure, LocalSaved } from '../offline/identity.ts';
 import { useNavigate } from '../shell/motion.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
+import { flyTask } from '../ui/taskFlight.ts';
 import { useOperationKey } from '../ui/useOperationKey.ts';
 import { fetchTask, mutateTask, TaskError, type TimedTask } from './api.ts';
 import { taskError } from './errors.ts';
@@ -44,6 +45,7 @@ export function useTaskOperation(
   const [pending, setPending] = useState(false);
   const unresolved = useRef<{ signature: string; body: Record<string, unknown> } | null>(null);
   const locked = useRef(false);
+  const flight = useRef<{ id: string; reverse: () => void } | null>(null);
   const key = useOperationKey();
   const refresh = useRefreshTasks();
   const [error, setError] = useState<unknown>(null);
@@ -97,6 +99,20 @@ export function useTaskOperation(
       setConfirmation(null);
       unresolved.current = null;
       await clearDraft(`form:${location.pathname}`).catch(() => changed('storage-error'));
+      if (mounted.current) {
+        if (request.path.endsWith('/undo') || request.path.endsWith('/restore')) {
+          if (flight.current?.id === result.id) {
+            flight.current.reverse();
+            flight.current = null;
+          }
+        } else if (
+          result.deletedAt ||
+          (request.path.endsWith('/status') && result.status === 'done')
+        ) {
+          const reverse = flyTask(result.id, result.deletedAt ? 'trash' : 'done');
+          flight.current = reverse ? { id: result.id, reverse } : null;
+        }
+      }
       if (mounted.current) await onSuccess(result);
       // Блокировка защищает отправку мутации; актуализация не расходует окно отмены.
       void refresh();

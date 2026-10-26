@@ -3,10 +3,41 @@ import {
   cancelMotionNavigation,
   changeScreenWithMotion,
   motionDirection,
+  navigateHistoryWithMotion,
   navigateWithMotion,
 } from './motion.tsx';
 
 describe('направление перехода', () => {
+  it('кнопка истории снимает старый экран до navigate и ждёт popstate', async () => {
+    const root = { dataset: { design: 'studio' } as Record<string, string> };
+    let update: (() => void | Promise<void>) | undefined;
+    vi.stubGlobal('window', { history: { state: { idx: 1 } } });
+    vi.stubGlobal('document', {
+      documentElement: root,
+      startViewTransition: (callback: typeof update) => {
+        update = callback;
+        return { skipTransition: vi.fn(), finished: new Promise(() => {}) };
+      },
+    });
+    const navigate = vi.fn();
+    try {
+      navigateHistoryWithMotion(-1, navigate);
+      expect(navigate).not.toHaveBeenCalled();
+      expect(root.dataset.motionDirection).toBe('back');
+      const committed = vi.fn();
+      const done = update?.();
+      void Promise.resolve(done).then(committed);
+      expect(navigate).toHaveBeenCalledWith(-1);
+      await Promise.resolve();
+      expect(committed).not.toHaveBeenCalled();
+      cancelMotionNavigation();
+      await done;
+      expect(committed).toHaveBeenCalledOnce();
+    } finally {
+      cancelMotionNavigation();
+      vi.unstubAllGlobals();
+    }
+  });
   it('отмена рисунка не отменяет данные и не создаёт ошибку приложения', async () => {
     const update = vi.fn();
     const report = vi.fn();
