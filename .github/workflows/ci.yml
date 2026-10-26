@@ -125,6 +125,7 @@ jobs:
       - run: pnpm --filter @homecrm/web test:e2e:auth --shard=${{ matrix.shard }}/3
         env:
           HOMECRM_TEST_PG_ADMIN_URL: postgres://postgres@postgres:5432/postgres
+          HOMECRM_E2E_GROUP_STUDIO: '1'
       - uses: actions/upload-artifact@v7
         if: always()
         with:
