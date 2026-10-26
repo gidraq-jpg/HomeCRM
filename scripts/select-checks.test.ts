@@ -28,6 +28,14 @@ test('git: переименования, удаления, новая ветка
   mkdirSync('test-results', { recursive: true });
   const root = mkdtempSync(resolve('test-results/d31-'));
   const original = process.cwd();
+  // Git передаёт hook переменные основного репозитория: они не должны попасть в тестовую фикстуру.
+  const gitEnvironment = new Map(
+    execFileSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8' })
+      .trim()
+      .split('\n')
+      .map((name) => [name, process.env[name]]),
+  );
+  for (const name of gitEnvironment.keys()) delete process.env[name];
   const git = (...args: string[]) =>
     execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
   const commit = () => {
@@ -77,6 +85,10 @@ test('git: переименования, удаления, новая ветка
     assert.equal(documentsOnly(changedFiles(base, base)), false);
   } finally {
     process.chdir(original);
+    for (const [name, value] of gitEnvironment) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
     rmSync(root, { recursive: true, force: true });
   }
 });
