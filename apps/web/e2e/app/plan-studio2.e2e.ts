@@ -58,7 +58,7 @@ async function stored(
 async function plan(page: Page) {
   await page.goto('#/today/plan');
   await expect(page.getByRole('heading', { name: 'План', exact: true })).toHaveCount(1);
-  await expect(page.getByText('Загружаем дела…')).toHaveCount(0);
+  await expect(page.getByRole('status', { name: 'Загружаем дела…', exact: true })).toHaveCount(0);
 }
 
 for (const textScale of [1, 2]) {
@@ -330,6 +330,10 @@ test('TASK-12: обычный перенос и Назначить день со
   }
   await signInAs(page, family, 'adult');
   await plan(page);
+  // Сеть отключается после загрузки строки, а не после одного заголовка страницы.
+  await expect(
+    page.getByRole('button', { name: 'Перенести: Вымышленное обычное дело' }),
+  ).toBeVisible();
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Перенести: Вымышленное обычное дело' }).click();
   await page.getByRole('button', { name: 'Завтра', exact: true }).click();

@@ -65,7 +65,9 @@ export async function openPeople(page: Page) {
   await page.goto('#/more');
   await page.goto('#/people');
   await expect(page.getByRole('heading', { level: 1, name: 'Люди', exact: true })).toBeVisible();
-  await expect(page.getByText('Загружаем контакты…')).toHaveCount(0);
+  await expect(page.getByRole('status', { name: 'Загружаем контакты…', exact: true })).toHaveCount(
+    0,
+  );
 }
 
 export async function openContact(page: Page, id: string, title: string) {

@@ -3,7 +3,6 @@ import { FileText } from '@phosphor-icons/react';
 import { useEffect, useId, useState } from 'react';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
-import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
 import { visibilityOf } from '../notes/abilities.ts';
@@ -11,6 +10,7 @@ import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import {
@@ -233,7 +233,7 @@ export function DocumentsScreen() {
         </div>
       </div>
 
-      {list.isPending ? <Notice>Загружаем документы…</Notice> : null}
+      {list.isPending ? <ListSkeleton label="Загружаем документы…" /> : null}
       {list.isError ? (
         <>
           <DocumentError error={list.error} action="load" />

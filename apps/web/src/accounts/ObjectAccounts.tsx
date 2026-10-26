@@ -7,12 +7,12 @@ import {
   Trash,
 } from '@phosphor-icons/react';
 import { type ReactNode, useState } from 'react';
-import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { noteAbilities, viewerOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { useObjectContext } from '../objects/context.ts';
+import { Link } from '../shell/motion.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';

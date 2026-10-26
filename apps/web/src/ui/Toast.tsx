@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useListMotion } from './useListMotion.ts';
 
 export interface ToastAction {
   label: string;
@@ -73,6 +74,8 @@ export function ToastRegion() {
   const { toast, dismiss } = useToastContext();
   const id = toast?.id;
   const durationMs = toastDuration(toast);
+  const region = useRef<HTMLDivElement>(null);
+  useListMotion(region, String(id), 'toast');
 
   useEffect(() => {
     if (id === undefined) return;
@@ -81,9 +84,9 @@ export function ToastRegion() {
   }, [id, durationMs, dismiss]);
 
   return (
-    <div className="toast-region" role="status" aria-live="polite">
+    <div className="toast-region" role="status" aria-live="polite" ref={region}>
       {toast ? (
-        <div className="toast" key={toast.id}>
+        <div className="toast" key={toast.id} data-motion-key={toast.id}>
           <div className="toast__text">
             <span>{toast.message}</span>
             {toast.detail ? <span className="toast__detail">{toast.detail}</span> : null}

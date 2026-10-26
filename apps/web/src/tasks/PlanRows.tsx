@@ -1,12 +1,16 @@
 import { canWrite } from '@homecrm/shared';
-import { Check, Clock } from '@phosphor-icons/react';
-import { Link, useLocation } from 'react-router';
+import { Clock } from '@phosphor-icons/react';
+import { useLocation } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
+import { Link } from '../shell/motion.tsx';
+import { MotionList } from '../ui/MotionList.tsx';
 import type { FeedTaskCard, TaskCard } from './api.ts';
+import { CompletionCheck } from './CompletionCheck.tsx';
 import { formatDateOnly } from './fields.tsx';
 import { useTaskMembers } from './options.tsx';
 import { isOverdue } from './plan.ts';
+import { SwipeTaskRow } from './SwipeTaskRow.tsx';
 import { STATUS_LABELS } from './TaskForm.tsx';
 import { taskPath } from './TaskRows.tsx';
 
@@ -15,6 +19,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   label,
   today,
   pending,
+  completionFailed = false,
   move,
   complete,
   resume,
@@ -26,6 +31,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   label: string;
   today: string;
   pending: boolean;
+  completionFailed?: boolean;
   move?: (card: T) => void;
   complete: (card: T) => void;
   resume?: (card: T) => void;
@@ -41,7 +47,11 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   );
   const viewer = viewerOf(me);
   return (
-    <ul className="plan-rows" aria-label={label}>
+    <MotionList
+      className="plan-rows"
+      label={label}
+      version={tasks.map((card) => card.id + card.status).join(',')}
+    >
       {tasks.map((card) => {
         const active = ['open', 'waiting'].includes(card.status);
         const editable = canWrite(viewer, factsOf(card, viewer, 'task'));
@@ -57,7 +67,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
             }
             aria-hidden
           >
-            {closed ? <Check size={16} weight="bold" /> : null}
+            {closed ? <CompletionCheck /> : null}
           </span>
         );
         const visibility =
@@ -77,7 +87,14 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
           .join(' · ');
         const other = card.assigneeId && card.assigneeId !== me.id;
         return (
-          <li className={closed ? 'plan-row plan-row--closed' : 'plan-row'} key={card.id}>
+          <SwipeTaskRow
+            className={closed ? 'plan-row plan-row--closed' : 'plan-row'}
+            key={card.id}
+            card={card}
+            pending={pending}
+            completionFailed={completionFailed}
+            complete={() => complete(card)}
+          >
             {editable && (active || resume) ? (
               <button
                 className="icon-button plan-row__done"
@@ -147,9 +164,9 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
                 <Clock size={22} aria-hidden />
               </button>
             ) : null}
-          </li>
+          </SwipeTaskRow>
         );
       })}
-    </ul>
+    </MotionList>
   );
 }

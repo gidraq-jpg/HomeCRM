@@ -1,12 +1,12 @@
 import { canWriteLink } from '@homecrm/shared';
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { routeOf, useEnd } from '../links/ends.ts';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
 import { createLink, type RecordLink, type RecordRef } from '../objects/api.ts';
 import { useLinks, useRefreshObjects } from '../objects/queries.ts';
+import { Link } from '../shell/motion.tsx';
 import { RecordPicker } from '../tasks/options.tsx';
 import { Section } from '../ui/Page.tsx';
 import type { ShoppingCard } from './api.ts';

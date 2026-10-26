@@ -1,10 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { z } from 'zod';
 import { Notice, useAction, useOnline } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { ReadingCard } from '../meters/api.ts';
+import { Link } from '../shell/motion.tsx';
 import { formatDateOnly } from '../tasks/fields.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { localMessage, offlineEvents, ticket } from './identity.ts';

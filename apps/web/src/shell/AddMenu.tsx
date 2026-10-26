@@ -8,11 +8,11 @@ import {
   UserPlus,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
+import { useNavigate } from './motion.tsx';
 
 interface AddMenuProps {
   open: boolean;

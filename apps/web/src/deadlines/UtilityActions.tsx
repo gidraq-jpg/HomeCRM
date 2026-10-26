@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useId, useState } from 'react';
-import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { cancelPayment } from '../charges/api.ts';
 import { useRefreshCharges } from '../charges/queries.ts';
@@ -8,6 +7,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { computedNextVerification } from '../meters/form.ts';
 import { useRefreshMeters } from '../meters/queries.ts';
 import { todayIn } from '../objects/dates.ts';
+import { Link } from '../shell/motion.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { completePayment, completeReadings, fetchMeterCard, verifyMeter } from './api.ts';

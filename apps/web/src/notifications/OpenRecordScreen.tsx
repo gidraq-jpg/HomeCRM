@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router';
+import { Navigate, useParams } from 'react-router';
 import { ApiError } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
 import { fetchDocument } from '../documents/api.ts';
 import { fetchNote } from '../notes/api.ts';
 import { fetchObject } from '../objects/api.ts';
+import { Link } from '../shell/motion.tsx';
 import { fetchTask } from '../tasks/api.ts';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 

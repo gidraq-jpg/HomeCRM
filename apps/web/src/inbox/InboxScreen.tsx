@@ -1,6 +1,5 @@
 import { INBOX_MAX_BYTES, InboxCapture } from '@homecrm/shared';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { useAiStatus } from '../ai/AiCapture.tsx';
 import { useAiConsent } from '../ai/consent.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
@@ -10,6 +9,7 @@ import { localMessage, offlineEvents } from '../offline/identity.ts';
 import { useQueue } from '../offline/OfflinePanel.tsx';
 import { enqueue, synchronize } from '../offline/queue.ts';
 import { offlineDB, uuid } from '../offline/store.ts';
+import { Link } from '../shell/motion.tsx';
 import { countWord } from '../ui/format.ts';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';

@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { useNavigate } from '../shell/motion.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
 export function TakeFromRadar({
   occurrenceId,

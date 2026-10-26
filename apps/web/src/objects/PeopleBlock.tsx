@@ -1,7 +1,6 @@
 import { canWrite, canWriteLink, type RecordFacts } from '@homecrm/shared';
 import { AddressBook, Check, Plus, User, X } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
-import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
@@ -10,6 +9,7 @@ import { ORGANIZATION_TYPE_LABELS } from '../organizations/form.ts';
 import { useOrganizationOptions } from '../organizations/queries.ts';
 import { categoriesLabel } from '../people/labels.ts';
 import { usePeopleOptions } from '../people/queries.ts';
+import { Link } from '../shell/motion.tsx';
 import { normalizeText } from '../ui/format.ts';
 import { RowContent, RowList } from '../ui/Row.tsx';
 import { Sheet } from '../ui/Sheet.tsx';

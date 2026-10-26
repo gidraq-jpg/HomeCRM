@@ -1,9 +1,9 @@
 import { Lock, UserPlus } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { Link } from '../shell/motion.tsx';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
 import { Page } from '../ui/Page.tsx';
 

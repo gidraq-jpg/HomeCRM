@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { noteAbilities, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
+import { Link } from '../shell/motion.tsx';
 import { Section } from '../ui/Page.tsx';
 import { RowContent } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';

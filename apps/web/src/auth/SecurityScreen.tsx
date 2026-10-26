@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link } from 'react-router';
 import * as z from 'zod';
 import { saveSettings } from '../notifications/api.ts';
 import { useRefreshNotifications, useSettings } from '../notifications/queries.ts';
 import { prepareLogout } from '../offline/logout.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
+import { Link } from '../shell/motion.tsx';
 import { Section } from '../ui/Page.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { ApiError, action, api, BackupCodes, Events, isAdmin, type Me } from './api.ts';

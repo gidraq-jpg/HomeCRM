@@ -1,9 +1,9 @@
 import { Drop, FileText, Lightning, Plus } from '@phosphor-icons/react';
-import { Link } from 'react-router';
 import { DocumentRows } from '../documents/DocumentsScreen.tsx';
 import { useObjectDocuments } from '../documents/queries.ts';
 import { readingText } from '../meters/ObjectMeters.tsx';
 import { useMeters } from '../meters/queries.ts';
+import { Link } from '../shell/motion.tsx';
 import { formatDateOnly } from '../tasks/fields.tsx';
 import { uniqueTasks, useTaskList } from '../tasks/queries.ts';
 import { TaskRows } from '../tasks/TaskRows.tsx';

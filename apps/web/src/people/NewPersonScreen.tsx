@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
@@ -12,6 +11,7 @@ import {
   organizationPlacement,
 } from '../organizations/abilities.ts';
 import { useOrganizationOptions } from '../organizations/queries.ts';
+import { useNavigate } from '../shell/motion.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { createPerson } from './api.ts';

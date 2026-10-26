@@ -1,6 +1,6 @@
 import { CaretLeft } from '@phosphor-icons/react';
-import { Link, useNavigate } from 'react-router';
 import { AddAction } from '../shell/AddAction.tsx';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { FormHeading } from './FormHeading.tsx';
 import { Page } from './Page.tsx';
 

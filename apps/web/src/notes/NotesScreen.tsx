@@ -1,12 +1,12 @@
 import { Note, PushPin } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
-import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VISIBILITY_LABELS } from '../access/visibility.ts';
 import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { AddAction } from '../shell/AddAction.tsx';
+import { Link } from '../shell/motion.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { countWord, normalizeText } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';

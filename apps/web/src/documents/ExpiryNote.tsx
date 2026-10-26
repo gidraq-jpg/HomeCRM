@@ -1,5 +1,5 @@
-import { Link } from 'react-router';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { Link } from '../shell/motion.tsx';
 import type { DocumentCard } from './api.ts';
 import { dateLabel, type ExpirySource } from './labels.ts';
 

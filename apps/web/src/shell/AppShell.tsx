@@ -1,10 +1,12 @@
 import { Plus } from '@phosphor-icons/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
+import { TaskSwipeActions } from '../tasks/TaskSwipeActions.tsx';
 import { ToastRegion } from '../ui/Toast.tsx';
 import { AddActionContext } from './AddAction.tsx';
 import { BottomNav, type ShellSection } from './BottomNav.tsx';
+import { cancelMotionNavigation, useNavigate } from './motion.tsx';
 import { SideNav } from './SideNav.tsx';
 import { sectionAdd } from './section-add.ts';
 import { isStudio } from './studio.ts';
@@ -39,6 +41,10 @@ export function AppShell({
   const [quick, setQuick] = useState(false);
   const chrome = useRef<HTMLDivElement>(null);
   const app = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    window.addEventListener('popstate', cancelMotionNavigation);
+    return () => window.removeEventListener('popstate', cancelMotionNavigation);
+  }, []);
   useEffect(() => {
     const element = chrome.current;
     if (!element) return;
@@ -77,7 +83,7 @@ export function AppShell({
         <div className="app__content">
           <TopBar scopeVisible={scopeVisible} />
           <main className="main" id="main">
-            {children}
+            {isStudio() ? <TaskSwipeActions>{children}</TaskSwipeActions> : children}
           </main>
         </div>
         <div className="chrome" ref={chrome}>

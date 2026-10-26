@@ -1,6 +1,6 @@
 import { CaretLeft } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate } from '../shell/motion.tsx';
 
 /** Компактная шапка формы; прежний адрес возврата или переход по истории сохраняется. */
 export function FormHeading({

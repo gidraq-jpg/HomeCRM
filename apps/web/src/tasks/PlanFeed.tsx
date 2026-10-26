@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
+import { Link } from '../shell/motion.tsx';
+import { MotionGroups } from '../ui/MotionGroups.tsx';
 import { FeedTaskCard } from './api.ts';
 import { MoveTaskSheet } from './MoveTaskSheet.tsx';
 import { OperationNotice } from './operation.tsx';
@@ -127,6 +128,7 @@ export function PlanFeed({ house }: { house: string | null }) {
       label={label}
       today={today}
       pending={operation.pending}
+      completionFailed={!!operation.error || !!operation.confirmation}
       move={actions.startMove}
       remember={remember}
       complete={actions.complete}
@@ -146,20 +148,26 @@ export function PlanFeed({ house }: { house: string | null }) {
         </Link>
       ) : null}
       {query.data && !hasDated ? <p className="muted">На две недели вперёд дел нет</p> : null}
-      {hasDated
-        ? groups.map((group) =>
-            group.tasks.length ? (
-              <section className="section plan-day" key={group.from}>
-                <h2 className="plan-day__title">{planDay(group.from, today)}</h2>
-                {rows(group.tasks, `Дела ${group.from}`)}
-              </section>
-            ) : (
-              <p className="muted plan-empty-days" key={group.from}>
-                {emptyDays(group.from, group.until)}
-              </p>
-            ),
-          )
-        : null}
+      <MotionGroups
+        version={groups
+          .flatMap((group) => group.tasks.map((card) => card.id + card.status))
+          .join(',')}
+      >
+        {hasDated
+          ? groups.map((group) =>
+              group.tasks.length ? (
+                <section className="section plan-day" key={group.from} data-motion-key={group.from}>
+                  <h2 className="plan-day__title">{planDay(group.from, today)}</h2>
+                  {rows(group.tasks, `Дела ${group.from}`)}
+                </section>
+              ) : (
+                <p className="muted plan-empty-days" key={group.from}>
+                  {emptyDays(group.from, group.until)}
+                </p>
+              ),
+            )
+          : null}
+      </MotionGroups>
       <div ref={sentinel} className="plan-sentinel" />
       <LoadMore
         query={query}

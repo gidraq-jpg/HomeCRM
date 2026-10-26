@@ -1,9 +1,10 @@
 import { CalendarBlank, CaretLeft, CaretRight, Gauge, Plus, Receipt } from '@phosphor-icons/react';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { ApiError } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
+import { Link } from '../shell/motion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { countWord, type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
 import { Section } from '../ui/Page.tsx';

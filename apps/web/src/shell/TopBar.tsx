@@ -1,10 +1,11 @@
 import { MagnifyingGlass, UserCircle, X } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
+import { Link, useNavigate } from './motion.tsx';
 import { ScopeSwitch } from './ScopeSwitch.tsx';
 import { StudioBrand } from './StudioBrand.tsx';
 import { isStudio } from './studio.ts';

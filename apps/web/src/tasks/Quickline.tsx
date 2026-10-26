@@ -1,7 +1,6 @@
 import { type CalendarDate, calendarInstant, parseQuickline, TaskFields } from '@homecrm/shared';
 import { CalendarBlank, CaretRight, Clock, House, Users, X } from '@phosphor-icons/react';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import { defaultVisibility, VISIBILITY_LABELS, type Visibility } from '../access/visibility.ts';
@@ -9,6 +8,7 @@ import { AiCapture } from '../ai/AiCapture.tsx';
 import { ApiError } from '../auth/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
+import { useNavigate } from '../shell/motion.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';

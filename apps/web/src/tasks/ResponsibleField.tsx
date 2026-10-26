@@ -1,10 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { z } from 'zod';
 import { ApiError, apiRequest } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { Link } from '../shell/motion.tsx';
 import { taskError } from './errors.ts';
 import { MemberPicker } from './options.tsx';
 /** Объект, документ и ручной срок: здесь нет протокола расширения аудитории. */

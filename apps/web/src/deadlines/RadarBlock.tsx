@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { Link } from '../shell/motion.tsx';
 import { Section } from '../ui/Page.tsx';
 import { DeadlineError, RecalculatingNotice } from './components.tsx';
 import { pointCount, RadarRows } from './RadarScreen.tsx';

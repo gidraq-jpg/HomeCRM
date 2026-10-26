@@ -195,5 +195,7 @@ export async function openHome(page: Page) {
   await page.goto('#/more');
   await page.goto('#/home');
   await expect(page.getByRole('heading', { level: 1, name: 'Дом', exact: true })).toBeVisible();
-  await expect(page.getByText('Загружаем объекты…')).toHaveCount(0);
+  await expect(page.getByRole('status', { name: 'Загружаем объекты…', exact: true })).toHaveCount(
+    0,
+  );
 }

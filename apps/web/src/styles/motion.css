@@ -1,0 +1,322 @@
+/* UI-8: время и кривые определены только в tokens.css. */
+:root[data-design="studio"] .main {
+  view-transition-name: screen;
+}
+:root[data-design="studio"] .chrome {
+  view-transition-name: dock;
+}
+:root[data-design="studio"] .side-nav {
+  view-transition-name: sidebar;
+}
+:root[data-design="studio"] .topbar {
+  view-transition-name: header;
+}
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-old(dock),
+::view-transition-new(dock),
+::view-transition-old(sidebar),
+::view-transition-new(sidebar),
+::view-transition-old(header),
+::view-transition-new(header) {
+  animation: none;
+}
+::view-transition-group(screen) {
+  animation: none;
+  overflow: clip;
+  z-index: 1;
+}
+::view-transition-group(root),
+::view-transition-group(dock),
+::view-transition-group(sidebar),
+::view-transition-group(header) {
+  animation: none;
+}
+::view-transition-group(dock),
+::view-transition-group(sidebar),
+::view-transition-group(header) {
+  z-index: 2;
+}
+::view-transition-old(screen),
+::view-transition-new(screen) {
+  mix-blend-mode: normal;
+}
+
+.list-skeleton {
+  padding-block: 8px;
+}
+.list-skeleton__row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 76px;
+  padding: 12px;
+}
+.list-skeleton__icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: var(--soft);
+}
+.list-skeleton__text {
+  flex: 1;
+  display: grid;
+  gap: 10px;
+}
+.list-skeleton__text span {
+  display: block;
+  height: 12px;
+  width: 78%;
+  border-radius: 6px;
+  background: var(--soft);
+}
+.list-skeleton__text span + span {
+  width: 48%;
+}
+.sheet:not(.sheet--full) .sheet__header {
+  position: relative;
+  padding-top: 24px;
+  touch-action: none;
+}
+.sheet:not(.sheet--full) .sheet__header::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: calc(50% - 18px);
+  width: 36px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--border);
+}
+.sheet[data-dragging],
+.sheet[data-motion-settled] {
+  animation: none;
+}
+.sheet:not(.sheet--full)[data-dragging] {
+  transition: none;
+}
+html[data-design="studio"] .row:active,
+html[data-design="studio"] .plan-row:active {
+  background-color: var(--soft);
+}
+.topbar a:active {
+  opacity: 0.7;
+}
+button:active:not(:disabled) {
+  filter: brightness(0.92);
+}
+[data-motion-ghost] {
+  pointer-events: none;
+}
+.toast-region {
+  position: relative;
+}
+.toast-region > [data-motion-ghost] {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+}
+.swipe-task {
+  position: relative;
+  overflow: hidden;
+  list-style: none;
+  touch-action: pan-y;
+}
+.plan-rows > .swipe-task + .swipe-task {
+  border-top: 1px solid var(--paper);
+}
+.swipe-task__surface {
+  position: relative;
+  z-index: 1;
+  background: var(--paper);
+  width: 100%;
+}
+html[data-design="studio"] .swipe-task__surface {
+  background: var(--surface);
+}
+.swipe-task__actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+}
+.swipe-task__action {
+  width: 104px;
+  min-height: 44px;
+  border: 0;
+  padding: 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+.swipe-task__action--done {
+  background: var(--success);
+  color: white;
+}
+.swipe-task__action--trash {
+  background: var(--danger);
+  color: white;
+  margin-left: auto;
+}
+.swipe-task__action[hidden] {
+  display: none;
+}
+.swipe-task[data-row-gesture][data-swipe-direction="trash"] {
+  background: var(--danger);
+}
+.swipe-task[data-row-gesture][data-swipe-direction="done"] {
+  background: var(--success);
+}
+html[data-design="studio"] [data-motion-completed="true"] .task-completion-circle svg {
+  opacity: 1;
+}
+[data-motion-completed="true"] .plan-circle {
+  color: white;
+  background: var(--success);
+  border-color: var(--success);
+}
+
+@keyframes motion-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes motion-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes motion-screen-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes motion-screen-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-30%);
+  }
+}
+@keyframes motion-screen-back-in {
+  from {
+    transform: translateX(-30%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes motion-screen-back-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes motion-sheet-in {
+  from {
+    transform: translate(-50%, 100%);
+  }
+  to {
+    transform: translate(-50%, 0);
+  }
+}
+@keyframes motion-check {
+  from {
+    stroke-dashoffset: 32;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes motion-skeleton {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .swipe-task__surface {
+    transition: transform var(--motion-base) var(--ease-out);
+  }
+  .swipe-task__surface[data-dragging="true"] {
+    transition: none;
+  }
+  html[data-motion-direction="forward"]::view-transition-new(screen) {
+    animation: motion-screen-in var(--motion-screen) var(--ease-out) both;
+  }
+  html[data-motion-direction="forward"]::view-transition-old(screen) {
+    animation: motion-screen-out var(--motion-screen) var(--ease-out) both;
+  }
+  html[data-motion-direction="back"]::view-transition-new(screen) {
+    animation: motion-screen-back-in var(--motion-screen) var(--ease-out) both;
+  }
+  html[data-motion-direction="back"]::view-transition-old(screen) {
+    animation: motion-screen-back-out var(--motion-screen) var(--ease-out) both;
+  }
+  .sheet:not(.sheet--full) {
+    transition: transform var(--motion-sheet) var(--ease-sheet);
+  }
+  .sheet:not(.sheet--full)[data-state="open"]:not([data-motion-settled]) {
+    animation: motion-sheet-in var(--motion-sheet) var(--ease-sheet);
+  }
+  .sheet-overlay[data-state="open"] {
+    animation: motion-fade-in var(--motion-fast) var(--ease-out);
+  }
+  button {
+    transition: transform var(--motion-fast) var(--ease-out);
+  }
+  button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .list-skeleton__row {
+    animation: motion-skeleton var(--motion-base) var(--ease-out) infinite alternate;
+  }
+  .plan-circle--done svg polyline,
+  [data-motion-completed="true"] .plan-circle svg polyline {
+    stroke-dasharray: 32;
+    animation: motion-check var(--motion-fast) var(--ease-out) both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-task__actions {
+    position: static;
+  }
+  .swipe-task__actions[inert] {
+    display: none;
+  }
+  ::view-transition-group(screen) {
+    animation-duration: var(--motion-fast);
+  }
+  ::view-transition-old(screen) {
+    animation: motion-fade-out var(--motion-fast) var(--ease-out) both;
+  }
+  ::view-transition-new(screen) {
+    animation: motion-fade-in var(--motion-fast) var(--ease-out) both;
+  }
+  .sheet,
+  .sheet-overlay {
+    animation: motion-fade-in var(--motion-fast) var(--ease-out);
+  }
+}
+
+/* Presence не удерживает фокус и aria ради завершения рисунка. */
+.sheet[data-state="closed"],
+.sheet-overlay[data-state="closed"] {
+  animation: none;
+}

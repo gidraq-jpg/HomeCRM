@@ -1,7 +1,6 @@
 import { DraftSchemas, ReceiptAccounts } from '@homecrm/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { ApiError, apiRequest } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
@@ -15,6 +14,7 @@ import type { ReadingsContext } from '../meters/ReadingsLayout.tsx';
 import { evaluateMeter, type ReadingDraft } from '../meters/readings.ts';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectCard } from '../objects/queries.ts';
+import { useNavigate } from '../shell/motion.tsx';
 import { type InboxItem, inboxOperationKey } from './api.ts';
 
 type Complete = (target: { type: 'meter_reading' | 'utility_charge'; id: string }) => Promise<void>;

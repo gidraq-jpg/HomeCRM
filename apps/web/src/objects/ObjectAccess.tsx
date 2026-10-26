@@ -1,7 +1,6 @@
 import { Copy, LockSimple, ShareNetwork, UsersThree } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import { AccessCaption } from '../access/AccessBadge.tsx';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
@@ -11,6 +10,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { LosesAccess } from '../notes/NoteAccess.tsx';
 import { accessToast } from '../notes/toasts.ts';
+import { useNavigate } from '../shell/motion.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import type { ObjectAbilities } from './abilities.ts';

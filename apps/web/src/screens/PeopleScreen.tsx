@@ -1,6 +1,5 @@
 import { ROLE_LABELS } from '@homecrm/shared';
 import { AddressBook, UserPlus } from '@phosphor-icons/react';
-import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
@@ -8,6 +7,7 @@ import { ActionError, Avatar } from '../household/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
 import { ContactsList } from '../people/ContactsList.tsx';
+import { Link } from '../shell/motion.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';

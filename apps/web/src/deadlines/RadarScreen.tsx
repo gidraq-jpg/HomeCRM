@@ -1,10 +1,11 @@
 import type { RadarFilters } from '@homecrm/shared';
 import { useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { radarFromToday } from '../shell/BottomNav.tsx';
+import { Link } from '../shell/motion.tsx';
 import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';

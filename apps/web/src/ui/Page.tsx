@@ -1,7 +1,7 @@
 import { CaretLeft } from '@phosphor-icons/react';
 import { type ReactNode, useEffect } from 'react';
-import { Link } from 'react-router';
 import { AddAction } from '../shell/AddAction.tsx';
+import { Link } from '../shell/motion.tsx';
 import { isStudio } from '../shell/studio.ts';
 
 /** Название вкладки браузера и читалок экрана меняется вместе с экраном. */
@@ -71,6 +71,7 @@ export function Page({
 }
 
 interface SectionProps {
+  motionKey?: string;
   title: string;
   level?: 2 | 3 | 4;
   /** Рядом с заголовком: счётчик или ссылка. */
@@ -80,10 +81,17 @@ interface SectionProps {
   children: ReactNode;
 }
 
-export function Section({ title, aside, eyebrow = false, children, level = 2 }: SectionProps) {
+export function Section({
+  title,
+  aside,
+  eyebrow = false,
+  children,
+  level = 2,
+  motionKey,
+}: SectionProps) {
   const Heading = `h${level}` as const;
   return (
-    <section className="section">
+    <section className="section" data-motion-key={motionKey}>
       <div className="section__head">
         <Heading className={eyebrow ? 'section__title section__title--eyebrow' : 'section__title'}>
           {title}

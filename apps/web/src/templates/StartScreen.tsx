@@ -1,6 +1,6 @@
 import { ROLE_LABELS, type Role } from '@homecrm/shared';
 import { type ReactNode, useId, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import { Navigate, useParams } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
 import { saveTimeZone } from '../deadlines/api.ts';
@@ -12,6 +12,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useRefresh } from '../household/queries.ts';
 import { RoleChoice } from '../household/RoleChoice.tsx';
 import { HOME_ZONES, zoneLabel } from '../household/zones.ts';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';

@@ -1,7 +1,6 @@
 import { PencilSimple, Plus, Trash } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { noteAbilities, viewerOf } from '../notes/abilities.ts';
@@ -9,6 +8,7 @@ import { fetchObjects } from '../objects/api.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
+import { Link } from '../shell/motion.tsx';
 import { type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
 import { useToast } from '../ui/Toast.tsx';
 import {

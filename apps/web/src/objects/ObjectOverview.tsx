@@ -1,6 +1,5 @@
 import { ArrowCounterClockwise, Gauge, PencilSimple, Trash } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
 import { DeadlinesSection } from '../deadlines/DeadlinesSection.tsx';
@@ -10,6 +9,7 @@ import { LinksSection } from '../links/LinksSection.tsx';
 import { factsOf, newPlacement, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { PropertyFacts } from '../property/PropertyFacts.tsx';
 import { propertyDraft } from '../property/property.ts';
+import { Link, useNavigate } from '../shell/motion.tsx';
 import { ResponsibleField } from '../tasks/ResponsibleField.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';

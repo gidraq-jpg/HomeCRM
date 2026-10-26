@@ -11,7 +11,6 @@ import {
   Note,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { matchesScope, SCOPE_LABELS } from '../access/scope.ts';
 import { VISIBILITY_LABELS } from '../access/visibility.ts';
@@ -52,6 +51,7 @@ import { organizationCount } from '../organizations/OrganizationsScreen.tsx';
 import { useOrganizationsList, useRefreshOrganizations } from '../organizations/queries.ts';
 import { useContactsList } from '../people/queries.ts';
 import { TrashPeople } from '../people/TrashPeople.tsx';
+import { Link } from '../shell/motion.tsx';
 import { useTaskList } from '../tasks/queries.ts';
 import { TrashTasks } from '../tasks/TrashTasks.tsx';
 import { CompactEmptyState, EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';

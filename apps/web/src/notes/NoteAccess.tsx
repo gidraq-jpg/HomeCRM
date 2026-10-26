@@ -1,13 +1,13 @@
 import { Copy, LockSimple, ShareNetwork, UsersThree } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode, type RefObject, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { AccessCaption } from '../access/AccessBadge.tsx';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { useNavigate } from '../shell/motion.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import type { NoteAbilities } from './abilities.ts';

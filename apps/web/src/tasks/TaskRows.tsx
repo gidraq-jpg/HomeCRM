@@ -1,20 +1,22 @@
 import { canWrite } from '@homecrm/shared';
-import { Check, Clock, ListChecks, Star } from '@phosphor-icons/react';
+import { Clock, ListChecks, Star } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { RadarItem } from '../deadlines/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { fetchLinks } from '../objects/api.ts';
 import { useObjectsList } from '../objects/queries.ts';
+import { Link } from '../shell/motion.tsx';
 import { formatRub } from '../ui/format.ts';
 import { RowContent, RowList } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import type { TaskCard } from './api.ts';
+import { CompletionCheck } from './CompletionCheck.tsx';
 import { formatDateOnly } from './fields.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
 import { repeatLabel } from './repeats.tsx';
+import { SwipeTaskRow } from './SwipeTaskRow.tsx';
 import { STATUS_LABELS } from './TaskForm.tsx';
 export const taskPath = (id: string) => `/today/tasks/${id}`;
 function TaskMeta({ card }: { card: TaskCard }) {
@@ -92,133 +94,156 @@ export function TaskRows({
   return (
     <>
       <OperationNotice operation={operation} />
-      {tasks.length === 0 ? (
-        <p className="muted">Дел под выбранные условия нет.</p>
-      ) : (
-        <RowList label={label}>
-          {tasks.map((card) => {
-            const done =
-              ['open', 'waiting'].includes(card.status) &&
-              canWrite(viewer, factsOf(card, viewer, 'task')) ? (
-                <button
-                  key={card.id}
-                  className={
-                    focus ? 'icon-button task-focus__done' : 'icon-button task-feed-item__done'
-                  }
-                  type="button"
-                  aria-label="Выполнить"
-                  disabled={operation.pending || pending}
-                  onClick={() =>
-                    void operation.run({
-                      path: `tasks/${card.id}/status`,
-                      body: { status: 'done', expectedUpdatedAt: card.updatedAt },
-                      keyed: true,
-                    })
-                  }
-                >
-                  <span className="plan-circle task-completion-circle" aria-hidden>
-                    <Check size={16} weight="bold" />
-                  </span>
-                </button>
-              ) : card.status === 'done' ? (
-                <span key={card.id} className="task-row-completed" aria-hidden>
-                  <span className="plan-circle plan-circle--done">
-                    <Check size={16} weight="bold" />
-                  </span>
+      {tasks.length === 0 ? <p className="muted">Дел под выбранные условия нет.</p> : null}
+      <RowList label={label}>
+        {tasks.map((card) => {
+          const done =
+            ['open', 'waiting'].includes(card.status) &&
+            canWrite(viewer, factsOf(card, viewer, 'task')) ? (
+              <button
+                key={card.id}
+                className={
+                  focus ? 'icon-button task-focus__done' : 'icon-button task-feed-item__done'
+                }
+                type="button"
+                aria-label="Выполнить"
+                disabled={operation.pending || pending}
+                onClick={() =>
+                  void operation.run({
+                    path: `tasks/${card.id}/status`,
+                    body: { status: 'done', expectedUpdatedAt: card.updatedAt },
+                    keyed: true,
+                  })
+                }
+              >
+                <span className="plan-circle task-completion-circle" aria-hidden>
+                  <CompletionCheck />
                 </span>
-              ) : null;
-            const reschedule =
-              move &&
-              ['open', 'waiting'].includes(card.status) &&
-              canWrite(viewer, factsOf(card, viewer, 'task')) ? (
-                <button
-                  key={`move-${card.id}`}
-                  className="icon-button"
-                  type="button"
-                  aria-label={`Перенести: ${card.title}`}
-                  disabled={operation.pending || pending}
-                  onClick={() => move(card)}
-                >
-                  <Clock size={22} aria-hidden />
-                </button>
-              ) : null;
-            const payment = radar.find(
-              (item) => item.id === card.radarOccurrenceId && item.sourceKind === 'payment',
-            );
-            const objectIds =
-              links.data?.flatMap((link) =>
-                [link.left, link.right].filter((ref) => ref.type === 'object').map((ref) => ref.id),
-              ) ?? [];
-            const objectTitle =
-              payment?.object?.title ??
-              objects.data?.pages.flat().find((object) => objectIds.includes(object.id))?.title;
-            return focus ? (
-              <li className="focus task-focus" key={card.id}>
-                <div className="task-focus__heading">
-                  <span className="task-focus__tile">
-                    <ListChecks size={24} aria-hidden />
-                  </span>
-                  <div>
-                    <p className="focus__access">
-                      {objectTitle && objectTitle !== card.title ? `${objectTitle} · ` : ''}
-                      <AccessBadge visibility={visibilityOf(card)} showLabel />
-                    </p>
-                    <h3 className="focus__title">{card.title}</h3>
-                  </div>
-                </div>
-                <p className="focus__meta">
-                  <TaskMeta card={card} />
-                </p>
-                {payment?.remainingCents != null ? (
-                  <p className="task-focus__remaining">
-                    осталось {formatRub(payment.remainingCents)}
+              </button>
+            ) : card.status === 'done' ? (
+              <span key={card.id} className="task-row-completed" aria-hidden>
+                <span className="plan-circle plan-circle--done">
+                  <CompletionCheck />
+                </span>
+              </span>
+            ) : null;
+          const reschedule =
+            move &&
+            ['open', 'waiting'].includes(card.status) &&
+            canWrite(viewer, factsOf(card, viewer, 'task')) ? (
+              <button
+                key={`move-${card.id}`}
+                className="icon-button"
+                type="button"
+                aria-label={`Перенести: ${card.title}`}
+                disabled={operation.pending || pending}
+                onClick={() => move(card)}
+              >
+                <Clock size={22} aria-hidden />
+              </button>
+            ) : null;
+          const payment = radar.find(
+            (item) => item.id === card.radarOccurrenceId && item.sourceKind === 'payment',
+          );
+          const objectIds =
+            links.data?.flatMap((link) =>
+              [link.left, link.right].filter((ref) => ref.type === 'object').map((ref) => ref.id),
+            ) ?? [];
+          const objectTitle =
+            payment?.object?.title ??
+            objects.data?.pages.flat().find((object) => objectIds.includes(object.id))?.title;
+          return focus ? (
+            <SwipeTaskRow
+              className="focus task-focus"
+              key={card.id}
+              card={card}
+              pending={operation.pending || pending}
+              completionFailed={!!operation.error || !!operation.confirmation}
+              complete={() => {
+                void operation.run({
+                  path: `tasks/${card.id}/status`,
+                  body: { status: 'done', expectedUpdatedAt: card.updatedAt },
+                  keyed: true,
+                });
+              }}
+            >
+              <div className="task-focus__heading">
+                <span className="task-focus__tile">
+                  <ListChecks size={24} aria-hidden />
+                </span>
+                <div>
+                  <p className="focus__access">
+                    {objectTitle && objectTitle !== card.title ? `${objectTitle} · ` : ''}
+                    <AccessBadge visibility={visibilityOf(card)} showLabel />
                   </p>
-                ) : null}
-                {payment?.totalCents != null &&
-                payment.totalCents > 0 &&
-                payment.paidCents != null ? (
-                  <progress
-                    className="task-focus__progress"
-                    aria-label="Оплаченная доля"
-                    max={payment.totalCents}
-                    value={Math.min(payment.totalCents, Math.max(0, payment.paidCents))}
-                  />
-                ) : null}
-                <div className="focus__actions">
-                  <Link
-                    className="btn btn--primary"
-                    to={taskPath(card.id)}
-                    aria-label={`Открыть дело: ${card.title}`}
-                  >
-                    Открыть дело
-                  </Link>
-                  {done}
-                  {reschedule}
+                  <h3 className="focus__title">{card.title}</h3>
                 </div>
-              </li>
-            ) : (
-              <li className="task-feed-item today-task-row" key={card.id}>
-                <Link className="row" to={taskPath(card.id)}>
-                  <RowContent
-                    icon={
-                      card.isMain ? (
-                        <Star size={22} weight="fill" aria-hidden />
-                      ) : (
-                        <ListChecks size={22} aria-hidden />
-                      )
-                    }
-                    title={card.title}
-                    badge={visibilityOf(card)}
-                    meta={<TaskMeta card={card} />}
-                  />
+              </div>
+              <p className="focus__meta">
+                <TaskMeta card={card} />
+              </p>
+              {payment?.remainingCents != null ? (
+                <p className="task-focus__remaining">
+                  осталось {formatRub(payment.remainingCents)}
+                </p>
+              ) : null}
+              {payment?.totalCents != null &&
+              payment.totalCents > 0 &&
+              payment.paidCents != null ? (
+                <progress
+                  className="task-focus__progress"
+                  aria-label="Оплаченная доля"
+                  max={payment.totalCents}
+                  value={Math.min(payment.totalCents, Math.max(0, payment.paidCents))}
+                />
+              ) : null}
+              <div className="focus__actions">
+                <Link
+                  className="btn btn--primary"
+                  to={taskPath(card.id)}
+                  aria-label={`Открыть дело: ${card.title}`}
+                >
+                  Открыть дело
                 </Link>
                 {done}
                 {reschedule}
-              </li>
-            );
-          })}
-        </RowList>
-      )}
+              </div>
+            </SwipeTaskRow>
+          ) : (
+            <SwipeTaskRow
+              className="task-feed-item today-task-row"
+              key={card.id}
+              card={card}
+              pending={operation.pending || pending}
+              completionFailed={!!operation.error || !!operation.confirmation}
+              complete={() => {
+                void operation.run({
+                  path: `tasks/${card.id}/status`,
+                  body: { status: 'done', expectedUpdatedAt: card.updatedAt },
+                  keyed: true,
+                });
+              }}
+            >
+              <Link className="row" to={taskPath(card.id)} aria-label={card.title}>
+                <RowContent
+                  icon={
+                    card.isMain ? (
+                      <Star size={22} weight="fill" aria-hidden />
+                    ) : (
+                      <ListChecks size={22} aria-hidden />
+                    )
+                  }
+                  title={card.title}
+                  badge={visibilityOf(card)}
+                  meta={<TaskMeta card={card} />}
+                />
+              </Link>
+              {done}
+              {reschedule}
+            </SwipeTaskRow>
+          );
+        })}
+      </RowList>
     </>
   );
 }

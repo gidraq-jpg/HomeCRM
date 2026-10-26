@@ -2,7 +2,6 @@ import { canWriteLink, type RecordFacts, type Viewer } from '@homecrm/shared';
 import { Check, Note, Plus } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState } from 'react';
-import { Link } from 'react-router';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
@@ -19,6 +18,7 @@ import {
 import { ObjectError } from '../objects/components.tsx';
 import { useLinks, useRefreshObjects } from '../objects/queries.ts';
 import { OBJECT_TYPE_ICONS } from '../objects/types.ts';
+import { Link } from '../shell/motion.tsx';
 import { normalizeText } from '../ui/format.ts';
 import { RowContent, RowList } from '../ui/Row.tsx';
 import { Sheet } from '../ui/Sheet.tsx';

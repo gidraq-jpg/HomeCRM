@@ -49,9 +49,11 @@ registerShell();
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={client}>
-      <HashRouter>
+      <HashRouter useTransitions={false}>
         <AuthRoot />
       </HashRouter>
     </QueryClientProvider>
   </StrictMode>,
 );
+
+import './styles/motion.css';

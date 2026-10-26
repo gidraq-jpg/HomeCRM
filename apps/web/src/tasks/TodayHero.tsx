@@ -1,4 +1,3 @@
-import { Link } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { useRadar } from '../deadlines/useRadar.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
@@ -6,6 +5,7 @@ import { useMyProfile } from '../household/queries.ts';
 import { listScopeOf } from '../notes/queries.ts';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectsList } from '../objects/queries.ts';
+import { Link } from '../shell/motion.tsx';
 import { formatLongDate, formatRub, formatShortDate, plural, weekdayName } from '../ui/format.ts';
 import { useMonth } from '../utilities/queries.ts';
 
