@@ -40,9 +40,11 @@ export function rowSwipeResult(
   travel = distance,
 ): 'close' | 'reveal' | 'action' {
   const length = Math.abs(distance);
+  // Резкий встречный жест закрывает открытую кнопку, а не нажимает её.
+  const toward = Math.sign(travel) === Math.sign(distance);
   if (
     length > width * 0.5 ||
-    (Math.abs(travel) > 56 && Math.abs(travel) / Math.max(1, elapsed) > 0.6)
+    (toward && Math.abs(travel) > 56 && Math.abs(travel) / Math.max(1, elapsed) > 0.6)
   )
     return 'action';
   return length > 56 ? 'reveal' : 'close';

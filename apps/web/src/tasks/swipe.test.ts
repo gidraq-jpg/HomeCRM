@@ -49,4 +49,8 @@ describe('жест строки дела', () => {
     expect(rowSwipeResult(84, 328, 20, -20)).toBe('reveal');
     expect(rowSwipeResult(-170, 328, 500, -66)).toBe('action');
   });
+  it('резкий встречный жест закрывает открытую кнопку, а не выполняет её действие', () => {
+    expect(rowSwipeResult(-34, 328, 50, 70)).toBe('close');
+    expect(rowSwipeResult(34, 328, 50, -70)).toBe('close');
+  });
 });
