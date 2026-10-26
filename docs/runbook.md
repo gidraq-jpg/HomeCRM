@@ -427,6 +427,7 @@ Hermes сам обслуживает `openai-codex` и ChatGPT OAuth. Наш с�
 `AI_EXTRACT_PROVIDER=openai-compatible`, `AI_EXTRACT_URL=http://host.docker.internal:8643/v1`,
 `AI_EXTRACT_MODEL=hermes-agent`, `AI_EXTRACT_KEY_FILE=/run/ai-secrets/api-server-key`, `AI_DAILY_LIMIT=100`.
 `AI_HTTPS_PROXY` — необязательный HTTP(S)-прокси внешнего разбора, к локальной речи не применяется.
+В рабочем окружении эти значения лежат в `deploy/.env` (не коммитится, секретов нет — только адреса и путь к файлу ключа): Compose читает его сам при любом запуске без `--env-file`. Без файла ИИ выключен (`disabled`).
 Ключ читается из файла во время запроса, в журнал и ошибку не попадает. Запасной вариант — URL `https://api.openai.com/v1`,
 имя модели и отдельный файл ключа API; оплата по токенам. Каталог ai подключён read-only, в нём только ключ сервиса.
 
