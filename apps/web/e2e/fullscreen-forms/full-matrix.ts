@@ -212,9 +212,13 @@ for (const percent of before ? [100] : [100, 200]) {
       await expect(page.locator('form button[type="submit"]')).toBeVisible();
       await checkForm(page, info, `edit-${name}`, percent);
       if (before) continue;
+      // D30: «Назад» локальной формы правки закрывает режим и оставляет карточку.
       await page.locator('.ui7-form-heading .back-link').click();
-      await expect(page).toHaveURL(new RegExp(`#${back}$`));
+      await expect(page).toHaveURL(new RegExp(`#${route}$`));
       await expect(page.locator('.ui7-fullscreen-form')).toHaveCount(0);
+      await expect(
+        page.locator('.object-hero__actions').getByRole('button', { name: /^Править/ }),
+      ).toBeVisible();
       await page.goto(`#${route}`);
       await ready(page);
       await page
