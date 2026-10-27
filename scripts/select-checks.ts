@@ -117,12 +117,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     console.log(onlyDocs ? 'Только документы: кодировка и формат.' : 'Полный прогон проверок.');
   } else if (mode === 'pre-push' || mode === 'docs') {
     let files: string[] = [];
+    let unknownBase = false;
     try {
       files =
         mode === 'pre-push'
           ? pushedFiles(readFileSync(0, 'utf8'))
           : changedFiles(process.argv[3] ?? '', process.argv[4] ?? 'HEAD');
     } catch {
+      unknownBase = true;
       console.log('База сравнения неизвестна: полный прогон.');
     }
     if (documentsOnly(files)) {
@@ -135,7 +137,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         stdio: 'inherit',
       });
       if (result.status !== 0) process.exit(result.status ?? 1);
-      pnpm(['check']);
+      // Полную проверку делает CI; перед отправкой — только затронутые тесты (ADR-0019, 27 октября 2026).
+      pnpm([unknownBase || files.length === 0 ? 'check' : 'check:changed']);
     }
   } else {
     throw new Error('Expected pre-push, ci or docs');
