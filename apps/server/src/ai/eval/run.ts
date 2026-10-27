@@ -16,6 +16,7 @@ import { task } from '../prompts/task.ts';
 import { createProviders } from '../providers.ts';
 import { cases, context } from './cases.ts';
 import { evaluateInbox } from './inbox.ts';
+import { evaluatePdfs } from './pdf.ts';
 import { evaluateIdentity, evaluatePhotos } from './photo.ts';
 import { evaluateReceipts } from './receipts.ts';
 
@@ -68,7 +69,9 @@ function score(field: string, matched: boolean) {
 }
 const started = Date.now();
 try {
-  if (process.argv.includes('--kind=inbox')) {
+  if (process.argv.includes('--kind=pdf')) {
+    await evaluatePdfs(providers, config.AI_EXTRACT_PROVIDER === 'fake');
+  } else if (process.argv.includes('--kind=inbox')) {
     await evaluateInbox(providers, config.AI_EXTRACT_PROVIDER === 'fake', prompts);
   } else if (process.argv.includes('--kind=receipt')) {
     await evaluateReceipts(providers, config.AI_EXTRACT_PROVIDER === 'fake', prompts);

@@ -53,6 +53,7 @@ import {
 } from './api.ts';
 import { InboxUtilities } from './InboxUtilities.tsx';
 import { parseCapturedInbox } from './parse.ts';
+import { pdfMessages } from './pdf-messages.ts';
 
 const BACK = { to: '/more/inbox', label: 'Входящие' };
 const labels: Record<string, string> = {
@@ -334,9 +335,9 @@ function InboxItemReview({ row, editKind }: { row: InboxItem; editKind: string |
       back={BACK}
     >
       <p>{STATUS_LABELS[row.status]}</p>
-      {row.errorCode === 'AI_FILE_MANUAL' ? (
-        <Notice>Для PDF заполните поля вручную или загрузите страницы как фото.</Notice>
-      ) : null}
+      {pdfMessages(row.errorCode).map((message) => (
+        <Notice key={message}>{message}</Notice>
+      ))}
       {status.data?.enabled && ['new', 'error'].includes(row.status) ? (
         <button
           type="button"

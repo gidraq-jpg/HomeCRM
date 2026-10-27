@@ -1,9 +1,21 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { expect, it, vi } from 'vitest';
+import { readPdf } from '../ai/pdf.ts';
 import { type ExtractRequest, fakeDraft } from '../ai/providers.ts';
 import { parseInbox } from './parse.ts';
 
 const context = { objects: [], members: [], timeZone: 'Asia/Yekaterinburg' };
+it('AI-4: из вымышленного PDF личности не извлекается ни одного поля', async () => {
+  const pdf = await readPdf(
+    await readFile(new URL('../ai/eval/samples/pdf/identity.pdf', import.meta.url)),
+  );
+  const extract = vi.fn(async (input: ExtractRequest) => fakeDraft(input));
+  expect(
+    await parseInbox({ extract, health: async () => true }, pdf.text, pdf.images, context),
+  ).toBeNull();
+  expect(extract.mock.calls.map(([input]) => input.kind)).toEqual(['identity']);
+});
 it.each(['yes', 'unsure'] as const)(
   'AI-4: %s останавливает все извлечения и не сохраняет ответ',
   async (identity) => {
