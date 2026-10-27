@@ -100,7 +100,7 @@ export function useListMotion(
         {
           duration,
           easing,
-          delay: !reduce && completed ? motionTime('base') * 2 : 0,
+          delay: !reduce && completed ? motionTime('fly') : 0,
           fill: 'forwards',
         },
       );

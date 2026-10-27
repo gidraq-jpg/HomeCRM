@@ -6,29 +6,61 @@ interface Point {
 }
 
 /** Квадратичная дуга; обратный путь использует те же точки. */
-export function flightFrames(from: Point, to: Point) {
+export function flightFrames(from: Point, to: Point, scale = 0.15) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const lift = Math.min(Math.abs(dx) + Math.abs(dy), 240) * 0.5;
   return Array.from({ length: 17 }, (_, index) => {
     const t = index / 16;
     return {
-      transform: `translate(${dx * t}px, ${dy * t - 2 * (1 - t) * t * lift}px) scale(${1 - 0.85 * t})`,
-      opacity: 1 - t * 0.6,
+      transform: `translate(${dx * t}px, ${dy * t - 2 * (1 - t) * t * lift}px) scale(${1 - (1 - scale) * t})`,
+      opacity: 1,
       offset: t,
     };
   });
 }
 
+interface FlightTarget {
+  kind: 'done-count' | 'active-tab' | 'today' | 'more';
+  layout?: 'wide' | 'phone';
+  visible: boolean;
+}
+
+/** Порядок целей не зависит от DOM и проверяется одинаково для обеих раскладок. */
+export function selectFlightTarget<T extends FlightTarget>(
+  kind: 'done' | 'trash',
+  layout: 'wide' | 'phone',
+  targets: readonly T[],
+): T | undefined {
+  const order: FlightTarget['kind'][] =
+    kind === 'done' ? ['done-count', 'active-tab', 'today'] : ['more'];
+  for (const role of order) {
+    const target = targets.find(
+      (target) =>
+        target.kind === role && target.visible && (!target.layout || target.layout === layout),
+    );
+    if (target) return target;
+  }
+  return undefined;
+}
+
 function visible(node: HTMLElement) {
+  if (
+    node.closest('[inert], [aria-hidden="true"]') ||
+    getComputedStyle(node).visibility === 'hidden'
+  )
+    return false;
   const box = node.getBoundingClientRect();
+  const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
   return (
     box.width > 0 &&
     box.height > 0 &&
     box.bottom > 0 &&
     box.top < innerHeight &&
     box.right > 0 &&
-    box.left < innerWidth
+    box.left < innerWidth &&
+    !!hit &&
+    node.contains(hit)
   );
 }
 
@@ -65,15 +97,25 @@ export function flyTask(id: string, kind: 'done' | 'trash') {
   const row = [
     ...document.querySelectorAll<HTMLElement>('.swipe-task:not([data-motion-ghost])'),
   ].find((node) => node.dataset.motionKey === id && visible(node));
-  const targets = [...document.querySelectorAll<HTMLElement>(`[data-motion-target="${kind}"]`)];
-  // Без счётчика на экране цель — текущая вкладка ленты; корзина живёт в «Ещё».
-  const fallback = document.querySelector<HTMLElement>(
-    kind === 'done' ? '.tabs__link[aria-current="page"]' : '.bottom-nav__link[href="#/more"]',
-  );
-  const target =
-    targets.find((node) => node.classList.contains('task-counts') && visible(node)) ??
-    targets.find(visible) ??
-    (fallback && visible(fallback) ? fallback : undefined);
+  const candidates: (FlightTarget & { node: HTMLElement })[] = [];
+  const add = (selector: string, role: FlightTarget['kind'], layout?: FlightTarget['layout']) => {
+    for (const node of document.querySelectorAll<HTMLElement>(selector))
+      candidates.push({ node, kind: role, layout, visible: visible(node) });
+  };
+  add('.task-counts[data-motion-target="done"]', 'done-count');
+  add('.today-tabs .tabs__link[aria-current="page"]', 'active-tab');
+  for (const [navigation, layout] of [
+    ['side-nav', 'wide'],
+    ['bottom-nav', 'phone'],
+  ] as const) {
+    add(`.${navigation}__link[href="#/today"]`, 'today', layout);
+    add(`.${navigation}__link[href="#/more"]`, 'more', layout);
+  }
+  const target = selectFlightTarget(
+    kind,
+    window.matchMedia('(min-width: 960px)').matches ? 'wide' : 'phone',
+    candidates,
+  )?.node;
   const source = row?.querySelector<HTMLElement>('.swipe-task__surface');
   if (!row || !source || !target) return;
   const box = source.getBoundingClientRect();
@@ -88,7 +130,12 @@ export function flyTask(id: string, kind: 'done' | 'trash') {
     if (reducedMotion()) return;
     const copy = template.cloneNode(true) as HTMLElement;
     document.body.append(copy);
-    const frames = flightFrames(from, to);
+    const scale = Math.min(
+      0.15,
+      (destination.width / box.width) * 0.8,
+      (destination.height / box.height) * 0.8,
+    );
+    const frames = flightFrames(from, to, scale);
     const animation = copy.animate(
       reverse ? frames.reverse().map((frame, index) => ({ ...frame, offset: index / 16 })) : frames,
       {
