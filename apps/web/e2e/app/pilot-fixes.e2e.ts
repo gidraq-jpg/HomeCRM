@@ -264,7 +264,7 @@ test('D19a.6/9/10/13: покупки без Map.groupBy, назад из пра�
   await page.addInitScript(() => {
     Object.defineProperty(Map, 'groupBy', { value: undefined });
   });
-  await signInAs(page, family, 'adult');
+  // Перехват ставится до входа: карусель заранее читает соседние ленты.
   // Первый снимок пустого списка может прийти после успешного добавления.
   let initialRead!: () => void;
   const initialReady = new Promise<void>((resolve) => {
@@ -285,6 +285,7 @@ test('D19a.6/9/10/13: покупки без Map.groupBy, назад из пра�
     await initialReleased;
     await route.fulfill({ response });
   });
+  await signInAs(page, family, 'adult');
   await page.goto('#/more/shopping');
   await expect(page.getByRole('heading', { name: 'Покупки', exact: true })).toBeVisible();
   const shoppingInput = page.getByLabel('Добавить одной строкой', { exact: true });

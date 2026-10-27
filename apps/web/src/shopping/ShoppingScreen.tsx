@@ -18,6 +18,7 @@ import {
   viewerOf,
   visibilityOf,
 } from '../notes/abilities.ts';
+import { listScopeOf } from '../notes/queries.ts';
 import { uuid } from '../offline/store.ts';
 import { AddActionContext } from '../shell/AddAction.tsx';
 import { Link, useNavigate } from '../shell/motion.tsx';
@@ -62,7 +63,6 @@ function ShoppingError({ error }: { error: unknown }) {
 export function ShoppingScreen() {
   const pane = useFeedPane();
   const { me, householdId } = useHousehold();
-  const houseNames = useHouseNames();
   const { scope } = useScope();
   const client = useQueryClient();
   const toast = useToast();
@@ -73,6 +73,11 @@ export function ShoppingScreen() {
       : (householdId ?? ''),
   );
   const [trash, setTrash] = useState(false);
+  const houseNames = useHouseNames({
+    scope: listScopeOf(scope),
+    view: 'mine',
+    ...(house ? { householdId: house } : {}),
+  });
   const [title, setTitle] = useState('');
   const [duplicate, setDuplicate] = useState(false);
   const [listChoice, setListChoice] = useState<'household' | 'personal'>(

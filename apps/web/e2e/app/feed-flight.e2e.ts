@@ -43,6 +43,7 @@ interface Observation {
   samples: Sample[];
   duration: number;
   sourceHeight?: number;
+  endpoint?: Sample;
   target?: { x: number; y: number; width: number; height: number };
 }
 async function observeFlight(page: Page) {
@@ -55,6 +56,20 @@ async function observeFlight(page: Page) {
       const animation = original.call(this, frames, options);
       if (this.hasAttribute('data-motion-flight')) {
         state.flight = { samples: [], duration: Number(animation.effect?.getTiming().duration) };
+        // Конечную геометрию измеряем до первого paint: загруженный runner может пропустить rAF в конце.
+        animation.pause();
+        animation.currentTime = state.flight.duration - 0.001;
+        const end = this.getBoundingClientRect();
+        state.flight.endpoint = {
+          time: Number(animation.currentTime),
+          opacity: Number(getComputedStyle(this).opacity),
+          x: end.x,
+          y: end.y,
+          width: end.width,
+          height: end.height,
+        };
+        animation.currentTime = 0;
+        animation.play();
         pulseTarget = undefined;
         const record = () => {
           if (!this.isConnected) return;
@@ -160,6 +175,14 @@ for (const width of [412, 1440])
           await expect(demo.locator('[data-motion-flight]')).toBeVisible();
           await expect(demo.locator('[data-motion-flight]')).toHaveCSS('opacity', '1');
           await expect(demo.locator('[data-motion-flight]')).toHaveCount(0);
+          if (feed === 0 && method !== 'trash')
+            await expect
+              .poll(() =>
+                demo.evaluate(
+                  () => (window as unknown as { flight: Observation }).flight.sourceHeight,
+                ),
+              )
+              .toBeGreaterThan(0);
           const flight = await demo.evaluate(
             () => (window as unknown as { flight: Observation }).flight,
           );
@@ -174,7 +197,7 @@ for (const width of [412, 1440])
                 sample.width > 0,
             ),
           ).toBe(true);
-          const last = flight.samples.at(-1);
+          const last = flight.endpoint;
           expect(last?.time).toBeGreaterThan(480);
           expect(
             last &&

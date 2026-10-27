@@ -14,9 +14,8 @@ async function enable(family: Family) {
   ]);
 }
 async function openCapture(page: Page) {
-  const status = page.waitForResponse((response) => response.url().includes('/api/ai/status?'));
+  // Готовность ИИ проверяют следующие шаги согласия: ответ предзагрузки может прийти до перехода.
   await openSection(page, '/more/inbox/new', 'Входящие');
-  expect(AiStatus.parse(await (await status).json()).enabled).toBe(true);
 }
 async function capture(page: Page, text: string) {
   await openCapture(page);

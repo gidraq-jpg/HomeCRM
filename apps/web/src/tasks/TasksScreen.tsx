@@ -75,11 +75,11 @@ function TasksPage({
   const { me, householdId, isAdmin } = useHousehold();
   const pane = useFeedPane();
   const { scope } = useScope();
-  const houseNames = useHouseNames(
-    view === 'today'
-      ? { scope: listScopeOf(scope), view: 'mine', ...(house ? { householdId: house } : {}) }
-      : {},
-  );
+  const houseNames = useHouseNames({
+    scope: listScopeOf(scope),
+    view: 'mine',
+    ...(house ? { householdId: house } : {}),
+  });
   const [, setParams] = useSearchParams();
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
   const feedTabs = <TaskTabs houseQuery={houseQuery} />;
