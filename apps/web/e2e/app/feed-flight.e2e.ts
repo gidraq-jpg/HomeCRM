@@ -38,12 +38,14 @@ interface Sample {
   y: number;
   width: number;
   height: number;
+  visible?: boolean;
 }
 interface Observation {
   samples: Sample[];
   duration: number;
   sourceHeight?: number;
   endpoint?: Sample;
+  middle?: Sample;
   target?: { x: number; y: number; width: number; height: number };
 }
 async function observeFlight(page: Page) {
@@ -58,6 +60,24 @@ async function observeFlight(page: Page) {
         state.flight = { samples: [], duration: Number(animation.effect?.getTiming().duration) };
         // Конечную геометрию измеряем до первого paint: загруженный runner может пропустить rAF в конце.
         animation.pause();
+        animation.currentTime = state.flight.duration / 2;
+        const middle = this.getBoundingClientRect();
+        state.flight.middle = {
+          time: Number(animation.currentTime),
+          opacity: Number(getComputedStyle(this).opacity),
+          x: middle.x,
+          y: middle.y,
+          width: middle.width,
+          height: middle.height,
+          visible:
+            middle.width > 0 &&
+            middle.height > 0 &&
+            middle.right > 0 &&
+            middle.left < innerWidth &&
+            middle.bottom > 0 &&
+            middle.top < innerHeight &&
+            getComputedStyle(this).visibility !== 'hidden',
+        };
         animation.currentTime = state.flight.duration - 0.001;
         const end = this.getBoundingClientRect();
         state.flight.endpoint = {
@@ -161,6 +181,9 @@ for (const width of [412, 1440])
           await expect(row).toBeVisible();
           await row.scrollIntoViewIfNeeded();
           await settle(demo);
+          await demo.evaluate(() => {
+            (window as unknown as { flight: Observation }).flight = { samples: [], duration: 0 };
+          });
           if (method === 'check')
             await row.getByRole('button', { name: /^(Выполнить$|Отметить сделанным:)/ }).click();
           else {
@@ -172,8 +195,13 @@ for (const width of [412, 1440])
               })
               .click();
           }
-          await expect(demo.locator('[data-motion-flight]')).toBeVisible();
-          await expect(demo.locator('[data-motion-flight]')).toHaveCSS('opacity', '1');
+          await expect
+            .poll(
+              () =>
+                demo.evaluate(() => (window as unknown as { flight: Observation }).flight.duration),
+              { message: `${feed}: ${method} запускает улёт` },
+            )
+            .toBe(560);
           await expect(demo.locator('[data-motion-flight]')).toHaveCount(0);
           if (feed === 0 && method !== 'trash')
             await expect
@@ -188,15 +216,7 @@ for (const width of [412, 1440])
           );
           expect(flight.duration).toBe(560);
           if (feed === 0 && method !== 'trash') expect(flight.sourceHeight).toBeGreaterThan(0);
-          expect(
-            flight.samples.some(
-              (sample) =>
-                sample.time >= 200 &&
-                sample.time <= 400 &&
-                sample.opacity === 1 &&
-                sample.width > 0,
-            ),
-          ).toBe(true);
+          expect(flight.middle).toMatchObject({ time: 280, opacity: 1, visible: true });
           const last = flight.endpoint;
           expect(last?.time).toBeGreaterThan(480);
           expect(
