@@ -17,10 +17,12 @@ export function TodayHero({
   data,
   error,
   house,
+  embedded = false,
 }: {
   data: Today | undefined;
   error: unknown;
   house: string | null;
+  embedded?: boolean;
 }) {
   const { me, householdId } = useHousehold();
   const { scope } = useScope();
@@ -111,7 +113,7 @@ export function TodayHero({
     : undefined;
   return (
     <div className="today-hero">
-      <h1 className="visually-hidden">Сегодня</h1>
+      {!embedded ? <h1 className="visually-hidden">Сегодня</h1> : null}
       <p className="page-heading__eyebrow today-hero__date">
         {date
           ? `${weekdayName(date)}, ${formatLongDate(date)}`

@@ -55,10 +55,49 @@ for (const sample of ['receipt-text', 'receipt-scan', 'contract', 'encrypted', '
     }
   });
 async function openCapture(page: Page) {
-  const status = page.waitForResponse((response) => response.url().includes('/api/ai/status?'));
+  // Готовность ИИ проверяют следующие шаги согласия: ответ предзагрузки может прийти до перехода.
   await openSection(page, '/more/inbox/new', 'Входящие');
-  expect(AiStatus.parse(await (await status).json()).enabled).toBe(true);
+  await expect(page.locator('.inbox-capture')).toHaveAttribute('aria-busy', 'false');
 }
+
+test('D32: задержка настройки ИИ не позволяет отправить входящее без согласия', async ({
+  page,
+  family,
+}) => {
+  await enable(family);
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/ai/status?**', async (route) => {
+    await gate;
+    await route.continue();
+  });
+  let posted = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/inbox') posted++;
+  });
+  try {
+    await signInAs(page, family, 'adult');
+    await openSection(page, '/more/inbox/new', 'Входящие');
+    const form = page.locator('.inbox-capture');
+    await expect(form).toHaveAttribute('aria-busy', 'true');
+    await page.getByLabel('Текст или диктовка').fill('Вымышленный черновик до настройки');
+    const send = page.getByRole('button', { name: 'Во входящие', exact: true });
+    await expect(send).toBeDisabled();
+    await form.evaluate((node) => (node as HTMLFormElement).requestSubmit());
+    expect(posted).toBe(0);
+    release();
+    await expect(form).toHaveAttribute('aria-busy', 'false');
+    await send.click();
+    await expect(
+      page.getByRole('button', { name: 'Согласен, разобрать', exact: true }),
+    ).toBeVisible();
+    expect(posted).toBe(0);
+  } finally {
+    release();
+  }
+});
 async function capture(page: Page, text: string) {
   await openCapture(page);
   await page.getByLabel('Текст или диктовка').fill(text);

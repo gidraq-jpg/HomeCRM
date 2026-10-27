@@ -202,6 +202,13 @@ button:active:not(:disabled) {
   width: 100%;
 }
 html[data-design="studio"] .swipe-task__surface {
+  background: transparent;
+}
+.swipe-task__actions[inert] {
+  visibility: hidden;
+}
+html[data-design="studio"] .swipe-task[data-swipe-open] .swipe-task__surface,
+html[data-design="studio"] .swipe-task__surface[data-dragging="true"] {
   background: var(--surface);
 }
 .swipe-task__actions {
@@ -231,10 +238,12 @@ html[data-design="studio"] .swipe-task__surface {
 .swipe-task__action[hidden] {
   display: none;
 }
-.swipe-task[data-row-gesture][data-swipe-direction="trash"] {
+.swipe-task[data-swipe-open="trash"],
+.swipe-task[data-swipe-direction="trash"]:has(.swipe-task__surface[data-dragging="true"]) {
   background: var(--danger);
 }
-.swipe-task[data-row-gesture][data-swipe-direction="done"] {
+.swipe-task[data-swipe-open="done"],
+.swipe-task[data-swipe-direction="done"]:has(.swipe-task__surface[data-dragging="true"]) {
   background: var(--success);
 }
 html[data-design="studio"] [data-motion-completed="true"] .task-completion-circle svg {

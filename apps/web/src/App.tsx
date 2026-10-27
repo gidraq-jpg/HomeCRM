@@ -53,10 +53,10 @@ import { AddMenu } from './shell/AddMenu.tsx';
 import { AppShell } from './shell/AppShell.tsx';
 import { useNavigate } from './shell/motion.tsx';
 import { SECTIONS } from './shell/sections.ts';
-import { ShoppingCardScreen, ShoppingScreen } from './shopping/ShoppingScreen.tsx';
+import { ShoppingCardScreen } from './shopping/ShoppingScreen.tsx';
 import { NewTaskScreen } from './tasks/NewTaskScreen.tsx';
+import { TaskFeedCarousel } from './tasks/TaskFeedCarousel.tsx';
 import { TaskScreen } from './tasks/TaskScreen.tsx';
-import { TasksScreen } from './tasks/TasksScreen.tsx';
 import { NewFromTemplateScreen } from './templates/NewFromTemplateScreen.tsx';
 import { StartScreen } from './templates/StartScreen.tsx';
 import { ToastProvider } from './ui/Toast.tsx';
@@ -95,9 +95,9 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="more/inbox/trash" element={<InboxScreen trash />} />
         <Route path="more/inbox/:inboxId" element={<InboxReview />} />
         <Route path="more/inbox/:inboxId/edit/:editKind" element={<InboxReview />} />
-        <Route path="today" element={<TasksScreen />} />
-        <Route path="today/plan" element={<TasksScreen view="plan" />} />
-        <Route path="today/all" element={<TasksScreen view="all" />} />
+        <Route path="today" element={<TaskFeedCarousel />} />
+        <Route path="today/plan" element={<TaskFeedCarousel />} />
+        <Route path="today/all" element={<TaskFeedCarousel />} />
         <Route path="today/new" element={<NewTaskScreen />} />
         <Route path="today/tasks/:taskId" element={<TaskScreen />} />
         <Route path="home" element={<ObjectsScreen />} />
@@ -130,7 +130,7 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
         <Route path="people/invite" element={<InviteScreen />} />
         <Route path="people/members/:accountId" element={<MemberScreen />} />
         <Route path="more" element={<MoreScreen />} />
-        <Route path="more/shopping" element={<ShoppingScreen />} />
+        <Route path="more/shopping" element={<TaskFeedCarousel />} />
         <Route path="more/shopping/:shoppingId" element={<ShoppingCardScreen />} />
         <Route path="more/offline" element={<OfflinePanel />} />
         <Route path="more/profile" element={<ProfileScreen />} />

@@ -37,7 +37,7 @@ async function scale(page: Page, value: number) {
 }
 async function open(page: Page, route: string) {
   await page.goto(`#${route}`);
-  await expect(page.locator('.studio-list-panel')).toBeVisible();
+  await expect(page.locator('.feed-panel, .studio-list-panel').first()).toBeVisible();
   await expect(page.getByText(/Загружаем (заметки|дела|покупки|радар)…/)).toHaveCount(0);
 }
 

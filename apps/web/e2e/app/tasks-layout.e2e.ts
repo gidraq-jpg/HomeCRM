@@ -62,7 +62,7 @@ test('пустые ленты: исходный фокус, подписи и о
     }
     if (view === 'today') {
       await expect(page.getByRole('heading', { name: 'Что сегодня важнее всего?' })).toBeVisible();
-      await expect(page.locator('.page-heading__eyebrow')).toContainText(
+      await expect(page.locator('.today-hero__date')).toContainText(
         formatLongDate(homeDate(0) as DateOnly),
       );
       await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();

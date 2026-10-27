@@ -18,7 +18,7 @@ import { useQueue } from '../offline/OfflinePanel.tsx';
 import { Link } from '../shell/motion.tsx';
 import { FirstRunCard } from '../templates/FirstRunCard.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
-import { countWord } from '../ui/format.ts';
+import { countWord, plural } from '../ui/format.ts';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { MotionGroups } from '../ui/MotionGroups.tsx';
 import { Page, Section } from '../ui/Page.tsx';
@@ -26,6 +26,7 @@ import { RollingNumber } from '../ui/RollingNumber.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { FeedTaskCard, type TaskCard, type TaskFilters, type Today } from './api.ts';
 import { taskError } from './errors.ts';
+import { useFeedPane, useFeedSummary } from './feed-pane.tsx';
 import { SelectField } from './fields.tsx';
 import { MoveTaskSheet } from './MoveTaskSheet.tsx';
 import { OperationNotice } from './operation.tsx';
@@ -72,12 +73,13 @@ function TasksPage({
   children: ReactNode;
 }) {
   const { me, householdId, isAdmin } = useHousehold();
+  const pane = useFeedPane();
   const { scope } = useScope();
-  const houseNames = useHouseNames(
-    view === 'today'
-      ? { scope: listScopeOf(scope), view: 'mine', ...(house ? { householdId: house } : {}) }
-      : {},
-  );
+  const houseNames = useHouseNames({
+    scope: listScopeOf(scope),
+    view: 'mine',
+    ...(house ? { householdId: house } : {}),
+  });
   const [, setParams] = useSearchParams();
   const houseQuery = house && house !== householdId ? `?householdId=${house}` : '';
   const feedTabs = <TaskTabs houseQuery={houseQuery} />;
@@ -97,7 +99,7 @@ function TasksPage({
   );
   const content = (
     <>
-      {view !== 'plan' ? feedTabs : null}
+      {!pane && view !== 'plan' ? feedTabs : null}
       <div className="task-feed-content">
         {scope !== 'all' ? <p className="muted">{EMPTY_SCOPE_EXPLANATION[scope]}</p> : null}
         {me.roles.length > 1 ? (
@@ -111,11 +113,13 @@ function TasksPage({
             }))}
           />
         ) : null}
+        {pane && view === 'all' ? <div className="feed-all-summary">{hero}</div> : null}
         {children}
         {view === 'today' ? actions : null}
       </div>
     </>
   );
+  if (pane) return content;
   return (
     <Page
       title={view === 'today' ? 'Сегодня' : view === 'plan' ? 'План' : 'Все дела'}
@@ -155,12 +159,23 @@ function TasksPage({
   );
 }
 function TodayFeed({ house }: { house: string | null }) {
+  const pane = useFeedPane();
   const { me, householdId } = useHousehold();
   const { scope } = useScope();
   const client = useQueryClient();
   const query = useToday(house);
   const settings = useSettings();
   const loadingFeed = query.isPending || settings.isPending;
+  const count = query.data && !query.error ? query.data.tasks.length : undefined;
+  useFeedSummary(
+    count,
+    query.error
+      ? 'Не удалось загрузить дела'
+      : count === undefined
+        ? 'Загружаем…'
+        : plural(count, ['дело', 'дела', 'дел']),
+    !loadingFeed,
+  );
   const showMain = settings.data?.todayMainEnabled === true;
   const actions = useFeedActions<TaskCard>((card) => {
     const moved = FeedTaskCard.strip().parse({ object: null, ...card });
@@ -210,80 +225,95 @@ function TodayFeed({ house }: { house: string | null }) {
       house={house}
       hero={<TodayHero data={query.data} error={query.error} house={house} />}
     >
-      {loadingFeed ? <ListSkeleton label="Загружаем дела…" /> : <QueryNotice query={query} />}
-      {settings.error ? (
-        <Notice error>
-          Не удалось загрузить настройку главного дела.{' '}
-          <button type="button" className="text-button" onClick={() => void settings.refetch()}>
-            Повторить загрузку настройки
-          </button>
-        </Notice>
-      ) : null}
-      {!loadingFeed && query.data && showMain ? (
-        <Section title="Главное на сегодня" eyebrow>
-          {query.data.main ? (
-            <TaskRows
-              label="Главное дело"
-              tasks={[query.data.main]}
-              radar={query.error || query.data.recalculating ? [] : query.data.radar}
-              focus
-              move={actions.startMove}
-              pending={operation.pending}
-            />
-          ) : (
-            <div className="focus task-focus">
-              <h3 className="focus__title">Что сегодня важнее всего?</h3>
-              <p className="focus__meta">
-                Одно дело, которому вы хотите уделить внимание. Выберите его в карточке дела.
-              </p>
-              <div className="focus__actions">
-                <Link
-                  className="btn btn--primary"
-                  to={
-                    query.data.tasks.length ? `/today/all${houseQuery}` : `/today/new${houseQuery}`
-                  }
-                >
-                  {query.data.tasks.length ? 'Выбрать главное дело' : 'Добавить дело'}
-                </Link>
-              </div>
-            </div>
-          )}
-        </Section>
-      ) : null}
-      <InboxLink />
-      <FirstRunCard />
-      {!moving ? <OperationNotice operation={operation} /> : null}
-      {!loadingFeed && query.data ? (
+      {loadingFeed ? (
+        <div className="today-feed-skeleton">
+          <ListSkeleton label="Загружаем дела…" />
+        </div>
+      ) : (
         <>
-          <ReadingsWindowsFromRows rows={rows} />
-          <Section title="Сегодня и просроченные">
-            <TaskRows
-              label="Дела на сегодня"
-              tasks={query.data.tasks.filter(
-                (task) => !showMain || task.id !== query.data.main?.id,
-              )}
-              move={actions.startMove}
-              pending={operation.pending}
-            />
-          </Section>
-          <p data-motion-target="done" className="task-counts">
-            Осталось <RollingNumber value={query.data.tasks.length} /> · Выполнено{' '}
-            <RollingNumber value={query.data.completed.length} />
-          </p>
-          {query.data.completed.length ? (
-            <details className="task-completed">
-              <summary>Выполнено сегодня ({query.data.completed.length})</summary>
-              <TaskRows label="Выполненные дела" tasks={query.data.completed} />
-            </details>
+          <QueryNotice query={query} />
+          {settings.error ? (
+            <Notice error>
+              Не удалось загрузить настройку главного дела.{' '}
+              <button type="button" className="text-button" onClick={() => void settings.refetch()}>
+                Повторить загрузку настройки
+              </button>
+            </Notice>
           ) : null}
-          <Section title="Срочное из радара">
-            {urgent.length === 0 ? <p className="muted">Срочного нет.</p> : null}
-            <RadarRows rows={urgent.slice(0, 5)} label="Срочные сроки" />
-            <Link className="text-button" to="/more/radar" state={{ fromSection: 'today' }}>
-              Весь радар
-            </Link>
-          </Section>
+          {!loadingFeed && query.data && showMain ? (
+            <Section title="Главное на сегодня" eyebrow>
+              {query.data.main ? (
+                <TaskRows
+                  label="Главное дело"
+                  tasks={[query.data.main]}
+                  radar={query.error || query.data.recalculating ? [] : query.data.radar}
+                  focus
+                  move={actions.startMove}
+                  pending={operation.pending}
+                />
+              ) : (
+                <div className="focus task-focus">
+                  <h3 className="focus__title">Что сегодня важнее всего?</h3>
+                  <p className="focus__meta">
+                    Одно дело, которому вы хотите уделить внимание. Выберите его в карточке дела.
+                  </p>
+                  <div className="focus__actions">
+                    <Link
+                      className="btn btn--primary"
+                      to={
+                        query.data.tasks.length
+                          ? `/today/all${houseQuery}`
+                          : `/today/new${houseQuery}`
+                      }
+                    >
+                      {query.data.tasks.length ? 'Выбрать главное дело' : 'Добавить дело'}
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </Section>
+          ) : null}
+          <InboxLink />
+          <FirstRunCard />
+          {!moving ? <OperationNotice operation={operation} /> : null}
+          {!loadingFeed && query.data ? (
+            <>
+              <ReadingsWindowsFromRows rows={rows} />
+              <Section title="Сегодня и просроченные">
+                <TaskRows
+                  label="Дела на сегодня"
+                  tasks={query.data.tasks.filter(
+                    (task) => !showMain || task.id !== query.data.main?.id,
+                  )}
+                  move={actions.startMove}
+                  pending={operation.pending}
+                />
+              </Section>
+              <p data-motion-target="done" className="task-counts">
+                Осталось <RollingNumber value={query.data.tasks.length} /> · Выполнено{' '}
+                <RollingNumber value={query.data.completed.length} />
+              </p>
+              {query.data.completed.length ? (
+                <details className="task-completed">
+                  <summary>Выполнено сегодня ({query.data.completed.length})</summary>
+                  <TaskRows label="Выполненные дела" tasks={query.data.completed} />
+                </details>
+              ) : null}
+              <Section title="Срочное из радара">
+                {urgent.length === 0 ? <p className="muted">Срочного нет.</p> : null}
+                <RadarRows rows={urgent.slice(0, 5)} label="Срочные сроки" />
+                <Link className="text-button" to="/more/radar" state={{ fromSection: 'today' }}>
+                  Весь радар
+                </Link>
+              </Section>
+            </>
+          ) : null}
         </>
+      )}
+      {pane ? (
+        <div className="feed-overview">
+          <TodayHero data={query.data} error={query.error} house={house} embedded />
+        </div>
       ) : null}
       <PushCard />
       {moving && query.data ? (
@@ -376,6 +406,17 @@ function AllFeed({ house }: { house: string | null }) {
   const { operation, moving } = actions;
   const unfiltered = !filters.filter && !selectedStatus && !filters.objectId;
   const summary = query.data && !query.error && !query.hasNextPage && unfiltered;
+  useFeedSummary(
+    query.data && !query.error ? active.length : undefined,
+    query.error
+      ? 'Не удалось загрузить дела'
+      : query.isPending
+        ? 'Загружаем…'
+        : query.hasNextPage
+          ? 'или больше открытых'
+          : plural(active.length, ['открытое', 'открытых', 'открытых']),
+    !query.isPending,
+  );
   const rows = (items: typeof tasks, title: string) => (
     <PlanRows
       tasks={items}
@@ -513,14 +554,7 @@ function AllFeed({ house }: { house: string | null }) {
                   key={group.title}
                   motionKey={group.title}
                   title={group.title}
-                  aside={
-                    <span className="muted">
-                      {
-                        group.tasks.filter((task) => ['open', 'waiting'].includes(task.status))
-                          .length
-                      }
-                    </span>
-                  }
+                  aside={<span className="muted">{group.tasks.length}</span>}
                 >
                   {rows(group.tasks, group.title)}
                 </Section>

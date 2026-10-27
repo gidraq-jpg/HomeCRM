@@ -260,10 +260,7 @@ for (const reduce of [false, true]) {
                   (animation.effect as KeyframeEffect).getKeyframes().some((frame) => frame.height),
                 );
                 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-                const base = Number.parseFloat(
-                  getComputedStyle(document.documentElement).getPropertyValue('--motion-base'),
-                );
-                if (reduce ? !collapse : collapse?.effect?.getTiming().delay === base * 2) {
+                if (reduce ? !collapse : collapse?.effect?.getTiming().delay === 560) {
                   document.documentElement.dataset.completionCollapse = 'true';
                   observer.disconnect();
                 }

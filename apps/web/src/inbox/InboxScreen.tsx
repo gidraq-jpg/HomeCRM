@@ -29,7 +29,7 @@ export function InboxLink() {
   return (
     <div className="btn-row">
       <Link className="btn btn--secondary" to="/more/inbox/new">
-        Во входящие
+        Записать во входящие
       </Link>
       <Link className="btn btn--secondary" to="/more/inbox">
         Входящие
@@ -61,6 +61,7 @@ export function InboxScreen({
   const [problem, setProblem] = useState('');
   const state = useAction();
   const status = useAiStatus(householdId);
+  const checkingAi = !!householdId && status.isPending;
   const consent = useAiConsent(householdId, status.data?.provider);
   const dictation = useDictation((value) => {
     setText((old) => `${old}${old ? ' ' : ''}${value}`);
@@ -140,8 +141,10 @@ export function InboxScreen({
       {capture ? (
         <form
           className="inbox-capture"
+          aria-busy={checkingAi}
           onSubmit={(event) => {
             event.preventDefault();
+            if (checkingAi) return;
             if (status.data?.enabled) consent.ask(() => void save());
             else void save();
           }}
@@ -214,7 +217,7 @@ export function InboxScreen({
           <button
             className="btn btn--primary"
             type="submit"
-            disabled={state.pending || (!text.trim() && !files.length)}
+            disabled={checkingAi || state.pending || (!text.trim() && !files.length)}
           >
             {state.pending ? 'Сохраняем…' : 'Во входящие'}
           </button>

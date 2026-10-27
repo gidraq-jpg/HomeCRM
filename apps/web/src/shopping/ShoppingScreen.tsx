@@ -18,9 +18,11 @@ import {
   viewerOf,
   visibilityOf,
 } from '../notes/abilities.ts';
+import { listScopeOf } from '../notes/queries.ts';
 import { uuid } from '../offline/store.ts';
 import { AddActionContext } from '../shell/AddAction.tsx';
 import { Link, useNavigate } from '../shell/motion.tsx';
+import { FeedPage, useFeedPane, useFeedSummary } from '../tasks/feed-pane.tsx';
 import { RecordPicker } from '../tasks/options.tsx';
 import { TaskTabs } from '../tasks/TaskTabs.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
@@ -59,8 +61,8 @@ function ShoppingError({ error }: { error: unknown }) {
   return <Notice error>{text}</Notice>;
 }
 export function ShoppingScreen() {
+  const pane = useFeedPane();
   const { me, householdId } = useHousehold();
-  const houseNames = useHouseNames();
   const { scope } = useScope();
   const client = useQueryClient();
   const toast = useToast();
@@ -71,6 +73,11 @@ export function ShoppingScreen() {
       : (householdId ?? ''),
   );
   const [trash, setTrash] = useState(false);
+  const houseNames = useHouseNames({
+    scope: listScopeOf(scope),
+    view: 'mine',
+    ...(house ? { householdId: house } : {}),
+  });
   const [title, setTitle] = useState('');
   const [duplicate, setDuplicate] = useState(false);
   const [listChoice, setListChoice] = useState<'household' | 'personal'>(
@@ -118,6 +125,20 @@ export function ShoppingScreen() {
   });
   const refresh = () => client.invalidateQueries({ queryKey: ['shopping', account] });
   const all = query.data?.pages.flat() ?? [];
+  useFeedSummary(
+    query.data && !query.error
+      ? all.filter((card) => !card.boughtAt && card.spaceKind === selectedList).length
+      : undefined,
+    query.error
+      ? 'Не удалось загрузить покупки'
+      : query.isPending
+        ? 'Загружаем…'
+        : selectedList === 'personal'
+          ? 'в личном списке'
+          : 'в общем списке',
+    !query.isPending,
+    house || null,
+  );
   const viewer = viewerOf(me);
   const options = creatableVisibilities(viewer, house || null, 'shopping_item');
   function add(event: FormEvent) {
@@ -244,7 +265,7 @@ export function ShoppingScreen() {
         requestAnimationFrame(() => input.current?.focus());
       }}
     >
-      <Page
+      <FeedPage
         title="Покупки"
         className="studio-list-page shopping-page"
         heading={
@@ -287,8 +308,36 @@ export function ShoppingScreen() {
         }
       >
         <div className="studio-panel studio-list-panel">
-          <TaskTabs houseQuery={house && house !== householdId ? `?householdId=${house}` : ''} />
+          {!pane ? (
+            <TaskTabs houseQuery={house && house !== householdId ? `?householdId=${house}` : ''} />
+          ) : null}
           <div className="task-feed-content">
+            {pane ? (
+              <fieldset className="studio-segments" aria-label="Список покупок">
+                <button
+                  type="button"
+                  aria-pressed={selectedList === 'household'}
+                  disabled={scope === 'personal'}
+                  onClick={() => {
+                    setListChoice('household');
+                    setPlace('household');
+                  }}
+                >
+                  Вся семья
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={selectedList === 'personal'}
+                  disabled={scope === 'shared'}
+                  onClick={() => {
+                    setListChoice('personal');
+                    setPlace('personal');
+                  }}
+                >
+                  Личный
+                </button>
+              </fieldset>
+            ) : null}
             {me.roles.length > 1 ? (
               <label className="field">
                 Дом
@@ -390,7 +439,7 @@ export function ShoppingScreen() {
             )}
             <ShoppingError error={action.error} />
             <details className="studio-list-options shopping-tools">
-              <summary>Ещё</summary>
+              <summary>Управление списком</summary>
               <div className="btn-row">
                 <button
                   type="button"
@@ -453,7 +502,7 @@ export function ShoppingScreen() {
             ) : null}
           </div>
         </div>
-      </Page>
+      </FeedPage>
     </AddActionContext.Provider>
   );
 }

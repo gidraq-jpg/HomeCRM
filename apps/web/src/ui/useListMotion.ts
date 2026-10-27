@@ -16,6 +16,19 @@ export function useListMotion(
 ) {
   const previous = useRef(new Map<string, Snapshot>());
   const initialized = useRef(false);
+  // Соседняя лента загружается вне документа: замер становится достоверным после присоединения.
+  useLayoutEffect(() => {
+    const list = ref.current;
+    if (!list || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      for (const snapshot of previous.current.values()) {
+        const height = snapshot.source.getBoundingClientRect().height;
+        if (height > 0) snapshot.height = height;
+      }
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [ref]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: снимок меняется вместе с составом и состояниями строк
   useLayoutEffect(() => {
     const list = ref.current;
@@ -100,7 +113,7 @@ export function useListMotion(
         {
           duration,
           easing,
-          delay: !reduce && completed ? motionTime('base') * 2 : 0,
+          delay: !reduce && completed ? motionTime('fly') : 0,
           fill: 'forwards',
         },
       );
