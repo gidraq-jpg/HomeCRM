@@ -4,6 +4,7 @@
 
 | Дата | Откуда | Что | Где |
 |---|---|---|---|
+| 27 октября 2026 | CI PR #88 | Нестабилен `studio2-lists.e2e.ts:86` «UI-5: радар…» на w412 (100% и 200%): после `page.reload()` нет заголовка «Радар» за 5 с (`deadlines-support.ts:78`); повтор зелёный | `apps/web/e2e/app` |
 | 26 октября 2026 | Ревью PR #86 | Системный «Назад» (браузер, жест Android) мгновенный; Safari iOS для переходов D30 не проверен — проверить на iPhone | `apps/web/src/shell/motion.tsx` |
 | 26 октября 2026 | Ревью PR #86 | `navigateHistoryWithMotion` ждёт `popstate`; если `navigate(+n)` уйдёт за конец истории, снимок висит и следующие «Назад» игнорируются — добавить тайм-аут | `apps/web/src/shell/motion.tsx` |
 | 26 октября 2026 | Ревью PR #86 | Сценарий `shopping-offline` B5 (lost ACK) один раз упал в CI без связи с изменением, повтор зелёный — проверить на нестабильность | `apps/web/e2e/app/shopping-offline.e2e.ts` |
