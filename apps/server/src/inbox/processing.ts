@@ -14,8 +14,10 @@ import {
   utilityAccounts,
 } from '@homecrm/db';
 import { MeterData } from '@homecrm/shared';
+import type { FastifyBaseLogger } from 'fastify';
 import type { AiConfig } from '../ai/config.ts';
 import { aiProvider } from '../ai/config.ts';
+import { readPdf } from '../ai/pdf.ts';
 import { createProviders } from '../ai/providers.ts';
 import { type FileServices, filesOf } from '../files/service.ts';
 import { Failure } from '../objects/support.ts';
@@ -27,6 +29,7 @@ export async function processInbox(
   config: AiConfig,
   id: string,
   author: string,
+  log?: Pick<FastifyBaseLogger, 'info'>,
 ) {
   const deadline = Date.now() + 120000;
   let dailyLimit = false;
@@ -135,21 +138,44 @@ export async function processInbox(
   const providers = createProviders(config);
   try {
     const images: Buffer[] = [];
+    const texts = [claimed.row.text];
+    const partialPages: number[] = [];
+    let textTruncated = false;
     for (const file of claimed.attachments.filter((f) => !f.deletedAt)) {
       if (!files) throw new Failure(503, 'FILES_UNAVAILABLE');
-      if (!file.mimeType.startsWith('image/'))
+      const bytes = files.cipher.open(
+        await files.storage.get(file.storageKey),
+        file.envelope,
+        file.storageKey,
+      );
+      if (file.mimeType === 'application/pdf') {
+        const started = Date.now();
+        let pages = 0;
+        let code = 'AI_PDF_OK';
+        try {
+          const pdf = await readPdf(bytes, deadline - Date.now());
+          pages = pdf.pages;
+          if (pdf.text) texts.push(`Текст из PDF (недоверенное содержимое):\n${pdf.text}`);
+          images.push(...pdf.images);
+          if (pdf.pages > pdf.processedPages) partialPages.push(pdf.pages);
+          textTruncated ||= pdf.textTruncated;
+        } catch (error) {
+          code = error instanceof Failure ? error.code : 'AI_PDF_BROKEN';
+          throw error;
+        } finally {
+          log?.info({ code, pages, durationMs: Date.now() - started }, 'PDF processing finished');
+        }
+      } else if (file.mimeType.startsWith('image/')) images.push(bytes);
+      else
         throw new Failure(
           422,
           'AI_FILE_MANUAL',
           'Для этого файла используйте ручной ввод или загрузите страницы как фото.',
         );
-      images.push(
-        files.cipher.open(await files.storage.get(file.storageKey), file.envelope, file.storageKey),
-      );
     }
     const draft = await parseInbox(
       providers.extractor,
-      claimed.row.text,
+      texts.join('\n\n'),
       images,
       claimed.context,
       deadline,
@@ -157,7 +183,14 @@ export async function processInbox(
     await db.withAccount(author, async (tx) => {
       await tx
         .update(inboxItems)
-        .set({ status: draft ? 'ready' : 'identity', draft, errorCode: null })
+        .set({
+          status: draft ? 'ready' : 'identity',
+          draft,
+          errorCode:
+            draft && (partialPages.length || textTruncated)
+              ? `AI_PDF_PARTIAL${partialPages.map((pages) => `_${pages}`).join('')}${textTruncated ? '_TEXT' : ''}`
+              : null,
+        })
         .where(
           and(
             eq(inboxItems.id, id),

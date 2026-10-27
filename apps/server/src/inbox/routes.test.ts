@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { createAppDatabase, sql } from '@homecrm/db';
 import sharp from 'sharp';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -11,6 +12,106 @@ import { redactUrl } from '../logging.ts';
 import { signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type World } from '../testing/world.ts';
 import { cleanupInbox } from './jobs.ts';
+
+it.each([
+  ['receipt-text', 'ready', null],
+  ['receipt-scan', 'ready', null],
+  ['mixed', 'ready', null],
+  ['contract', 'ready', 'AI_PDF_PARTIAL_8'],
+  ['identity', 'identity', null],
+  ['identity-scan', 'identity', null],
+  ['encrypted', 'error', 'AI_PDF_ENCRYPTED'],
+  ['broken', 'error', 'AI_PDF_BROKEN'],
+])(
+  'AI-9/4/5/7: PDF %s → %s; один запрос, исходник и безопасный журнал',
+  async (name, status, code) => {
+    await world.database.admin.query('UPDATE spaces SET ai_enabled=true WHERE id=$1', [
+      world.houseId,
+    ]);
+    const adult = world.device();
+    await adult.signIn(world.boris.username, world.boris.password);
+    const bytes = await readFile(new URL(`../ai/eval/samples/pdf/${name}.pdf`, import.meta.url));
+    const input = {
+      ...capture(''),
+      source: 'file',
+      files: [{ name: 'Секретное имя учебного PDF.pdf', base64: bytes.toString('base64') }],
+    };
+    const usage = async () =>
+      Number(
+        (
+          await world.database.admin.query(
+            'SELECT requests FROM ai_daily_usage WHERE house_id=$1',
+            [world.houseId],
+          )
+        ).rows[0]?.requests ?? 0,
+      );
+    const before = await usage();
+    expect((await adult.post('/api/inbox', input)).status).toBe(201);
+    expect((await adult.post(`/api/inbox/${input.id}/parse`, {})).status).toBe(200);
+    const row = (
+      await world.database.admin.query(
+        'SELECT status,draft,error_code FROM inbox_items WHERE id=$1',
+        [input.id],
+      )
+    ).rows[0];
+    expect(row).toMatchObject({ status, error_code: code });
+    if (status !== 'ready') expect(row.draft).toBeNull();
+    else expect(row.draft.classification.kind).toBe(name === 'contract' ? 'document' : 'receipt');
+    expect(await usage()).toBe(before + 1);
+    const file = (
+      await world.database.admin.query(
+        'SELECT storage_key,envelope FROM inbox_files WHERE parent_id=$1',
+        [input.id],
+      )
+    ).rows[0];
+    expect(
+      files.cipher.open(await files.storage.get(file.storage_key), file.envelope, file.storage_key),
+    ).toEqual(bytes);
+    const log = world.requestLog.join('');
+    for (const secret of [
+      'Секретное имя учебного PDF',
+      'Вымышленный Персонаж',
+      '9900000010',
+      bytes.toString('base64').slice(0, 100),
+    ])
+      expect(log).not.toContain(secret);
+    if (status === 'error') {
+      const note = await adult.post('/api/notes', {
+        title: 'Учебный ручной ввод после ошибки PDF',
+      });
+      expect(note.status).toBe(201);
+      expect(
+        (await adult.post(`/api/inbox/${input.id}/resolve`, { type: 'note', id: note.json().id }))
+          .status,
+      ).toBe(200);
+    }
+  },
+);
+
+it('AI-9: фото вместе с текстовым PDF и сканом проходят processInbox', async () => {
+  await world.database.admin.query('UPDATE spaces SET ai_enabled=true WHERE id=$1', [
+    world.houseId,
+  ]);
+  const adult = world.device();
+  await adult.signIn(world.boris.username, world.boris.password);
+  const photo = await sharp({ create: { width: 20, height: 20, channels: 3, background: 'white' } })
+    .png()
+    .toBuffer();
+  const pdf = await readFile(new URL('../ai/eval/samples/pdf/mixed.pdf', import.meta.url));
+  const input = {
+    ...capture('Квитанция с учебным приложением'),
+    files: [
+      { name: 'Фото.png', base64: photo.toString('base64') },
+      { name: 'Документ.pdf', base64: pdf.toString('base64') },
+    ],
+  };
+  expect((await adult.post('/api/inbox', input)).status).toBe(201);
+  expect((await adult.post(`/api/inbox/${input.id}/parse`, {})).status).toBe(200);
+  expect(
+    (await world.database.admin.query('SELECT status FROM inbox_items WHERE id=$1', [input.id]))
+      .rows[0].status,
+  ).toBe('ready');
+});
 
 let world: World;
 let administrator: Awaited<ReturnType<typeof signedInAdmin>>;

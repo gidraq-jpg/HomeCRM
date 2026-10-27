@@ -83,7 +83,7 @@ export async function inboxRoutes(
     if (active >= 2) throw new Failure(429, 'AI_BUSY');
     active++;
     try {
-      await processInbox(options.appDb, options.files, options.ai, id, account.id);
+      await processInbox(options.appDb, options.files, options.ai, id, account.id, app.log);
       return { ok: true };
     } finally {
       active--;

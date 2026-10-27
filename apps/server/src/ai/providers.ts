@@ -72,7 +72,28 @@ const audioTypes = [
   'audio/x-wav',
 ];
 let fakeIdentityHashes: Promise<Set<string>> | undefined;
+let fakePdfImages: Promise<Map<string, string>> | undefined;
 async function fakeExtract(input: ExtractRequest) {
+  if (input.image) {
+    // Только fake: распознавание известных синтетических растров, не OCR и не оценка качества.
+    const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+    fakePdfImages ??= (async () => {
+      const { readPdf } = await import('./pdf.ts');
+      const entries = await Promise.all(
+        ['receipt-scan', 'identity-scan'].map(async (name) => {
+          const pdf = await readPdf(
+            await readFile(new URL(`./eval/samples/pdf/${name}.pdf`, import.meta.url)),
+          );
+          return [hash(await preparePhoto(pdf.images[0] as Buffer)), name] as const;
+        }),
+      );
+      return new Map(entries);
+    })();
+    const sample = (await fakePdfImages).get(hash(await preparePhoto(input.image.bytes)));
+    if (sample === 'identity-scan') return { identity: 'yes' as const };
+    if (sample === 'receipt-scan')
+      return fakeDraft({ ...input, text: `${input.text ?? ''}\nУчебная квитанция ЖКХ` });
+  }
   if (input.kind === 'identity' && input.image) {
     // Только fake: известные вымышленные страницы нужны сквозным проверкам барьера AI-4.
     const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
@@ -132,9 +153,11 @@ export function fakeDraft(input: ExtractRequest): Draft {
         ? 'shopping'
         : /^заметка:/iu.test(input.text ?? '')
           ? 'note'
-          : /договор|гаранти/iu.test(input.text ?? '')
-            ? 'document'
-            : 'task',
+          : /квитанци/iu.test(input.text ?? '')
+            ? 'receipt'
+            : /договор|гаранти/iu.test(input.text ?? '')
+              ? 'document'
+              : 'task',
       objectId: f(input.context.objects.find((o) => input.text?.includes(o.title))?.id ?? null),
       personId: f(null),
       meterId: f(null),

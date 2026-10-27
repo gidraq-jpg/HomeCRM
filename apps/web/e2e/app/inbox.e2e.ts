@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { AiStatus, DOCUMENT_LABELS, DocumentDraft, DraftSchemas } from '@homecrm/shared';
 import type { Page } from '@playwright/test';
 import { identityPage, meterPage } from '../../../server/src/ai/eval/inbox.ts';
@@ -13,6 +14,46 @@ async function enable(family: Family) {
     family.houseId,
   ]);
 }
+
+for (const sample of ['receipt-text', 'receipt-scan', 'contract', 'encrypted', 'broken'])
+  test(`AI-9: PDF ${sample} → черновик или ручной ввод`, async ({ page, family }, info) => {
+    await enable(family);
+    await signInAs(page, family, 'adult');
+    await openCapture(page);
+    await page.getByLabel('Галерея или файл — можно несколько страниц').setInputFiles({
+      name: 'Учебное вложение.pdf',
+      mimeType: 'application/pdf',
+      buffer: await readFile(
+        new URL(`../../../server/src/ai/eval/samples/pdf/${sample}.pdf`, import.meta.url),
+      ),
+    });
+    await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
+    await page.getByRole('button', { name: 'Согласен, разобрать', exact: true }).click();
+    const error = sample === 'encrypted' || sample === 'broken';
+    await expect(
+      page.getByText(error ? 'Не удалось разобрать — можно заполнить вручную' : 'Черновик готов', {
+        exact: true,
+      }),
+    ).toBeVisible({ timeout: 20000 });
+    await page.getByRole('link', { name: 'Открыть', exact: true }).first().click();
+    if (sample === 'encrypted')
+      await expect(page.getByText('PDF защищён паролем.', { exact: false })).toBeVisible();
+    if (sample === 'broken')
+      await expect(page.getByText('Не удалось прочитать PDF:', { exact: false })).toBeVisible();
+    if (sample === 'contract')
+      await expect(
+        page.getByText('Разобраны первые 5 страниц из 8.', { exact: false }),
+      ).toBeVisible();
+    await checkApp(page, info, `inbox-pdf-${sample}`);
+    if (error) {
+      await page.getByRole('link', { name: 'Изменить', exact: true }).click();
+      await page.getByLabel('Заголовок', { exact: true }).fill('Учебный ручной ввод PDF');
+      await checkApp(page, info, `inbox-pdf-${sample}-manual`);
+      await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+      await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
+      expect((await family.database.admin.query('SELECT id FROM note_files')).rowCount).toBe(1);
+    }
+  });
 async function openCapture(page: Page) {
   const status = page.waitForResponse((response) => response.url().includes('/api/ai/status?'));
   await openSection(page, '/more/inbox/new', 'Входящие');
