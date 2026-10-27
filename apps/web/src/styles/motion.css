@@ -202,7 +202,10 @@ button:active:not(:disabled) {
   width: 100%;
 }
 html[data-design="studio"] .swipe-task__surface {
-  background: var(--surface);
+  background: transparent;
+}
+.swipe-task__actions[inert] {
+  visibility: hidden;
 }
 .swipe-task__actions {
   position: absolute;

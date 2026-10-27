@@ -515,6 +515,42 @@ html[data-design="studio"] .app {
   background: var(--paper);
 }
 
+/* UI-8: короткая страница заполняет окно, нижний отступ принадлежит светлой панели. */
+html[data-design="studio"] .app__content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+html[data-design="studio"] .app .main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  background: var(--paper);
+}
+
+html[data-design="studio"] :where(.main) > .page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+html[data-design="studio"] :where(.page) > .studio-panel {
+  flex: 1;
+}
+
+html[data-design="studio"] .app .page:has(> .studio-panel) {
+  padding-bottom: 0;
+}
+
+html[data-design="studio"] .app .feed-page {
+  padding: 0;
+}
+
+html[data-design="studio"] .offline-status:empty {
+  display: none;
+}
+
 html[data-design="studio"] .topbar {
   gap: 8px;
   padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 14px;
