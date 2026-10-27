@@ -6,6 +6,7 @@ import {
   expectAccessible,
   expectNoHorizontalScroll,
   expectTouchTargets,
+  settle,
 } from '../support/helpers.ts';
 import { homeDate, recalc, setHomeZone } from './deadlines-support.ts';
 import { apiAs, seedNote } from './notes-support.ts';
@@ -36,7 +37,7 @@ async function swipe(page: Page, forward: boolean) {
   const content = page.url().endsWith('/today/plan')
     ? page.getByText('На две недели вперёд дел нет', { exact: true })
     : page.url().endsWith('/more/shopping')
-      ? page.locator('.shopping-page .studio-list-summary')
+      ? page.locator('.feed-heading')
       : page.locator('main .page-heading');
   await expect(content).toBeVisible();
   const y = await content.evaluate(
@@ -310,6 +311,9 @@ test('D20a 6,7,9: перенос из карточки, dock 200%, время и
   expect(await documents.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
     true,
   );
+  // axe возвращает страницу наверх; геометрию нижних действий проверяем после прокрутки вниз.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await settle(page);
   const boxes = await page.evaluate(() => {
     const toast = document.querySelector('.toast')?.getBoundingClientRect();
     const nav = document.querySelector('.bottom-nav')?.getBoundingClientRect();

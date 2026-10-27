@@ -54,11 +54,13 @@ async function observe(page: Page) {
     const animate = Element.prototype.animate;
     Element.prototype.animate = function (frames, options) {
       if (
-        this.classList.contains('task-feed-content') &&
+        this.classList.contains('feed-carousel__track') &&
         Array.isArray(frames) &&
         frames.every((frame) => !frame.transform)
       )
         document.documentElement.dataset.feedFade = 'true';
+      if (this.classList.contains('feed-carousel__track'))
+        document.documentElement.dataset.observedFeed = JSON.stringify({ frames, options });
       if (this.parentElement?.classList.contains('rolling-number'))
         document.documentElement.dataset.rollingCount = String(
           Number(document.documentElement.dataset.rollingCount ?? 0) + 1,
@@ -193,7 +195,7 @@ for (const reduce of [false, true])
       await api.post('tasks', { title: 'Вымышленная строка D30', planOn: homeDate(0) });
       await signInAs(page, family, 'adult');
       await observe(page);
-      const content = page.locator('.task-feed-content');
+      const content = page.locator('.feed-carousel__track');
       const dock = await page.locator('.chrome').boundingBox();
       await swipe(page, page.locator('.task-counts'), -25, 0, async () => {
         const transform = await content.evaluate((node) => getComputedStyle(node).transform);
@@ -212,7 +214,11 @@ for (const reduce of [false, true])
       await expect(page).toHaveURL(/#\/today\/plan$/);
       await settle(page);
       if (reduce) await expect(page.locator('html')).toHaveAttribute('data-feed-fade', 'true');
-      else expect((await observed(page)).next).toBe('motion-feed-in');
+      else
+        expect(
+          JSON.parse((await page.locator('html').getAttribute('data-observed-feed')) ?? '{}')
+            .options.duration,
+        ).toBe(400);
       await swipe(page, page.locator('.plan-day__title').first(), -120);
       await expect(page).toHaveURL(/#\/today\/all$/);
       await settle(page);
@@ -220,13 +226,20 @@ for (const reduce of [false, true])
       await page.getByRole('link', { name: 'Сегодня', exact: true }).first().click();
       await settle(page);
       if (!reduce) {
-        expect((await observed(page)).direction).toBe('back');
-        expect((await observed(page)).feed).toBe('tab');
+        const motion = JSON.parse(
+          (await page.locator('html').getAttribute('data-observed-feed')) ?? '{}',
+        );
+        expect(motion.options.duration).toBe(240);
+        expect(motion.frames[0].transform).toMatch(/translateX\(-/);
       }
       await page.getByRole('link', { name: 'Покупки', exact: true }).click();
       await expect(page).toHaveURL(/#\/more\/shopping$/);
       await settle(page);
-      if (!reduce) expect((await observed(page)).direction).toBe('forward');
+      if (!reduce)
+        expect(
+          JSON.parse((await page.locator('html').getAttribute('data-observed-feed')) ?? '{}')
+            .frames[0].transform,
+        ).not.toMatch(/translateX\(-/);
       await check(page, info, `shopping-${reduce}`);
     });
 

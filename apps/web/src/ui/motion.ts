@@ -1,9 +1,12 @@
 /** CSS-токены остаются единственным источником времени, включая JS-анимации. */
+export function durationMilliseconds(value: string): number {
+  const match = /^(\d*\.?\d+)(ms|s)$/.exec(value.trim());
+  return match ? Number(match[1]) * (match[2] === 's' ? 1000 : 1) : 0;
+}
+
 export function motionTime(name: 'fast' | 'base' | 'screen' | 'sheet' | 'fly'): number {
-  return (
-    Number.parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue(`--motion-${name}`),
-    ) || 0
+  return durationMilliseconds(
+    getComputedStyle(document.documentElement).getPropertyValue(`--motion-${name}`),
   );
 }
 export function reducedMotion(): boolean {

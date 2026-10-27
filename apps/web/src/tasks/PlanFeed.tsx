@@ -4,8 +4,10 @@ import { useScope } from '../access/ScopeContext.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
 import { Link } from '../shell/motion.tsx';
+import { plural } from '../ui/format.ts';
 import { MotionGroups } from '../ui/MotionGroups.tsx';
 import { FeedTaskCard } from './api.ts';
+import { useFeedPane, useFeedSummary } from './feed-pane.tsx';
 import { MoveTaskSheet } from './MoveTaskSheet.tsx';
 import { OperationNotice } from './operation.tsx';
 import { PlanRows } from './PlanRows.tsx';
@@ -19,6 +21,26 @@ export function PlanFeed({ house }: { house: string | null }) {
   const { scope } = useScope();
   const client = useQueryClient();
   const query = usePlan(house);
+  const active = useFeedPane()?.active ?? true;
+  const count = query.data
+    ? uniqueTasks(
+        query.data.pages.flatMap((page) => [
+          ...page.days.flatMap((day) => day.tasks),
+          ...page.undated,
+        ]),
+      ).length
+    : undefined;
+  useFeedSummary(
+    query.error ? undefined : count || undefined,
+    query.error
+      ? 'Не удалось загрузить план'
+      : count === undefined
+        ? 'Загружаем…'
+        : count === 0
+          ? 'на две недели дел нет'
+          : `${plural(count, ['дело', 'дела', 'дел'])} на две недели`,
+    !query.isPending,
+  );
   const key = ['tasks', me.id, house, 'plan', scope];
   const scrollKey = useMemo(
     () => ['tasks', me.id, house, 'plan', scope, 'scroll'],
@@ -31,12 +53,13 @@ export function PlanFeed({ house }: { house: string | null }) {
   const sentinel = useRef<HTMLDivElement>(null);
   const armed = useRef(false);
   useLayoutEffect(() => {
+    if (!active) return;
     const y = client.getQueryData<number>(scrollKey);
     const frame = requestAnimationFrame(() => {
       if (y !== undefined) window.scrollTo(0, y);
     });
     return () => cancelAnimationFrame(frame);
-  }, [client, scrollKey]);
+  }, [active, client, scrollKey]);
   const remember = () => client.setQueryData(scrollKey, window.scrollY);
   const apply = (card: FeedTaskCard) => {
     card = FeedTaskCard.strip().parse(card);
@@ -70,6 +93,7 @@ export function PlanFeed({ house }: { house: string | null }) {
   const actions = useFeedActions(apply);
   const { operation, moving } = actions;
   useEffect(() => {
+    if (!active) return;
     // Изменение высоты страницы тоже порождает scroll: оно не должно загружать месяцы пустых дней.
     let nearEnd = false;
     let requested = false;
@@ -107,7 +131,7 @@ export function PlanFeed({ house }: { house: string | null }) {
       window.removeEventListener('keydown', onKey);
       observer?.disconnect();
     };
-  }, [query.hasNextPage, query.isFetching, query.fetchNextPage]);
+  }, [active, query.hasNextPage, query.isFetching, query.fetchNextPage]);
   const days = new Map<string, Map<string, FeedTaskCard>>();
   for (const page of query.data?.pages ?? [])
     for (const day of page.days) {

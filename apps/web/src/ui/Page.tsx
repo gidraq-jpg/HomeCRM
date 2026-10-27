@@ -11,7 +11,7 @@ export function usePageTitle(title: string): void {
   }, [title]);
 }
 
-interface PageProps {
+export interface PageProps {
   title: string;
   /** Локальная композиция экрана; по умолчанию сохраняется общий каркас. */
   className?: string;

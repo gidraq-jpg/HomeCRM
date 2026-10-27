@@ -151,7 +151,7 @@ test('Studio 2: полная лента, пространство, частич�
   const focus = await page.locator('.task-focus').boundingBox();
   const dock = await page.locator('.bottom-nav').boundingBox();
   expect((focus?.y ?? 0) + (focus?.height ?? 0)).toBeLessThan(dock?.y ?? 0);
-  const inbox = page.getByRole('link', { name: 'Во входящие', exact: true });
+  const inbox = page.getByRole('link', { name: 'Записать во входящие', exact: true });
   await expect(inbox).toHaveAttribute('href', '#/more/inbox/new');
   expect((await inbox.boundingBox())?.y).toBeGreaterThanOrEqual(
     (focus?.y ?? 0) + (focus?.height ?? 0),

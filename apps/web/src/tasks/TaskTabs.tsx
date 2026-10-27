@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router';
 import { AddAction } from '../shell/AddAction.tsx';
-import { cancelMotionNavigation, changeScreenWithMotion } from '../shell/motion.tsx';
+import { cancelMotionNavigation } from '../shell/motion.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import { motionTime, reducedMotion } from '../ui/motion.ts';
 import { rowSwipeDirection, type SwipePoint, swipeDirection } from './swipe.ts';
@@ -13,6 +13,8 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const navigation = useRef(navigate);
+  navigation.current = navigate;
   useLayoutEffect(() => {
     const main = document.getElementById('main');
     if (!main) return;
@@ -20,32 +22,59 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
     let start: (SwipePoint & { pointerId: number; horizontal: boolean }) | null = null;
     let offset = 0;
     let returnAnimation: Animation | undefined;
-    const content = () => main.querySelector<HTMLElement>('.task-feed-content');
+    let velocity = 0;
+    let last: SwipePoint | null = null;
+    const preview = (show: boolean) => {
+      const carousel = main.querySelector<HTMLElement>('.feed-carousel');
+      if (!carousel) return;
+      carousel.toggleAttribute('data-feed-preview', show);
+      carousel.dispatchEvent(new Event('feed-preview'));
+    };
+    const finish = (animation: Animation | undefined) => {
+      if (!animation) return preview(false);
+      void animation.finished.then(
+        () => {
+          if (returnAnimation === animation) preview(false);
+        },
+        () => {},
+      );
+    };
+    const content = () => main.querySelector<HTMLElement>('.feed-carousel__track');
     const links = () => [
       ...(ref.current?.querySelectorAll<HTMLAnchorElement>('.tabs__link') ?? []),
     ];
     const change = (next: HTMLAnchorElement, direction: number, swiped = false) => {
       const root = document.documentElement;
+      const node = content();
+      const width = node?.getBoundingClientRect().width ?? 0;
+      const from = offset + direction * width;
+      returnAnimation?.cancel();
+      cancelMotionNavigation();
+      preview(true);
+      flushSync(() => {
+        void navigation.current(next.hash.slice(1));
+      });
+      if (node) node.style.transform = '';
       if (reducedMotion()) {
-        cancelMotionNavigation();
-        flushSync(() => {
-          void navigate(next.hash.slice(1));
-        });
-        content()?.animate([{ opacity: 0 }, { opacity: 1 }], {
+        returnAnimation = node?.animate([{ opacity: 0 }, { opacity: 1 }], {
           duration: motionTime('fast'),
           easing: getComputedStyle(root).getPropertyValue('--ease-out'),
         });
         offset = 0;
+        finish(returnAnimation);
         return;
       }
-      root.dataset.motionFeed = swiped ? 'swipe' : 'tab';
-      root.style.setProperty('--feed-start', `${offset}px`);
-      root.style.setProperty('--feed-sign', String(direction));
-      const node = content();
-      if (node) node.style.transform = '';
-      changeScreenWithMotion(direction > 0 ? 'forward' : 'back', () => {
-        void navigate(next.hash.slice(1));
-      });
+      returnAnimation = node?.animate(
+        [{ transform: `translateX(${from}px)` }, { transform: 'translateX(0)' }],
+        {
+          duration: motionTime(swiped ? 'screen' : 'base'),
+          easing:
+            swiped && from
+              ? `cubic-bezier(.22, ${Math.min(0.8, Math.max(0.05, ((Math.abs(velocity) * motionTime('screen')) / Math.abs(from)) * 0.22))}, .24, 1)`
+              : getComputedStyle(root).getPropertyValue('--ease-out'),
+        },
+      );
+      finish(returnAnimation);
       offset = 0;
     };
     let swallowClick = false;
@@ -67,7 +96,8 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
             easing: getComputedStyle(document.documentElement).getPropertyValue('--ease-out'),
           },
         );
-      }
+        finish(returnAnimation);
+      } else preview(false);
       offset = 0;
     };
     const down = (event: PointerEvent) => {
@@ -119,6 +149,8 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
         pointerId: event.pointerId,
         horizontal: false,
       };
+      last = start;
+      velocity = 0;
     };
     const move = (event: PointerEvent) => {
       if (!start || start.pointerId !== event.pointerId) return;
@@ -138,6 +170,19 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
       const items = links();
       const index = items.findIndex((link) => link.getAttribute('aria-current') === 'page');
       offset = event.clientX - start.x;
+      const nextIndex = index + (offset < 0 ? 1 : -1);
+      if (
+        items[nextIndex] &&
+        main.querySelector(`[data-feed-pane="${nextIndex}"]`)?.getAttribute('data-feed-ready') !==
+          'true'
+      ) {
+        offset = 0;
+        return;
+      }
+      if (!reducedMotion()) preview(true);
+      if (last && event.timeStamp > last.time)
+        velocity = (event.clientX - last.x) / (event.timeStamp - last.time);
+      last = end;
       if (!items[index + (offset < 0 ? 1 : -1)]) offset *= 0.3;
       const node = content();
       if (node && !reducedMotion()) node.style.transform = `translateX(${offset}px)`;
@@ -162,7 +207,11 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
       const items = links();
       const index = items.findIndex((link) => link.getAttribute('aria-current') === 'page');
       const next = items[index + direction];
-      if (direction && index >= 0 && next) {
+      const ready =
+        main
+          .querySelector(`[data-feed-pane="${index + direction}"]`)
+          ?.getAttribute('data-feed-ready') === 'true';
+      if (direction && index >= 0 && next && ready) {
         // Жест на ссылке не должен дополнительно открыть её после смены вкладки.
         swallowClick = true;
         main.dataset.taskSwipeTarget = next.getAttribute('href') ?? '';
@@ -195,7 +244,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
         return;
       const items = links();
       const index = items.findIndex((link) => link.getAttribute('aria-current') === 'page');
-      const direction = Math.sign(items.indexOf(target) - index);
+      const direction = items.indexOf(target) - index;
       if (!direction) return;
       event.preventDefault();
       event.stopPropagation();
@@ -219,7 +268,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
       const node = content();
       if (node) node.style.transform = '';
     };
-  }, [navigate]);
+  }, []);
   useLayoutEffect(() => {
     const header = document.querySelector('.topbar');
     if (!header) return;

@@ -29,7 +29,7 @@ export function InboxLink() {
   return (
     <div className="btn-row">
       <Link className="btn btn--secondary" to="/more/inbox/new">
-        Во входящие
+        Записать во входящие
       </Link>
       <Link className="btn btn--secondary" to="/more/inbox">
         Входящие
