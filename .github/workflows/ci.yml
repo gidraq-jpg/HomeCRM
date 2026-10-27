@@ -14,6 +14,9 @@ concurrency:
 
 permissions:
   contents: read
+  # Чтобы узнать, прошёл ли уже запрос на слияние те же файлы (ADR-0019, 27 октября 2026).
+  actions: read
+  pull-requests: read
 
 jobs:
   changes:
@@ -22,6 +25,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       docs_only: ${{ steps.changes.outputs.docs_only }}
+      verified: ${{ steps.verified.outputs.verified }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -48,11 +52,34 @@ jobs:
         run: |
           node scripts/select-checks.ts docs "$BASE" "$HEAD"
           echo 'Только документы: кодировка и формат проверены; тяжёлые проверки не требуются.' >> "$GITHUB_STEP_SUMMARY"
+      # После слияния в main полный прогон не повторяется, если дерево файлов коммита совпадает
+      # с головой запроса на слияние, чей CI уже зелёный: проверено ровно это содержимое.
+      - name: Слияние уже проверено в запросе на слияние?
+        id: verified
+        if: github.event_name == 'push' && steps.changes.outputs.docs_only != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          verified=false
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].number // empty' || true)
+          if [ -n "$pr" ] && git fetch --quiet origin "refs/pull/$pr/head"; then
+            head=$(git rev-parse FETCH_HEAD)
+            if [ "$(git rev-parse "$GITHUB_SHA^{tree}")" = "$(git rev-parse "$head^{tree}")" ]; then
+              ok=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$head&status=success" --jq '.total_count' || echo 0)
+              if [ "${ok:-0}" -gt 0 ]; then verified=true; fi
+            fi
+          fi
+          echo "verified=$verified" >> "$GITHUB_OUTPUT"
+          if [ "$verified" = true ]; then
+            echo "Содержимое уже прошло полный CI в запросе на слияние #$pr: тяжёлые проверки не повторяются." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Полный прогон: содержимое не совпадает с проверенным запросом на слияние.'
+          fi
 
   check-full:
     name: Полные проверки · Vitest и p95
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.verified != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Одноразовая PostgreSQL 18 для тестов пакета db и матрицы доступа (ADR-0004, ADR-0013).
@@ -90,7 +117,7 @@ jobs:
   auth-shards:
     name: Браузерные сценарии · часть ${{ matrix.shard }}/3
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.verified != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -145,12 +172,16 @@ jobs:
         env:
           CHANGES: ${{ needs.changes.result }}
           DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+          VERIFIED: ${{ needs.changes.outputs.verified }}
           FULL: ${{ needs.check-full.result }}
         run: |
           test "$CHANGES" = success
           if [ "$DOCS_ONLY" = true ]; then
             test "$FULL" = skipped
             echo 'Только документы: кодировка и формат проверены.' >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$VERIFIED" = true ]; then
+            test "$FULL" = skipped
+            echo 'Проверено в запросе на слияние.' >> "$GITHUB_STEP_SUMMARY"
           else
             test "$FULL" = success
           fi
@@ -166,12 +197,16 @@ jobs:
         env:
           CHANGES: ${{ needs.changes.result }}
           DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+          VERIFIED: ${{ needs.changes.outputs.verified }}
           SHARDS: ${{ needs.auth-shards.result }}
         run: |
           test "$CHANGES" = success
           if [ "$DOCS_ONLY" = true ]; then
             test "$SHARDS" = skipped
             echo 'Только документы: браузерные сценарии не требуются, кодировка и формат проверены.' >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$VERIFIED" = true ]; then
+            test "$SHARDS" = skipped
+            echo 'Браузерные сценарии пройдены в запросе на слияние.' >> "$GITHUB_STEP_SUMMARY"
           else
             test "$SHARDS" = success
           fi
