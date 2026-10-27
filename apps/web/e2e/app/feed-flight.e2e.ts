@@ -42,6 +42,7 @@ interface Sample {
 interface Observation {
   samples: Sample[];
   duration: number;
+  sourceHeight?: number;
   target?: { x: number; y: number; width: number; height: number };
 }
 async function observeFlight(page: Page) {
@@ -78,6 +79,14 @@ async function observeFlight(page: Page) {
           requestAnimationFrame(record);
         };
         requestAnimationFrame(record);
+      } else if (
+        this.matches('.swipe-task[data-motion-ghost]') &&
+        this.isConnected &&
+        !this.parentElement?.closest('[inert]') &&
+        Array.isArray(frames) &&
+        typeof frames[0]?.height === 'string'
+      ) {
+        state.flight.sourceHeight = Number.parseFloat(frames[0].height);
       } else if (Array.isArray(frames) && frames[1]?.transform === 'scale(1.08)') {
         pulseTarget = this;
         const rect = this.getBoundingClientRect();
@@ -123,7 +132,7 @@ for (const width of [412, 1440])
     const demo = await context.newPage();
     const results: Observation[] = [];
     try {
-      await demo.goto(`${family.baseURL}#/today`);
+      await demo.goto(`${family.baseURL}#/today/all`);
       await expect(demo.locator('[data-feed-ready="true"]')).toHaveCount(4);
       await observeFlight(demo);
       for (let feed = 0; feed < 3; feed++) {
@@ -155,6 +164,7 @@ for (const width of [412, 1440])
             () => (window as unknown as { flight: Observation }).flight,
           );
           expect(flight.duration).toBe(560);
+          if (feed === 0 && method !== 'trash') expect(flight.sourceHeight).toBeGreaterThan(0);
           expect(
             flight.samples.some(
               (sample) =>
