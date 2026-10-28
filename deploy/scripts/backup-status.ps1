@@ -56,6 +56,8 @@ else {
     }
     $mark = if ($result.skipped -eq 'configuration') { 'пропущено по настройке' } elseif ($result.ok) { 'ок' } else { "ОШИБКА: $($result.error)" }
     Write-Host "  $($names[$repo]): $mark, снимок $($result.snapshot)"
+    $hint = if ($repo -eq 'cloud' -and -not $result.ok) { Get-CloudFailureHint $result.error }
+    if ($hint) { Write-Host "    Причина: $hint" }
     if (-not $result.ok) { $problems++ }
   }
   if ($backup.lastCheckAt) {
@@ -80,6 +82,8 @@ foreach ($repo in $checked) {
   $at = ConvertTo-UtcDate $check.at
   $state = if ($check.ok) { "ок: $($check.tables) таблиц, $($check.rows) строк, файлов $($check.files)" } else { "НЕ СОШЛОСЬ: $($check.error) $($check.mismatches -join '; ')" }
   Write-Host "Проверка восстановления ($($names[$repo])): $state, $(Format-Age $at)"
+  $hint = if ($repo -eq 'cloud' -and -not $check.ok) { Get-CloudFailureHint $check.error }
+  if ($hint) { Write-Host "  Причина: $hint" }
   if (-not $check.ok) { $problems++ }
   elseif ((Get-AgeSpan $at).TotalDays -gt 35) { Write-Host '  ВНИМАНИЕ: проверка старше 35 дней.'; $problems++ }
 }
@@ -89,7 +93,16 @@ if ($Snapshots) {
   foreach ($repo in $repos) {
     Write-Host ''
     Write-Host "Снимки $($names[$repo]):"
-    & docker @compose --profile app --profile ops run --rm -T --no-deps ops node apps/server/src/ops/cli.ts snapshots --from $repo
+    $listing = & docker @compose --profile app --profile ops run --rm -T --no-deps ops node apps/server/src/ops/cli.ts snapshots --from $repo
+    $listing | ForEach-Object { Write-Host $_ }
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host "  ОШИБКА: снимки $($names[$repo]) не прочитаны."
+      $failure = ($listing | Where-Object { $_ -match '"command failed"' } | Select-Object -Last 1)
+      $reason = if ($failure) { try { ($failure | ConvertFrom-Json).error } catch { $null } }
+      $hint = if ($repo -eq 'cloud') { Get-CloudFailureHint $reason }
+      if ($hint) { Write-Host "  Причина: $hint" }
+      $problems++
+    }
   }
 }
 
