@@ -1,0 +1,16 @@
+# Только для теста полного круга копий с WebDAV (deploy/test/backup-cycle.ps1 -Cloud webdav), в своём
+# compose-проекте homecrm-test-*. Вместо webdav.yandex.ru — `rclone serve webdav` в отдельном контейнере
+# во внешней сети ${HOMECRM_TEST_WEBDAV_NETWORK}: её видят и основной проект теста, и проект проверки
+# восстановления. Настоящего Яндекса и настоящих паролей нет.
+services:
+  migrate:
+    networks: [default, webdav]
+  backup:
+    networks: [default, webdav]
+  ops:
+    networks: [default, webdav]
+
+networks:
+  webdav:
+    external: true
+    name: ${HOMECRM_TEST_WEBDAV_NETWORK:?HOMECRM_TEST_WEBDAV_NETWORK is required}

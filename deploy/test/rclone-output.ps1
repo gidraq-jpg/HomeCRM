@@ -49,6 +49,7 @@ try {
     Write-Output 'NOTICE: Continue using the shared client_id anyway? y) Yes n) No (default)'
     Write-Output "token = {`"access_token`":`"$secret`",`"token_type`":`"OAuth`",`"refresh_token`":`"$secret-r`"}"
     Write-Output "ERROR : bad client_secret=$secret"
+    Write-Output "pass = $secret-webdav"
     Write-Output "Paste: {`"access_token`": `"$secret`", `"expiry`": `"2027-01-01`"}"
     $global:LASTEXITCODE = 1
   }
@@ -57,6 +58,7 @@ try {
   if ($synthetic -notmatch 'Continue using the shared client_id anyway') { $failures.Add('строка с client_id выброшена: причина ошибки не видна') }
   if ($synthetic -notmatch 'access_token":\s*"\*\*\*"') { $failures.Add('значение в JSON не заменено на ***') }
   if ($synthetic -notmatch 'client_secret=\*\*\*') { $failures.Add('значение ключ=значение не заменено на ***') }
+  if ($synthetic -notmatch '(?m)^pass = \*\*\*') { $failures.Add('пароль WebDAV (pass = …) не заменён на ***') }
   if ($synthetic -notmatch '"expiry": "2027-01-01"') { $failures.Add('несекретные поля JSON искажены') }
   # Возвращаем подмену на docker-вариант для контроля ниже.
   function rclone {

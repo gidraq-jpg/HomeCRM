@@ -1,5 +1,5 @@
-// restic: два хранилища — локальная папка и Яндекс Диск через rclone (ADR-0021, ADR-0014).
-import { copyFile, mkdir, stat } from 'node:fs/promises';
+// restic: два хранилища — локальная папка и Яндекс Диск через rclone (ADR-0021, ADR-0014, ADR-0047).
+import { copyFile, mkdir, readFile, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { OpsEnv } from './env.ts';
 import { commandFailure, OpsError, run } from './process.ts';
@@ -70,8 +70,71 @@ const RESTIC_HINTS: Readonly<Record<number, string>> = {
   12: 'wrong repository password',
 };
 
-/** Параметры rclone при работе restic: удалённое не уходит в корзину Яндекс Диска и не съедает объём (--yandex-hard-delete). */
-const RCLONE_OPTIONS = ['-o', 'rclone.args=serve restic --stdio --yandex-hard-delete'];
+/**
+ * Тип подключения rclone (`yandex`, `webdav`, `local`…) из текста rclone.conf. Читается только строка
+ * `type` нужной секции: логин, пароль и токен из файла никуда не передаются.
+ */
+export function rcloneRemoteType(config: string, remote: string): string | undefined {
+  let inSection = false;
+  for (const raw of config.split(/\r?\n/)) {
+    const line = raw.trim();
+    const section = /^\[(.+)\]$/.exec(line);
+    if (section) {
+      inSection = section[1] === remote;
+      continue;
+    }
+    const type = inSection ? /^type\s*=\s*([A-Za-z0-9_-]+)\s*$/.exec(line) : null;
+    if (type) return type[1];
+  }
+  return undefined;
+}
+
+/** Имя подключения rclone из адреса хранилища `rclone:<remote>:<путь>`. */
+export function rcloneRemoteName(repository: string): string | undefined {
+  return /^rclone:([^:]+):/.exec(repository)?.[1];
+}
+
+/**
+ * Параметры rclone при работе restic. Для бэкенда `yandex` (REST API) удалённое не уходит в корзину
+ * Яндекс Диска (--yandex-hard-delete). У WebDAV такого ключа нет (ADR-0047): только `serve restic`.
+ */
+export function rcloneOptions(remoteType: string | undefined): string[] {
+  const args =
+    remoteType === 'yandex' ? 'serve restic --stdio --yandex-hard-delete' : 'serve restic --stdio';
+  return ['-o', `rclone.args=${args}`];
+}
+
+/**
+ * Короткая причина сбоя облака по выводу restic и rclone (stderr). Вывод не копируется никогда — он
+ * может цитировать имена файлов и адреса; в журнал и статус идёт только одна из фраз ниже.
+ */
+const CLOUD_REASONS: ReadonlyArray<readonly [RegExp, string]> = [
+  [
+    /\b401 Unauthorized\b|\[401 -|\bstatus(?: code)?:? 401\b/i,
+    'HTTP 401: login or app password rejected',
+  ],
+  [/\b403 Forbidden\b|\[403 -|\bstatus(?: code)?:? 403\b/i, 'HTTP 403: access forbidden'],
+  [
+    /\b410 Gone\b|\[410 -|\bstatus(?: code)?:? 410\b|DiskResourceGone/i,
+    'HTTP 410: Yandex Disk REST API is gone, use WebDAV',
+  ],
+  [
+    /\b507 Insufficient Storage\b|\[507 -|DiskNotEnoughSpace|\bquota exceeded\b/i,
+    'HTTP 507: cloud storage is full',
+  ],
+  [/\b429 Too Many Requests\b|\[429 -|\bstatus(?: code)?:? 429\b/i, 'HTTP 429: too many requests'],
+  [
+    /\bno such host\b|\bconnection refused\b|\bnetwork is unreachable\b|\bi\/o timeout\b|\bTLS handshake timeout\b|\bconnection reset by peer\b/i,
+    'network error: cloud is unreachable',
+  ],
+];
+
+export function cloudFailureReason(output: string): string | undefined {
+  for (const [pattern, reason] of CLOUD_REASONS) {
+    if (pattern.test(output)) return reason;
+  }
+  return undefined;
+}
 
 /** Команды, которые передают или перебирают весь снимок: им нужен тайм-аут копии, а не служебный. */
 const LONG_COMMANDS: ReadonlySet<string> = new Set([
@@ -82,7 +145,18 @@ const LONG_COMMANDS: ReadonlySet<string> = new Set([
   'check',
 ]);
 
-/** Выполняет команду restic; ненулевой код — ошибка с хвостом вывода (без секретов). */
+/** Тайм-аут команды restic в миллисекундах: только для облака. restic сам повторяет запросы до 15 минут. */
+export function resticTimeoutMs(env: OpsEnv, repo: Repo, command: string): number | undefined {
+  if (repo.name !== 'cloud') return undefined;
+  return (
+    1000 *
+    (LONG_COMMANDS.has(command)
+      ? env.BACKUP_CLOUD_BACKUP_TIMEOUT_SECONDS
+      : env.BACKUP_CLOUD_COMMAND_TIMEOUT_SECONDS)
+  );
+}
+
+/** Выполняет команду restic; ненулевой код — ошибка с безопасной причиной (без вывода программы). */
 export type Restic = (
   args: string[],
   options?: { allowCodes?: number[] },
@@ -90,22 +164,27 @@ export type Restic = (
 
 export async function resticFor(env: OpsEnv, repo: Repo): Promise<Restic> {
   const resticEnvironment = await resticEnv(env, repo);
+  const remote = rcloneRemoteName(repo.repository);
+  const remoteType =
+    remote === undefined || resticEnvironment.RCLONE_CONFIG === undefined
+      ? undefined
+      : rcloneRemoteType(await readFile(resticEnvironment.RCLONE_CONFIG, 'utf8'), remote);
+  const rclone = rcloneOptions(remoteType);
   return async (args, options = {}) => {
-    const result = await run('restic', [...RCLONE_OPTIONS, ...args], {
+    const command = args[0] ?? 'command';
+    const timeoutMs = resticTimeoutMs(env, repo, command);
+    const result = await run('restic', [...rclone, ...args], {
       env: resticEnvironment,
-      ...(repo.name === 'cloud'
-        ? {
-            timeoutMs:
-              1000 *
-              (LONG_COMMANDS.has(args[0] ?? '')
-                ? env.BACKUP_CLOUD_BACKUP_TIMEOUT_SECONDS
-                : env.BACKUP_CLOUD_COMMAND_TIMEOUT_SECONDS),
-          }
-        : {}),
+      ...(timeoutMs === undefined ? {} : { timeoutMs }),
     });
-    if (result.timedOut) throw new OpsError('cloud timeout');
+    const reason = repo.name === 'cloud' ? cloudFailureReason(result.stderr) : undefined;
+    if (result.timedOut) {
+      throw new OpsError(
+        `cloud timeout at ${command} after ${Math.round((timeoutMs ?? 0) / 1000)} s${reason === undefined ? '' : `: ${reason}`}`,
+      );
+    }
     if (result.code !== 0 && !(options.allowCodes ?? []).includes(result.code)) {
-      throw commandFailure('restic', args[0] ?? 'command', result.code, RESTIC_HINTS[result.code]);
+      throw commandFailure('restic', command, result.code, reason ?? RESTIC_HINTS[result.code]);
     }
     return { code: result.code, stdout: result.stdout };
   };
