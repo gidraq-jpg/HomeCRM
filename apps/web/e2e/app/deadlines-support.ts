@@ -70,11 +70,15 @@ export async function openNoteCard(page: Page, id: string, title: string) {
 }
 
 export async function openRadar(page: Page) {
-  // Сначала в другой раздел: тот же адрес не пересоздаёт экран, а нужны свежие данные сервера.
-  await page.goto('#/more');
-  await page.goto('#/more/radar');
-  // Данные, заведённые тестом через API, обходят клиентскую инвалидацию.
-  await page.reload();
+  // Данные, заведённые тестом через API, обходят клиентскую инвалидацию: нужна новая загрузка
+  // приложения. Не reload сразу после смены hash: он перезагружает ту запись истории, которую
+  // браузер уже зафиксировал, и в CI открывал прежний адрес #/more вместо радара (D34).
+  // Загрузка явного адреса с about:blank от истории вкладки не зависит.
+  const url = new URL(page.url());
+  url.hash = '/more/radar';
+  await page.goto('about:blank');
+  await page.goto(url.href);
+  await expect(page).toHaveURL(url.href);
   await expect(page.getByRole('heading', { level: 1, name: 'Радар', exact: true })).toBeVisible();
   await expect(page.getByText('Загружаем радар…')).toHaveCount(0);
 }

@@ -19,6 +19,7 @@ import {
   changed,
   LocalFailure,
   LocalSaved,
+  offlineEvents,
   requestTicket,
   setIdentity,
   ticket,
@@ -290,6 +291,7 @@ export async function durableMutation(
     // Повтор из формы снимает backoff, но сохраняет замороженные тело и ключ.
     if (intent.state === 'unknown') await retryIntent(intent.id);
     else await synchronize();
+    await afterOtherSender(intent.id);
   }
   const current = await offlineDB.outbox.get(intent.id);
   if (current?.state === 'confirmed') {
@@ -312,6 +314,43 @@ export async function durableMutation(
       intentId: intent.id,
     });
   throw new LocalSaved(intent.id);
+}
+/**
+ * Аренду отправки мог держать другой отправитель: плановая отправка этой вкладки, SW или соседняя
+ * вкладка. Тогда наш synchronize() вышел, не тронув запись, а исход решает чужая отправка: ждём
+ * её конца, а не объявляем сетевую запись отложенной («Очередь изменений» вместо ответа формы).
+ */
+async function afterOtherSender(id: string) {
+  for (let round = 0; round < 3 && navigator.onLine; round++) {
+    const row = await offlineDB.outbox.get(id);
+    if (!row || !['pending', 'sending'].includes(row.state)) return;
+    // Аренды уже нет: чужая отправка могла закончиться до проверки — одна своя попытка и всё.
+    const held = await leaseReleased();
+    await synchronize();
+    if (!held) return;
+  }
+}
+/** Ждёт освобождения действующей аренды; `false` — аренды не было. */
+async function leaseReleased(): Promise<boolean> {
+  let release = () => {};
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const released = new Promise<void>((done) => {
+    release = done;
+  });
+  // Подписка до чтения аренды: освобождение между ними не теряется.
+  offlineEvents.addEventListener('lease', release);
+  try {
+    const lease = await offlineDB.leases.get('sender');
+    const left = lease ? lease.expiresAt - Date.now() : 0;
+    if (left <= 0) return false;
+    // Предел — срок аренды: упавший отправитель не держит форму дольше, чем держит очередь.
+    timer = setTimeout(release, left);
+    await released;
+    return true;
+  } finally {
+    clearTimeout(timer);
+    offlineEvents.removeEventListener('lease', release);
+  }
 }
 export interface ReadingQueueInput {
   objectId: string;
@@ -765,6 +804,8 @@ export async function synchronize(): Promise<void> {
       const lease = await offlineDB.leases.get('sender');
       if (lease?.holder === holder) await offlineDB.leases.delete('sender');
     });
+    // Ожидающая форма (durableMutation) в этой вкладке, другой вкладке или SW продолжает сразу.
+    changed('lease');
   }
 }
 async function freeze(row: Intent, active: Identity) {

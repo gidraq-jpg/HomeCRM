@@ -1649,6 +1649,54 @@ test('B5: online create lost ACK сохраняет key с формой посл
   expect(tasks.filter((task) => task.title === title)).toHaveLength(1);
 });
 
+test('B5: плановая отправка очереди в момент «Сохранить» не уводит форму в очередь', async ({
+  page,
+  family,
+  context,
+}) => {
+  // D34: аренду отправки держала плановая отправка (интервал 15 с, online, SW). Форма считала
+  // запись отложенной и открывала «Очередь изменений», хотя исход решала эта отправка.
+  await signInAs(page, family, 'adult');
+  await shell(page);
+  const posts: string[] = [];
+  context.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/tasks')
+      posts.push(request.postData() ?? '');
+  });
+  await context.route('**/api/tasks', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    await route.fetch();
+    await route.abort('failed');
+  });
+  await page.goto('#/today/new');
+  await page.getByLabel('Название дела').fill('Дело во время плановой отправки');
+  // Обе проверки Me у страницы отвечают позже: плановая отправка, начатая первой, берёт аренду
+  // и отправляет запись формы; отправка самой формы застаёт аренду занятой.
+  await context.route('**/api/me', async (route) => {
+    if (!route.request().serviceWorker()) await new Promise((done) => setTimeout(done, 400));
+    await route.continue();
+  });
+  await page.evaluate(() => {
+    document.addEventListener(
+      'click',
+      (event) => {
+        if (event.target instanceof Element && event.target.closest('form.task-form button'))
+          window.dispatchEvent(new Event('online'));
+      },
+      { capture: true, once: true },
+    );
+  });
+  await page
+    .locator('form.task-form')
+    .getByRole('button', { name: 'Сохранить', exact: true })
+    .click();
+  await expect(page.getByRole('alert')).toContainText('Не удалось связаться с сервером');
+  await expect(page).toHaveURL(/#\/today\/new$/);
+  await expect(page.getByLabel('Название дела')).toHaveValue('Дело во время плановой отправки');
+  expect((await rows(page)).map((row) => row.state)).toEqual(['unknown']);
+  expect(posts).toHaveLength(1);
+});
+
 test('B5: внешняя роль во время await Me не теряется, поздний Me не откатывает generation', async ({
   page,
   family,
