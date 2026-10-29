@@ -34,7 +34,7 @@ export function rowSwipeDirection(
 }
 
 /** Доля ширины строки, после которой протяжка сразу выполняет действие. */
-export const ROW_ACTION_SHARE = 0.68;
+export const ROW_ACTION_SHARE = 0.65;
 
 /** Палец за порогом действия: строка показывает, что отпускание выполнит действие. */
 export function rowSwipeArmed(distance: number, width: number) {

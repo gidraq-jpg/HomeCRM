@@ -34,16 +34,16 @@ describe('жест строки дела', () => {
     for (const x of [23, 338])
       expect(rowSwipeDirection({ ...start, x }, { x: 180, y: 300, time: 50 }, 360)).toBe(0);
   });
-  it('короткий открывает 104 px, действие — только протяжка дальше 68 % строки', () => {
+  it('короткий открывает 104 px, действие — только протяжка дальше 65 % строки', () => {
     expect(rowSwipeResult(56, 300, 1000)).toBe('close');
     expect(rowSwipeResult(57, 300, 1000)).toBe('reveal');
     expect(rowSwipeResult(-57, 300, 1000)).toBe('reveal');
     expect(rowSwipeResult(150, 300, 1000)).toBe('reveal');
-    expect(rowSwipeResult(204, 300, 1000)).toBe('reveal');
-    expect(rowSwipeResult(205, 300, 1000)).toBe('action');
-    expect(rowSwipeResult(-205, 300, 1000)).toBe('action');
-    expect(rowSwipeArmed(204, 300)).toBe(false);
-    expect(rowSwipeArmed(-205, 300)).toBe(true);
+    expect(rowSwipeResult(195, 300, 1000)).toBe('reveal');
+    expect(rowSwipeResult(196, 300, 1000)).toBe('action');
+    expect(rowSwipeResult(-196, 300, 1000)).toBe('action');
+    expect(rowSwipeArmed(195, 300)).toBe(false);
+    expect(rowSwipeArmed(-196, 300)).toBe(true);
     expect(rowSwipeArmed(10, 0)).toBe(false);
   });
   it('случайный быстрый рывок только открывает кнопку, но не выполняет действие', () => {
