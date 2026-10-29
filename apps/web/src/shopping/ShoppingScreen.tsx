@@ -292,7 +292,7 @@ export function ShoppingScreen() {
                   setPlace('personal');
                 }}
               >
-                Личный
+                Только я
               </button>
             </fieldset>
             {query.data && !query.error && !query.hasNextPage ? (
@@ -334,7 +334,7 @@ export function ShoppingScreen() {
                     setPlace('personal');
                   }}
                 >
-                  Личный
+                  Только я
                 </button>
               </fieldset>
             ) : null}

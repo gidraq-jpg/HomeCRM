@@ -16,6 +16,7 @@ import {
   PasswordField,
   useAction,
 } from './components.tsx';
+import { formatMoment } from './dates.ts';
 
 function DownloadForm({
   scope,
@@ -164,13 +165,7 @@ export function ExportScreen() {
                 meta={
                   <>
                     {event.account_id === me.id ? 'Вы' : (event.actor_name ?? 'Участник дома')} ·{' '}
-                    {new Intl.DateTimeFormat('ru-RU', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      timeZone: me.timeZone,
-                    }).format(new Date(event.created_at))}
+                    {formatMoment(event.created_at, me.timeZone)}
                   </>
                 }
               />

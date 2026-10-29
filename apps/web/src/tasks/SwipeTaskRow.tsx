@@ -4,7 +4,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
 import { reducedMotion } from '../ui/motion.ts';
 import type { TaskCard } from './api.ts';
-import { rowSwipeDirection, rowSwipeResult, type SwipePoint } from './swipe.ts';
+import { rowSwipeArmed, rowSwipeDirection, rowSwipeResult, type SwipePoint } from './swipe.ts';
 import { useTaskSwipeActions } from './TaskSwipeActions.tsx';
 
 export function SwipeTaskRow({
@@ -50,6 +50,7 @@ export function SwipeTaskRow({
     setOffset(x);
     setDragging(false);
     drag.current = null;
+    if (row.current) delete row.current.dataset.swipeArmed;
     draw(x);
   };
   const perform = (direction: number) => {
@@ -144,13 +145,16 @@ export function SwipeTaskRow({
           event.currentTarget.setPointerCapture(event.pointerId);
           setDragging(true);
           const x = start.base + event.clientX - start.x;
-          if (row.current) row.current.dataset.swipeDirection = x < 0 ? 'trash' : 'done';
-          draw(
-            Math.max(
-              trash ? -(row.current?.clientWidth ?? 0) : 0,
-              Math.min(done ? (row.current?.clientWidth ?? 0) : 0, x),
-            ),
-          );
+          const width = row.current?.clientWidth ?? 0;
+          const shown = Math.max(trash ? -width : 0, Math.min(done ? width : 0, x));
+          if (row.current) {
+            row.current.dataset.swipeDirection = x < 0 ? 'trash' : 'done';
+            // За порогом действия строка подсвечивается: отпускание выполнит действие.
+            if (shown && rowSwipeArmed(shown, width))
+              row.current.dataset.swipeArmed = shown < 0 ? 'trash' : 'done';
+            else delete row.current.dataset.swipeArmed;
+          }
+          draw(shown);
         }}
         onPointerUp={(event) => {
           const start = drag.current;

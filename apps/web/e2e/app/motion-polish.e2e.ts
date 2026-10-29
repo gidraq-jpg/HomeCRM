@@ -107,7 +107,8 @@ async function swipe(
     Math.max(36, fast ? box.x + box.width - 8 : box.x + box.width / 2),
   );
   const y = box.y + Math.min(24, box.height / 2);
-  const travel = fast ? 28 - x : dx;
+  // Длинный жест доходит почти до края экрана: действие — только дальше 65 % строки.
+  const travel = fast ? 8 - x : dx;
   const session = await page.context().newCDPSession(page);
   try {
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });

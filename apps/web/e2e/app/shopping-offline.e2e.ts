@@ -202,7 +202,7 @@ test('SHOP: локальный выбор списка сохраняет гло
   await signInAs(page, family, 'adult');
   await page.goto('#/more/shopping');
   const shared = page.getByRole('button', { name: 'Вся семья', exact: true });
-  const personal = page.getByRole('button', { name: 'Личный', exact: true });
+  const personal = page.getByRole('button', { name: 'Только я', exact: true });
   const personalItem = page.getByRole('link', { name: 'Личная вымышленная покупка', exact: true });
   const sharedItem = page.getByRole('link', { name: 'Общая вымышленная покупка', exact: true });
   const storedScope = await page.evaluate(() => localStorage.getItem('homecrm.scope'));

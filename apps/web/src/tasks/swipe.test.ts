@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rowSwipeDirection, rowSwipeResult, swipeDirection } from './swipe.ts';
+import { rowSwipeArmed, rowSwipeDirection, rowSwipeResult, swipeDirection } from './swipe.ts';
 
 describe('D20a-1: горизонтальный жест', () => {
   const start = { x: 180, y: 300, time: 0 };
@@ -34,20 +34,31 @@ describe('жест строки дела', () => {
     for (const x of [23, 338])
       expect(rowSwipeDirection({ ...start, x }, { x: 180, y: 300, time: 50 }, 360)).toBe(0);
   });
-  it('короткий открывает 104 px, длинный или резкий выполняет действие', () => {
+  it('короткий открывает 104 px, действие — только протяжка дальше 65 % строки', () => {
     expect(rowSwipeResult(56, 300, 1000)).toBe('close');
     expect(rowSwipeResult(57, 300, 1000)).toBe('reveal');
     expect(rowSwipeResult(-57, 300, 1000)).toBe('reveal');
     expect(rowSwipeResult(150, 300, 1000)).toBe('reveal');
-    expect(rowSwipeResult(151, 300, 1000)).toBe('action');
-    expect(rowSwipeResult(-151, 300, 1000)).toBe('action');
-    expect(rowSwipeResult(61, 300, 100)).toBe('action');
-    expect(rowSwipeResult(60, 300, 100)).toBe('reveal');
+    expect(rowSwipeResult(195, 300, 1000)).toBe('reveal');
+    expect(rowSwipeResult(196, 300, 1000)).toBe('action');
+    expect(rowSwipeResult(-196, 300, 1000)).toBe('action');
+    expect(rowSwipeArmed(195, 300)).toBe(false);
+    expect(rowSwipeArmed(-196, 300)).toBe(true);
+    expect(rowSwipeArmed(10, 0)).toBe(false);
+  });
+  it('случайный быстрый рывок только открывает кнопку, но не выполняет действие', () => {
+    expect(rowSwipeResult(61, 300, 100)).toBe('reveal');
+    expect(rowSwipeResult(180, 300, 60)).toBe('reveal');
+    expect(rowSwipeResult(-180, 328, 40)).toBe('reveal');
+    expect(rowSwipeResult(40, 300, 30)).toBe('reveal');
+    expect(rowSwipeResult(40, 300, 300)).toBe('close');
+    expect(rowSwipeResult(20, 300, 5)).toBe('close');
   });
   it('не принимает уже открытую часть строки за скорость нового жеста', () => {
     expect(rowSwipeResult(-84, 328, 20, 20)).toBe('reveal');
     expect(rowSwipeResult(84, 328, 20, -20)).toBe('reveal');
-    expect(rowSwipeResult(-170, 328, 500, -66)).toBe('action');
+    expect(rowSwipeResult(-170, 328, 500, -66)).toBe('reveal');
+    expect(rowSwipeResult(-230, 328, 500, -126)).toBe('action');
   });
   it('резкий встречный жест закрывает открытую кнопку, а не выполняет её действие', () => {
     expect(rowSwipeResult(-34, 328, 50, 70)).toBe('close');

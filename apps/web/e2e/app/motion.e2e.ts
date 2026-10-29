@@ -49,20 +49,55 @@ async function drag(page: Page, target: Locator, dx: number, dy = 0, slow = fals
   // Длинный жест проходит больше половины строки независимо от загрузки CI.
   const travel = longRowSwipe ? (dx > 0 ? width - 28 - x : 28 - x) : dx;
   const y = box.y + Math.min(30, box.height / 2);
+  // Лента могла сдвинуться после замера (refetch, сообщение): жест должен начаться на цели,
+  // иначе касание попадает в заголовок и листает ленту вместо строки.
+  await expect
+    .poll(async () => {
+      await target.scrollIntoViewIfNeeded();
+      const now = await target.boundingBox();
+      return target.evaluate(
+        (element, point) => element.contains(document.elementFromPoint(point.x, point.y)),
+        { x, y: now ? now.y + Math.min(30, now.height / 2) : y },
+      );
+    })
+    .toBe(true);
+  const settled = await target.boundingBox();
+  const startY = settled ? settled.y + Math.min(30, settled.height / 2) : y;
+  await gesture(page, x, startY, travel, dy, slow ? 80 : 0, 8);
+}
+
+async function gesture(
+  page: Page,
+  x: number,
+  y: number,
+  travel: number,
+  dy: number,
+  pause: number,
+  steps: number,
+) {
   const session = await page.context().newCDPSession(page);
   try {
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-    for (let step = 1; step <= 8; step++) {
+    for (let step = 1; step <= steps; step++) {
       await session.send('Input.dispatchTouchEvent', {
         type: 'touchMove',
-        touchPoints: [{ x: x + (travel * step) / 8, y: y + (dy * step) / 8 }],
+        touchPoints: [{ x: x + (travel * step) / steps, y: y + (dy * step) / steps }],
       });
-      if (slow) await page.waitForTimeout(80);
+      if (pause) await page.waitForTimeout(pause);
     }
     await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   } finally {
     await session.detach();
   }
+}
+/** Случайный быстрый рывок по строке: 140 px за три события подряд. */
+async function flick(page: Page, target: Locator, dx: number) {
+  await target.scrollIntoViewIfNeeded();
+  const box = await target.boundingBox();
+  if (!box) throw new Error('Gesture target is missing');
+  const width = page.viewportSize()?.width ?? 360;
+  const x = Math.min(width - 40, Math.max(40, box.x + box.width / 2 - dx / 2));
+  await gesture(page, x, box.y + Math.min(30, box.height / 2), dx, 0, 0, 3);
 }
 const row = (page: Page, title: string) =>
   page
@@ -192,6 +227,13 @@ for (const reduce of [false, true]) {
         await page.getByRole('button', { name: 'Отменить', exact: true }).click();
         await expect(page.getByText('Дело восстановлено', { exact: true })).toBeVisible();
         await expect(task).toBeVisible();
+        // Случайный рывок только открывает кнопку: дело не выполняется.
+        await flick(page, task.locator('a').first(), 140);
+        await expect(task).toHaveAttribute('data-swipe-open', 'done');
+        await expect(task.getByRole('button', { name: 'Выполнено', exact: true })).toBeVisible();
+        await expect(page.getByText('Дело выполнено', { exact: true })).toHaveCount(0);
+        await expect(page).toHaveURL(new RegExp(`#/${feed}$`));
+        // Длинная протяжка дальше порога выполняет сразу.
         await drag(page, task.locator('a').first(), 160);
         await expect(page.getByText('Дело выполнено', { exact: true })).toBeVisible();
         if (feed === 'today/all') await expect(task.locator('.plan-circle--done')).toBeVisible();

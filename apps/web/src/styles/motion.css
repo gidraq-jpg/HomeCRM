@@ -246,6 +246,28 @@ html[data-design="studio"] .swipe-task__surface[data-dragging="true"] {
 .swipe-task[data-swipe-direction="done"]:has(.swipe-task__surface[data-dragging="true"]) {
   background: var(--success);
 }
+/* Палец за порогом действия: фон темнеет, подпись говорит, что случится при отпускании. */
+.swipe-task[data-swipe-armed] {
+  box-shadow: inset 0 0 0 100vmax rgb(0 0 0 / 0.2);
+}
+.swipe-task[data-swipe-armed]::before {
+  position: absolute;
+  inset-block: 0;
+  display: flex;
+  align-items: center;
+  padding-inline: 16px;
+  color: white;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.swipe-task[data-swipe-armed="done"]::before {
+  content: "Выполнено";
+  left: 0;
+}
+.swipe-task[data-swipe-armed="trash"]::before {
+  content: "В корзину";
+  right: 0;
+}
 html[data-design="studio"] [data-motion-completed="true"] .task-completion-circle svg {
   opacity: 1;
 }
