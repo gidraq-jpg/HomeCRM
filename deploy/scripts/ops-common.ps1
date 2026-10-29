@@ -110,12 +110,27 @@ function Get-AgeSpan {
   return ([datetime]::UtcNow - (ConvertTo-UtcDate $Value))
 }
 
-# Скрывает значения секретов в строке вывода rclone: после слов token, secret, password, key и client_id
+# Подсказка по-русски к причине сбоя облака из отметки (restic.ts, cloudFailureReason): что делать владельцу.
+# Пусто, если причина незнакома. Текст отметки безопасен: только коды и наши фразы.
+function Get-CloudFailureHint {
+  param([string]$ErrorText)
+  if (-not $ErrorText) { return $null }
+  if ($ErrorText -match 'HTTP 401') { return 'Яндекс не принял логин или пароль приложения. Создайте новый пароль приложения и запустите: pwsh deploy/scripts/connect-yandex-disk.ps1 -WebDav (runbook, раздел 9).' }
+  if ($ErrorText -match 'HTTP 403') { return 'Яндекс запретил доступ. Проверьте, что пароль приложения создан для «Файлы / WebDAV», и подключите заново: connect-yandex-disk.ps1 -WebDav.' }
+  if ($ErrorText -match 'HTTP 410') { return 'REST API Яндекс Диска не отвечает (410). Переключите копии на WebDAV: pwsh deploy/scripts/connect-yandex-disk.ps1 -WebDav (runbook, раздел 9).' }
+  if ($ErrorText -match 'HTTP 507') { return 'На Яндекс Диске кончилось место. Освободите место или подключите тариф Яндекс 360.' }
+  if ($ErrorText -match 'HTTP 429') { return 'Яндекс временно ограничил запросы. Повтор будет автоматически через полчаса.' }
+  if ($ErrorText -match 'network error') { return 'Яндекс Диск недоступен по сети. Проверьте интернет; повтор будет автоматически через полчаса.' }
+  if ($ErrorText -match 'cloud timeout') { return 'Яндекс Диск не ответил вовремя. Проверьте интернет; если повторяется — скажите ведущему агенту.' }
+  return $null
+}
+
+# Скрывает значения секретов в строке вывода rclone: после слов token, secret, pass(word), key и client_id
 # (в JSON — "access_token":"…", и в виде ключ = значение — token = {…}, --client-secret=…) остаётся ***.
 # Остальной текст не трогается: по нему видно, что случилось.
 function Hide-RcloneSecrets {
   param([string]$Line)
-  $words = '(?:token|secret|password|key|client_id)'
+  $words = '(?:token|secret|pass|key|client_id)'
   # JSON: "имя с одним из слов": "значение"
   $Line = [regex]::Replace($Line, "(?i)(`"[^`"\\]*$words[^`"\\]*`"\s*:\s*)`"(?:[^`"\\]|\\.)*`"", '$1"***"')
   # ключ = значение до конца строки (значением может быть и целый JSON)

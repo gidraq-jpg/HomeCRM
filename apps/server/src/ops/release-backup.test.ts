@@ -7,7 +7,13 @@ import { loadOpsEnv, type OpsEnv } from './env.ts';
 import { OpsError, run, silentLog } from './process.ts';
 import { resticFor } from './restic.ts';
 
-const fixture = vi.hoisted(() => ({ script: '', command: '', heartbeat: '' }));
+const fixture = vi.hoisted(() => ({
+  script: '',
+  command: '',
+  heartbeat: '',
+  stderr: '',
+  exit: '',
+}));
 vi.mock('./process.ts', async (original) => {
   const actual = await original<typeof import('./process.ts')>();
   return {
@@ -20,6 +26,8 @@ vi.mock('./process.ts', async (original) => {
             ...options?.env,
             FAKE_HANG_COMMAND: fixture.command,
             FAKE_HEARTBEAT: fixture.heartbeat,
+            FAKE_STDERR: fixture.stderr,
+            FAKE_EXIT: fixture.exit,
           },
         });
       }
@@ -45,6 +53,8 @@ beforeEach(async () => {
   fixture.script = join(dir, 'restic.cjs');
   fixture.heartbeat = join(dir, 'heartbeat');
   fixture.command = 'cat';
+  fixture.stderr = '';
+  fixture.exit = '';
   await writeFile(
     fixture.script,
     `
@@ -52,9 +62,14 @@ const { spawn } = require('node:child_process');
 const { appendFileSync } = require('node:fs');
 const args = process.argv.slice(2);
 appendFileSync(process.env.FAKE_HEARTBEAT + '.calls', process.env.RESTIC_REPOSITORY + ' ' + args.join(' ') + '\\n');
-if (process.env.RESTIC_REPOSITORY === 'cloud-fixture' && args.includes(process.env.FAKE_HANG_COMMAND)) {
+if (process.env.RESTIC_REPOSITORY === 'cloud-fixture' && args.includes(process.env.FAKE_HANG_COMMAND) && process.env.FAKE_EXIT) {
+  console.error('fictional-secret-must-not-appear');
+  console.error(process.env.FAKE_STDERR);
+  process.exitCode = Number(process.env.FAKE_EXIT);
+} else if (process.env.RESTIC_REPOSITORY === 'cloud-fixture' && args.includes(process.env.FAKE_HANG_COMMAND)) {
   spawn(process.execPath, ['-e', 'setInterval(() => require("node:fs").appendFileSync(process.env.FAKE_HEARTBEAT, "x"), 50)'], { stdio: 'inherit' });
   console.error('fictional-secret-must-not-appear');
+  if (process.env.FAKE_STDERR) console.error(process.env.FAKE_STDERR);
   setInterval(() => {}, 1000);
 } else if (args.includes('backup')) {
   console.log(JSON.stringify({ message_type: 'summary', snapshot_id: 'test-snapshot' }));
@@ -90,6 +105,26 @@ it.each(['cat', 'backup', 'forget', 'check', 'snapshots', 'restore', 'init'])(
   },
 );
 
+it('тайм-аут служебной команды называет причину из вывода rclone, но не сам вывод', async () => {
+  fixture.stderr = 'ERROR : read metadata failed: 401 Unauthorized: 401 Unauthorized';
+  const restic = await resticFor(env, { name: 'cloud', repository: 'cloud-fixture' });
+  const error = await restic(['cat', 'config']).catch((reason: unknown) => reason);
+  expect((error as Error).message).toBe(
+    'cloud timeout at cat after 1 s: HTTP 401: login or app password rejected',
+  );
+  expect((error as Error).message).not.toContain('fictional-secret');
+});
+
+it('сбой облака с кодом выхода: этап, код и причина HTTP', async () => {
+  fixture.stderr = 'Fatal: [410 - DiskResourceGoneError] Resource is no longer available';
+  fixture.exit = '1';
+  fixture.command = 'snapshots';
+  const restic = await resticFor(env, { name: 'cloud', repository: 'cloud-fixture' });
+  await expect(restic(['snapshots'])).rejects.toThrow(
+    'restic failed at snapshots (exit code 1): HTTP 410: Yandex Disk REST API is gone, use WebDAV',
+  );
+});
+
 it('skip не вызывает облако, но сохраняет локальную копию и явный статус', async () => {
   env.BACKUP_PRE_MIGRATION_CLOUD = 'skip';
   env.BACKUP_CLOUD_REPOSITORY = 'rclone:missing:fixture';
@@ -114,7 +149,10 @@ it('required: тайм-аут облака отклоняет копию пер�
   const result = await runBackup({ env, kind: 'pre-migration', log: silentLog });
   expect(result).toMatchObject({
     ok: false,
-    repos: { local: { ok: true }, cloud: { ok: false, error: 'cloud timeout' } },
+    repos: {
+      local: { ok: true },
+      cloud: { ok: false, error: expect.stringMatching(/^cloud timeout at cat after 1 s$/) },
+    },
   });
   expect(JSON.stringify(result)).not.toContain('fictional-secret');
 });

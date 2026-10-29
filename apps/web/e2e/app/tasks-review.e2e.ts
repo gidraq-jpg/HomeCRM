@@ -193,6 +193,13 @@ for (const view of ['all', 'card'] as const) {
       await expect
         .poll(async () => (await api.get(`tasks/${id}`)).body)
         .toMatchObject({ status: 'open', nextTaskId: null });
+      // Отмена удаляет на сервере следующий экземпляр серии (2 янв.), а лента «Все дела» узнаёт
+      // об этом из refetch после отмены. До него на экране две строки серии, и строгий локатор
+      // кнопки ниже ловил обе (D34). Ждём, пока лента сойдётся с сервером: одна строка серии.
+      if (view === 'all')
+        await expect(
+          page.getByRole('link', { name: 'Серия с медленным refetch', exact: true }),
+        ).toHaveCount(1);
       await expect(
         page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }),
       ).toBeEnabled();
