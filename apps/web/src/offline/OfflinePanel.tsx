@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { Notice, useAction, useOnline } from '../auth/components.tsx';
+import { formatMoment } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { ReadingCard } from '../meters/api.ts';
 import { Link } from '../shell/motion.tsx';
@@ -49,6 +50,7 @@ export function useQueue() {
   return { rows, snapTime };
 }
 export function OfflineBridge() {
+  const { me } = useHousehold();
   const { rows, snapTime } = useQueue();
   const online = useOnline();
   const client = useQueryClient();
@@ -97,8 +99,8 @@ export function OfflineBridge() {
     <div className="offline-status">
       {!online && snapTime ? (
         <span>
-          Последнее сохранение на устройстве: {new Date(snapTime).toLocaleString('ru-RU')}. Данные
-          могут измениться на сервере.
+          Последнее сохранение на устройстве: {formatMoment(new Date(snapTime), me.timeZone)}.
+          Данные могут измениться на сервере.
         </span>
       ) : null}
       {pending.length || !online ? (

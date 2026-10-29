@@ -33,6 +33,18 @@ export function rowSwipeDirection(
   return dx < 0 ? -1 : 1;
 }
 
+/** Доля ширины строки, после которой протяжка сразу выполняет действие. */
+export const ROW_ACTION_SHARE = 0.68;
+
+/** Палец за порогом действия: строка показывает, что отпускание выполнит действие. */
+export function rowSwipeArmed(distance: number, width: number) {
+  return width > 0 && Math.abs(distance) > width * ROW_ACTION_SHARE;
+}
+
+/**
+ * Итог жеста строки. Действие выполняет только длинная протяжка: случайный
+ * быстрый рывок лишь открывает кнопку, и её нужно нажать.
+ */
 export function rowSwipeResult(
   distance: number,
   width: number,
@@ -40,12 +52,11 @@ export function rowSwipeResult(
   travel = distance,
 ): 'close' | 'reveal' | 'action' {
   const length = Math.abs(distance);
-  // Резкий встречный жест закрывает открытую кнопку, а не нажимает её.
+  if (rowSwipeArmed(distance, width)) return 'action';
+  if (length > 56) return 'reveal';
+  // Короткий быстрый рывок к кнопке открывает её; встречный закрывает.
   const toward = Math.sign(travel) === Math.sign(distance);
-  if (
-    length > width * 0.5 ||
-    (toward && Math.abs(travel) > 56 && Math.abs(travel) / Math.max(1, elapsed) > 0.6)
-  )
-    return 'action';
-  return length > 56 ? 'reveal' : 'close';
+  return toward && Math.abs(travel) > 24 && Math.abs(travel) / Math.max(1, elapsed) > 0.6
+    ? 'reveal'
+    : 'close';
 }
