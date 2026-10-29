@@ -10,7 +10,9 @@ on:
 concurrency:
   # Явно запрошенные независимые прогоны не отменяют друг друга.
   group: ci-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'latest' }}
-  cancel-in-progress: true
+  # Прогон main не отменяется следующим push: иначе push документов сразу после слияния
+  # оставил бы слитый код без полной проверки (ADR-0019, 27 октября 2026).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
