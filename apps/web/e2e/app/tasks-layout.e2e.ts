@@ -27,6 +27,8 @@ async function check(page: Page, name: string) {
   await expectTouchTargets(page);
   await expectAccessible(page, name);
 }
+/** Видимый вариант общей шапки лент (D36: дата и приветствие «Сегодня» наверху). */
+const TODAY_HEADING = '.feed-heading__variant[data-feed-heading-active="true"]';
 async function openFeed(page: Page, view: 'today' | 'plan' | 'all') {
   await page.goto(view === 'today' ? '#/today' : `#/today/${view}`);
   await expect(page.getByRole('status', { name: 'Загружаем дела…', exact: true })).toHaveCount(0);
@@ -62,7 +64,7 @@ test('пустые ленты: исходный фокус, подписи и о
     }
     if (view === 'today') {
       await expect(page.getByRole('heading', { name: 'Что сегодня важнее всего?' })).toBeVisible();
-      await expect(page.locator('.today-hero__date')).toContainText(
+      await expect(page.locator(TODAY_HEADING).locator('.page-heading__eyebrow')).toContainText(
         formatLongDate(homeDate(0) as DateOnly),
       );
       await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
@@ -270,7 +272,10 @@ test('Studio: реальные показатели, пространство, �
   });
   await signInAs(page, family, 'adult');
   const metrics = page.getByRole('navigation', { name: 'Показатели на сегодня' });
-  await expect(page.locator('.today-hero__greeting')).toContainText(name);
+  await expect(page.locator(TODAY_HEADING).locator('.feed-heading__greeting')).toHaveText(
+    `Добрый день, ${name}`,
+  );
+  await expect(page.locator('.feed-overview')).not.toContainText('Добрый день');
   await expect(
     metrics.getByRole('link', { name: /объектов: Загружаем/ }).locator('.today-metric__skeleton'),
   ).toBeVisible();

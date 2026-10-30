@@ -23,8 +23,6 @@
   --danger: #9b332b;
   --danger-soft: #f7e3e0;
   --overlay: rgb(35 45 40 / 0.5);
-  --focus-dark: #111111;
-  --focus-light: #ffffff;
 
   --font-sans: Roboto, "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-serif: "Noto Serif", Georgia, "Times New Roman", serif;
@@ -39,14 +37,42 @@
   color-scheme: light;
 }
 
-/* Два контура: хотя бы один контрастирует 3:1 с любой светлой или тёмной поверхностью. */
+/* Одно спокойное кольцо с отступом. --focus-ring #b5532d контрастирует не меньше 3:1
+   и со светлыми листами (paper 3,9:1, surface 4,5:1), и с тёмным charcoal (3,5:1).
+   Тёмные контейнеры (шапка, нижняя панель, сообщения) задают светлый вариант. */
 :root[data-design="studio"][data-design]
 :is(:focus-visible, input:focus-visible + span, input:focus-visible + .choice__body) {
-  outline: 3px solid var(--focus-light);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-  box-shadow:
-    0 0 0 2px var(--focus-dark),
-    0 0 0 8px var(--focus-dark);
+}
+/* Текстовое поле показывает фокус своей рамкой: 2 px цвета акцента, без внешнего кольца. */
+:root[data-design="studio"][data-design]
+:is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="button"],
+    [type="submit"],
+    [type="reset"],
+    [type="file"],
+    [type="color"],
+    [type="image"]
+  ),
+  textarea,
+  select
+):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+/* Фокус, поставленный после касания (например, вкладка после свайпа), не рисует кольцо.
+   Атрибут снимается при первой клавише: клавиатура снова видит кольцо. */
+:root[data-design="studio"][data-design] [data-touch-focus][data-touch-focus]:focus-visible {
+  outline: none;
+}
+/* Полоса вкладок прокручивается и обрезает внешний контур: кольцо рисуется внутри ссылки. */
+:root[data-design="studio"][data-design] .tabs a.tabs__link:focus-visible {
+  outline-offset: -2px;
 }
 
 /* Studio включается только рабочим entry. Прототип 0.5 сохраняет токены выше. */
@@ -63,6 +89,7 @@
   --accent: #a8492b;
   --accent-strong: #8a3a21;
   --accent-on-dark: #ec8a62;
+  --focus-ring: #b5532d;
   --on-dark: #eee9df;
   --muted-on-dark: #cfc7ba;
   --green: var(--accent-strong);

@@ -8,6 +8,23 @@ import { motionTime, reducedMotion } from '../ui/motion.ts';
 import { rowSwipeDirection, type SwipePoint, swipeDirection } from './swipe.ts';
 import '../styles/studio2-lists.css';
 
+/**
+ * Фокус после жеста пальцем: вкладка получает фокус для экранного диктора и клавиатуры,
+ * но Chromium считает программный фокус «клавиатурным» и рисует кольцо. Атрибут
+ * `data-touch-focus` гасит кольцо (tokens.css) до первой клавиши или ухода фокуса.
+ */
+export function focusAfterTouch(element: HTMLElement) {
+  element.setAttribute('data-touch-focus', '');
+  const clear = () => {
+    element.removeAttribute('data-touch-focus');
+    element.removeEventListener('blur', clear);
+    document.removeEventListener('keydown', clear, true);
+  };
+  element.addEventListener('blur', clear);
+  document.addEventListener('keydown', clear, true);
+  element.focus({ preventScroll: true, focusVisible: false });
+}
+
 /** Одна строка вкладок и доступный «+» на всех лентах Studio 2. */
 export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -292,7 +309,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
       if (!active) return;
       const main = document.getElementById('main');
       if (main?.dataset.taskSwipeTarget === active.getAttribute('href')) {
-        active.focus({ preventScroll: true });
+        focusAfterTouch(active);
         delete main.dataset.taskSwipeTarget;
       }
       const target = active.getBoundingClientRect();

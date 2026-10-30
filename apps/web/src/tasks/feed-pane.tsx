@@ -6,6 +6,10 @@ export interface FeedSummary {
   detail: string;
   ready: boolean;
   house?: string | null;
+  /** Верхняя строка общей шапки; без неё — «Дела дома и ваши личные». */
+  eyebrow?: string;
+  /** Приветствие между верхней строкой и сводкой (только «Сегодня»). */
+  greeting?: string;
 }
 export const FeedPane = createContext<{
   index: number;
@@ -19,13 +23,24 @@ export function useFeedSummary(
   detail: string,
   ready: boolean,
   house?: string | null,
+  heading?: { eyebrow?: string; greeting?: string },
 ) {
   const pane = useFeedPane();
   const index = pane?.index;
   const report = pane?.report;
+  const eyebrow = heading?.eyebrow;
+  const greeting = heading?.greeting;
   useLayoutEffect(() => {
-    if (index !== undefined) report?.(index, { count, detail, ready, house });
-  }, [count, detail, ready, house, index, report]);
+    if (index !== undefined)
+      report?.(index, {
+        count,
+        detail,
+        ready,
+        house,
+        ...(eyebrow !== undefined ? { eyebrow } : {}),
+        ...(greeting !== undefined ? { greeting } : {}),
+      });
+  }, [count, detail, ready, house, eyebrow, greeting, index, report]);
 }
 
 /** Шапка и название документа принадлежат активной карусели, а не скрытым соседям. */
