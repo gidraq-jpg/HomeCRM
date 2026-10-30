@@ -2,6 +2,7 @@ import type { Icon } from '@phosphor-icons/react';
 import { useLocation } from 'react-router';
 import { Link } from './motion.tsx';
 import { isStudio } from './studio.ts';
+import { useSectionNav } from './useSectionNav.ts';
 
 export interface ShellSection {
   to: string;
@@ -29,22 +30,27 @@ export function sectionActive(to: string, pathname: string, search = '', state?:
 /** Нижнее меню из пяти пунктов — PRD, раздел 14. Текущий раздел отмечен `aria-current`. */
 export function BottomNav({ sections }: { sections: readonly ShellSection[] }) {
   const { pathname, search, state } = useLocation();
+  const { nav, choose } = useSectionNav();
   return (
-    <nav className="bottom-nav" aria-label="Основные разделы">
+    <nav ref={nav} className="bottom-nav" aria-label="Основные разделы">
       <ul className="bottom-nav__list">
+        {isStudio() ? <li className="section-indicator" aria-hidden hidden /> : null}
         {sections.map(({ to, label, icon: SectionIcon }) => (
           <li key={to}>
             <Link
               to={to}
+              onClick={(event) => choose(event, to, sectionActive(to, pathname, search, state))}
               className="bottom-nav__link"
               aria-label={isStudio() && label === 'Документы' ? label : undefined}
               aria-current={sectionActive(to, pathname, search, state) ? 'page' : undefined}
             >
-              <SectionIcon
-                size={25}
-                weight={sectionActive(to, pathname, search, state) ? 'fill' : 'regular'}
-                aria-hidden
-              />
+              <span className="section-icon">
+                <SectionIcon
+                  size={25}
+                  weight={sectionActive(to, pathname, search, state) ? 'fill' : 'regular'}
+                  aria-hidden
+                />
+              </span>
               <span className="bottom-nav__label">
                 {isStudio() && label === 'Документы' ? 'Док.' : label}
               </span>
