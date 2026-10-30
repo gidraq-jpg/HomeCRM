@@ -38,7 +38,7 @@ import { queuedStatus } from './queued-status.ts';
 import { STATUS_LABELS } from './TaskForm.tsx';
 import { TaskRows } from './TaskRows.tsx';
 import { TaskTabs } from './TaskTabs.tsx';
-import { TodayHero } from './TodayHero.tsx';
+import { TodayHero, useTodayGreeting } from './TodayHero.tsx';
 import { useFeedActions } from './useFeedActions.ts';
 import './today.css';
 
@@ -167,6 +167,7 @@ function TodayFeed({ house }: { house: string | null }) {
   const settings = useSettings();
   const loadingFeed = query.isPending || settings.isPending;
   const count = query.data && !query.error ? query.data.tasks.length : undefined;
+  const greeting = useTodayGreeting(query.data, query.error, house);
   useFeedSummary(
     count,
     query.error
@@ -175,6 +176,8 @@ function TodayFeed({ house }: { house: string | null }) {
         ? 'Загружаем…'
         : plural(count, ['дело', 'дела', 'дел']),
     !loadingFeed,
+    undefined,
+    { eyebrow: greeting.date, greeting: `Добрый день, ${greeting.name}` },
   );
   const showMain = settings.data?.todayMainEnabled === true;
   const actions = useFeedActions<TaskCard>((card) => {

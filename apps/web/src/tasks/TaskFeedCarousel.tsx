@@ -64,16 +64,38 @@ export function TaskFeedCarousel() {
         heading={
           <div className="feed-heading">
             <h1 className="visually-hidden">{labels[active]}</h1>
-            <p className="page-heading__eyebrow">Дела дома и ваши личные</p>
-            <p className="feed-heading__summary">
-              {labels[active]}:{' '}
-              {summary?.count !== undefined ? (
-                <>
-                  <RollingNumber value={summary.count} />{' '}
-                </>
-              ) : null}
-              {summary?.detail ?? 'Загружаем…'}
-            </p>
+            {/* Шапки всех лент лежат в одной ячейке сетки: высота равна самой высокой,
+                поэтому вкладки не прыгают при свайпе (D32) при любом размере текста. */}
+            <div className="feed-heading__stack">
+              {labels.map((label, index) => {
+                const own = summaries[index];
+                const current = index === active;
+                return (
+                  <div
+                    key={label}
+                    className="feed-heading__variant"
+                    data-feed-heading-active={current}
+                    aria-hidden={!current || undefined}
+                  >
+                    <p className="page-heading__eyebrow">
+                      {own?.eyebrow ?? 'Дела дома и ваши личные'}
+                    </p>
+                    {own?.greeting ? (
+                      <p className="feed-heading__greeting">{own.greeting}</p>
+                    ) : null}
+                    <p className="feed-heading__summary">
+                      {label}:{' '}
+                      {own?.count !== undefined ? (
+                        <>
+                          <RollingNumber value={own.count} />{' '}
+                        </>
+                      ) : null}
+                      {own?.detail ?? 'Загружаем…'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         }
       >

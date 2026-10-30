@@ -105,8 +105,9 @@ html[data-design="studio"] .today-metric__status {
 html[data-design="studio"] .today-metric:hover .today-metric__label {
   color: var(--on-dark);
 }
-html[data-design="studio"] .today-metric:focus-visible {
-  outline-color: var(--accent-on-dark);
+/* Тёмный верх отдельной страницы «Сегодня»; в карусели показатели лежат на светлом листе. */
+html[data-design="studio"] .today-page .today-hero {
+  --focus-ring: var(--accent-on-dark);
 }
 html[data-design="studio"] .today-panel {
   position: relative;

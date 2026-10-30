@@ -13,6 +13,29 @@ import type { Today } from './api.ts';
 import { uniqueTasks } from './queries.ts';
 import { metricValue, nearbyDeadlineCount, todayTaskCount } from './today.ts';
 
+/** Дата дома («Четверг, 29 октября») и имя для приветствия на «Сегодня». */
+export function useTodayGreeting(data: Today | undefined, error: unknown, house: string | null) {
+  const { me, householdId } = useHousehold();
+  const profile = useMyProfile();
+  const date = data
+    ? todayIn(data.timeZone)
+    : !house || house === householdId
+      ? todayIn(me.timeZone)
+      : undefined;
+  return {
+    date: date
+      ? `${weekdayName(date)}, ${formatLongDate(date)}`
+      : error
+        ? 'Не удалось загрузить дату дома'
+        : 'Загружаем дату дома…',
+    name: profile.data?.displayName.trim() || me.displayName,
+  };
+}
+
+/**
+ * Показатели «Сегодня». В карусели (`embedded`) дата и приветствие живут в общей шапке,
+ * поэтому здесь остаются только показатели и подсказки.
+ */
 export function TodayHero({
   data,
   error,
@@ -24,15 +47,9 @@ export function TodayHero({
   house: string | null;
   embedded?: boolean;
 }) {
-  const { me, householdId } = useHousehold();
+  const { householdId } = useHousehold();
   const { scope } = useScope();
-  const profile = useMyProfile();
-  const date = data
-    ? todayIn(data.timeZone)
-    : !house || house === householdId
-      ? todayIn(me.timeZone)
-      : undefined;
-  const name = profile.data?.displayName.trim() || me.displayName;
+  const greeting = useTodayGreeting(data, error, house);
   const radar = useRadar({
     filters: {
       scope: listScopeOf(scope),
@@ -113,17 +130,15 @@ export function TodayHero({
     : undefined;
   return (
     <div className="today-hero">
-      {!embedded ? <h1 className="visually-hidden">Сегодня</h1> : null}
-      <p className="page-heading__eyebrow today-hero__date">
-        {date
-          ? `${weekdayName(date)}, ${formatLongDate(date)}`
-          : error
-            ? 'Не удалось загрузить дату дома'
-            : 'Загружаем дату дома…'}
-      </p>
+      {!embedded ? (
+        <>
+          <h1 className="visually-hidden">Сегодня</h1>
+          <p className="page-heading__eyebrow today-hero__date">{greeting.date}</p>
+        </>
+      ) : null}
       <nav className="today-metrics" aria-label="Показатели на сегодня">
         <p className="today-hero__greeting">
-          Добрый день, {name}. Сегодня{' '}
+          {embedded ? 'Сегодня' : `Добрый день, ${greeting.name}. Сегодня`}{' '}
           {metrics.map((metric, index) => (
             <span key={metric.key}>
               <Link

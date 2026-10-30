@@ -269,23 +269,19 @@ async function checkFocus(page: Page, target: Locator) {
     while (parent && getComputedStyle(parent).backgroundColor === 'rgba(0, 0, 0, 0)')
       parent = parent.parentElement;
     const background = parent ? getComputedStyle(parent).backgroundColor : 'rgb(255, 255, 255)';
-    const light = style.getPropertyValue('--focus-light').trim();
     return {
-      outline: style.outlineColor,
+      style: style.outlineStyle,
       shadow: style.boxShadow,
       width: style.outlineWidth,
       visible: element.matches(':focus-visible'),
-      contrast: Math.max(
-        contrast(style.outlineColor, background),
-        contrast('rgb(17, 17, 17)', background),
-      ),
-      light,
+      contrast: contrast(style.outlineColor, background),
     };
   });
+  // D36: одно кольцо 2 px из --focus-ring без второй тени; само кольцо — не меньше 3:1 к фону.
   expect(colors.visible).toBe(true);
-  expect(colors.outline).toBe('rgb(255, 255, 255)');
-  expect(colors.shadow).toContain('rgb(17, 17, 17)');
-  expect(colors.width).toBe('3px');
+  expect(colors.style).toBe('solid');
+  expect(colors.shadow).not.toContain('0px 0px 0px 8px');
+  expect(colors.width).toBe('2px');
   expect(colors.contrast).toBeGreaterThanOrEqual(3);
 }
 
