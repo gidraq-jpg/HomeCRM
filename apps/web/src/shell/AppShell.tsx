@@ -43,7 +43,10 @@ export function AppShell({
   const app = useRef<HTMLDivElement>(null);
   useEffect(() => {
     window.addEventListener('popstate', cancelMotionNavigation);
-    return () => window.removeEventListener('popstate', cancelMotionNavigation);
+    return () => {
+      window.removeEventListener('popstate', cancelMotionNavigation);
+      cancelMotionNavigation();
+    };
   }, []);
   useEffect(() => {
     const element = chrome.current;

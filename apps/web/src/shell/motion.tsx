@@ -31,8 +31,67 @@ export function motionDirection(from: string, to: string): 'forward' | 'back' | 
 let current: ViewTransition | undefined;
 let epoch = 0;
 let historyUpdate: (() => void) | undefined;
+let dockCleanup: (() => void) | undefined;
+
+/** Панель остаётся живой: D30 не снимает её вместе с экраном раздела. */
+export function changeDockScreen(button: DOMRect, update: () => void) {
+  cancelMotionNavigation();
+  const main = document.querySelector<HTMLElement>('.main');
+  if (!main?.animate) return update();
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rect = main.getBoundingClientRect();
+  const old = main.cloneNode(true) as HTMLElement;
+  old.classList.remove('main');
+  old.removeAttribute('id');
+  for (const child of old.querySelectorAll('[id]')) child.removeAttribute('id');
+  old.inert = true;
+  old.setAttribute('aria-hidden', 'true');
+  old.dataset.dockGhost = '';
+  Object.assign(old.style, {
+    position: 'fixed',
+    left: `${rect.left}px`,
+    top: `${rect.top}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    margin: '0',
+    pointerEvents: 'none',
+    overflow: 'hidden',
+    zIndex: '1',
+    viewTransitionName: 'none',
+  });
+  main.after(old);
+  flushSync(update);
+  const next = main.getBoundingClientRect();
+  const ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim();
+  const origin = `${button.left + button.width / 2 - next.left}px ${button.top - next.top}px`;
+  const animations = [
+    old.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: reduce ? 120 : 200,
+      fill: 'forwards',
+    }),
+    main.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduce ? 120 : 320, easing: ease }),
+  ];
+  if (!reduce)
+    animations.push(
+      main.animate(
+        [
+          { transform: 'scale(0.88)', transformOrigin: origin },
+          { transform: 'scale(1)', transformOrigin: origin },
+        ],
+        { duration: 450, easing: ease },
+      ),
+    );
+  const cleanup = () => {
+    for (const animation of animations) animation.cancel();
+    old.remove();
+    if (dockCleanup === cleanup) dockCleanup = undefined;
+  };
+  dockCleanup = cleanup;
+  void Promise.all(animations.map((animation) => animation.finished)).then(cleanup, cleanup);
+}
 /** Возврат по истории не должен быть затёрт ещё не снявшим снимок переходом. */
 export function cancelMotionNavigation() {
+  dockCleanup?.();
   // HashRouter уже обработал наш popstate; завершаем снимок нового экрана.
   if (historyUpdate) {
     const finish = historyUpdate;
@@ -57,6 +116,7 @@ export function changeScreenWithMotion(
   direction: 'forward' | 'back' | null,
   update: () => void | Promise<void>,
 ) {
+  dockCleanup?.();
   if (
     document.documentElement.dataset.design !== 'studio' ||
     !document.startViewTransition ||
