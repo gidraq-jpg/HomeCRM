@@ -114,7 +114,7 @@ test.describe('D38: окно раскрытия', () => {
 
     const row = await open();
     const first = await frame(0);
-    expect(first.duration).toBe('0.48s');
+    expect(first.duration).toBe('0.52s');
     expect(first.transform).toBe('none');
     expect(first.opacity).toBeLessThan(0.05);
     const [top, right, bottom, left] = insets(first.clip);
@@ -130,7 +130,7 @@ test.describe('D38: окно раскрытия', () => {
     expect(middle.oldOpacity).toBeGreaterThan(0.3);
     const [midTop] = insets(middle.clip);
     expect(midTop).toBeLessThan(top);
-    const last = await frame(479);
+    const last = await frame(519);
     expect(last.transform).toBe('none');
     expect(insets(last.clip).every((value) => value < 2)).toBe(true);
     // Данные карточки приходят во время раскрытия и не обрывают его.
@@ -141,8 +141,8 @@ test.describe('D38: окно раскрытия', () => {
 
     if (screens)
       for (const [name, time] of [
-        ['card-start-w360', 40],
-        ['card-middle-w360', 110],
+        ['card-start-w360', 130],
+        ['card-middle-w360', 260],
       ] as const) {
         // Системный «Назад» не перехватывается: список возвращается без перехода.
         await page.goBack();

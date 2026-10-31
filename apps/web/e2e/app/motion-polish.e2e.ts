@@ -146,7 +146,7 @@ for (const reduce of [false, true])
       expect(motion.direction).toBe('forward');
       expect(motion.next).toBe(reduce ? 'motion-fade-in' : 'motion-card-in');
       // D38: строка раскрывается окном за --motion-card.
-      expect(motion.duration).toBe(reduce ? '0.16s' : '0.48s');
+      expect(motion.duration).toBe(reduce ? '0.16s' : '0.52s');
       expect(motion.dock).toBe('none');
       expect(motion.header).toBe('none');
       if (!reduce) {

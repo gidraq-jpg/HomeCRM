@@ -461,16 +461,16 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     animation: motion-screen-back-out var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-card="forward"][data-motion-direction]::view-transition-new(screen) {
-    animation: motion-card-in var(--motion-card) var(--ease-sheet) both;
+    animation: motion-card-in var(--motion-card) var(--ease-card) both;
   }
   html[data-motion-card="forward"][data-motion-direction]::view-transition-old(screen) {
-    animation: motion-card-under-out var(--motion-card) var(--ease-sheet) both;
+    animation: motion-card-under-out var(--motion-card) var(--ease-card) both;
   }
   html[data-motion-card="back"][data-motion-direction]::view-transition-old(screen) {
-    animation: motion-card-out var(--motion-card) var(--ease-sheet) both;
+    animation: motion-card-out var(--motion-card) var(--ease-card) both;
   }
   html[data-motion-card="back"][data-motion-direction]::view-transition-new(screen) {
-    animation: motion-card-under-in var(--motion-card) var(--ease-sheet) both;
+    animation: motion-card-under-in var(--motion-card) var(--ease-card) both;
   }
   .sheet:not(.sheet--full) {
     transition: transform var(--motion-sheet) var(--ease-sheet);

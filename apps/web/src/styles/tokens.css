@@ -5,10 +5,11 @@
   --motion-base: 240ms;
   --motion-screen: 400ms;
   --motion-fly: 560ms;
-  --motion-card: 480ms;
+  --motion-card: 520ms;
   --motion-sheet: 420ms;
   --ease-out: cubic-bezier(0.22, 0.8, 0.24, 1);
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-card: cubic-bezier(0.4, 0, 0.2, 1);
   --paper: #f7f7f2;
   --surface: #ffffff;
   --ink: #232d28;
