@@ -12,6 +12,17 @@ import {
   useNavigate as useRouterNavigate,
 } from 'react-router';
 
+import { motionTime } from '../ui/motion.ts';
+import {
+  type CardOrigin,
+  cardOrigins,
+  currentCardOrigin,
+  originLink,
+  originTitle,
+  requestPosition,
+  saveCurrentPosition,
+} from './navigation-position.ts';
+
 const feeds = new Set(['/today', '/today/plan', '/today/all', '/more/shopping']);
 const sections = new Set(['/today', '/home', '/documents', '/people', '/more']);
 
@@ -32,16 +43,17 @@ let current: ViewTransition | undefined;
 let epoch = 0;
 let historyUpdate: (() => void) | undefined;
 let dockCleanup: (() => void) | undefined;
+let cardTitleCleanup: (() => void) | undefined;
 
 /** Панель остаётся живой: D30 не снимает её вместе с экраном раздела. */
 export function changeDockScreen(button: DOMRect, update: () => void) {
+  saveCurrentPosition();
   cancelMotionNavigation();
   const main = document.querySelector<HTMLElement>('.main');
   if (!main?.animate) return update();
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const rect = main.getBoundingClientRect();
   const old = main.cloneNode(true) as HTMLElement;
-  old.classList.remove('main');
   old.removeAttribute('id');
   for (const child of old.querySelectorAll('[id]')) child.removeAttribute('id');
   old.inert = true;
@@ -63,34 +75,63 @@ export function changeDockScreen(button: DOMRect, update: () => void) {
   flushSync(update);
   const next = main.getBoundingClientRect();
   const ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim();
-  const origin = `${button.left + button.width / 2 - next.left}px ${button.top - next.top}px`;
+  const originalStyle = main.getAttribute('style');
+  Object.assign(main.style, {
+    position: 'relative',
+    zIndex: '2',
+    background: 'var(--paper)',
+    borderRadius: '32px',
+    overflow: 'clip',
+    boxShadow: '0 12px 40px rgb(0 0 0 / 24%)',
+  });
+  const growth = `translate(${button.left - next.left}px, ${button.top - next.top}px) scale(${button.width / next.width}, ${button.height / next.height})`;
+  const children = [...main.children].filter(
+    (child): child is HTMLElement => child instanceof HTMLElement,
+  );
   const animations = [
     old.animate([{ opacity: 1 }, { opacity: 0 }], {
       duration: reduce ? 120 : 200,
       fill: 'forwards',
     }),
-    main.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduce ? 120 : 320, easing: ease }),
+    ...(reduce
+      ? [
+          main.animate([{ opacity: 0 }, { opacity: 1 }], {
+            duration: motionTime('fast'),
+            easing: ease,
+          }),
+        ]
+      : children.map((child) =>
+          child.animate([{ opacity: 0 }, { opacity: 1 }], {
+            duration: motionTime('fast'),
+            delay: motionTime('screen') - motionTime('fast'),
+            easing: ease,
+            fill: 'backwards',
+          }),
+        )),
   ];
   if (!reduce)
     animations.push(
       main.animate(
         [
-          { transform: 'scale(0.88)', transformOrigin: origin },
-          { transform: 'scale(1)', transformOrigin: origin },
+          { transform: growth, transformOrigin: '0 0' },
+          { transform: 'translate(0px, 0px) scale(1, 1)', transformOrigin: '0 0' },
         ],
-        { duration: 450, easing: ease },
+        { duration: motionTime('screen'), easing: ease },
       ),
     );
   const cleanup = () => {
     for (const animation of animations) animation.cancel();
     old.remove();
+    if (originalStyle === null) main.removeAttribute('style');
+    else main.setAttribute('style', originalStyle);
     if (dockCleanup === cleanup) dockCleanup = undefined;
   };
   dockCleanup = cleanup;
-  void Promise.all(animations.map((animation) => animation.finished)).then(cleanup, cleanup);
+  void animations.at(-1)?.finished.then(cleanup, cleanup);
 }
 /** Возврат по истории не должен быть затёрт ещё не снявшим снимок переходом. */
 export function cancelMotionNavigation() {
+  cardTitleCleanup?.();
   dockCleanup?.();
   // HashRouter уже обработал наш popstate; завершаем снимок нового экрана.
   if (historyUpdate) {
@@ -103,6 +144,7 @@ export function cancelMotionNavigation() {
   epoch++;
   current?.skipTransition();
   current = undefined;
+  delete document.documentElement.dataset.motionCard;
   delete document.documentElement.dataset.motionDirection;
   delete document.documentElement.dataset.motionHeader;
   delete document.documentElement.dataset.motionFeed;
@@ -115,7 +157,10 @@ export function navigateWithMotion(from: string, to: string, navigate: () => voi
 export function changeScreenWithMotion(
   direction: 'forward' | 'back' | null,
   update: () => void | Promise<void>,
+  card?: CardOrigin,
 ) {
+  saveCurrentPosition();
+  cardTitleCleanup?.();
   dockCleanup?.();
   if (
     document.documentElement.dataset.design !== 'studio' ||
@@ -128,7 +173,22 @@ export function changeScreenWithMotion(
   }
   current?.skipTransition();
   const activeEpoch = ++epoch;
+  const titles: { node: HTMLElement; name: string }[] = [];
+  const nameTitle = (node: HTMLElement | null | undefined) => {
+    if (!node) return;
+    titles.push({ node, name: node.style.viewTransitionName });
+    node.style.viewTransitionName = 'card-title';
+  };
+  const clearTitles = () => {
+    for (const { node, name } of titles) node.style.viewTransitionName = name;
+    if (cardTitleCleanup === clearTitles) cardTitleCleanup = undefined;
+  };
+  if (card) {
+    nameTitle(direction === 'forward' ? originTitle(card) : document.querySelector('.main h1'));
+    cardTitleCleanup = clearTitles;
+  }
   document.documentElement.dataset.motionDirection = direction;
+  const oldRect = card ? document.querySelector('.main')?.getBoundingClientRect() : undefined;
   const header = document.querySelector?.('.topbar');
   const before = header ? `${(header as HTMLElement).offsetHeight}:${header.innerHTML}` : '';
   const transition = document.startViewTransition(() => {
@@ -136,6 +196,22 @@ export function changeScreenWithMotion(
     try {
       const result = flushSync(update);
       const compareHeader = () => {
+        if (card) {
+          nameTitle(direction === 'back' ? originTitle(card) : document.querySelector('.main h1'));
+          const screen =
+            direction === 'back'
+              ? oldRect
+              : document.querySelector('.main')?.getBoundingClientRect();
+          const source =
+            direction === 'back' ? originLink(card)?.getBoundingClientRect() : card.rect;
+          if (screen?.width && screen.height && source?.width && source.height) {
+            document.documentElement.dataset.motionCard = direction ?? undefined;
+            document.documentElement.style.setProperty(
+              '--card-transform',
+              `translate(${source.left - screen.left}px, ${source.top - screen.top}px) scale(${source.width / screen.width}, ${source.height / screen.height})`,
+            );
+          }
+        }
         const after = header ? `${(header as HTMLElement).offsetHeight}:${header.innerHTML}` : '';
         if (before !== after) document.documentElement.dataset.motionHeader = 'changed';
       };
@@ -150,8 +226,10 @@ export function changeScreenWithMotion(
   // Отмена или несостоявшийся снимок меняют только рисунок; ошибка обновления сообщается выше.
   void transition.ready?.catch(() => {});
   const clear = () => {
+    if (cardTitleCleanup === clearTitles) clearTitles();
     if (current !== transition) return;
     current = undefined;
+    delete document.documentElement.dataset.motionCard;
     delete document.documentElement.dataset.motionDirection;
     delete document.documentElement.dataset.motionHeader;
     delete document.documentElement.dataset.motionFeed;
@@ -226,6 +304,7 @@ export function navigateHistoryWithMotion(delta: number, navigate: NavigateFunct
         historyUpdate = resolve;
         void navigate(delta);
       }),
+    delta === -1 ? currentCardOrigin() : undefined,
   );
 }
 
@@ -274,21 +353,41 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
         if (
           document.documentElement.dataset.design !== 'studio' ||
           !direction ||
-          event.currentTarget.closest('.tabs, .bottom-nav, .side-nav') ||
-          !document.startViewTransition
+          event.currentTarget.closest('.tabs, .bottom-nav, .side-nav')
         ) {
           cancelMotionNavigation();
           return;
         }
         event.preventDefault();
-        changeScreenWithMotion(direction, () => {
-          void navigate(props.to, {
-            replace: props.replace,
-            state: props.state,
-            relative: props.relative,
-            preventScrollReset: props.preventScrollReset,
-          });
-        });
+        const returning = currentCardOrigin();
+        const row = event.currentTarget.closest<HTMLElement>(
+          '.row, .task-row, .plan-row, .notes-pinned__card',
+        );
+        const card: CardOrigin | undefined =
+          direction === 'forward' && row && !/\/(new|edit|invite)$/.test(to.pathname)
+            ? {
+                parentKey: from.key,
+                parentPath: from.pathname,
+                href: event.currentTarget.getAttribute('href') ?? '',
+                rect: row.getBoundingClientRect(),
+              }
+            : direction === 'back' && returning?.parentPath === to.pathname
+              ? returning
+              : undefined;
+        changeScreenWithMotion(
+          direction,
+          () => {
+            if (direction === 'back' && card) requestPosition(card.parentKey);
+            void navigate(props.to, {
+              replace: props.replace,
+              state: props.state,
+              relative: props.relative,
+              preventScrollReset: props.preventScrollReset,
+            });
+            if (direction === 'forward' && card) cardOrigins.set(window.history.state.key, card);
+          },
+          card,
+        );
       }}
     />
   );

@@ -12,6 +12,7 @@ import { sectionAdd } from './section-add.ts';
 import { isStudio } from './studio.ts';
 import { TopBar } from './TopBar.tsx';
 import { useKeyboardAttribute } from './useKeyboardAttribute.ts';
+import { useNavigationPosition } from './useNavigationPosition.ts';
 
 interface AppShellProps {
   sections: readonly ShellSection[];
@@ -73,11 +74,7 @@ export function AppShell({
   };
   useKeyboardAttribute();
 
-  // Новый экран открывается сверху, как после перехода по ссылке.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: прокрутка зависит от адреса, а не от значения внутри эффекта
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
+  useNavigationPosition();
 
   return (
     <AddActionContext.Provider value={add}>

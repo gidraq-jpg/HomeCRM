@@ -57,7 +57,9 @@ export function useSectionNav() {
       return;
     }
     selected.current = to;
-    const button = event.currentTarget.getBoundingClientRect();
+    const button = (
+      event.currentTarget.querySelector('.section-icon') ?? event.currentTarget
+    ).getBoundingClientRect();
     const icon = event.currentTarget.querySelector('.section-icon');
     if (!reduce && icon) {
       for (const animation of icon.getAnimations()) animation.cancel();
