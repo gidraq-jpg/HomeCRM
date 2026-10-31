@@ -14,6 +14,7 @@
 }
 :root[data-design="studio"] .side-nav {
   view-transition-name: sidebar;
+  z-index: 3;
 }
 :root[data-design="studio"] .topbar {
   view-transition-name: header;
@@ -57,6 +58,17 @@ html[data-motion-feed] {
 ::view-transition-group(page-heading) {
   animation: none;
   z-index: 2;
+}
+::view-transition-group(card-title) {
+  animation-duration: var(--motion-screen);
+  animation-timing-function: var(--ease-out);
+  z-index: 3;
+}
+::view-transition-old(card-title) {
+  animation: motion-fade-out var(--motion-fast) var(--ease-out) both;
+}
+::view-transition-new(card-title) {
+  animation: motion-fade-in var(--motion-fast) var(--ease-out) both;
 }
 ::view-transition-old(page-heading) {
   animation: motion-fade-out var(--motion-fast) var(--ease-out) both;
@@ -301,6 +313,26 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     transform: translateX(0);
   }
 }
+@keyframes motion-card-in {
+  from {
+    transform: var(--card-transform);
+    opacity: 0.25;
+  }
+  to {
+    transform: translate(0, 0) scale(1, 1);
+    opacity: 1;
+  }
+}
+@keyframes motion-card-out {
+  from {
+    transform: translate(0, 0) scale(1, 1);
+    opacity: 1;
+  }
+  to {
+    transform: var(--card-transform);
+    opacity: 0;
+  }
+}
 @keyframes motion-screen-out {
   from {
     transform: translateX(0);
@@ -405,6 +437,22 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
   html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(screen) {
     animation: motion-screen-back-out var(--motion-screen) var(--ease-out) both;
   }
+  html[data-motion-card][data-motion-direction]::view-transition-new(screen),
+  html[data-motion-card][data-motion-direction]::view-transition-old(screen) {
+    transform-origin: 0 0;
+  }
+  html[data-motion-card="forward"][data-motion-direction]::view-transition-new(screen) {
+    animation: motion-card-in var(--motion-screen) var(--ease-out) both;
+  }
+  html[data-motion-card="forward"][data-motion-direction]::view-transition-old(screen) {
+    animation: motion-fade-out var(--motion-screen) var(--ease-out) both;
+  }
+  html[data-motion-card="back"][data-motion-direction]::view-transition-old(screen) {
+    animation: motion-card-out var(--motion-screen) var(--ease-out) both;
+  }
+  html[data-motion-card="back"][data-motion-direction]::view-transition-new(screen) {
+    animation: motion-fade-in var(--motion-screen) var(--ease-out) both;
+  }
   .sheet:not(.sheet--full) {
     transition: transform var(--motion-sheet) var(--ease-sheet);
   }
@@ -430,6 +478,9 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(card-title) {
+    animation: none;
+  }
   .swipe-task__actions {
     position: static;
   }

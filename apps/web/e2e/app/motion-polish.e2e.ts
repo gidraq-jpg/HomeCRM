@@ -144,7 +144,7 @@ for (const reduce of [false, true])
       await settle(page);
       let motion = await observed(page);
       expect(motion.direction).toBe('forward');
-      expect(motion.next).toBe(reduce ? 'motion-fade-in' : 'motion-screen-in');
+      expect(motion.next).toBe(reduce ? 'motion-fade-in' : 'motion-card-in');
       expect(motion.duration).toBe(reduce ? '0.16s' : '0.4s');
       expect(motion.dock).toBe('none');
       expect(motion.header).toBe('none');
@@ -166,7 +166,7 @@ for (const reduce of [false, true])
       await page.locator('.back-link').first().click();
       await expect(page.getByRole('heading', { name: 'Сегодня', exact: true })).toBeVisible();
       await settle(page);
-      expect((await observed(page)).next).toBe(reduce ? 'motion-fade-in' : 'motion-screen-back-in');
+      expect((await observed(page)).next).toBe('motion-fade-in');
       expect(await page.locator('.chrome').boundingBox()).toEqual(dock);
       // Прямой системный popstate не перехватывается и сохраняет штатную историю.
       await page.getByRole('link', { name: 'Вымышленный переход D30', exact: true }).click();

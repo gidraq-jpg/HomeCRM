@@ -62,8 +62,9 @@ for (const reduce of [false, true]) {
           '0s',
         );
       } else {
-        expect(JSON.stringify(frames)).toContain('scale(0.88)');
-        expect(JSON.stringify(frames)).toContain('450');
+        expect(JSON.stringify(frames)).not.toContain('scale(0.88)');
+        expect(JSON.stringify(frames)).toContain('scale(1, 1)');
+        expect(JSON.stringify(frames)).toContain('400');
         expect(await indicator.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe(
           '0.42s',
         );
