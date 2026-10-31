@@ -145,7 +145,8 @@ for (const reduce of [false, true])
       let motion = await observed(page);
       expect(motion.direction).toBe('forward');
       expect(motion.next).toBe(reduce ? 'motion-fade-in' : 'motion-card-in');
-      expect(motion.duration).toBe(reduce ? '0.16s' : '0.4s');
+      // D38: строка раскрывается окном за --motion-card.
+      expect(motion.duration).toBe(reduce ? '0.16s' : '0.48s');
       expect(motion.dock).toBe('none');
       expect(motion.header).toBe('none');
       if (!reduce) {
@@ -166,7 +167,8 @@ for (const reduce of [false, true])
       await page.locator('.back-link').first().click();
       await expect(page.getByRole('heading', { name: 'Сегодня', exact: true })).toBeVisible();
       await settle(page);
-      expect((await observed(page)).next).toBe('motion-fade-in');
+      // D38: список под сжимающимся окном карточки проявляется обратно.
+      expect((await observed(page)).next).toBe(reduce ? 'motion-fade-in' : 'motion-card-under-in');
       expect(await page.locator('.chrome').boundingBox()).toEqual(dock);
       // Прямой системный popstate не перехватывается и сохраняет штатную историю.
       await page.getByRole('link', { name: 'Вымышленный переход D30', exact: true }).click();

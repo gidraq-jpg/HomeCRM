@@ -5,6 +5,7 @@
   --motion-base: 240ms;
   --motion-screen: 400ms;
   --motion-fly: 560ms;
+  --motion-card: 480ms;
   --motion-sheet: 420ms;
   --ease-out: cubic-bezier(0.22, 0.8, 0.24, 1);
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);

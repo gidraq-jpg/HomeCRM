@@ -18,7 +18,6 @@ import {
   cardOrigins,
   currentCardOrigin,
   originLink,
-  originTitle,
   requestPosition,
   saveCurrentPosition,
 } from './navigation-position.ts';
@@ -43,7 +42,18 @@ let current: ViewTransition | undefined;
 let epoch = 0;
 let historyUpdate: (() => void) | undefined;
 let dockCleanup: (() => void) | undefined;
-let cardTitleCleanup: (() => void) | undefined;
+
+/**
+ * D38: карточка открывается окном от границ строки, без неравномерного масштаба снимка.
+ * Отступы считаются от рамки экрана; радиус окна — как у строки.
+ */
+export function cardClip(
+  screen: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
+  source: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
+) {
+  const px = (value: number) => `${Math.max(0, Math.round(value * 100) / 100)}px`;
+  return `inset(${px(source.top - screen.top)} ${px(screen.right - source.right)} ${px(screen.bottom - source.bottom)} ${px(source.left - screen.left)} round 16px)`;
+}
 
 /** Панель остаётся живой: D30 не снимает её вместе с экраном раздела. */
 export function changeDockScreen(button: DOMRect, update: () => void) {
@@ -143,7 +153,6 @@ export function changeDockScreen(button: DOMRect, update: () => void) {
 }
 /** Возврат по истории не должен быть затёрт ещё не снявшим снимок переходом. */
 export function cancelMotionNavigation() {
-  cardTitleCleanup?.();
   dockCleanup?.();
   // HashRouter уже обработал наш popstate; завершаем снимок нового экрана.
   if (historyUpdate) {
@@ -172,7 +181,6 @@ export function changeScreenWithMotion(
   card?: CardOrigin,
 ) {
   saveCurrentPosition();
-  cardTitleCleanup?.();
   dockCleanup?.();
   if (
     document.documentElement.dataset.design !== 'studio' ||
@@ -185,21 +193,9 @@ export function changeScreenWithMotion(
   }
   current?.skipTransition();
   const activeEpoch = ++epoch;
-  const titles: { node: HTMLElement; name: string }[] = [];
-  const nameTitle = (node: HTMLElement | null | undefined) => {
-    if (!node) return;
-    titles.push({ node, name: node.style.viewTransitionName });
-    node.style.viewTransitionName = 'card-title';
-  };
-  const clearTitles = () => {
-    for (const { node, name } of titles) node.style.viewTransitionName = name;
-    if (cardTitleCleanup === clearTitles) cardTitleCleanup = undefined;
-  };
-  if (card) {
-    nameTitle(direction === 'forward' ? originTitle(card) : document.querySelector('.main h1'));
-    cardTitleCleanup = clearTitles;
-  }
   document.documentElement.dataset.motionDirection = direction;
+  // Раскрытие окна заранее: оба снимка делаются без отдельной шапки страницы (motion.css).
+  if (card) document.documentElement.dataset.motionCard = direction;
   const oldRect = card ? document.querySelector('.main')?.getBoundingClientRect() : undefined;
   const header = document.querySelector?.('.topbar');
   const before = header ? `${(header as HTMLElement).offsetHeight}:${header.innerHTML}` : '';
@@ -209,18 +205,25 @@ export function changeScreenWithMotion(
       const result = flushSync(update);
       const compareHeader = () => {
         if (card) {
-          nameTitle(direction === 'back' ? originTitle(card) : document.querySelector('.main h1'));
           const screen =
             direction === 'back'
               ? oldRect
               : document.querySelector('.main')?.getBoundingClientRect();
           const source =
             direction === 'back' ? originLink(card)?.getBoundingClientRect() : card.rect;
+          const next = document.querySelector('.main')?.getBoundingClientRect();
+          const root = document.documentElement;
+          // Без строки на экране остаётся прежний сдвиг D30.
+          delete root.dataset.motionCard;
           if (screen?.width && screen.height && source?.width && source.height) {
-            document.documentElement.dataset.motionCard = direction ?? undefined;
-            document.documentElement.style.setProperty(
-              '--card-transform',
-              `translate(${source.left - screen.left}px, ${source.top - screen.top}px) scale(${source.width / screen.width}, ${source.height / screen.height})`,
+            root.dataset.motionCard = direction;
+            root.style.setProperty('--card-clip', cardClip(screen, source));
+            // Группа стоит на месте нового экрана; прежний снимок возвращается туда, где был виден.
+            root.style.setProperty(
+              '--card-shift',
+              oldRect && next
+                ? `translate(${oldRect.left - next.left}px, ${oldRect.top - next.top}px)`
+                : 'none',
             );
           }
         }
@@ -238,9 +241,12 @@ export function changeScreenWithMotion(
   // Отмена или несостоявшийся снимок меняют только рисунок; ошибка обновления сообщается выше.
   void transition.ready?.catch(() => {});
   const clear = () => {
-    if (cardTitleCleanup === clearTitles) clearTitles();
     if (current !== transition) return;
     current = undefined;
+    if (card) {
+      document.documentElement.style.removeProperty('--card-clip');
+      document.documentElement.style.removeProperty('--card-shift');
+    }
     delete document.documentElement.dataset.motionCard;
     delete document.documentElement.dataset.motionDirection;
     delete document.documentElement.dataset.motionHeader;
