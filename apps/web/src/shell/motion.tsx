@@ -48,12 +48,22 @@ let cardTitleCleanup: (() => void) | undefined;
 /** Панель остаётся живой: D30 не снимает её вместе с экраном раздела. */
 export function changeDockScreen(button: DOMRect, update: () => void) {
   saveCurrentPosition();
-  cancelMotionNavigation();
   const main = document.querySelector<HTMLElement>('.main');
-  if (!main?.animate) return update();
+  if (!main?.animate) {
+    cancelMotionNavigation();
+    return update();
+  }
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const rect = main.getBoundingClientRect();
+  const width = main.offsetWidth;
+  const height = main.offsetHeight;
   const old = main.cloneNode(true) as HTMLElement;
+  for (const [index, child] of [...main.children].entries()) {
+    const copy = old.children[index];
+    if (copy instanceof HTMLElement) copy.style.opacity = getComputedStyle(child).opacity;
+  }
+  // Следующий выбор сохраняет промежуточную позу до снятия прежней анимации.
+  cancelMotionNavigation();
   old.removeAttribute('id');
   for (const child of old.querySelectorAll('[id]')) child.removeAttribute('id');
   old.inert = true;
@@ -63,8 +73,10 @@ export function changeDockScreen(button: DOMRect, update: () => void) {
     position: 'fixed',
     left: `${rect.left}px`,
     top: `${rect.top}px`,
-    width: `${rect.width}px`,
-    height: `${rect.height}px`,
+    width: `${width}px`,
+    height: `${height}px`,
+    transform: `scale(${rect.width / width}, ${rect.height / height})`,
+    transformOrigin: '0 0',
     margin: '0',
     pointerEvents: 'none',
     overflow: 'hidden',

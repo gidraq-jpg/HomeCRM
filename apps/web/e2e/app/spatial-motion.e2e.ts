@@ -91,6 +91,51 @@ for (const reduce of [false, true]) {
 
 test.describe('геометрия раскрытия', () => {
   test.use({ reducedMotion: 'no-preference' });
+  test('UI-8: боковая панель доступна во время раскрытия, следующий выбор сохраняет позу', async ({
+    page,
+    family,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signInAs(page, family, 'adult');
+    await settle(page);
+    const nav = page.locator('.side-nav');
+    const home = nav.getByRole('link', { name: 'Дом', exact: true });
+    await home.evaluate((node) => {
+      if (!(node instanceof HTMLElement)) throw new Error('Sidebar link is missing');
+      node.click();
+      for (const animation of document.getAnimations()) {
+        if (animation.effect?.getTiming().iterations === Infinity) continue;
+        animation.pause();
+        animation.currentTime = 0;
+      }
+    });
+    expect(
+      await home.locator('.section-icon').evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        return !!document
+          .elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+          ?.closest('.side-nav');
+      }),
+    ).toBe(true);
+    await page.evaluate(() => {
+      for (const animation of document.getAnimations())
+        if (animation.playState === 'paused') animation.currentTime = 120;
+    });
+    const before = await page.locator('.main:not([data-dock-ghost])').boundingBox();
+    await nav.getByRole('link', { name: 'Люди', exact: true }).evaluate((node) => {
+      if (node instanceof HTMLElement) node.click();
+    });
+    const picture = await page.locator('[data-dock-ghost]').boundingBox();
+    for (const key of ['x', 'y', 'width', 'height'] as const)
+      expect(Math.abs((before?.[key] ?? 0) - (picture?.[key] ?? 0))).toBeLessThan(1);
+    await page.evaluate(() => {
+      for (const animation of document.getAnimations())
+        if (animation.playState === 'paused') animation.play();
+    });
+    await settle(page);
+    await expect(page).toHaveURL(/#\/people$/);
+    await expect(page.locator('[data-dock-ghost]')).toHaveCount(0);
+  });
   test('UI-8: начальный размер окна совпадает со значком панели', async ({
     page,
     family,
