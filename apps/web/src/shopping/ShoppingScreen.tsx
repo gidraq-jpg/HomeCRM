@@ -26,7 +26,7 @@ import { FeedPage, useFeedPane, useFeedSummary } from '../tasks/feed-pane.tsx';
 import { RecordPicker } from '../tasks/options.tsx';
 import { TaskTabs } from '../tasks/TaskTabs.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
-import { countWord } from '../ui/format.ts';
+import { countWord, plural } from '../ui/format.ts';
 import { groupBy } from '../ui/groupBy.ts';
 import { MotionGroups } from '../ui/MotionGroups.tsx';
 import { MotionList } from '../ui/MotionList.tsx';
@@ -175,7 +175,7 @@ export function ShoppingScreen() {
         setTitle('');
         batch.current = null;
         toast.show({
-          message: `Добавлено ${countWord(added, ['покупка', 'покупки', 'покупок'])}${duplicates ? `. Пропущено дублей: ${duplicates}` : ''}`,
+          message: `${plural(added, ['Добавлена', 'Добавлены', 'Добавлено'])} ${countWord(added, ['покупка', 'покупки', 'покупок'])}${duplicates ? `. Пропущено дублей: ${duplicates}` : ''}`,
           ...(added
             ? {
                 action: {

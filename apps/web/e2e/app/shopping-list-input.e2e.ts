@@ -35,7 +35,7 @@ test('SHOP-3: пять строк, количество, дубли и отме�
   await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   await expect(page.locator('li.task-row')).toHaveCount(2);
   await expect(
-    page.getByText('Добавлено 2 покупки. Пропущено дублей: 1', { exact: true }),
+    page.getByText('Добавлены 2 покупки. Пропущено дублей: 1', { exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Увеличить количество: Молоко' }).click();
   const row = page
