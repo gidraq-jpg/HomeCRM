@@ -9,7 +9,12 @@ import { listedNames, shoppingName } from './duplicates.ts';
 export function shoppingBatch(drafts: ShoppingDraft[], place: Visibility, house: string | null) {
   const placement = newPlacement(place, house);
   const rows = drafts.map((draft) => ({
-    body: { ...draft, ...(placement ? { placement } : {}), idempotencyKey: uuid() },
+    body: {
+      title: draft.title,
+      quantity: draft.quantity,
+      ...(placement ? { placement } : {}),
+      idempotencyKey: uuid(),
+    },
     card: null as ShoppingCard | null,
     skipped: false,
     attempted: false,

@@ -38,6 +38,8 @@ export function ShoppingAiCapture({
       onDrafts(
         result.map((draft) => ({
           title: draft.title.value,
+          titleConfident: draft.title.confident,
+          quantityConfident: draft.quantity.confident,
           ...(draft.quantity.value ? { quantity: draft.quantity.value } : {}),
         })),
       );

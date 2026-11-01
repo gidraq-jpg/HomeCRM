@@ -71,7 +71,7 @@ test('SHOP-3, AI-2: ИИ открывает редактируемый спис�
     return route.fulfill({
       json: ['Молоко', 'Хлеб'].map((title) => ({
         title: { value: title, confident: true },
-        quantity: { value: null, confident: true },
+        quantity: { value: null, confident: false },
       })),
     });
   });
@@ -82,6 +82,7 @@ test('SHOP-3, AI-2: ИИ открывает редактируемый спис�
   await page.getByRole('button', { name: 'Согласен, разобрать' }).click();
   const sheet = page.getByRole('dialog', { name: 'Надиктованные покупки' });
   await expect(sheet.getByRole('listitem')).toHaveCount(2);
+  await expect(sheet.getByText('ИИ не уверен: проверьте количество')).toHaveCount(2);
   const api = await apiAs(family, 'adult');
   expect(
     (await api.get(`shopping?scope=household&spaceId=${family.houseId}&trash=false&bought=all`))
