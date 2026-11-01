@@ -12,6 +12,7 @@ import { sectionAdd } from './section-add.ts';
 import { isStudio } from './studio.ts';
 import { TopBar } from './TopBar.tsx';
 import { useKeyboardAttribute } from './useKeyboardAttribute.ts';
+import { useMotionPreload } from './useMotionPreload.ts';
 import { useNavigationPosition } from './useNavigationPosition.ts';
 
 interface AppShellProps {
@@ -73,6 +74,7 @@ export function AppShell({
     } else setQuick(true);
   };
   useKeyboardAttribute();
+  useMotionPreload();
 
   useNavigationPosition();
 
