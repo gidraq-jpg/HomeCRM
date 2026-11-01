@@ -342,18 +342,22 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
 /* Список под карточкой гаснет вместе с раскрытием, а не исчезает. */
 @keyframes motion-card-under-out {
   from {
-    opacity: 1;
+    transform: var(--card-shift, translate(0, 0)) scale(1);
+    filter: brightness(1);
   }
   to {
-    opacity: 0.4;
+    transform: var(--card-shift, translate(0, 0)) scale(0.97);
+    filter: brightness(0.9);
   }
 }
 @keyframes motion-card-under-in {
   from {
-    opacity: 0.4;
+    transform: scale(0.97);
+    filter: brightness(0.9);
   }
   to {
-    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
   }
 }
 @keyframes motion-screen-out {
