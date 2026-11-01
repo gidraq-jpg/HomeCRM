@@ -149,14 +149,15 @@ export async function oauthRoutes(app: FastifyInstance, module: AuthModule) {
   app.get('/api/chat/consent', async (req, reply) => {
     const account = await current(req, reply);
     if (!account) return reply;
-    const { client } = await validate(req.query);
+    const { v, client } = await validate(req.query);
     const houses = await module.appDb.withAccount(account.id, (tx) =>
       tx
         .select({ id: spaces.id, name: spaces.name })
         .from(spaces)
         .where(and(eq(spaces.kind, 'household'), eq(spaces.chatEnabled, true))),
     );
-    return { name: client.name, houses };
+    // Название клиент выбирает сам при регистрации; адрес возврата показывает, кто получит доступ.
+    return { name: client.name, host: new URL(v.redirect_uri).host, houses };
   });
   app.post('/api/chat/consent', async (req, reply) => {
     const account = await current(req, reply);

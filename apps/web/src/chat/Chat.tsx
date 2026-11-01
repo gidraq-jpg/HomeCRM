@@ -40,6 +40,7 @@ export function ChatConsent() {
         `chat/consent${search}`,
         z.object({
           name: z.string(),
+          host: z.string(),
           houses: z.array(z.object({ id: z.string(), name: z.string() })),
         }),
       ),
@@ -64,6 +65,10 @@ export function ChatConsent() {
           <p>
             <strong>{query.data.name}</strong> просит: создавать черновики во «Входящих», видеть
             названия ваших объектов и имена людей.
+          </p>
+          <p>
+            Доступ получит сайт <strong>{query.data.host}</strong>. Если это не сайт вашего чата
+            (например, claude.ai или chatgpt.com), нажмите «Отказать».
           </p>
           <p>
             Сохранять записи будете вы. Названия видимых объектов, людей и счётчиков получит

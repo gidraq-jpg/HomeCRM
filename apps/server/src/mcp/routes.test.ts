@@ -31,6 +31,12 @@ async function connect(device: Device) {
     resource: 'http://homecrm.test/mcp',
     state: 'test-state',
   };
+  // Экран согласия показывает сайт возврата: название клиента выбирает сам клиент.
+  const screen = await device.get(
+    `/api/chat/consent?${new URLSearchParams(authorization as Record<string, string>)}`,
+  );
+  expect(screen.status, screen.text).toBe(200);
+  expect(screen.json<{ host: string }>().host).toBe('client.example');
   const consent = await device.post('/api/chat/consent', {
     authorization,
     houseId: world.houseId,
