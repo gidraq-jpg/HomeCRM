@@ -12,7 +12,6 @@ import {
   useNavigate as useRouterNavigate,
 } from 'react-router';
 
-import { motionTime } from '../ui/motion.ts';
 import {
   type CardOrigin,
   cardOrigins,
@@ -86,6 +85,7 @@ export function cancelMotionNavigation() {
   epoch++;
   current?.skipTransition();
   current = undefined;
+  delete document.documentElement.dataset.motionForm;
   delete document.documentElement.dataset.motionCard;
   delete document.documentElement.dataset.motionDirection;
   delete document.documentElement.dataset.motionHeader;
@@ -93,13 +93,19 @@ export function cancelMotionNavigation() {
 }
 export function navigateWithMotion(from: string, to: string, navigate: () => void) {
   const direction = motionDirection(from, to);
-  changeScreenWithMotion(direction, navigate);
+  changeScreenWithMotion(
+    direction,
+    navigate,
+    undefined,
+    /\/(new|edit|invite)$/.test(`${from} ${to}`),
+  );
 }
 
 export function changeScreenWithMotion(
   direction: 'forward' | 'back' | null,
   update: () => void | Promise<void>,
   card?: CardOrigin,
+  form = false,
 ) {
   saveCurrentPosition();
   dockCleanup?.();
@@ -115,6 +121,7 @@ export function changeScreenWithMotion(
   current?.skipTransition();
   const activeEpoch = ++epoch;
   document.documentElement.dataset.motionDirection = direction;
+  if (form) document.documentElement.dataset.motionForm = direction;
   // Раскрытие окна заранее: оба снимка делаются без отдельной шапки страницы (motion.css).
   if (card) document.documentElement.dataset.motionCard = direction;
   const oldRect = card ? document.querySelector('.main')?.getBoundingClientRect() : undefined;
@@ -170,6 +177,8 @@ export function changeScreenWithMotion(
       document.documentElement.style.removeProperty('--card-clip');
       document.documentElement.style.removeProperty('--card-shift');
     }
+    delete document.documentElement.dataset.motionForm;
+    delete document.documentElement.dataset.motionForm;
     delete document.documentElement.dataset.motionCard;
     delete document.documentElement.dataset.motionDirection;
     delete document.documentElement.dataset.motionHeader;
@@ -197,7 +206,7 @@ export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => bo
       alongside?.();
     };
     if (previous === nextForm) update();
-    else changeScreenWithMotion(nextForm ? 'forward' : 'back', update);
+    else changeScreenWithMotion(nextForm ? 'forward' : 'back', update, undefined, true);
   }, []);
   const reset = useCallback((next: T) => {
     form.current = predicate.current(next);
@@ -329,7 +338,7 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
         event.preventDefault();
         const returning = currentCardOrigin();
         const row = event.currentTarget.closest<HTMLElement>(
-          '.row, .task-row, .plan-row, .notes-pinned__card',
+          '.row, .task-row, .plan-row, .notes-pinned__card, [data-motion-origin]',
         );
         const card: CardOrigin | undefined =
           direction === 'forward' && row && !/\/(new|edit|invite)$/.test(to.pathname)
@@ -355,6 +364,7 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
             if (direction === 'forward' && card) cardOrigins.set(window.history.state.key, card);
           },
           card,
+          /\/(new|edit|invite)$/.test(to.pathname) || /\/(new|edit|invite)$/.test(from.pathname),
         );
       }}
     />

@@ -304,14 +304,7 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     opacity: 0;
   }
 }
-@keyframes motion-screen-in {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
+
 /* D38: окно от границ строки; содержимое не растягивается, а проявляется за первые 60 %. */
 @keyframes motion-card-in {
   0% {
@@ -360,26 +353,7 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     filter: brightness(1);
   }
 }
-@keyframes motion-screen-out {
-  from {
-    transform: translateX(0);
-    filter: brightness(1);
-  }
-  to {
-    transform: translateX(-30%);
-    filter: brightness(0.85);
-  }
-}
-@keyframes motion-screen-back-in {
-  from {
-    transform: translateX(-30%);
-    filter: brightness(0.85);
-  }
-  to {
-    transform: translateX(0);
-    filter: brightness(1);
-  }
-}
+
 @keyframes motion-feed-out {
   from {
     transform: translateX(var(--feed-start));
@@ -400,14 +374,7 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     opacity: 1;
   }
 }
-@keyframes motion-screen-back-out {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(100%);
-  }
-}
+
 @keyframes motion-sheet-in {
   from {
     transform: translate(-50%, 100%);
@@ -453,16 +420,16 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     transition: none;
   }
   html[data-motion-direction="forward"]:not([data-motion-feed])::view-transition-new(screen) {
-    animation: motion-screen-in var(--motion-screen) var(--ease-out) both;
+    animation: motion-surface-in var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-direction="forward"]:not([data-motion-feed])::view-transition-old(screen) {
-    animation: motion-screen-out var(--motion-screen) var(--ease-out) both;
+    animation: motion-surface-out var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-new(screen) {
-    animation: motion-screen-back-in var(--motion-screen) var(--ease-out) both;
+    animation: motion-surface-in var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(screen) {
-    animation: motion-screen-back-out var(--motion-screen) var(--ease-out) both;
+    animation: motion-surface-out var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-card="forward"][data-motion-direction]::view-transition-new(screen) {
     animation: motion-card-in var(--motion-card) var(--ease-card) both;
@@ -562,5 +529,50 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
   html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link):active .section-icon svg {
     transform: scale(0.86);
     transition-duration: 80ms;
+  }
+}
+
+@keyframes motion-surface-in {
+  from {
+    transform: scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes motion-surface-out {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.98);
+    opacity: 0;
+  }
+}
+@keyframes motion-form-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes motion-form-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html[data-motion-form="forward"]::view-transition-new(screen) {
+    animation: motion-form-in var(--motion-screen) var(--ease-out) both;
+  }
+  html[data-motion-form="back"]::view-transition-old(screen) {
+    animation: motion-form-out var(--motion-close) var(--ease-out) both;
   }
 }
