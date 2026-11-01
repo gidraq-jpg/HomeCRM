@@ -1,5 +1,6 @@
 import { INBOX_MAX_BYTES, InboxCapture } from '@homecrm/shared';
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router';
 import { useAiStatus } from '../ai/AiCapture.tsx';
 import { useAiConsent } from '../ai/consent.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
@@ -51,6 +52,9 @@ export function InboxScreen({
   trash?: boolean;
 }) {
   const { me, householdId } = useHousehold();
+  const location = useLocation();
+  const attachmentMessage = (location.state as { attachmentMessage?: string } | null)
+    ?.attachmentMessage;
   const query = useInbox(trash, true);
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -137,6 +141,7 @@ export function InboxScreen({
       title={trash ? 'Корзина входящих' : 'Входящие'}
       back={{ to: '/more', label: 'Ещё' }}
     >
+      {attachmentMessage ? <Notice>{attachmentMessage}</Notice> : null}
       <p className="muted">Видите только вы. Через 30 дней неразобранное попадёт в корзину.</p>
       {capture ? (
         <form
