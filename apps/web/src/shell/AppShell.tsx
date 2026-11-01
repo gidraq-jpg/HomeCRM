@@ -1,12 +1,12 @@
 import { Plus } from '@phosphor-icons/react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
 import { TaskSwipeActions } from '../tasks/TaskSwipeActions.tsx';
 import { ToastRegion } from '../ui/Toast.tsx';
 import { AddActionContext } from './AddAction.tsx';
 import { BottomNav, type ShellSection } from './BottomNav.tsx';
-import { cancelMotionNavigation, useNavigate } from './motion.tsx';
+import { cancelMotionNavigation, systemHistoryMotion, useNavigate } from './motion.tsx';
 import { SideNav } from './SideNav.tsx';
 import { sectionAdd } from './section-add.ts';
 import { isStudio } from './studio.ts';
@@ -38,15 +38,20 @@ export function AppShell({
   scopeVisible = true,
   children,
 }: AppShellProps) {
-  const { pathname } = useLocation();
+  const { pathname, key } = useLocation();
+  const previousKey = useRef(key);
+  useLayoutEffect(() => {
+    previousKey.current = key;
+  }, [key]);
   const navigate = useNavigate();
   const [quick, setQuick] = useState(false);
   const chrome = useRef<HTMLDivElement>(null);
   const app = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    window.addEventListener('popstate', cancelMotionNavigation);
+    const pop = (event: PopStateEvent) => systemHistoryMotion(event, previousKey.current);
+    window.addEventListener('popstate', pop, true);
     return () => {
-      window.removeEventListener('popstate', cancelMotionNavigation);
+      window.removeEventListener('popstate', pop, true);
       cancelMotionNavigation();
     };
   }, []);

@@ -56,13 +56,21 @@ export function cardClip(
 }
 
 /** Панель остаётся живой: D30 не снимает её вместе с экраном раздела. */
-export function changeDockScreen(button: DOMRect, update: () => void) {
-  changeScreenWithMotion('forward', update, {
+export function changeDockScreen(button: DOMRect, update: () => void, href = '') {
+  const origin: CardOrigin = {
     parentKey: window.history.state?.key,
     parentPath: window.location.hash.slice(1).split('?')[0] ?? '',
-    href: '',
+    href,
     rect: button,
-  });
+  };
+  changeScreenWithMotion(
+    'forward',
+    () => {
+      update();
+      cardOrigins.set(window.history.state.key, origin);
+    },
+    origin,
+  );
 }
 /** Возврат по истории не должен быть затёрт ещё не снявшим снимок переходом. */
 export function cancelMotionNavigation() {
@@ -123,7 +131,9 @@ export function changeScreenWithMotion(
               ? oldRect
               : document.querySelector('.main')?.getBoundingClientRect();
           const source =
-            direction === 'back' ? originLink(card)?.getBoundingClientRect() : card.rect;
+            direction === 'back'
+              ? (originLink(card)?.getBoundingClientRect() ?? card.rect)
+              : card.rect;
           const next = document.querySelector('.main')?.getBoundingClientRect();
           const root = document.documentElement;
           // Без строки на экране остаётся прежний сдвиг D30.
@@ -236,6 +246,33 @@ export function navigateHistoryWithMotion(delta: number, navigate: NavigateFunct
         void navigate(delta);
       }),
     delta === -1 ? currentCardOrigin() : undefined,
+  );
+}
+
+/** Захват раньше HashRouter: единственный повтор события происходит внутри снимка. */
+let replayingHistory = false;
+export function systemHistoryMotion(event: PopStateEvent, previousKey: string) {
+  if (replayingHistory) return;
+  if (historyUpdate) {
+    queueMicrotask(cancelMotionNavigation);
+    return;
+  }
+  if (!document.startViewTransition || document.documentElement.dataset.design !== 'studio') return;
+  event.stopImmediatePropagation();
+  const origin = cardOrigins.get(previousKey);
+  if (origin) requestPosition(origin.parentKey);
+  changeScreenWithMotion(
+    'back',
+    () => {
+      replayingHistory = true;
+      try {
+        window.dispatchEvent(new PopStateEvent('popstate', { state: event.state }));
+        flushSync(() => {});
+      } finally {
+        replayingHistory = false;
+      }
+    },
+    origin,
   );
 }
 

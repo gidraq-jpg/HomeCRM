@@ -68,9 +68,13 @@ export function useSectionNav() {
         easing: getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim(),
       });
     }
-    changeDockScreen(button, () => {
-      void navigate(to);
-    });
+    changeDockScreen(
+      button,
+      () => {
+        void navigate(to);
+      },
+      `#${to}`,
+    );
   };
   return { nav, choose };
 }
