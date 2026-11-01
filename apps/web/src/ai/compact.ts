@@ -16,6 +16,11 @@ export function draftSummary(
   if (Array.isArray(fields)) return fields.map((f) => draftSummary(kind, f, audience)).join(' · ');
   const f = (fields ?? {}) as Record<string, { value?: unknown }>;
   const text = (key: string) => String(f[key]?.value ?? '');
+  const values = Array.isArray(f.values)
+    ? f.values.map((v: { value?: unknown }) => String(v.value ?? '—'))
+    : Array.isArray(f.values?.value)
+      ? f.values.value.map(String)
+      : [];
   switch (kind) {
     case 'task':
       return [
@@ -36,10 +41,7 @@ export function draftSummary(
     case 'meter':
       return [
         text('meterId') ? 'Счётчик выбран' : 'Выберите счётчик',
-        text('value') ||
-          (Array.isArray(f.values)
-            ? f.values.map((v: { value?: unknown }) => String(v.value ?? '—')).join(' / ')
-            : ''),
+        text('value') || values.join(' / '),
       ]
         .filter(Boolean)
         .join(' · ');

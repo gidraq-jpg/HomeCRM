@@ -11,6 +11,9 @@ describe('короткие черновики', () => {
     expect(draftSummary('meter', { meterId: { value: 'id' }, value: { value: '123' } })).toContain(
       '123',
     );
+    expect(
+      draftSummary('meter', { meterId: { value: 'id' }, values: { value: ['123.45', '67.89'] } }),
+    ).toContain('123.45 / 67.89');
     expect(draftSummary('object', { objectType: { value: 'car' } })).toBe('Автомобиль');
   });
   it('находит неуверенность в полях, классификации и массивах', () => {
