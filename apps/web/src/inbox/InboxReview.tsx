@@ -614,11 +614,23 @@ function InboxItemReview({
                           onOpenChange={() => setEditing(null)}
                         >
                           {index === 0 && (kind === 'meter' || kind === 'receipt') ? (
-                            <InboxUtilities
-                              row={{ ...row, draft }}
-                              kind={kind}
-                              onCreated={finish}
-                            />
+                            entries.some(
+                              (entry, related) =>
+                                related > 0 &&
+                                (excluded.includes(related) ||
+                                  (needsReview(entry) && !confirmed.includes(related))),
+                            ) ? (
+                              <Notice>
+                                Сначала проверьте и отметьте сопутствующие черновики. Исходный файл
+                                переносится вместе со всей группой.
+                              </Notice>
+                            ) : (
+                              <InboxUtilities
+                                row={{ ...row, draft }}
+                                kind={kind}
+                                onCreated={finish}
+                              />
+                            )
                           ) : (
                             <>
                               {editableFields(entry.fields).map((field) => (
