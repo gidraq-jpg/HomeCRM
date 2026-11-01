@@ -128,14 +128,16 @@ test('TASK-2: дело голосом — живой текст, чипы дат
   await expect(page.locator('.voice-status')).toContainText(
     'Идёт запись: позвонить мастеру завтра',
   );
-  await expect(page.locator('.voice-announcement')).toHaveText('Идёт запись, говорите');
+  await expect(page.locator('.voice-announcement:not([inert] *)')).toHaveText(
+    'Идёт запись, говорите',
+  );
   expect(await page.evaluate(() => (window as unknown as VoiceWindow).__voiceLang)).toBe('ru-RU');
   await check(page, info, 'task-listening');
   await mic.click();
   // Распознанное дописано к уже введённому; ничего не сохранено само.
   await expect(input).toHaveValue('#Учебная позвонить мастеру завтра');
   await expect(mic).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('.voice-announcement')).toHaveText(
+  await expect(page.locator('.voice-announcement:not([inert] *)')).toHaveText(
     'Запись остановлена, текст добавлен',
   );
   await expect(page.locator('.task-chip')).toHaveCount(2);
@@ -253,7 +255,7 @@ test('SHOP-4: фраза без позиций — просьба повтори
   await expect(
     page.getByRole('alert').filter({ hasText: 'Не удалось разобрать позиции, попробуйте ещё раз' }),
   ).toBeVisible();
-  await expect(page.locator('.voice-announcement')).toHaveText('Запись остановлена');
+  await expect(page.locator('.voice-announcement:not([inert] *)')).toHaveText('Запись остановлена');
   await expect(page.getByRole('dialog', { name: 'Надиктованные покупки' })).toHaveCount(0);
   await check(page, info, 'shopping-no-items');
   // «хлеб и, молоко» — две позиции без лишнего «и»; отмена закрывает лист без записи.

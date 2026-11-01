@@ -12,6 +12,7 @@ import {
   useNavigate as useRouterNavigate,
 } from 'react-router';
 
+import { motionTime } from '../ui/motion.ts';
 import {
   type CardOrigin,
   cardOrigins,
@@ -40,7 +41,6 @@ export function motionDirection(from: string, to: string): 'forward' | 'back' | 
 let current: ViewTransition | undefined;
 let epoch = 0;
 let historyUpdate: (() => void) | undefined;
-let dockCleanup: (() => void) | undefined;
 
 /**
  * D38: карточка открывается окном от границ строки, без неравномерного масштаба снимка.
@@ -50,8 +50,10 @@ export function cardClip(
   screen: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
   source: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
 ) {
-  const px = (value: number) => `${Math.max(0, Math.round(value * 100) / 100)}px`;
-  return `inset(${px(source.top - screen.top)} ${px(screen.right - source.right)} ${px(screen.bottom - source.bottom)} ${px(source.left - screen.left)} round 16px)`;
+  const px = (value: number) => `${Math.round(value * 100) / 100}px`;
+  // Нижний и правый края зависят от самой картинки: поздняя догрузка не растягивает окно.
+  const end = (value: number) => `calc(100% ${value < 0 ? '+' : '-'} ${px(Math.abs(value))})`;
+  return `inset(${px(source.top - screen.top)} ${end(source.right - screen.left)} ${end(source.bottom - screen.top)} ${px(source.left - screen.left)} round 16px)`;
 }
 
 /** Панель остаётся живой: D30 не снимает её вместе с экраном раздела. */
@@ -73,7 +75,6 @@ export function changeDockScreen(button: DOMRect, update: () => void, href = '')
 }
 /** Возврат по истории не должен быть затёрт ещё не снявшим снимок переходом. */
 export function cancelMotionNavigation() {
-  dockCleanup?.();
   // HashRouter уже обработал наш popstate; завершаем снимок нового экрана.
   if (historyUpdate) {
     const finish = historyUpdate;
@@ -97,7 +98,7 @@ export function navigateWithMotion(from: string, to: string, navigate: () => voi
     direction,
     navigate,
     undefined,
-    /\/(new|edit|invite)$/.test(`${from} ${to}`),
+    /\/(new|edit|invite)$/.test(from) || /\/(new|edit|invite)$/.test(to),
   );
 }
 
@@ -106,6 +107,7 @@ export function changeScreenWithMotion(
   update: () => void | Promise<void>,
   card?: CardOrigin,
   form = false,
+  preservePosition = false,
 ) {
   if (current) {
     const pending = current;
@@ -119,7 +121,10 @@ export function changeScreenWithMotion(
               animation.playState === 'running'
             );
           });
-          for (const animation of animations) animation.reverse();
+          for (const animation of animations) {
+            animation.reverse();
+            animation.updatePlaybackRate(-motionTime('screen') / motionTime('close'));
+          }
           await Promise.allSettled(animations.map((animation) => animation.finished));
           flushSync(update);
         },
@@ -128,12 +133,13 @@ export function changeScreenWithMotion(
         },
       );
     } else {
-      void pending.finished.then(() => changeScreenWithMotion(direction, update, card, form));
+      void pending.finished.then(() =>
+        changeScreenWithMotion(direction, update, card, form, preservePosition),
+      );
     }
     return;
   }
-  saveCurrentPosition();
-  dockCleanup?.();
+  if (!preservePosition) saveCurrentPosition();
   if (
     document.documentElement.dataset.design !== 'studio' ||
     !document.startViewTransition ||
@@ -143,7 +149,6 @@ export function changeScreenWithMotion(
     update();
     return;
   }
-  current?.skipTransition();
   const activeEpoch = ++epoch;
   document.documentElement.dataset.motionDirection = direction;
   if (form) document.documentElement.dataset.motionForm = direction;
@@ -202,7 +207,6 @@ export function changeScreenWithMotion(
       document.documentElement.style.removeProperty('--card-clip');
       document.documentElement.style.removeProperty('--card-shift');
     }
-    delete document.documentElement.dataset.motionForm;
     delete document.documentElement.dataset.motionForm;
     delete document.documentElement.dataset.motionCard;
     delete document.documentElement.dataset.motionDirection;
@@ -285,18 +289,31 @@ export function navigateHistoryWithMotion(delta: number, navigate: NavigateFunct
 
 /** Захват раньше HashRouter: единственный повтор события происходит внутри снимка. */
 let replayingHistory = false;
-export function systemHistoryMotion(event: PopStateEvent, previousKey: string) {
+export function systemHistoryMotion(
+  event: PopStateEvent,
+  previousKey: string,
+  previousIndex = 0,
+  previousPath = '',
+) {
   if (replayingHistory) return;
   if (historyUpdate) {
     queueMicrotask(cancelMotionNavigation);
     return;
   }
+  // Chromium сообщает, когда система уже нарисовала predictive back.
+  if (Reflect.get(event, 'hasUAVisualTransition')) return;
+  // Прямой фрагмент адреса не является шагом управляемой истории: роутер принимает его сразу.
+  if (typeof event.state?.idx !== 'number') {
+    cancelMotionNavigation();
+    return;
+  }
   if (!document.startViewTransition || document.documentElement.dataset.design !== 'studio') return;
   event.stopImmediatePropagation();
-  const origin = cardOrigins.get(previousKey);
-  if (origin) requestPosition(origin.parentKey);
+  const direction = event.state?.idx > previousIndex ? 'forward' : 'back';
+  const origin = cardOrigins.get(direction === 'back' ? previousKey : event.state?.key);
+  if (origin && direction === 'back') requestPosition(origin.parentKey);
   changeScreenWithMotion(
-    'back',
+    direction,
     () => {
       replayingHistory = true;
       try {
@@ -307,6 +324,9 @@ export function systemHistoryMotion(event: PopStateEvent, previousKey: string) {
       }
     },
     origin,
+    /\/(new|edit|invite)$/.test(previousPath) ||
+      /\/(new|edit|invite)$/.test(location.hash.slice(1).split('?')[0] ?? ''),
+    true,
   );
 }
 

@@ -1,4 +1,5 @@
 import { expect, test } from '../auth/support/fixtures.ts';
+import { settle } from '../support/helpers.ts';
 import { homeDate, setHomeZone } from './deadlines-support.ts';
 import { apiAs } from './notes-support.ts';
 import { signInAs } from './support.ts';
@@ -24,8 +25,11 @@ for (const reduce of [false, true]) {
     expect(nextId).toBeTruthy();
     await signInAs(page, family, 'adult');
     await page.goto('#/today/all');
-    const row = page.locator(`.swipe-task[data-motion-key="${nextId}"]:not([data-motion-ghost])`);
+    const row = page.locator(
+      `[data-feed-active="true"] .swipe-task[data-motion-key="${nextId}"]:not([data-motion-ghost])`,
+    );
     await expect(row).toBeVisible();
+    await settle(page);
     await row.scrollIntoViewIfNeeded();
     const box = await row.locator('a').boundingBox();
     if (!box) throw new Error('Repeated row is missing');

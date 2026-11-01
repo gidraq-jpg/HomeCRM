@@ -70,7 +70,11 @@ test('пустые ленты: исходный фокус, подписи и о
       await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
     }
     if (view === 'all') {
-      await expect(page.getByText('Дел под выбранные условия нет.', { exact: true })).toBeVisible();
+      await expect(
+        page
+          .locator('[data-feed-active="true"]')
+          .getByText('Дел под выбранные условия нет.', { exact: true }),
+      ).toBeVisible();
       await expect(page.getByRole('button', { name: 'Добавить дело', exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Добавить дело', exact: true }).click();
       const add = page.getByRole('dialog', { name: 'Новое дело', exact: true });

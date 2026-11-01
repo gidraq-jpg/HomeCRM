@@ -57,7 +57,10 @@ test('D19a.1–3/13: повтор возвращается отменой без
   await page
     .getByRole('button', { name: 'Отметить сделанным: Протереть стол D19', exact: true })
     .click();
-  const row = page.locator('.plan-row').filter({ hasText: 'Протереть стол D19' }).first();
+  const row = page
+    .locator('[data-feed-active="true"] .plan-row')
+    .filter({ hasText: 'Протереть стол D19' })
+    .first();
   await expect(row).toHaveClass(/plan-row--closed/);
   await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toBeVisible();
   const completed = (await api.get(`tasks/${id}`)).body as { nextTaskId: string };
@@ -230,7 +233,7 @@ test('D19a.3–5: План без observer, Tab подгружает дни, п�
   await signInAs(page, family, 'adult');
   await page.goto('#/today/plan');
   await expect(page.getByRole('link', { name: /1 просроченное дело/ })).toBeVisible();
-  await expect(page.locator('.studio-label--overdue')).toHaveCount(1);
+  await expect(page.locator('[data-feed-active="true"] .studio-label--overdue')).toHaveCount(1);
   const load = page.getByRole('button', { name: 'Показать следующие дни' });
   await load.focus();
   await page.keyboard.press('Shift+Tab');

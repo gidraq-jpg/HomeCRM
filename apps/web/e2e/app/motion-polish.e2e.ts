@@ -87,7 +87,7 @@ async function observed(page: Page) {
 }
 const row = (page: Page, title: string) =>
   page
-    .locator('.swipe-task:not([data-motion-ghost])')
+    .locator('[data-feed-active="true"] .swipe-task:not([data-motion-ghost])')
     .filter({ has: page.getByRole('group', { name: `Дело: ${title}`, exact: true }) });
 
 /** CDP даёт настоящие touch/pointer capture, включая браузерную отмену вертикального жеста. */
@@ -146,7 +146,7 @@ for (const reduce of [false, true])
       expect(motion.direction).toBe('forward');
       expect(motion.next).toBe(reduce ? 'motion-fade-in' : 'motion-card-in');
       // D38: строка раскрывается окном за --motion-card.
-      expect(motion.duration).toBe(reduce ? '0.16s' : '0.52s');
+      expect(motion.duration).toBe(reduce ? '0.16s' : '0.45s');
       expect(motion.dock).toBe('none');
       expect(motion.header).toBe('none');
       if (!reduce) {
@@ -221,7 +221,7 @@ for (const reduce of [false, true])
         expect(
           JSON.parse((await page.locator('html').getAttribute('data-observed-feed')) ?? '{}')
             .options.duration,
-        ).toBe(400);
+        ).toBe(450);
       await swipe(page, page.locator('.plan-day__title').first(), -120);
       await expect(page).toHaveURL(/#\/today\/all$/);
       await settle(page);
@@ -232,7 +232,7 @@ for (const reduce of [false, true])
         const motion = JSON.parse(
           (await page.locator('html').getAttribute('data-observed-feed')) ?? '{}',
         );
-        expect(motion.options.duration).toBe(240);
+        expect(motion.options.duration).toBe(450);
         expect(motion.frames[0].transform).toMatch(/translateX\(-/);
       }
       await page.getByRole('link', { name: 'Покупки', exact: true }).click();

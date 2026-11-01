@@ -241,7 +241,8 @@ for (const percent of [100, 200]) {
       ['/more/notes', 'notes-empty', 'Заметок пока нет'],
     ]) {
       await open(page, route ?? '');
-      await expect(page.getByText(empty ?? '', { exact: true })).toBeVisible();
+      const screen = route?.startsWith('/today') ? page.locator('[data-feed-active="true"]') : page;
+      await expect(screen.getByText(empty ?? '', { exact: true })).toBeVisible();
       await check(page, info, `${name}-${percent}`);
     }
   });

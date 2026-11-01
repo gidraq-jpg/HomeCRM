@@ -1,11 +1,11 @@
 /* Calm Focus: токены из мобильного прототипа LifeOS (src/prototype.css).
    Шрифты системные, без загрузки: на Android это Roboto и Noto Serif. */
 :root {
-  --motion-fast: 160ms;
-  --motion-base: 240ms;
-  --motion-screen: 450ms;
-  --motion-close: 380ms;
-  --motion-fly: 560ms;
+  --motion-fast: calc(160ms * var(--motion-factor, 1));
+  --motion-base: calc(240ms * var(--motion-factor, 1));
+  --motion-screen: calc(450ms * var(--motion-factor, 1));
+  --motion-close: calc(380ms * var(--motion-factor, 1));
+  --motion-fly: calc(560ms * var(--motion-factor, 1));
   --motion-card: var(--motion-screen);
   --motion-sheet: var(--motion-screen);
   --ease-out: cubic-bezier(0.22, 0.8, 0.24, 1);
@@ -164,4 +164,8 @@
   src: url("@fontsource/onest/files/onest-latin-500-normal.woff2") format("woff2");
   unicode-range:
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root[data-motion-slow] {
+  --motion-factor: 4;
 }

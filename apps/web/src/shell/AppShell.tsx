@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 're
 import { useLocation } from 'react-router';
 import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
 import { TaskSwipeActions } from '../tasks/TaskSwipeActions.tsx';
+import { loadSlowMotion, SlowMotionControl } from '../ui/SlowMotionControl.tsx';
 import { ToastRegion } from '../ui/Toast.tsx';
 import { AddActionContext } from './AddAction.tsx';
 import { BottomNav, type ShellSection } from './BottomNav.tsx';
@@ -12,7 +13,7 @@ import { sectionAdd } from './section-add.ts';
 import { isStudio } from './studio.ts';
 import { TopBar } from './TopBar.tsx';
 import { useKeyboardAttribute } from './useKeyboardAttribute.ts';
-import { useMotionPreload } from './useMotionPreload.ts';
+import { MotionPreload } from './useMotionPreload.ts';
 import { useNavigationPosition } from './useNavigationPosition.ts';
 
 interface AppShellProps {
@@ -39,16 +40,31 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const { pathname, key } = useLocation();
-  const previousKey = useRef(key);
+  const previousKey = useRef({
+    key,
+    pathname,
+    idx: typeof window === 'undefined' ? 0 : (window.history.state?.idx ?? 0),
+  });
   useLayoutEffect(() => {
-    previousKey.current = key;
-  }, [key]);
+    previousKey.current = {
+      key,
+      pathname,
+      idx: typeof window === 'undefined' ? 0 : (window.history.state?.idx ?? 0),
+    };
+  }, [key, pathname]);
   const navigate = useNavigate();
   const [quick, setQuick] = useState(false);
   const chrome = useRef<HTMLDivElement>(null);
   const app = useRef<HTMLDivElement>(null);
+  useEffect(loadSlowMotion, []);
   useEffect(() => {
-    const pop = (event: PopStateEvent) => systemHistoryMotion(event, previousKey.current);
+    const pop = (event: PopStateEvent) =>
+      systemHistoryMotion(
+        event,
+        previousKey.current.key,
+        previousKey.current.idx,
+        previousKey.current.pathname,
+      );
     window.addEventListener('popstate', pop, true);
     return () => {
       window.removeEventListener('popstate', pop, true);
@@ -79,18 +95,19 @@ export function AppShell({
     } else setQuick(true);
   };
   useKeyboardAttribute();
-  useMotionPreload();
 
   useNavigationPosition();
 
   return (
     <AddActionContext.Provider value={add}>
+      {isStudio() ? <MotionPreload /> : null}
       <div className="app" ref={app}>
         <SideNav sections={sections} />
         <div className="app__content">
           <TopBar scopeVisible={scopeVisible} />
           <main className="main" id="main">
             {isStudio() ? <TaskSwipeActions>{children}</TaskSwipeActions> : children}
+            {pathname === '/more/settings' ? <SlowMotionControl /> : null}
           </main>
         </div>
         <div className="chrome" ref={chrome}>

@@ -63,10 +63,9 @@ for (const reduce of [false, true]) {
         );
       } else {
         expect(JSON.stringify(frames)).not.toContain('scale(0.88)');
-        expect(JSON.stringify(frames)).toContain('scale(1, 1)');
-        expect(JSON.stringify(frames)).toContain('400');
+        expect(await page.locator('[data-dock-ghost]').count()).toBe(0);
         expect(await indicator.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe(
-          '0.42s',
+          '0.45s',
         );
       }
       await expectAccessible(page, 'D37 Дом');
@@ -109,6 +108,7 @@ for (const reduce of [false, true]) {
       expect(sideButton).not.toBeNull();
       expect(Math.abs((sidePill?.y ?? 0) - (sideButton?.y ?? 0))).toBeLessThan(1);
       await page.goto('#/today');
+      await settle(page);
       await page.getByRole('link', { name: 'Вымышленная карточка D37', exact: true }).click();
       await settle(page);
       await sidebar.getByRole('link', { name: 'Сегодня', exact: true }).click();

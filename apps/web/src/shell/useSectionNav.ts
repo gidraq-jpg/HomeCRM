@@ -1,5 +1,5 @@
 import { type MouseEvent, useLayoutEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate, useNavigationType } from 'react-router';
 import { motionTime } from '../ui/motion.ts';
 import { changeDockScreen, navigateWithMotion } from './motion.tsx';
 import { isStudio } from './studio.ts';
@@ -9,6 +9,7 @@ export function useSectionNav() {
   const nav = useRef<HTMLElement>(null);
   const selected = useRef<string | null>(null);
   const location = useLocation();
+  const navigationType = useNavigationType();
   const navigate = useNavigate();
   useLayoutEffect(() => {
     const element = nav.current;
@@ -24,7 +25,13 @@ export function useSectionNav() {
       indicator.style.height = `${link.offsetHeight}px`;
       indicator.style.transform = `translate(${link.offsetLeft}px, ${link.offsetTop}px)`;
     };
-    measure(selected.current === location.pathname);
+    const pop = () => {
+      selected.current = null;
+      const indicator = element.querySelector<HTMLElement>('.section-indicator');
+      if (indicator) indicator.dataset.moving = 'false';
+    };
+    window.addEventListener('popstate', pop, true);
+    measure(navigationType !== 'POP' && selected.current === location.pathname);
     selected.current = null;
     let size = `${element.offsetWidth}:${element.offsetHeight}`;
     const observer = new ResizeObserver(() => {
@@ -34,8 +41,11 @@ export function useSectionNav() {
       measure();
     });
     observer.observe(element);
-    return () => observer.disconnect();
-  }, [location]);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('popstate', pop, true);
+    };
+  }, [location, navigationType]);
   const choose = (event: MouseEvent<HTMLAnchorElement>, to: string, active: boolean) => {
     if (
       !isStudio() ||
@@ -62,7 +72,7 @@ export function useSectionNav() {
       event.currentTarget.querySelector('.section-icon') ?? event.currentTarget
     ).getBoundingClientRect();
     const icon = event.currentTarget.querySelector('.section-icon');
-    if (!reduce && icon) {
+    if (!reduce && icon?.animate) {
       for (const animation of icon.getAnimations()) animation.cancel();
       icon.animate([{ transform: 'scale(1.1)' }, { transform: 'scale(1)' }], {
         duration: motionTime('fast'),

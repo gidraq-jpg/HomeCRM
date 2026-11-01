@@ -2,15 +2,33 @@ import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
 import type { Family } from '../auth/support/family.ts';
 import { test } from '../auth/support/fixtures.ts';
+import { settle } from '../support/helpers.ts';
 import { seedMeter } from './meters-support.ts';
 import { apiAs } from './notes-support.ts';
 import { seedAccount, seedProperty } from './property-support.ts';
 import { checkApp, expect, signInAs } from './support.ts';
 
-async function newReceiptForm(page: Page, family: Family, objectId: string, accountId: string) {
+async function newReceiptForm(
+  page: Page,
+  family: Family,
+  objectId: string,
+  accountId: string,
+  aiEnabled = false,
+) {
   await signInAs(page, family, 'adult');
   await page.goto(`#/home/${objectId}/accounts/${accountId}/charges`);
-  await page.getByRole('button', { name: 'Добавить начисление', exact: true }).click();
+  const add = page.getByRole('button', { name: 'Добавить начисление', exact: true });
+  await expect(add).toBeVisible();
+  await settle(page);
+  // Завершение запроса текущего экрана; чтение тела старого документа недоступно в Chromium.
+  const aiReady = aiEnabled
+    ? page.waitForResponse(
+        (response) => response.url().includes('/api/ai/status?') && response.status() === 200,
+      )
+    : undefined;
+  await add.click();
+  if (aiReady) await (await aiReady).finished();
+  await settle(page);
   return page.locator('form.charge-form');
 }
 async function receiptImage(index = 1) {
@@ -108,7 +126,7 @@ test('UTIL-9: без QR → согласие → черновик ИИ; повт
     title: 'Учебная вода',
     data: { number: '9900000014' },
   });
-  const form = await newReceiptForm(page, family, property.id, account.id);
+  const form = await newReceiptForm(page, family, property.id, account.id, true);
   await form.getByLabel('Квитанция для заполнения').setInputFiles(await receiptImage(5));
   await expect(page.getByRole('dialog', { name: 'Разбор с помощью ИИ' })).toBeVisible();
   await page.getByRole('button', { name: 'Согласен, разобрать' }).click();

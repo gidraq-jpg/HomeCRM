@@ -101,7 +101,7 @@ async function flick(page: Page, target: Locator, dx: number) {
 }
 const row = (page: Page, title: string) =>
   page
-    .locator('.swipe-task:not([data-motion-ghost])')
+    .locator('[data-feed-active="true"] .swipe-task:not([data-motion-ghost])')
     .filter({ has: page.getByRole('group', { name: `Дело: ${title}`, exact: true }) });
 
 test.use({ video: 'on' });
@@ -176,10 +176,16 @@ for (const reduce of [false, true]) {
         const delta = Number(await page.locator('html').getAttribute('data-sheet-dragged-y'));
         expect(delta).toBeGreaterThan(50);
         // Начало ухода совпадает с фактической координатой pointer, независимо от масштаба CDP.
-        expect(Number(await page.locator('html').getAttribute('data-sheet-exit-y'))).toBeCloseTo(
-          delta,
-          1,
-        );
+        const ghost = page.locator('.sheet[data-motion-ghost]');
+        expect(await ghost.evaluate((node) => (node as HTMLElement).inert)).toBe(true);
+        expect(
+          await ghost.evaluate(
+            (node) =>
+              new DOMMatrixReadOnly(
+                (node as HTMLElement).style.getPropertyValue('--sheet-exit-from'),
+              ).m42,
+          ),
+        ).toBeCloseTo(delta, 1);
       }
       await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeFocused();
       await page.getByRole('link', { name: 'Вымышленный переход', exact: true }).click();

@@ -22,7 +22,7 @@ export function TaskFeedCarousel() {
     : householdId;
   const [summaries, setSummaries] = useState<Record<number, FeedSummary>>({});
   const root = useRef<HTMLDivElement>(null);
-  // Отсоединённые контейнеры сохраняют данные и черновики соседей без дублей в документе.
+  // Контейнеры сохраняют данные и черновики соседей; неактивные ленты инертны.
   const [hosts] = useState(() =>
     typeof document === 'undefined' ? [] : paths.map(() => document.createElement('div')),
   );

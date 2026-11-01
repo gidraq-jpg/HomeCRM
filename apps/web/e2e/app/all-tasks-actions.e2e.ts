@@ -47,7 +47,9 @@ test('TASK-6/12: все дела — выполнение, возврат, пе�
     .getByRole('button', { name: 'Отметить сделанным: Покрасить стены', exact: true })
     .click();
   await expect(page.getByText('Дело выполнено', { exact: true })).toBeVisible();
-  const completed = page.locator('.plan-row').filter({ hasText: 'Покрасить стены' });
+  const completed = page
+    .locator('[data-feed-active="true"] .plan-row')
+    .filter({ hasText: 'Покрасить стены' });
   await expect(completed).toHaveClass(/plan-row--closed/);
   await expect(
     completed.getByRole('link', { name: 'Покрасить стены · выполнено', exact: true }),
@@ -156,8 +158,8 @@ test('TASK-6: старые завершённые дела — через ста
     page.getByRole('link', { name: 'Выполнено в этот день · выполнено', exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('link', { name: /Старое (выполненное|отменённое)/ })).toHaveCount(0);
-  await expect(page.locator('.plan-rows button')).toHaveCount(0);
-  await expect(page.locator('.plan-circle--done')).toHaveCount(1);
+  await expect(page.locator('[data-feed-active="true"] .plan-rows button')).toHaveCount(0);
+  await expect(page.locator('[data-feed-active="true"] .plan-circle--done')).toHaveCount(1);
   await expect(page.getByRole('link', { name: '1 открытое дело', exact: true })).toBeVisible();
   const child = await apiAs(family, 'child');
   const card = active.body as { id: string; updatedAt: string };
@@ -189,18 +191,20 @@ test('TASK-6: старые завершённые дела — через ста
       })
     ).status,
   ).toBe(403);
-  await page.locator('.studio-list-options summary').click();
+  await page.locator('[data-feed-active="true"] .studio-list-options summary').click();
   await page.getByLabel('Статус дел', { exact: true }).selectOption('done');
   await expect(
     page.getByRole('link', { name: 'Старое выполненное · выполнено', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('.plan-row--closed')).toHaveCount(2);
-  await expect(page.locator('.plan-row--closed .studio-label--overdue')).toHaveCount(0);
+  await expect(page.locator('[data-feed-active="true"] .plan-row--closed')).toHaveCount(2);
+  await expect(
+    page.locator('[data-feed-active="true"] .plan-row--closed .studio-label--overdue'),
+  ).toHaveCount(0);
   await page.getByLabel('Статус дел', { exact: true }).selectOption('cancelled');
   await expect(
     page.getByRole('link', { name: 'Старое отменённое · отменено', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('.plan-row--closed')).toHaveCount(1);
+  await expect(page.locator('[data-feed-active="true"] .plan-row--closed')).toHaveCount(1);
   await expectNoHorizontalScroll(page);
   await expectTouchTargets(page);
   await expectAccessible(page, `all-tasks-history-child-${info.project.use.viewport?.width}`);
@@ -247,7 +251,7 @@ test('TASK-6/12: Жду и повтор — перенос и отмена че�
   await expect(page.getByText('Дело выполнено', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Отменить', exact: true }).click();
   await expect(page.getByText('Выполнение отменено', { exact: true })).toBeVisible();
-  await expect(page.locator('.plan-circle--waiting')).toBeVisible();
+  await expect(page.locator('[data-feed-active="true"] .plan-circle--waiting')).toBeVisible();
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Перенести: Повторяющееся дело', exact: true }).click();
   await expect(page.getByRole('button', { name: /Этот и следующие/ })).toBeDisabled();

@@ -27,9 +27,12 @@ export function useNavigationPosition() {
     const key = location.key;
     const restoreKey = requestedPosition ?? (type === 'POP' ? key : undefined);
     requestPosition(undefined);
+    const feeds = ['/today', '/today/plan', '/today/all', '/more/shopping'];
+    const sameFeed =
+      feeds.includes(previousPath.current ?? '') && feeds.includes(location.pathname);
     const target = restoreKey
       ? (positions.get(restoreKey) ?? 0)
-      : previousPath.current === location.pathname
+      : previousPath.current === location.pathname || sameFeed
         ? window.scrollY
         : 0;
     previousPath.current = location.pathname;

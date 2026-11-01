@@ -13,6 +13,7 @@ import {
   SCREENSHOT_DIR,
   screenshot,
   setScope,
+  settle,
   widthOf,
 } from '../support/helpers.ts';
 import { makePng } from './files-support.ts';
@@ -224,6 +225,8 @@ test('SHOP: локальный выбор списка сохраняет гло
     .getByRole('navigation', { name: 'Ленты дел' })
     .getByRole('link', { name: 'Сегодня', exact: true })
     .click();
+  await settle(page);
+  await expect(page).toHaveURL(/#\/today$/);
   await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
   await page.goto('#/more/shopping');
   await setScope(page, 'Общее');

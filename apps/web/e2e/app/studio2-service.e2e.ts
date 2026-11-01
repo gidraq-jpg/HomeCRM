@@ -59,7 +59,7 @@ test('UI-6 D16b: служебные экраны, данные и пустые �
   for (const percent of phase === 'before' ? [100] : [100, 200]) {
     for (const [name, route] of screens) {
       await page.goto(`#${route}`);
-      await expect(page.locator('h1')).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await expect(page.getByText(/^Загружаем|^Открываем запись…$/)).toHaveCount(0);
       await page.evaluate((p) => {
         document.documentElement.style.fontSize = `${p}%`;
@@ -98,7 +98,7 @@ test('UI-6 D16b: Назад служебных экранов возвращае
   ] as const;
   for (const [origin, destination] of screens) {
     await page.goto(`#${origin}`);
-    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     if (origin === '/home')
       await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(1);
     await page.goto(`#${destination}`);
@@ -173,7 +173,7 @@ test('UI-6 D16b: заполненные списки, формы, листы и 
       ['charges', `/home/${flat.id}/accounts/${account.id}/charges`],
     ]) {
       await page.goto(`#${route}`);
-      await expect(page.locator('h1')).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await capture(page, info, `${name}-${percent}`);
     }
     await page.getByRole('button', { name: 'Добавить оплату', exact: true }).click();
@@ -245,7 +245,7 @@ test('UI-6 D16b: ребёнок не видит взрослое и чужое �
   await signInAs(page, family, 'child');
   for (const route of ['/home/month', '/more/trash', '/search']) {
     await page.goto(`#${route}`);
-    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(page.getByText(/^Загружаем/)).toHaveCount(0);
     if (route === '/search') {
       await page.getByLabel('Что найти').fill('Запретная');
@@ -260,7 +260,7 @@ test('UI-6 D16b: ребёнок не видит взрослое и чужое �
   ]) {
     await page.goto(`#${route}`);
     await expect(page.getByText(/^Загружаем/)).toHaveCount(0);
-    await expect(page.locator('h1')).not.toContainText('Запретная');
+    await expect(page.getByRole('heading', { level: 1 })).not.toContainText('Запретная');
   }
 });
 
@@ -392,13 +392,15 @@ test('UI-6 D16b: Onest на входе и восстановлении, комп
       ['reset-missing', '/reset-password'],
     ]) {
       await page.goto(`#${route}`);
-      await expect(page.locator('h1')).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await page.evaluate((p) => {
         document.documentElement.style.fontSize = `${p}%`;
       }, percent);
       await expect
         .poll(async () =>
-          page.locator('h1').evaluate((element) => getComputedStyle(element).fontFamily),
+          page
+            .getByRole('heading', { level: 1 })
+            .evaluate((element) => getComputedStyle(element).fontFamily),
         )
         .toContain('Onest');
       await capture(page, info, `auth-${name}-${percent}`);
