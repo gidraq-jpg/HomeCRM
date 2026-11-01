@@ -5,6 +5,8 @@ import {
   type AppDatabase,
   accounts,
   and,
+  chatCodes,
+  chatGrants,
   type Database,
   desc,
   eq,
@@ -193,6 +195,8 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
     await db
       .delete(sessions)
       .where(and(eq(sessions.userId, account.id), sql`${sessions.id} <> ${account.sessionId}`));
+    await db.delete(chatGrants).where(eq(chatGrants.accountId, account.id));
+    await db.delete(chatCodes).where(eq(chatCodes.accountId, account.id));
     return { status: true };
   });
 

@@ -28,6 +28,8 @@ const FROZEN = ['id', 'author_id', 'created_at', 'updated_at', 'invalidated_at']
 
 export function expectedGrants(): Record<string, Record<string, TableGrants>> {
   const app: Record<string, TableGrants> = {
+    chat_grants: { SELECT: 'all', DELETE: 'all' },
+    chat_events: { SELECT: 'all', INSERT: 'all' },
     ai_daily_usage: { SELECT: 'all', INSERT: 'all' },
     radar_actions: {
       SELECT: 'all',
@@ -69,7 +71,7 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     file_blobs: { SELECT: 'all', INSERT: 'all', DELETE: 'all' },
     record_links: { SELECT: 'all', INSERT: 'all', UPDATE: ['role', 'deleted_at'] },
     accounts: { SELECT: 'all' },
-    spaces: { SELECT: 'all', UPDATE: ['time_zone', 'ai_enabled'] },
+    spaces: { SELECT: 'all', UPDATE: ['time_zone', 'ai_enabled', 'chat_enabled'] },
     deadlines: {
       SELECT: 'all',
       INSERT: 'all',
@@ -194,6 +196,9 @@ export function expectedGrants(): Record<string, Record<string, TableGrants>> {
     worker[name] = { SELECT: 'all', DELETE: 'all' };
   }
   const auth: Record<string, TableGrants> = {
+    chat_clients: { SELECT: 'all', INSERT: 'all', DELETE: 'all' },
+    chat_codes: { SELECT: 'all', INSERT: 'all', UPDATE: 'all', DELETE: 'all' },
+    chat_grants: { SELECT: 'all', INSERT: 'all', UPDATE: 'all', DELETE: 'all' },
     accounts: { SELECT: 'all', INSERT: 'all', UPDATE: 'all' },
     spaces: { SELECT: 'all', INSERT: 'all' },
     space_members: { SELECT: 'all', INSERT: 'all', UPDATE: ['left_at', 'left_by'] },

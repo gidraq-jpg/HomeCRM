@@ -14,6 +14,8 @@ const SECRET_QUERY = /([?&]token=)[^&#]*/gi;
 export const REDACTED = '[redacted]';
 
 export function redactUrl(url: string): string {
+  if (/^\/api\/chat(?:\/|[?#]|$)/.test(url)) return url.split(/[?#]/)[0] ?? '/api/chat';
+  if (/^\/(oauth|mcp)(?:\/|[?#]|$)/.test(url)) return url.split(/[?#]/)[0] ?? '/oauth';
   if (/^\/api\/search(?:\/|[?#]|$)/.test(url)) return '/api/search';
   if (
     /^\/api\/(notes|objects|links|records|contacts|accounts|meters|readings|documents|tasks|deadlines|inbox)(?:\/|[?#]|$)/.test(

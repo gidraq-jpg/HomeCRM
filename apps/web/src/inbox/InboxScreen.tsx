@@ -4,6 +4,7 @@ import { useLocation } from 'react-router';
 import { useAiStatus } from '../ai/AiCapture.tsx';
 import { useAiConsent } from '../ai/consent.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
+import { ChatDrafts } from '../chat/Chat.tsx';
 import { fileUrl } from '../files/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { localMessage, offlineEvents } from '../offline/identity.ts';
@@ -251,41 +252,49 @@ export function InboxScreen({
           Здесь пока пусто. Сохраните мысль, фото или документ и разберите, когда удобно.
         </p>
       ) : null}
+      {!trash && query.data?.some((row) => row.source === 'chat') && (
+        <ChatDrafts
+          rows={query.data.filter((row) => row.source === 'chat')}
+          refresh={query.refetch}
+        />
+      )}
       <ul className="inbox-list">
-        {query.data?.map((row) => (
-          <li key={row.id}>
-            <p className="inbox-status">{STATUS_LABELS[row.status]}</p>
-            {row.status !== 'identity' ? (
-              <p className="inbox-text">{row.text || row.files[0]?.name || 'Входящее'}</p>
-            ) : null}
-            {row.draft ? <p>{KIND_LABELS[row.draft.classification.kind]}</p> : null}
-            <div className="btn-row">
-              {trash ? (
-                <button
-                  className="btn btn--secondary"
-                  type="button"
-                  onClick={() =>
-                    void state.run(async () => {
-                      await inboxAction(row.id, 'restore');
-                      await query.refetch();
-                    })
-                  }
-                >
-                  Восстановить
-                </button>
-              ) : (
-                <Link className="btn btn--secondary" to={`/more/inbox/${row.id}`}>
-                  {row.status === 'identity' ? 'Заполнить вручную' : 'Открыть'}
-                </Link>
-              )}
-              {row.files.map((file, i) => (
-                <a className="text-button" key={file.id} href={fileUrl(file.id)}>
-                  Страница {i + 1}
-                </a>
-              ))}
-            </div>
-          </li>
-        ))}
+        {query.data
+          ?.filter((row) => row.source !== 'chat' || trash)
+          .map((row) => (
+            <li key={row.id}>
+              <p className="inbox-status">{STATUS_LABELS[row.status]}</p>
+              {row.status !== 'identity' ? (
+                <p className="inbox-text">{row.text || row.files[0]?.name || 'Входящее'}</p>
+              ) : null}
+              {row.draft ? <p>{KIND_LABELS[row.draft.classification.kind]}</p> : null}
+              <div className="btn-row">
+                {trash ? (
+                  <button
+                    className="btn btn--secondary"
+                    type="button"
+                    onClick={() =>
+                      void state.run(async () => {
+                        await inboxAction(row.id, 'restore');
+                        await query.refetch();
+                      })
+                    }
+                  >
+                    Восстановить
+                  </button>
+                ) : (
+                  <Link className="btn btn--secondary" to={`/more/inbox/${row.id}`}>
+                    {row.status === 'identity' ? 'Заполнить вручную' : 'Открыть'}
+                  </Link>
+                )}
+                {row.files.map((file, i) => (
+                  <a className="text-button" key={file.id} href={fileUrl(file.id)}>
+                    Страница {i + 1}
+                  </a>
+                ))}
+              </div>
+            </li>
+          ))}
       </ul>
       <Link className="text-button" to={trash ? '/more/inbox' : '/more/inbox/trash'}>
         {trash ? 'Назад во входящие' : 'Корзина входящих'}

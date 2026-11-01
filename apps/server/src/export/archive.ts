@@ -476,6 +476,8 @@ export async function buildArchive(
         members.map(({ data }) => data),
       );
     }
+    if (scope.kind === 'personal')
+      await addJSON('chat_events', ExportRecords.chat_events, rows(tx, 'chat_events', sql`true`));
     const manifest = ExportManifest.parse({
       format: 'homecrm',
       version: 1,

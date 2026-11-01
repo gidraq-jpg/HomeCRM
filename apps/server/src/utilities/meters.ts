@@ -136,7 +136,7 @@ async function replayReadings(
   return result;
 }
 
-async function getMeter(tx: Transaction, account: Account, id: string, lock = false) {
+export async function getMeter(tx: Transaction, account: Account, id: string, lock = false) {
   let [row] = await tx.select().from(meters).where(eq(meters.id, id));
   if (!row || !canView(account.viewer, placementOf(row))) missing();
   const parent = await getObject(tx, account, row.parentId, lock);

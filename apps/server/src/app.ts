@@ -14,11 +14,14 @@ import { exportRoutes } from './export/routes.ts';
 import { filesRoutes } from './files/routes.ts';
 import { type FileServices, fileTransactions } from './files/service.ts';
 import { householdRoutes } from './household/routes.ts';
+import { chatInboxRoutes } from './inbox/chat.ts';
 import { inboxRoutes } from './inbox/routes.ts';
 import { serializeRequest } from './logging.ts';
+import { mcpRoutes } from './mcp/routes.ts';
 import { notesRoutes } from './notes/routes.ts';
 import { notificationRoutes } from './notifications/routes.ts';
 import { summaryRoutes } from './notifications/summary-routes.ts';
+import { oauthRoutes } from './oauth/routes.ts';
 import { objectsRoutes } from './objects/routes.ts';
 import { searchRoutes } from './search/routes.ts';
 import { shoppingRoutes } from './shopping/routes.ts';
@@ -117,6 +120,9 @@ export function buildApp(
         }
       : dependencies.auth;
   if (auth !== undefined) {
+    void app.register(oauthRoutes, auth);
+    void app.register(mcpRoutes, auth);
+    void app.register(chatInboxRoutes, auth);
     // Дополняем контракты существующих маршрутов без изменений модуля входа.
     app.addHook('preSerialization', async (request, reply, payload) => {
       if (reply.statusCode !== 200 || !payload || typeof payload !== 'object') return payload;

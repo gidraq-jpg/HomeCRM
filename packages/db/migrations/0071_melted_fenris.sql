@@ -1,0 +1,1 @@
+CREATE POLICY "chat_codes_auth_update" ON "chat_codes" AS PERMISSIVE FOR UPDATE TO "homecrm_auth" USING (true) WITH CHECK (true);

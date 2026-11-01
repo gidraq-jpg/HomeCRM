@@ -16,6 +16,8 @@ let tables: string[];
 
 // Таблицы входа, которых у приложения нет вовсе: пароли, секреты, сессии, счётчики (ADR-0005).
 const AUTH_ONLY = [
+  'chat_clients',
+  'chat_codes',
   'push_deliveries',
   'credentials',
   'login_locks',
@@ -29,6 +31,8 @@ const AUTH_ONLY = [
 // Таблицы записей и их истории берутся из recordTable(): новая таблица попадает сюда сама.
 const RECORD_NAMES = RECORD_DEFINITIONS.map((definition) => definition.name);
 const APP_TABLES = [
+  'chat_grants',
+  'chat_events',
   'ai_daily_usage',
   'radar_actions',
   'summaries',

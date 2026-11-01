@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 're
 import { useLocation } from 'react-router';
 import * as z from 'zod';
 import { App } from '../App.tsx';
+import { ChatConsent } from '../chat/Chat.tsx';
 import { usePendingRoute } from '../notifications/pending-route.ts';
 import {
   acceptViewOwner,
@@ -90,6 +91,8 @@ function ResetNotice({
 }
 
 export function AuthRoot() {
+  if (window.location.hash.startsWith('#/oauth/consent?'))
+    sessionStorage.setItem('homecrm-chat-return', window.location.hash.slice(1));
   const location = useLocation();
   const navigate = useNavigate();
   const client = useQueryClient();
@@ -161,7 +164,12 @@ export function AuthRoot() {
     await reload();
     // Настройка второго фактора идёт первой: запомненный переход откроется после неё.
     const pending = setup ? null : takePendingRoute();
-    navigate(setup ? '/setup-two-factor' : (pending ?? '/today'), { replace: true });
+    navigate(
+      setup
+        ? '/setup-two-factor'
+        : (sessionStorage.getItem('homecrm-chat-return') ?? pending ?? '/today'),
+      { replace: true },
+    );
   }
   function signedOut() {
     void setIdentity(null);
@@ -214,6 +222,7 @@ export function AuthRoot() {
     screen = (
       <TwoFactorSetup required={query.data.secondFactorRequired} onComplete={() => signedIn()} />
     );
+  else if (location.pathname === '/oauth/consent') screen = <ChatConsent />;
   else {
     screen = (
       <>

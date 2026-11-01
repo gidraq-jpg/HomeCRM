@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import * as z from 'zod';
+import { ChatDevices } from '../chat/Chat.tsx';
 import { saveSettings } from '../notifications/api.ts';
 import { useRefreshNotifications, useSettings } from '../notifications/queries.ts';
 import { prepareLogout } from '../offline/logout.ts';
@@ -309,6 +310,7 @@ export function SecurityScreen({
       <FactorSettings me={me} reload={reload} />
       <ChangePassword />
       <Devices onSignedOut={onSignedOut} timeZone={me.timeZone} />
+      <ChatDevices />
       <LoginEvents timeZone={me.timeZone} />
       <HouseholdLinks me={me} />
       <InstallApp inline />

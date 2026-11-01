@@ -67,7 +67,7 @@ import {
 import { recordTable } from './records.ts';
 
 export * from './api-operations-schema.ts';
-
+export * from './chat-schema.ts';
 export * from './core.ts';
 export * from './deadlines-schema.ts';
 export * from './export-schema.ts';
@@ -496,6 +496,7 @@ const inboxDefinition = recordTable(
     houseId: uuid('house_id').references(() => spaces.id),
     consent: text('consent'),
     captureHash: text('capture_hash').notNull().default(''),
+    chatDraft: jsonb('chat_draft').$type<import('@homecrm/shared').ChatItem>(),
     draft: jsonb('draft'),
     errorCode: text('error_code'),
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
@@ -513,7 +514,7 @@ const inboxDefinition = recordTable(
         sql`space_kind='personal' AND audience IS NULL AND assignee_id=author_id`,
       ),
       check('inbox_items_status', sql`status IN ('new','processing','ready','error','identity')`),
-      check('inbox_items_source', sql`source IN ('photo','file','text','voice')`),
+      check('inbox_items_source', sql`source IN ('photo','file','text','voice','chat')`),
       check('inbox_items_identity_empty', sql`status<>'identity' OR draft IS NULL`),
     ],
     extraPolicies: [

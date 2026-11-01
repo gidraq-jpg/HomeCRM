@@ -13,6 +13,7 @@
     "@fastify/multipart": "^10.1.2",
     "@homecrm/db": "workspace:*",
     "@homecrm/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@napi-rs/canvas": "0.1.100",
     "better-auth": "1.7.7",
     "date-fns": "^4.4.0",
