@@ -5,6 +5,7 @@ param(
  [Parameter(Mandatory,ParameterSetName='Login')][switch]$Login,
  [Parameter(ParameterSetName='Status')][switch]$Status,
  [Parameter(Mandatory,ParameterSetName='Run')][switch]$Run,
+ [Parameter(Mandatory,ParameterSetName='Task')][switch]$RegisterTask,
  [string]$HermesHome = 'E:\HomeCRM-data\hermes',
  [string]$KeyFile = 'E:\HomeCRM-data\secrets\ai\api-server-key',
  [string]$HermesRuntime = 'E:\HomeCRM-data\hermes-runtime',
@@ -25,6 +26,35 @@ foreach ($instancePath in @($HermesHome,$KeyFile,$HermesRuntime)) {
 }
 $service=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../hermes-ai/server.py'))
 $python=Join-Path $HermesRuntime '.venv/Scripts/python.exe'
+function Register-HermesTask {
+ $pwsh=(Get-Process -Id $PID).Path
+ # Планировщик получает пути, а не ключ или OAuth-токен. Окно скрыто: закрытое окно останавливало разбор.
+ $arguments="-NoProfile -WindowStyle Hidden -File `"$PSCommandPath`" -Run -HermesHome `"$HermesHome`" -KeyFile `"$KeyFile`" -HermesRuntime `"$HermesRuntime`" -Port $Port -HermesModel $HermesModel"
+ if ($HttpsProxy) { $arguments+=" -HttpsProxy $HttpsProxy" }
+ $action=New-ScheduledTaskAction -Execute $pwsh -Argument $arguments
+ $trigger=New-ScheduledTaskTrigger -AtLogOn -User ([Security.Principal.WindowsIdentity]::GetCurrent().Name)
+ $settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+ Register-ScheduledTask -TaskName 'HomeCRM Hermes' -Action $action -Trigger $trigger -Settings $settings -Description 'Изолированный разбор черновиков HomeCRM' -Force | Out-Null
+}
+if ($RegisterTask) {
+ # Перерегистрация без переустановки: конфиг, ключ и вход не трогаются, запущенный экземпляр перезапускается.
+ Register-HermesTask
+ Stop-ScheduledTask -TaskName 'HomeCRM Hermes'
+ # Остановка задачи не завершает дочерний python: он держал бы порт новому экземпляру.
+ foreach ($listener in @(Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)) {
+  # Python из venv на Windows — запускатель: порт держит дочерний базовый python.
+  $owner=Get-CimInstance Win32_Process -Filter "ProcessId=$($listener.OwningProcess)"
+  $parent=if ($owner) { Get-CimInstance Win32_Process -Filter "ProcessId=$($owner.ParentProcessId)" }
+  $venvPython=[IO.Path]::GetFullPath($python)
+  if ($owner.ExecutablePath -ieq $venvPython -or $parent.ExecutablePath -ieq $venvPython) {
+   Stop-Process -Id $owner.ProcessId -Force
+   if ($parent.ExecutablePath -ieq $venvPython) { Stop-Process -Id $parent.ProcessId -Force -ErrorAction SilentlyContinue }
+  }
+ }
+ Start-ScheduledTask -TaskName 'HomeCRM Hermes'
+ Write-Output 'HomeCRM Hermes task registered and started.'
+ exit
+}
 if ($Install) {
  if (Test-Path -LiteralPath (Join-Path $HermesHome 'config.yaml')) { throw 'Instance already exists; refusing to overwrite configuration' }
  [IO.Directory]::CreateDirectory($HermesHome) | Out-Null
@@ -43,16 +73,7 @@ if ($Install) {
  }
  $config=@('model:', '  provider: openai-codex', 'platform_toolsets:', '  cli: []', '  api_server: []', 'memory:', '  memory_enabled: false', '  user_profile_enabled: false', 'skills:', '  auto_load: []', 'sessions:', '  write_json_snapshots: false', 'agent:', '  max_iterations: 1') -join "`n"
  [IO.File]::WriteAllText((Join-Path $HermesHome 'config.yaml'),$config+"`n",[Text.UTF8Encoding]::new($false))
- if (!$NoTask) {
-  $pwsh=(Get-Process -Id $PID).Path
-  # Планировщик получает пути, а не ключ или OAuth-токен.
-  $arguments="-NoProfile -File `"$PSCommandPath`" -Run -HermesHome `"$HermesHome`" -KeyFile `"$KeyFile`" -HermesRuntime `"$HermesRuntime`" -Port $Port -HermesModel $HermesModel"
-  if ($HttpsProxy) { $arguments+=" -HttpsProxy $HttpsProxy" }
-  $action=New-ScheduledTaskAction -Execute $pwsh -Argument $arguments
-  $trigger=New-ScheduledTaskTrigger -AtLogOn -User ([Security.Principal.WindowsIdentity]::GetCurrent().Name)
-  $settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-  Register-ScheduledTask -TaskName 'HomeCRM Hermes' -Action $action -Trigger $trigger -Settings $settings -Description 'Изолированный разбор черновиков HomeCRM' | Out-Null
- }
+ if (!$NoTask) { Register-HermesTask }
  Write-Output 'HomeCRM Hermes instance prepared. Prepare pinned runtime, then run -Login and -Run.'
  exit
 }
@@ -83,7 +104,14 @@ if ($Run) {
  if ($HttpsProxy) {
   $env:HTTPS_PROXY=$HttpsProxy; $env:HTTP_PROXY=$HttpsProxy; $env:NO_PROXY='127.0.0.1,localhost'
  }
- try { & $python $service; if ($LASTEXITCODE -ne 0) { throw 'HomeCRM Hermes stopped' } }
+ # Планировщик перезапускает задачу, только если она не стартовала; упавший сервис поднимаем сами.
+ try {
+  while ($true) {
+   & $python $service
+   Write-Warning "HomeCRM Hermes exited with code $LASTEXITCODE; restarting in 30 s"
+   Start-Sleep -Seconds 30
+  }
+ }
  finally { Remove-Item Env:API_SERVER_KEY -ErrorAction SilentlyContinue }
  exit
 }
