@@ -318,7 +318,7 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     clip-path: var(--card-clip);
     opacity: 0;
   }
-  60% {
+  40% {
     opacity: 1;
   }
   100% {

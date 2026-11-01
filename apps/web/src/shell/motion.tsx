@@ -57,99 +57,12 @@ export function cardClip(
 
 /** Панель остаётся живой: D30 не снимает её вместе с экраном раздела. */
 export function changeDockScreen(button: DOMRect, update: () => void) {
-  saveCurrentPosition();
-  const main = document.querySelector<HTMLElement>('.main');
-  if (!main?.animate) {
-    cancelMotionNavigation();
-    return update();
-  }
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const rect = main.getBoundingClientRect();
-  const width = main.offsetWidth;
-  const height = main.offsetHeight;
-  const old = main.cloneNode(true) as HTMLElement;
-  for (const [index, child] of [...main.children].entries()) {
-    const copy = old.children[index];
-    if (copy instanceof HTMLElement) copy.style.opacity = getComputedStyle(child).opacity;
-  }
-  // Следующий выбор сохраняет промежуточную позу до снятия прежней анимации.
-  cancelMotionNavigation();
-  old.removeAttribute('id');
-  for (const child of old.querySelectorAll('[id]')) child.removeAttribute('id');
-  old.inert = true;
-  old.setAttribute('aria-hidden', 'true');
-  old.dataset.dockGhost = '';
-  Object.assign(old.style, {
-    position: 'fixed',
-    left: `${rect.left}px`,
-    top: `${rect.top}px`,
-    width: `${width}px`,
-    height: `${height}px`,
-    transform: `scale(${rect.width / width}, ${rect.height / height})`,
-    transformOrigin: '0 0',
-    margin: '0',
-    pointerEvents: 'none',
-    overflow: 'hidden',
-    zIndex: '1',
-    viewTransitionName: 'none',
+  changeScreenWithMotion('forward', update, {
+    parentKey: window.history.state?.key,
+    parentPath: window.location.hash.slice(1).split('?')[0] ?? '',
+    href: '',
+    rect: button,
   });
-  main.after(old);
-  flushSync(update);
-  const next = main.getBoundingClientRect();
-  const ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim();
-  const originalStyle = main.getAttribute('style');
-  Object.assign(main.style, {
-    position: 'relative',
-    zIndex: '2',
-    background: 'var(--paper)',
-    borderRadius: '32px',
-    overflow: 'clip',
-    boxShadow: '0 12px 40px rgb(0 0 0 / 24%)',
-  });
-  const growth = `translate(${button.left - next.left}px, ${button.top - next.top}px) scale(${button.width / next.width}, ${button.height / next.height})`;
-  const children = [...main.children].filter(
-    (child): child is HTMLElement => child instanceof HTMLElement,
-  );
-  const animations = [
-    old.animate([{ opacity: 1 }, { opacity: 0 }], {
-      duration: reduce ? 120 : 200,
-      fill: 'forwards',
-    }),
-    ...(reduce
-      ? [
-          main.animate([{ opacity: 0 }, { opacity: 1 }], {
-            duration: motionTime('fast'),
-            easing: ease,
-          }),
-        ]
-      : children.map((child) =>
-          child.animate([{ opacity: 0 }, { opacity: 1 }], {
-            duration: motionTime('fast'),
-            delay: motionTime('screen') - motionTime('fast'),
-            easing: ease,
-            fill: 'backwards',
-          }),
-        )),
-  ];
-  if (!reduce)
-    animations.push(
-      main.animate(
-        [
-          { transform: growth, transformOrigin: '0 0' },
-          { transform: 'translate(0px, 0px) scale(1, 1)', transformOrigin: '0 0' },
-        ],
-        { duration: motionTime('screen'), easing: ease },
-      ),
-    );
-  const cleanup = () => {
-    for (const animation of animations) animation.cancel();
-    old.remove();
-    if (originalStyle === null) main.removeAttribute('style');
-    else main.setAttribute('style', originalStyle);
-    if (dockCleanup === cleanup) dockCleanup = undefined;
-  };
-  dockCleanup = cleanup;
-  void animations.at(-1)?.finished.then(cleanup, cleanup);
 }
 /** Возврат по истории не должен быть затёрт ещё не снявшим снимок переходом. */
 export function cancelMotionNavigation() {
