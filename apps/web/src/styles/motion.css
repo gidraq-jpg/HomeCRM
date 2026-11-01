@@ -123,14 +123,14 @@ html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(
 }
 
 .list-skeleton {
-  padding-block: 8px;
+  padding-block: 0;
 }
 .list-skeleton__row {
   display: flex;
   align-items: center;
   gap: 16px;
-  min-height: 76px;
-  padding: 12px;
+  min-height: 64px;
+  padding: 10px 12px;
 }
 .list-skeleton__icon {
   width: 40px;
@@ -594,4 +594,8 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
   position: relative;
   grid-area: 1 / 1;
   align-self: start;
+}
+
+.row-list {
+  animation: motion-fade-in var(--motion-fast) var(--ease-out);
 }

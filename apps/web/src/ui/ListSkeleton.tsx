@@ -3,7 +3,7 @@ export function ListSkeleton({ label = 'Загружаем…' }: { label?: stri
   return (
     <div className="list-skeleton" role="status" aria-label={label}>
       {[0, 1, 2].map((id) => (
-        <div className="list-skeleton__row" key={id} aria-hidden>
+        <div className="row list-skeleton__row" key={id} aria-hidden>
           <span className="list-skeleton__icon" />
           <span className="list-skeleton__text">
             <span />
