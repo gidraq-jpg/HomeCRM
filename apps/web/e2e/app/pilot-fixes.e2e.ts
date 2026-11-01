@@ -299,7 +299,7 @@ test('D19a.6/9/10/13: покупки без Map.groupBy, назад из пра�
       (response) =>
         response.url().endsWith('/api/shopping') && response.request().method() === 'POST',
     );
-    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'Добавить', exact: true }).click();
     expect((await created).status()).toBe(201);
     await expect(shoppingInput).toHaveValue('');
   } finally {
