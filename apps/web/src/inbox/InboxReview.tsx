@@ -12,6 +12,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useParams } from 'react-router';
+import { z } from 'zod';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import { VISIBILITY_LABELS, type Visibility } from '../access/visibility.ts';
 import { useAiStatus } from '../ai/AiCapture.tsx';
@@ -32,7 +33,6 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { creatableVisibilities, viewerOf } from '../notes/abilities.ts';
 import { createNote } from '../notes/api.ts';
 import { EMPTY_DRAFT, NoteForm } from '../notes/NoteForm.tsx';
-import { createObject } from '../objects/api.ts';
 import { EMPTY_DRAFT as EMPTY_OBJECT, ObjectForm } from '../objects/ObjectForm.tsx';
 import { Link, useNavigate } from '../shell/motion.tsx';
 import { createShopping } from '../shopping/api.ts';
@@ -47,7 +47,6 @@ import {
   inboxAction,
   inboxOperationKey,
   KIND_LABELS,
-  Ok,
   STATUS_LABELS,
   useInbox,
 } from './api.ts';
@@ -125,6 +124,8 @@ function fieldsOf(
 }
 export function InboxReview() {
   const { inboxId, editKind } = useParams();
+  const [attachment, setAttachment] = useState<{ id?: string; value: boolean }>({ value: true });
+  const attachSource = attachment.id === inboxId ? attachment.value : true;
   const query = useInbox(false, true);
   const row = query.data?.find((r) => r.id === inboxId);
   if (!row)
@@ -133,9 +134,27 @@ export function InboxReview() {
         <Notice>{query.isPending ? 'Загружаем…' : 'Элемент недоступен или уже разобран.'}</Notice>
       </StudioPage>
     );
-  return <InboxItemReview key={`${row.id}:${editKind ?? ''}`} row={row} editKind={editKind} />;
+  return (
+    <InboxItemReview
+      key={`${row.id}:${editKind ?? ''}`}
+      row={row}
+      editKind={editKind}
+      attachSource={attachSource}
+      setAttachSource={(value) => setAttachment({ id: inboxId, value })}
+    />
+  );
 }
-function InboxItemReview({ row, editKind }: { row: InboxItem; editKind: string | undefined }) {
+function InboxItemReview({
+  row,
+  editKind,
+  attachSource,
+  setAttachSource,
+}: {
+  row: InboxItem;
+  editKind: string | undefined;
+  attachSource: boolean;
+  setAttachSource: (value: boolean) => void;
+}) {
   const { me } = useHousehold();
   const navigate = useNavigate();
   const client = useQueryClient();
@@ -188,7 +207,6 @@ function InboxItemReview({ row, editKind }: { row: InboxItem; editKind: string |
     docVisibility === 'personal' || !row.houseId
       ? { spaceId: me.personalSpaceId ?? '' }
       : { spaceId: row.houseId, audience: docVisibility };
-  const newObject = useRef<string | null>(null);
   type Target = NonNullable<typeof created.current>;
   const extra = useRef(new Map<number, Target[]>());
   async function finish(target: NonNullable<typeof created.current>) {
@@ -202,9 +220,26 @@ function InboxItemReview({ row, editKind }: { row: InboxItem; editKind: string |
       }
       targets.push(...saved);
     }
-    await inboxAction(row.id, 'resolve', { targets });
+    const result = await inboxAction(row.id, 'resolve', { targets, attachSource });
+    const attachedLabels: Record<string, string> = {
+      task: 'к делу',
+      note: 'к заметке',
+      document: 'к документу',
+      object: 'к объекту',
+      meter_reading: 'к показанию',
+      utility_charge: 'к начислению',
+    };
     await client.invalidateQueries({ queryKey: ['inbox', me.id] });
-    navigate('/more/inbox', { replace: true });
+    navigate('/more/inbox', {
+      replace: true,
+      state: {
+        attachmentMessage: row.files.length
+          ? result.attachedTo?.length
+            ? `Исходный файл прикреплён ${result.attachedTo.map((type) => attachedLabels[type]).join(' и ')}.`
+            : 'Исходный файл удалён.'
+          : '',
+      },
+    });
   }
   async function save(factory: () => Promise<NonNullable<typeof created.current>>) {
     await action.run(async () => finish(created.current ?? (await factory())));
@@ -380,6 +415,17 @@ function InboxItemReview({ row, editKind }: { row: InboxItem; editKind: string |
           ))}
           {row.files.length ? <p>Файлы перейдут к записи с вложениями.</p> : null}
         </div>
+      ) : null}
+      {row.files.length ? (
+        <label className="inbox-attach">
+          <input
+            type="checkbox"
+            checked={attachSource}
+            disabled={action.pending || !!created.current}
+            onChange={(event) => setAttachSource(event.target.checked)}
+          />
+          Прикрепить исходный файл
+        </label>
       ) : null}
       {row.files.length ? (
         <p>
@@ -601,18 +647,18 @@ function InboxItemReview({ row, editKind }: { row: InboxItem; editKind: string |
           onCancel={() => navigate(`/more/inbox/${row.id}`)}
           onSubmit={(value) =>
             void action.run(async () => {
-              const object = newObject.current
-                ? { id: newObject.current }
-                : await createObject(
-                    {
-                      title: value.title,
-                      objectType: value.objectType,
-                      ...(value.typeData ? { typeData: value.typeData } : {}),
-                    },
-                    { spaceId: me.personalSpaceId ?? '' },
-                  );
-              newObject.current = object.id;
-              await apiRequest('POST', `inbox/${row.id}/object`, Ok, { id: object.id });
+              await apiRequest(
+                'POST',
+                `inbox/${row.id}/object`,
+                z.object({ ok: z.literal(true), id: z.uuid() }),
+                {
+                  create: {
+                    title: value.title,
+                    objectType: value.objectType,
+                    ...(value.typeData ? { typeData: value.typeData } : {}),
+                  },
+                },
+              );
               await client.invalidateQueries({ queryKey: ['inbox', me.id] });
               navigate(`/more/inbox/${row.id}`);
             })

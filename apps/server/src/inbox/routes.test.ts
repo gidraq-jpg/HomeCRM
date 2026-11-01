@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createAppDatabase, sql } from '@homecrm/db';
 import sharp from 'sharp';
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { aiProvider, loadAiConfig } from '../ai/config.ts';
 import { buildArchive } from '../export/archive.ts';
 import { FileCipher } from '../files/crypto.ts';
@@ -116,6 +116,154 @@ it('AI-9: фото вместе с текстовым PDF и сканом про
 let world: World;
 let administrator: Awaited<ReturnType<typeof signedInAdmin>>;
 const blocks = new Map<string, Buffer>();
+
+it.each([true, false])('INBOX-4: новый объект и заметка, прикрепление=%s', async (attachSource) => {
+  await world.database.admin.query('UPDATE spaces SET ai_enabled=true WHERE id=$1', [
+    world.houseId,
+  ]);
+  const adult = world.device();
+  await adult.signIn(world.boris.username, world.boris.password);
+  const bytes = await sharp({ create: { width: 30, height: 30, channels: 3, background: 'white' } })
+    .png()
+    .toBuffer();
+  const body = {
+    ...capture('Заметка: новый объект: Учебный насос; гарантия в ящике'),
+    files: [{ name: 'Учебный.png', base64: bytes.toString('base64') }],
+  };
+  expect((await adult.post('/api/inbox', body)).status).toBe(201);
+  expect((await adult.post(`/api/inbox/${body.id}/parse`, {})).status).toBe(200);
+  const object = await adult.post(`/api/inbox/${body.id}/object`, {
+    create: { title: 'Учебный насос', objectType: 'other' },
+  });
+  expect(object.status, object.text).toBe(200);
+  const objectId = object.json().id;
+  const retry = await adult.post(`/api/inbox/${body.id}/object`, {
+    create: { title: 'Учебный насос', objectType: 'other' },
+  });
+  expect(retry.json().id).toBe(objectId);
+  const note = await adult.post('/api/notes', { title: 'Учебная гарантия' });
+  const target = { type: 'note', id: note.json().id, attachSource };
+  const sourceKeys = (
+    await world.database.admin.query(
+      'SELECT storage_key,preview_storage_key FROM inbox_files WHERE parent_id=$1',
+      [body.id],
+    )
+  ).rows.flatMap((file) => [file.storage_key, file.preview_storage_key].filter(Boolean));
+  const before = new Map(blocks);
+  if (attachSource) {
+    const put = files.storage.put.bind(files.storage);
+    let count = 0;
+    const fail = vi.spyOn(files.storage, 'put').mockImplementation(async (key, value) => {
+      await put(key, value);
+      if (++count === 2) throw new Error('Injected storage failure');
+    });
+    try {
+      expect((await adult.post(`/api/inbox/${body.id}/resolve`, target)).status).toBe(500);
+      expect(blocks).toEqual(before);
+      expect(
+        (
+          await world.database.admin.query('SELECT id FROM object_files WHERE parent_id=$1', [
+            objectId,
+          ])
+        ).rowCount,
+      ).toBe(0);
+      expect(
+        (
+          await world.database.admin.query('SELECT id FROM note_files WHERE parent_id=$1', [
+            target.id,
+          ])
+        ).rowCount,
+      ).toBe(0);
+      expect(
+        (
+          await world.database.admin.query('SELECT id FROM inbox_files WHERE parent_id=$1', [
+            body.id,
+          ])
+        ).rowCount,
+      ).toBe(1);
+    } finally {
+      fail.mockRestore();
+    }
+  }
+  for (let i = 0; i < 2; i++)
+    expect((await adult.post(`/api/inbox/${body.id}/resolve`, target)).status).toBe(200);
+  for (const [table, id] of [
+    ['object_files', objectId],
+    ['note_files', target.id],
+  ]) {
+    const rows = (
+      await world.database.admin.query(
+        `SELECT storage_key,envelope FROM ${table} WHERE parent_id=$1`,
+        [id],
+      )
+    ).rows;
+    expect(rows).toHaveLength(attachSource ? 1 : 0);
+    for (const file of rows)
+      expect(
+        files.cipher.open(
+          await files.storage.get(file.storage_key),
+          file.envelope,
+          file.storage_key,
+        ),
+      ).toEqual(bytes);
+  }
+  expect(
+    (await world.database.admin.query('SELECT id FROM inbox_files WHERE parent_id=$1', [body.id]))
+      .rowCount,
+  ).toBe(0);
+  for (const key of sourceKeys) expect(blocks.has(key)).toBe(false);
+});
+
+it('INBOX-4: личная запись с общим объектом не раскрывает файл семье', async () => {
+  await world.database.admin.query('UPDATE spaces SET ai_enabled=true WHERE id=$1', [
+    world.houseId,
+  ]);
+  const adult = world.device();
+  await adult.signIn(world.boris.username, world.boris.password);
+  const object = await adult.post('/api/objects', {
+    title: 'Учебный общий объект',
+    placement: { spaceId: world.houseId, audience: 'household' },
+  });
+  expect(object.status).toBe(201);
+  const bytes = await sharp({ create: { width: 30, height: 30, channels: 3, background: 'white' } })
+    .png()
+    .toBuffer();
+  const body = {
+    ...capture('Заметка: учебный личный договор'),
+    files: [{ name: 'Учебный.png', base64: bytes.toString('base64') }],
+  };
+  expect((await adult.post('/api/inbox', body)).status).toBe(201);
+  expect((await adult.post(`/api/inbox/${body.id}/parse`, {})).status).toBe(200);
+  expect((await adult.post(`/api/inbox/${body.id}/object`, { id: object.json().id })).status).toBe(
+    200,
+  );
+  const note = await adult.post('/api/tasks', {
+    title: 'Учебное личное дело',
+    objectId: object.json().id,
+    placement: { spaceId: world.boris.personalSpaceId },
+  });
+  expect(note.status, note.text).toBe(201);
+  expect(
+    (await adult.post(`/api/inbox/${body.id}/resolve`, { type: 'task', id: note.json().id }))
+      .status,
+  ).toBe(200);
+  const rows = (
+    await world.database.admin.query('SELECT id,space_id FROM task_files WHERE parent_id=$1', [
+      note.json().id,
+    ])
+  ).rows;
+  expect(rows).toHaveLength(1);
+  expect(rows[0].space_id).toBe(world.boris.personalSpaceId);
+  expect((await administrator.device.get(`/api/files/${rows[0].id}`)).status).toBe(404);
+  expect(
+    (
+      await world.database.admin.query('SELECT id FROM object_files WHERE parent_id=$1', [
+        object.json().id,
+      ])
+    ).rowCount,
+  ).toBe(0);
+});
+
 const files: FileServices = {
   cipher: new FileCipher(randomBytes(32), 1),
   storage: {

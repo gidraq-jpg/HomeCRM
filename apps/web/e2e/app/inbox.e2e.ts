@@ -9,6 +9,54 @@ import { test } from '../auth/support/fixtures.ts';
 import { apiAs } from './notes-support.ts';
 import { checkApp, expect, openSection, signInAs } from './support.ts';
 
+for (const attach of [true, false])
+  test(`D40: новый объект и исходный файл, прикрепить=${attach}`, async ({
+    page,
+    family,
+  }, info) => {
+    await enable(family);
+    await signInAs(page, family, 'adult');
+    await openCapture(page);
+    await page
+      .getByLabel('Текст или диктовка')
+      .fill('Заметка: новый объект: Учебный насос; гарантия лежит в ящике');
+    await page.getByLabel('Галерея или файл — можно несколько страниц').setInputFiles({
+      name: 'Учебный.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAIAAAC0Ujn1AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAMElEQVRIie3QsQ0AIAzAsP7/NMzNzoBkH5Ahc54Z6c2QMCQMCUPCkDAkDAlD4s8hF5KXggsgJ7X7AAAAAElFTkSuQmCC',
+        'base64',
+      ),
+    });
+    await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
+    await page.getByRole('button', { name: 'Согласен, разобрать', exact: true }).click();
+    await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
+    await page.getByRole('link', { name: 'Открыть', exact: true }).first().click();
+    const checkbox = page.getByRole('checkbox', { name: 'Прикрепить исходный файл', exact: true });
+    await expect(checkbox).toBeChecked();
+    if (!attach) await checkbox.uncheck();
+    await checkApp(page, info, `d40-draft-${attach}`);
+    await page.getByRole('link', { name: 'Создать объект', exact: true }).click();
+    await expect(checkbox).toBeChecked({ checked: attach });
+    await checkApp(page, info, `d40-object-${attach}`);
+    await page.getByRole('button', { name: 'Создать объект', exact: true }).click();
+    await page.getByRole('button', { name: 'Сохранить как предложено', exact: true }).click();
+    await expect(
+      page.getByText(
+        attach ? 'Исходный файл прикреплён к заметке и к объекту.' : 'Исходный файл удалён.',
+        { exact: true },
+      ),
+    ).toBeVisible();
+    expect((await family.database.admin.query('SELECT id FROM object_files')).rowCount).toBe(
+      attach ? 1 : 0,
+    );
+    expect((await family.database.admin.query('SELECT id FROM note_files')).rowCount).toBe(
+      attach ? 1 : 0,
+    );
+    expect((await family.database.admin.query('SELECT id FROM inbox_files')).rowCount).toBe(0);
+    await checkApp(page, info, `d40-saved-${attach}`);
+  });
+
 async function enable(family: Family) {
   await family.database.admin.query('UPDATE spaces SET ai_enabled=true WHERE id=$1', [
     family.houseId,
