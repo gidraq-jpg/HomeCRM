@@ -107,6 +107,31 @@ export function changeScreenWithMotion(
   card?: CardOrigin,
   form = false,
 ) {
+  if (current) {
+    const pending = current;
+    if (direction === 'back' && document.documentElement.dataset.motionDirection === 'forward') {
+      void pending.ready?.then(
+        async () => {
+          const animations = document.getAnimations().filter((animation) => {
+            const effect = animation.effect as KeyframeEffect | null;
+            return (
+              effect?.pseudoElement?.includes('view-transition') &&
+              animation.playState === 'running'
+            );
+          });
+          for (const animation of animations) animation.reverse();
+          await Promise.allSettled(animations.map((animation) => animation.finished));
+          flushSync(update);
+        },
+        () => {
+          flushSync(update);
+        },
+      );
+    } else {
+      void pending.finished.then(() => changeScreenWithMotion(direction, update, card, form));
+    }
+    return;
+  }
   saveCurrentPosition();
   dockCleanup?.();
   if (
