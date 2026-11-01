@@ -96,13 +96,19 @@ for (const textScale of [1, 2]) {
       await page.evaluate(() => {
         document.documentElement.style.fontSize = '200%';
       });
-    await expect(page.getByText('Просроченное вымышленное дело', { exact: true })).toBeVisible();
+    await expect(
+      page
+        .locator('[data-feed-active="true"]')
+        .getByText('Просроченное вымышленное дело', { exact: true }),
+    ).toBeVisible();
     await plan(page);
     const width = info.project.use.viewport?.width;
     await expect(page.getByText('18:00 · Вымышленная дача · Вся семья')).toBeVisible();
     await expect(page.getByRole('img', { name: 'Повторяется' })).toBeVisible();
-    await expect(page.getByText('→ Анна', { exact: false })).toBeVisible();
-    await expect(page.locator('.plan-circle--waiting')).toBeVisible();
+    await expect(
+      page.locator('[data-feed-active="true"]').getByText('→ Анна', { exact: false }),
+    ).toBeVisible();
+    await expect(page.locator('[data-feed-active="true"] .plan-circle--waiting')).toBeVisible();
     await expect(page.getByText(/· свободно/).first()).toBeVisible();
     // Просрочка — срок dueOn; прошедший день плана сам по себе её не добавляет.
     await expect(page.getByRole('link', { name: /1 просроченное дело/ })).toBeVisible();

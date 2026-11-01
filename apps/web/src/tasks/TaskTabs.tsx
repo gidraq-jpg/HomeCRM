@@ -39,11 +39,17 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
     let start: (SwipePoint & { pointerId: number; horizontal: boolean }) | null = null;
     let offset = 0;
     let returnAnimation: Animation | undefined;
-    let velocity = 0;
-    let last: SwipePoint | null = null;
     const preview = (show: boolean) => {
       const carousel = main.querySelector<HTMLElement>('.feed-carousel');
       if (!carousel) return;
+      const track = carousel.querySelector<HTMLElement>('.feed-carousel__track');
+      if (track && show && !carousel.hasAttribute('data-feed-preview'))
+        track.style.minHeight = `${track.getBoundingClientRect().height}px`;
+      if (track && !show && carousel.hasAttribute('data-feed-preview')) {
+        const rect = track.getBoundingClientRect();
+        const tail = document.documentElement.scrollHeight - rect.bottom - window.scrollY;
+        track.style.minHeight = `${Math.max(0, window.innerHeight - rect.top - tail)}px`;
+      }
       carousel.toggleAttribute('data-feed-preview', show);
       carousel.dispatchEvent(new Event('feed-preview'));
     };
@@ -60,7 +66,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
     const links = () => [
       ...(ref.current?.querySelectorAll<HTMLAnchorElement>('.tabs__link') ?? []),
     ];
-    const change = (next: HTMLAnchorElement, direction: number, swiped = false) => {
+    const change = (next: HTMLAnchorElement, direction: number, _swiped = false) => {
       const root = document.documentElement;
       const node = content();
       const width = node?.getBoundingClientRect().width ?? 0;
@@ -72,6 +78,11 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
         void navigation.current(next.hash.slice(1));
       });
       if (node) node.style.transform = '';
+      if (!node?.animate) {
+        offset = 0;
+        preview(false);
+        return;
+      }
       if (reducedMotion()) {
         returnAnimation = node?.animate([{ opacity: 0 }, { opacity: 1 }], {
           duration: motionTime('fast'),
@@ -84,11 +95,8 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
       returnAnimation = node?.animate(
         [{ transform: `translateX(${from}px)` }, { transform: 'translateX(0)' }],
         {
-          duration: motionTime(swiped ? 'screen' : 'base'),
-          easing:
-            swiped && from
-              ? `cubic-bezier(.22, ${Math.min(0.8, Math.max(0.05, ((Math.abs(velocity) * motionTime('screen')) / Math.abs(from)) * 0.22))}, .24, 1)`
-              : getComputedStyle(root).getPropertyValue('--ease-out'),
+          duration: motionTime('screen'),
+          easing: getComputedStyle(root).getPropertyValue('--ease-out'),
         },
       );
       finish(returnAnimation);
@@ -101,7 +109,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
     const cancel = () => {
       start = null;
       const node = content();
-      if (node && offset) {
+      if (node?.animate && offset) {
         node.style.transform = '';
         returnAnimation?.cancel();
         returnAnimation = node.animate(
@@ -109,7 +117,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
             ? [{ opacity: 0.85 }, { opacity: 1 }]
             : [{ transform: `translateX(${offset}px)` }, { transform: 'translateX(0)' }],
           {
-            duration: motionTime(reducedMotion() ? 'fast' : 'base'),
+            duration: motionTime(reducedMotion() ? 'fast' : 'close'),
             easing: getComputedStyle(document.documentElement).getPropertyValue('--ease-out'),
           },
         );
@@ -166,8 +174,6 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
         pointerId: event.pointerId,
         horizontal: false,
       };
-      last = start;
-      velocity = 0;
     };
     const move = (event: PointerEvent) => {
       if (!start || start.pointerId !== event.pointerId) return;
@@ -197,9 +203,6 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
         return;
       }
       if (!reducedMotion()) preview(true);
-      if (last && event.timeStamp > last.time)
-        velocity = (event.clientX - last.x) / (event.timeStamp - last.time);
-      last = end;
       if (!items[index + (offset < 0 ? 1 : -1)]) offset *= 0.3;
       const node = content();
       if (node && !reducedMotion()) node.style.transform = `translateX(${offset}px)`;

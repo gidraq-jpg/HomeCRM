@@ -76,6 +76,8 @@ test('UI-6: карточки, списки и формы Studio 2', async ({ pag
       await page.goto(`#${route}`);
       await expect(page.locator('h1')).toBeVisible();
       await expect(page.getByText(/^Загружаем/)).toHaveCount(0);
+      // Заглушки имеют доступное имя, но не текст: данные должны прийти до проверки контраста.
+      await expect(page.getByRole('status', { name: /^Загружаем/ })).toHaveCount(0);
       await page.evaluate(() => document.fonts.ready);
       if (phase === 'after') {
         await expectNoHorizontalScroll(page);
@@ -153,6 +155,8 @@ test('UI-6: пустые списки и формы, текст 100/200%', async
       await page.goto(`#${route}`);
       await expect(page.locator('h1')).toBeVisible();
       await expect(page.getByText(/^Загружаем/)).toHaveCount(0);
+      // Заглушки имеют доступное имя, но не текст: данные должны прийти до проверки контраста.
+      await expect(page.getByRole('status', { name: /^Загружаем/ })).toHaveCount(0);
       await expectNoHorizontalScroll(page);
       await expectAccessible(page, `${name}-empty`);
       await expectTouchTargets(page);
@@ -208,6 +212,8 @@ test('UI-6: ребёнку недоступны взрослые и чужие �
     await page.goto(`#${route}`);
     await expect(page.locator('h1')).toBeVisible();
     await expect(page.getByText(/^Загружаем/)).toHaveCount(0);
+    // Заглушки имеют доступное имя, но не текст: данные должны прийти до проверки контраста.
+    await expect(page.getByRole('status', { name: /^Загружаем/ })).toHaveCount(0);
     await expect(page.getByRole('main')).not.toContainText('Закрытая взрослая запись');
     await expect(page.getByRole('main')).not.toContainText('Чужая личная запись');
   }
@@ -222,6 +228,8 @@ test('UI-6: ребёнку недоступны взрослые и чужие �
   for (const item of forbidden) {
     await page.goto(`#${item.route}`);
     await expect(page.getByText(/^Загружаем/)).toHaveCount(0);
+    // Заглушки имеют доступное имя, но не текст: данные должны прийти до проверки контраста.
+    await expect(page.getByRole('status', { name: /^Загружаем/ })).toHaveCount(0);
     await expect(
       page.getByRole('heading', { level: 1, name: item.title, exact: true }),
     ).toHaveCount(0);
@@ -288,6 +296,8 @@ test('UI-6: файлы, версии и взаимодействия в груп
       await page.goto(`#${route}`);
       await expect(page.locator('.ui6-record-page')).toBeVisible();
       await expect(page.getByText(/^Загружаем/)).toHaveCount(0);
+      // Заглушки имеют доступное имя, но не текст: данные должны прийти до проверки контраста.
+      await expect(page.getByRole('status', { name: /^Загружаем/ })).toHaveCount(0);
       await expectNoHorizontalScroll(page);
       await expectAccessible(page, name);
       await expectTouchTargets(page);

@@ -29,9 +29,14 @@ export function currentCardOrigin() {
 }
 
 export function originLink(origin: CardOrigin) {
-  return [...document.querySelectorAll<HTMLAnchorElement>('.main a[href]')].find(
-    (link) => link.getAttribute('href') === origin.href,
+  const link = [
+    ...document.querySelectorAll<HTMLAnchorElement>(
+      '.main a[href], .bottom-nav a[href], .side-nav a[href]',
+    ),
+  ].find(
+    (link) => link.getAttribute('href') === origin.href && link.getBoundingClientRect().width > 0,
   );
+  return link?.querySelector<HTMLElement>('.section-icon') ?? link;
 }
 
 export function clearNavigationPositions() {

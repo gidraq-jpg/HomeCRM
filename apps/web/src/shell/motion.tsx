@@ -41,7 +41,6 @@ export function motionDirection(from: string, to: string): 'forward' | 'back' | 
 let current: ViewTransition | undefined;
 let epoch = 0;
 let historyUpdate: (() => void) | undefined;
-let dockCleanup: (() => void) | undefined;
 
 /**
  * D38: карточка открывается окном от границ строки, без неравномерного масштаба снимка.
@@ -51,109 +50,31 @@ export function cardClip(
   screen: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
   source: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
 ) {
-  const px = (value: number) => `${Math.max(0, Math.round(value * 100) / 100)}px`;
-  return `inset(${px(source.top - screen.top)} ${px(screen.right - source.right)} ${px(screen.bottom - source.bottom)} ${px(source.left - screen.left)} round 16px)`;
+  const px = (value: number) => `${Math.round(value * 100) / 100}px`;
+  // Нижний и правый края зависят от самой картинки: поздняя догрузка не растягивает окно.
+  const end = (value: number) => `calc(100% ${value < 0 ? '+' : '-'} ${px(Math.abs(value))})`;
+  return `inset(${px(source.top - screen.top)} ${end(source.right - screen.left)} ${end(source.bottom - screen.top)} ${px(source.left - screen.left)} round 16px)`;
 }
 
 /** Панель остаётся живой: D30 не снимает её вместе с экраном раздела. */
-export function changeDockScreen(button: DOMRect, update: () => void) {
-  saveCurrentPosition();
-  const main = document.querySelector<HTMLElement>('.main');
-  if (!main?.animate) {
-    cancelMotionNavigation();
-    return update();
-  }
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const rect = main.getBoundingClientRect();
-  const width = main.offsetWidth;
-  const height = main.offsetHeight;
-  const old = main.cloneNode(true) as HTMLElement;
-  for (const [index, child] of [...main.children].entries()) {
-    const copy = old.children[index];
-    if (copy instanceof HTMLElement) copy.style.opacity = getComputedStyle(child).opacity;
-  }
-  // Следующий выбор сохраняет промежуточную позу до снятия прежней анимации.
-  cancelMotionNavigation();
-  old.removeAttribute('id');
-  for (const child of old.querySelectorAll('[id]')) child.removeAttribute('id');
-  old.inert = true;
-  old.setAttribute('aria-hidden', 'true');
-  old.dataset.dockGhost = '';
-  Object.assign(old.style, {
-    position: 'fixed',
-    left: `${rect.left}px`,
-    top: `${rect.top}px`,
-    width: `${width}px`,
-    height: `${height}px`,
-    transform: `scale(${rect.width / width}, ${rect.height / height})`,
-    transformOrigin: '0 0',
-    margin: '0',
-    pointerEvents: 'none',
-    overflow: 'hidden',
-    zIndex: '1',
-    viewTransitionName: 'none',
-  });
-  main.after(old);
-  flushSync(update);
-  const next = main.getBoundingClientRect();
-  const ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim();
-  const originalStyle = main.getAttribute('style');
-  Object.assign(main.style, {
-    position: 'relative',
-    zIndex: '2',
-    background: 'var(--paper)',
-    borderRadius: '32px',
-    overflow: 'clip',
-    boxShadow: '0 12px 40px rgb(0 0 0 / 24%)',
-  });
-  const growth = `translate(${button.left - next.left}px, ${button.top - next.top}px) scale(${button.width / next.width}, ${button.height / next.height})`;
-  const children = [...main.children].filter(
-    (child): child is HTMLElement => child instanceof HTMLElement,
-  );
-  const animations = [
-    old.animate([{ opacity: 1 }, { opacity: 0 }], {
-      duration: reduce ? 120 : 200,
-      fill: 'forwards',
-    }),
-    ...(reduce
-      ? [
-          main.animate([{ opacity: 0 }, { opacity: 1 }], {
-            duration: motionTime('fast'),
-            easing: ease,
-          }),
-        ]
-      : children.map((child) =>
-          child.animate([{ opacity: 0 }, { opacity: 1 }], {
-            duration: motionTime('fast'),
-            delay: motionTime('screen') - motionTime('fast'),
-            easing: ease,
-            fill: 'backwards',
-          }),
-        )),
-  ];
-  if (!reduce)
-    animations.push(
-      main.animate(
-        [
-          { transform: growth, transformOrigin: '0 0' },
-          { transform: 'translate(0px, 0px) scale(1, 1)', transformOrigin: '0 0' },
-        ],
-        { duration: motionTime('screen'), easing: ease },
-      ),
-    );
-  const cleanup = () => {
-    for (const animation of animations) animation.cancel();
-    old.remove();
-    if (originalStyle === null) main.removeAttribute('style');
-    else main.setAttribute('style', originalStyle);
-    if (dockCleanup === cleanup) dockCleanup = undefined;
+export function changeDockScreen(button: DOMRect, update: () => void, href = '') {
+  const origin: CardOrigin = {
+    parentKey: window.history.state?.key,
+    parentPath: window.location.hash.slice(1).split('?')[0] ?? '',
+    href,
+    rect: button,
   };
-  dockCleanup = cleanup;
-  void animations.at(-1)?.finished.then(cleanup, cleanup);
+  changeScreenWithMotion(
+    'forward',
+    () => {
+      update();
+      cardOrigins.set(window.history.state.key, origin);
+    },
+    origin,
+  );
 }
 /** Возврат по истории не должен быть затёрт ещё не снявшим снимок переходом. */
 export function cancelMotionNavigation() {
-  dockCleanup?.();
   // HashRouter уже обработал наш popstate; завершаем снимок нового экрана.
   if (historyUpdate) {
     const finish = historyUpdate;
@@ -165,6 +86,7 @@ export function cancelMotionNavigation() {
   epoch++;
   current?.skipTransition();
   current = undefined;
+  delete document.documentElement.dataset.motionForm;
   delete document.documentElement.dataset.motionCard;
   delete document.documentElement.dataset.motionDirection;
   delete document.documentElement.dataset.motionHeader;
@@ -172,16 +94,52 @@ export function cancelMotionNavigation() {
 }
 export function navigateWithMotion(from: string, to: string, navigate: () => void) {
   const direction = motionDirection(from, to);
-  changeScreenWithMotion(direction, navigate);
+  changeScreenWithMotion(
+    direction,
+    navigate,
+    undefined,
+    /\/(new|edit|invite)$/.test(from) || /\/(new|edit|invite)$/.test(to),
+  );
 }
 
 export function changeScreenWithMotion(
   direction: 'forward' | 'back' | null,
   update: () => void | Promise<void>,
   card?: CardOrigin,
+  form = false,
+  preservePosition = false,
 ) {
-  saveCurrentPosition();
-  dockCleanup?.();
+  if (current) {
+    const pending = current;
+    if (direction === 'back' && document.documentElement.dataset.motionDirection === 'forward') {
+      void pending.ready?.then(
+        async () => {
+          const animations = document.getAnimations().filter((animation) => {
+            const effect = animation.effect as KeyframeEffect | null;
+            return (
+              effect?.pseudoElement?.includes('view-transition') &&
+              animation.playState === 'running'
+            );
+          });
+          for (const animation of animations) {
+            animation.reverse();
+            animation.updatePlaybackRate(-motionTime('screen') / motionTime('close'));
+          }
+          await Promise.allSettled(animations.map((animation) => animation.finished));
+          flushSync(update);
+        },
+        () => {
+          flushSync(update);
+        },
+      );
+    } else {
+      void pending.finished.then(() =>
+        changeScreenWithMotion(direction, update, card, form, preservePosition),
+      );
+    }
+    return;
+  }
+  if (!preservePosition) saveCurrentPosition();
   if (
     document.documentElement.dataset.design !== 'studio' ||
     !document.startViewTransition ||
@@ -191,9 +149,9 @@ export function changeScreenWithMotion(
     update();
     return;
   }
-  current?.skipTransition();
   const activeEpoch = ++epoch;
   document.documentElement.dataset.motionDirection = direction;
+  if (form) document.documentElement.dataset.motionForm = direction;
   // Раскрытие окна заранее: оба снимка делаются без отдельной шапки страницы (motion.css).
   if (card) document.documentElement.dataset.motionCard = direction;
   const oldRect = card ? document.querySelector('.main')?.getBoundingClientRect() : undefined;
@@ -210,7 +168,9 @@ export function changeScreenWithMotion(
               ? oldRect
               : document.querySelector('.main')?.getBoundingClientRect();
           const source =
-            direction === 'back' ? originLink(card)?.getBoundingClientRect() : card.rect;
+            direction === 'back'
+              ? (originLink(card)?.getBoundingClientRect() ?? card.rect)
+              : card.rect;
           const next = document.querySelector('.main')?.getBoundingClientRect();
           const root = document.documentElement;
           // Без строки на экране остаётся прежний сдвиг D30.
@@ -247,6 +207,7 @@ export function changeScreenWithMotion(
       document.documentElement.style.removeProperty('--card-clip');
       document.documentElement.style.removeProperty('--card-shift');
     }
+    delete document.documentElement.dataset.motionForm;
     delete document.documentElement.dataset.motionCard;
     delete document.documentElement.dataset.motionDirection;
     delete document.documentElement.dataset.motionHeader;
@@ -274,7 +235,7 @@ export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => bo
       alongside?.();
     };
     if (previous === nextForm) update();
-    else changeScreenWithMotion(nextForm ? 'forward' : 'back', update);
+    else changeScreenWithMotion(nextForm ? 'forward' : 'back', update, undefined, true);
   }, []);
   const reset = useCallback((next: T) => {
     form.current = predicate.current(next);
@@ -323,6 +284,49 @@ export function navigateHistoryWithMotion(delta: number, navigate: NavigateFunct
         void navigate(delta);
       }),
     delta === -1 ? currentCardOrigin() : undefined,
+  );
+}
+
+/** Захват раньше HashRouter: единственный повтор события происходит внутри снимка. */
+let replayingHistory = false;
+export function systemHistoryMotion(
+  event: PopStateEvent,
+  previousKey: string,
+  previousIndex = 0,
+  previousPath = '',
+) {
+  if (replayingHistory) return;
+  if (historyUpdate) {
+    queueMicrotask(cancelMotionNavigation);
+    return;
+  }
+  // Chromium сообщает, когда система уже нарисовала predictive back.
+  if (Reflect.get(event, 'hasUAVisualTransition')) return;
+  // Прямой фрагмент адреса не является шагом управляемой истории: роутер принимает его сразу.
+  if (typeof event.state?.idx !== 'number') {
+    cancelMotionNavigation();
+    return;
+  }
+  if (!document.startViewTransition || document.documentElement.dataset.design !== 'studio') return;
+  event.stopImmediatePropagation();
+  const direction = event.state?.idx > previousIndex ? 'forward' : 'back';
+  const origin = cardOrigins.get(direction === 'back' ? previousKey : event.state?.key);
+  if (origin && direction === 'back') requestPosition(origin.parentKey);
+  changeScreenWithMotion(
+    direction,
+    () => {
+      replayingHistory = true;
+      try {
+        window.dispatchEvent(new PopStateEvent('popstate', { state: event.state }));
+        flushSync(() => {});
+      } finally {
+        replayingHistory = false;
+      }
+    },
+    origin,
+    /\/(new|edit|invite)$/.test(previousPath) ||
+      /\/(new|edit|invite)$/.test(location.hash.slice(1).split('?')[0] ?? ''),
+    true,
   );
 }
 
@@ -379,7 +383,7 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
         event.preventDefault();
         const returning = currentCardOrigin();
         const row = event.currentTarget.closest<HTMLElement>(
-          '.row, .task-row, .plan-row, .notes-pinned__card',
+          '.row, .task-row, .plan-row, .notes-pinned__card, [data-motion-origin]',
         );
         const card: CardOrigin | undefined =
           direction === 'forward' && row && !/\/(new|edit|invite)$/.test(to.pathname)
@@ -405,6 +409,7 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
             if (direction === 'forward' && card) cardOrigins.set(window.history.state.key, card);
           },
           card,
+          /\/(new|edit|invite)$/.test(to.pathname) || /\/(new|edit|invite)$/.test(from.pathname),
         );
       }}
     />

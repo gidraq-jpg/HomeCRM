@@ -391,8 +391,7 @@ test('связи: объект и заметка связываются, свя�
 
   // В карточке заметки — та же связь, с названием объекта.
   // Сообщение «Записи связаны» ещё закрывает строку, поэтому переходим с клавиатуры.
-  await links.getByRole('link', { name: /Смета ремонта/ }).focus();
-  await page.keyboard.press('Enter');
+  await links.getByRole('link', { name: /Смета ремонта/ }).press('Enter');
   await expect(page.getByRole('heading', { level: 1, name: 'Смета ремонта' })).toBeVisible();
   const back = page.getByRole('list', { name: 'Связанные записи' });
   await expect(back).toContainText('Квартира у парка');

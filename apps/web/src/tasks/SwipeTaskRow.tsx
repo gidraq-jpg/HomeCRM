@@ -2,6 +2,7 @@ import { canTrash, canWrite } from '@homecrm/shared';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
+import { haptic } from '../ui/haptic.ts';
 import { reducedMotion } from '../ui/motion.ts';
 import type { TaskCard } from './api.ts';
 import { rowSwipeArmed, rowSwipeDirection, rowSwipeResult, type SwipePoint } from './swipe.ts';
@@ -33,6 +34,7 @@ export function SwipeTaskRow({
   const surface = useRef<HTMLDivElement>(null);
   const drag = useRef<(SwipePoint & { id: number; direction: number; base: number }) | null>(null);
   const swallow = useRef(false);
+  const buzzed = useRef(false);
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -58,6 +60,7 @@ export function SwipeTaskRow({
     if (disabled) return;
     if (direction < 0 && trash) actions?.trash(card);
     if (direction > 0 && done) {
+      if (!buzzed.current) haptic();
       setCompleting(true);
       if (row.current) row.current.dataset.motionCompleted = 'true';
       complete?.();
@@ -107,6 +110,7 @@ export function SwipeTaskRow({
         onPointerDown={(event) => {
           if (row.current) delete row.current.dataset.rowGesture;
           swallow.current = false;
+          buzzed.current = false;
           if (
             disabled ||
             event.button !== 0 ||
@@ -150,9 +154,13 @@ export function SwipeTaskRow({
           if (row.current) {
             row.current.dataset.swipeDirection = x < 0 ? 'trash' : 'done';
             // За порогом действия строка подсвечивается: отпускание выполнит действие.
-            if (shown && rowSwipeArmed(shown, width))
+            if (shown && rowSwipeArmed(shown, width)) {
+              if (!buzzed.current) {
+                haptic();
+                buzzed.current = true;
+              }
               row.current.dataset.swipeArmed = shown < 0 ? 'trash' : 'done';
-            else delete row.current.dataset.swipeArmed;
+            } else delete row.current.dataset.swipeArmed;
           }
           draw(shown);
         }}
@@ -195,6 +203,7 @@ export function SwipeTaskRow({
               '.plan-row__done, .task-feed-item__done, .task-focus__done',
             )
           ) {
+            haptic();
             setCompleting(true);
             if (row.current) row.current.dataset.motionCompleted = 'true';
           }

@@ -22,7 +22,7 @@ export function TaskFeedCarousel() {
     : householdId;
   const [summaries, setSummaries] = useState<Record<number, FeedSummary>>({});
   const root = useRef<HTMLDivElement>(null);
-  // Отсоединённые контейнеры сохраняют данные и черновики соседей без дублей в документе.
+  // Контейнеры сохраняют данные и черновики соседей; неактивные ленты инертны.
   const [hosts] = useState(() =>
     typeof document === 'undefined' ? [] : paths.map(() => document.createElement('div')),
   );
@@ -43,19 +43,11 @@ export function TaskFeedCarousel() {
   useLayoutEffect(() => {
     const carousel = root.current;
     if (!carousel) return;
-    const update = () => {
-      const preview = carousel.hasAttribute('data-feed-preview');
-      hosts.forEach((host, index) => {
-        if (index === active || preview) {
-          const slot = carousel.querySelector(`[data-feed-pane="${index}"]`);
-          if (slot && host.parentElement !== slot) slot.append(host);
-        } else host.remove();
-      });
-    };
-    update();
-    carousel.addEventListener('feed-preview', update);
-    return () => carousel.removeEventListener('feed-preview', update);
-  }, [active, hosts]);
+    hosts.forEach((host, index) => {
+      const slot = carousel.querySelector(`[data-feed-pane="${index}"]`);
+      if (slot && host.parentElement !== slot) slot.append(host);
+    });
+  }, [hosts]);
   return (
     <>
       <Page

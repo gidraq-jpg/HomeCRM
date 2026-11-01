@@ -155,6 +155,8 @@ test('сводка внутри приложения и отдельные на�
   await expect(page.getByRole('checkbox', { name: /Недельная · воскресенье 19:00/ })).toBeChecked();
   await check(page, info, 'summary-settings');
   await page.getByRole('link', { name: 'Открыть сводки', exact: true }).click();
+  await expect(page.getByRole('list', { name: 'Сводки', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Утренняя/ })).toBeVisible();
   await check(page, info, 'summary-list');
 });
 test('недельная сводка показывает сделано, на подходе и ожидание сегодня один раз', async ({

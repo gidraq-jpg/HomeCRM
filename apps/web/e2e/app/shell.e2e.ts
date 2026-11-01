@@ -54,11 +54,17 @@ test('пустая лента дел позволяет создать дело 
   await expect(page.getByText('Срочного нет', { exact: false })).toBeVisible();
   await setScope(page, 'Личное');
   await expect(
-    page.getByText('Здесь только ваши записи. Их не видит никто, кроме вас.'),
+    page
+      .locator('[data-feed-active="true"]')
+      .getByText('Здесь только ваши записи. Их не видит никто, кроме вас.'),
   ).toBeVisible();
   await checkApp(page, info, 'today-personal');
   await setScope(page, 'Общее');
-  await expect(page.getByText('Здесь только общие записи дома', { exact: false })).toBeVisible();
+  await expect(
+    page
+      .locator('[data-feed-active="true"]')
+      .getByText('Здесь только общие записи дома', { exact: false }),
+  ).toBeVisible();
   await page.getByRole('link', { name: 'Как устроены личное и общее' }).click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Как устроены личное и общее' }),

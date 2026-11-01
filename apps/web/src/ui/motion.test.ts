@@ -3,6 +3,8 @@ import { durationMilliseconds } from './motion.ts';
 
 it.each([
   ['160ms', 160],
+  ['calc(450ms * 4)', 1800],
+  ['calc(0.38s * 4)', 1520],
   ['240ms', 240],
   ['400ms', 400],
   ['560ms', 560],

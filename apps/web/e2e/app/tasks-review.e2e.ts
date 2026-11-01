@@ -621,7 +621,10 @@ test('A5: быстрый ввод двух домов в разных пояса
     [second, 'Pacific/Kiritimati'],
     [family.houseId, 'America/Los_Angeles'],
   ]) {
-    await page.getByLabel('Выбранный дом').selectOption(house ?? '');
+    await page
+      .locator('[data-feed-active="true"]')
+      .getByLabel('Выбранный дом')
+      .selectOption(house ?? '');
     const context = (await api.get(`tasks/today?householdId=${house}`)).body as {
       today: string;
       timeZone: string;
@@ -638,7 +641,7 @@ test('A5: быстрый ввод двух домов в разных пояса
     await check(page, info, house === second ? 'a5-second-zone' : 'a5-first-zone');
     await page.keyboard.press('Escape');
   }
-  await page.getByLabel('Выбранный дом').selectOption(second);
+  await page.locator('[data-feed-active="true"]').getByLabel('Выбранный дом').selectOption(second);
   await openQuick(page);
   await page.getByLabel('Быстрая строка').fill('Сохранить завтра в 10:00');
   await page.getByRole('button', { name: 'Добавить дело', exact: true }).click();

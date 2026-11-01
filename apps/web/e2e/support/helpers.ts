@@ -134,6 +134,7 @@ interface CheckOptions {
 
 /** Ждёт конца анимаций: пока панель выезжает и проявляется, цвета смешаны и контраст не тот. */
 export async function settle(page: Page): Promise<void> {
+  await expect(page.locator('html')).not.toHaveAttribute('data-motion-pending', 'true');
   await expect(page.locator('html')).not.toHaveAttribute(
     'data-motion-direction',
     /^(forward|back)$/,

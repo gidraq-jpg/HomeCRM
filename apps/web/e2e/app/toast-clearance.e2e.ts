@@ -15,7 +15,7 @@ async function expectLastRowClear(page: Page) {
   await settle(page);
   const gap = await page.evaluate((selector) => {
     const rows = [...document.querySelectorAll(selector)].filter(
-      (row) => row.getBoundingClientRect().height > 0,
+      (row) => !row.closest('[inert]') && row.getBoundingClientRect().height > 0,
     );
     const last = Math.max(...rows.map((row) => row.getBoundingClientRect().bottom));
     const toast = document.querySelector('.toast')?.getBoundingClientRect().top;

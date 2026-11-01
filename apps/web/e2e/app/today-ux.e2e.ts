@@ -123,9 +123,21 @@ test('D20a 1,4,5,8: личное главное дело, устройства, 
   await expect(
     page.getByRole('heading', { name: 'Главное на сегодня', exact: true }),
   ).toBeVisible();
-  await expect(page.getByText('Проверить вымышленный фильтр', { exact: true })).toHaveCount(1);
-  await expect(page.getByText('Вымышленный срок без дела', { exact: true })).toBeVisible();
-  await expect(page.getByText('Вымышленный срок с делом', { exact: true })).toHaveCount(1);
+  await expect(
+    page
+      .locator('[data-feed-active="true"]')
+      .getByText('Проверить вымышленный фильтр', { exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    page
+      .locator('[data-feed-active="true"]')
+      .getByText('Вымышленный срок без дела', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator('[data-feed-active="true"]')
+      .getByText('Вымышленный срок с делом', { exact: true }),
+  ).toHaveCount(1);
   await check(page, info, 'today');
   await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   const menu = page.getByRole('dialog', { name: 'Добавить', exact: true });
@@ -155,7 +167,11 @@ test('D20a 1,4,5,8: личное главное дело, устройства, 
     0,
   );
   await expect(page.getByText('Выбрать главное дело', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Проверить вымышленный фильтр', { exact: true })).toBeVisible();
+  await expect(
+    page
+      .locator('[data-feed-active="true"]')
+      .getByText('Проверить вымышленный фильтр', { exact: true }),
+  ).toBeVisible();
   await page.goto(`#/today/tasks/${id}`);
   await page.getByRole('button', { name: 'Ещё: действия с записью' }).click();
   await expect(page.getByRole('button', { name: /Сделать главным|Снять главное/ })).toHaveCount(0);
