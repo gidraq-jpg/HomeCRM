@@ -160,7 +160,7 @@ test('SHOP: прототип списка, real quickline/bought/undo/trash/rest
   await expect(page.getByRole('link', { name: /Личный рюкзак/ })).toBeVisible();
   await check(page, info, 'shopping-real');
   await page.getByLabel('Добавить одной строкой').fill('Хлеб вымышленной семьи');
-  await page.getByLabel('Добавить одной строкой').press('Enter');
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   await expect(page.getByRole('link', { name: /Хлеб вымышленной семьи/ })).toBeVisible();
   await page.getByRole('checkbox', { name: 'Семейное молоко' }).click();
   await expect(page.locator('.shopping-bought > summary')).toContainText('Куплено · 1');
@@ -181,7 +181,7 @@ test('SHOP: прототип списка, real quickline/bought/undo/trash/rest
   await child.goto('#/more/shopping');
   await expect(child.getByRole('link', { name: /Личный рюкзак/ })).toHaveCount(0);
   await child.getByLabel('Добавить одной строкой').fill('Сок от ребёнка');
-  await child.getByLabel('Добавить одной строкой').press('Enter');
+  await child.getByRole('button', { name: 'Добавить', exact: true }).click();
   await expect(child.getByRole('link', { name: /Сок от ребёнка/ })).toBeVisible();
   await context.close();
 });

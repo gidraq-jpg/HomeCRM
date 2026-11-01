@@ -280,6 +280,14 @@ function capitalize(text: string) {
 }
 
 function parseItem(part: string): ShoppingDraft | null {
+  const trailing = /^(.+?)\s+(\d+(?:[.,]\d+)?)(?:\s+(\p{L}+\.?))?$/u.exec(part);
+  if (
+    trailing &&
+    !/^\d/u.test(part) &&
+    (!trailing[3] || UNITS[trailing[3].toLocaleLowerCase('ru')])
+  ) {
+    return parseItem(`${trailing[2]} ${trailing[3] ?? ''} ${trailing[1]}`.replace(/\s+/gu, ' '));
+  }
   const words = part.replace(EDGE_WORD, '').split(' ').filter(Boolean);
   if (words.length === 0) return null;
   const lower = words.map((word) => word.toLocaleLowerCase('ru').replace(/[«»"]/gu, ''));
@@ -327,7 +335,11 @@ function parseItem(part: string): ShoppingDraft | null {
 
 /** Делит надиктованный текст на позиции. Пустые части и лишние разделители пропускаются. */
 export function splitShoppingDictation(text: string): ShoppingDraft[] {
-  const clean = text.replace(/\s+/gu, ' ').trim().replace(LEAD, '');
+  const clean = text
+    .replace(/\r\n?|\n/gu, ';')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .replace(LEAD, '');
   if (!clean) return [];
   return ` ${clean} `
     .split(SEPARATOR)

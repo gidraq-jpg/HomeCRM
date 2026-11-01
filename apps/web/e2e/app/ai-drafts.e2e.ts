@@ -87,11 +87,10 @@ test('AI-6/7: покупки — сохранение одной карточк�
   await input.fill('купить лампочки');
   await page.getByRole('button', { name: 'Разобрать', exact: true }).click();
   await page.getByRole('button', { name: 'Согласен, разобрать' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Черновики ИИ' });
-  await dialog.getByLabel('Количество — проверьте').fill('3 шт');
-  await dialog.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await expect(dialog.getByText('Черновиков не осталось')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Закрыть черновики' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Надиктованные покупки' });
+  await dialog.getByLabel('Количество позиции 1', { exact: true }).fill('3 шт');
+  await dialog.getByRole('button', { name: 'Добавить 1 позицию', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
   await expect(page.getByText('3 шт', { exact: true })).toBeVisible();
   for (const code of [
     'AI_DAILY_LIMIT',
@@ -175,9 +174,8 @@ test('AI-2, SHOP-4: надиктованная фраза покупок идё�
   await expect(page.getByRole('dialog', { name: 'Разбор с помощью ИИ' })).toBeVisible();
   expect(requests).toBe(0);
   await page.getByRole('button', { name: 'Согласен, разобрать' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Черновики ИИ' });
-  await expect(dialog.getByRole('region', { name: 'Дело 1' })).toBeVisible();
-  await expect(dialog.getByRole('region', { name: 'Покупка 2' })).toBeVisible();
+  const dialog = page.getByRole('dialog', { name: 'Надиктованные покупки' });
+  await expect(dialog.getByRole('listitem')).toHaveCount(1);
   expect(requests).toBe(1);
   await checkApp(page, info, 'ai-voice-shopping');
 });
@@ -220,17 +218,17 @@ test('AI-2, SHOP-4: дубли в одной фразе и в существую
   await signInAs(page, family, 'adult');
   await openSection(page, '/more/shopping', 'Покупки');
   const input = page.getByLabel('Добавить одной строкой', { exact: true });
-  await input.fill('купить хлеб и купить хлеб');
+  await input.fill('хлеб, хлеб');
   await page.getByRole('button', { name: 'Разобрать', exact: true }).click();
   await page.getByRole('button', { name: 'Согласен, разобрать' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Черновики ИИ' });
-  await dialog.getByRole('button', { name: 'Сохранить все', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Надиктованные покупки' });
+  await dialog.getByRole('button', { name: 'Добавить 2 позиции', exact: true }).click();
   await expect(dialog.getByText('Уже в списке', { exact: true })).toBeVisible();
-  await expect(dialog.getByRole('region')).toHaveCount(1);
-  await dialog.getByRole('button', { name: 'Закрыть черновики' }).click();
-  await input.fill('купить хлеб');
+  await expect(dialog.getByRole('listitem')).toHaveCount(1);
+  await dialog.getByRole('button', { name: 'Отмена', exact: true }).click();
+  await input.fill('хлеб');
   await page.getByRole('button', { name: 'Разобрать', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Добавить 1 позицию', exact: true }).click();
   await expect(dialog.getByText('Уже в списке', { exact: true })).toBeVisible();
   const result = await family.database.admin.query(
     "SELECT count(*)::int AS count FROM shopping_items WHERE title='хлеб'",

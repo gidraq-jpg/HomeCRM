@@ -6,7 +6,7 @@ import { AccessBadge } from '../access/AccessBadge.tsx';
 import { useScope } from '../access/ScopeContext.tsx';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
-import { AiCapture, useAiStatus } from '../ai/AiCapture.tsx';
+import { useAiStatus } from '../ai/AiCapture.tsx';
 import { ApiError, errorMessage } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHouseNames } from '../deadlines/useHouseNames.ts';
@@ -44,11 +44,15 @@ import {
   type ShoppingCard,
   shoppingAction,
 } from './api.ts';
+import { shoppingBatch } from './batch.ts';
 import { alreadyListed } from './duplicates.ts';
+import { quantityStep } from './quantity.ts';
+import { ShoppingAiCapture } from './ShoppingAiCapture.tsx';
 import { draftsMessage, ShoppingDrafts } from './ShoppingDrafts.tsx';
 import { ShoppingLinks } from './ShoppingLinks.tsx';
 import '../tasks/today.css';
 import '../styles/studio2-lists.css';
+import './shopping-input.css';
 
 function ShoppingError({ error }: { error: unknown }) {
   if (!error) return null;
@@ -79,12 +83,11 @@ export function ShoppingScreen() {
     ...(house ? { householdId: house } : {}),
   });
   const [title, setTitle] = useState('');
-  const [duplicate, setDuplicate] = useState(false);
   const [listChoice, setListChoice] = useState<'household' | 'personal'>(
-    scope === 'personal' ? 'personal' : 'household',
+    scope === 'personal' || !house ? 'personal' : 'household',
   );
   const selectedList =
-    scope === 'all' ? listChoice : scope === 'personal' ? 'personal' : 'household';
+    !house || scope === 'personal' ? 'personal' : scope === 'all' ? listChoice : 'household';
   const [place, setPlace] = useState<Visibility>(
     scope === 'personal' || !house ? 'personal' : 'household',
   );
@@ -101,7 +104,6 @@ export function ShoppingScreen() {
       if (!text.trim()) return 'Ничего не расслышали. Скажите ещё раз.';
       setTitle((current) => appendDictation(current, text));
       setDictated(true);
-      setDuplicate(false);
       return undefined;
     }
     const result = dictatedDrafts(text);
@@ -109,11 +111,14 @@ export function ShoppingScreen() {
     setDrafts(result.drafts);
     return undefined;
   });
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const batch = useRef<{ fingerprint: string; value: ReturnType<typeof shoppingBatch> } | null>(
+    null,
+  );
   const state = useAction();
   const action = useAction();
-  const key = useOperationKey();
   const toggleKey = useOperationKey();
+  const quantityKey = useOperationKey();
   const mode = scope === 'shared' ? 'household' : scope;
   const account = me.id;
   const query = useInfiniteQuery({
@@ -146,7 +151,7 @@ export function ShoppingScreen() {
     if (state.disabled) return;
     const value = title.trim();
     if (!value) return;
-    if (dictated || value.length > 200) {
+    if (dictated) {
       const result = dictatedDrafts(value);
       if (!('error' in result)) {
         setDrafts(result.drafts);
@@ -155,19 +160,53 @@ export function ShoppingScreen() {
         return;
       }
     }
-    const placement = newPlacement(place, house || null);
-    const body = { title: value, ...(placement ? { placement } : {}) };
+    const result = dictatedDrafts(value);
+    if ('error' in result) {
+      state.setError(new Error(result.error));
+      return;
+    }
+    const fingerprint = JSON.stringify([value, place, house]);
+    if (batch.current?.fingerprint !== fingerprint)
+      batch.current = { fingerprint, value: shoppingBatch(result.drafts, place, house || null) };
+    const current = batch.current.value;
     void state.run(async () => {
-      if (await alreadyListed(value, place, house || null)) {
-        setDuplicate(true);
-        return;
+      try {
+        const { added, duplicates } = await current.add();
+        setTitle('');
+        batch.current = null;
+        toast.show({
+          message: `Добавлено ${countWord(added, ['покупка', 'покупки', 'покупок'])}${duplicates ? `. Пропущено дублей: ${duplicates}` : ''}`,
+          ...(added
+            ? {
+                action: {
+                  label: 'Отменить',
+                  onClick: () => {
+                    void current
+                      .undo()
+                      .then(refresh)
+                      .catch(() =>
+                        toast.show({
+                          message: 'Не удалось отменить покупки. Повторите отмену.',
+                          action: {
+                            label: 'Отменить',
+                            onClick: () => {
+                              void state.run(async () => {
+                                await current.undo();
+                                await refresh();
+                              });
+                            },
+                          },
+                        }),
+                      );
+                  },
+                },
+              }
+            : {}),
+        });
+      } finally {
+        await client.cancelQueries({ queryKey: ['shopping', account] });
+        await refresh();
       }
-      await createShopping({ ...body, idempotencyKey: key(body) });
-      // Незавершённое первое чтение содержит снимок до POST; invalidate переиспользует его.
-      await client.cancelQueries({ queryKey: ['shopping', account] });
-      setTitle('');
-      await refresh();
-      toast.show({ message: 'Покупка добавлена' });
     });
   }
   function toggle(card: ShoppingCard) {
@@ -189,6 +228,18 @@ export function ShoppingScreen() {
           },
         },
       });
+    });
+  }
+  function step(card: ShoppingCard, delta: number) {
+    const quantity = quantityStep(card.quantity, delta);
+    if (!quantity) return;
+    const body = { quantity, expectedUpdatedAt: card.updatedAt };
+    void action.run(async () => {
+      await patchShopping(card.id, {
+        ...body,
+        idempotencyKey: quantityKey({ id: card.id, ...body }),
+      });
+      await refresh();
     });
   }
   function rows(items: ShoppingCard[]) {
@@ -218,7 +269,35 @@ export function ShoppingScreen() {
                   .join(' · ')}
               </span>
             </Link>
-            {card.quantity ? <span className="shopping-quantity">{card.quantity}</span> : null}
+            <div className="shopping-steps">
+              {!trash && !card.boughtAt && quantityStep(card.quantity, -1) ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  aria-label={`Уменьшить количество: ${card.title}`}
+                  disabled={
+                    action.disabled || !canWrite(viewer, factsOf(card, viewer, 'shopping_item'))
+                  }
+                  onClick={() => step(card, -1)}
+                >
+                  −
+                </button>
+              ) : null}
+              {card.quantity ? <span className="shopping-quantity">{card.quantity}</span> : null}
+              {!trash && !card.boughtAt && quantityStep(card.quantity, 1) ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  aria-label={`Увеличить количество: ${card.title}`}
+                  disabled={
+                    action.disabled || !canWrite(viewer, factsOf(card, viewer, 'shopping_item'))
+                  }
+                  onClick={() => step(card, 1)}
+                >
+                  +
+                </button>
+              ) : null}
+            </div>
             <AccessBadge visibility={visibilityOf(card)} />
           </li>
         ))}
@@ -271,30 +350,6 @@ export function ShoppingScreen() {
         heading={
           <div className="studio-list-hero">
             <h1 className="visually-hidden">Покупки</h1>
-            <fieldset className="studio-segments" aria-label="Список покупок">
-              <button
-                type="button"
-                aria-pressed={selectedList === 'household'}
-                disabled={scope === 'personal'}
-                onClick={() => {
-                  setListChoice('household');
-                  setPlace('household');
-                }}
-              >
-                Вся семья
-              </button>
-              <button
-                type="button"
-                aria-pressed={selectedList === 'personal'}
-                disabled={scope === 'shared'}
-                onClick={() => {
-                  setListChoice('personal');
-                  setPlace('personal');
-                }}
-              >
-                Только я
-              </button>
-            </fieldset>
             {query.data && !query.error && !query.hasNextPage ? (
               <p className="studio-list-summary">
                 {selectedList === 'personal' ? 'В личном списке' : 'В общем списке'}{' '}
@@ -312,7 +367,7 @@ export function ShoppingScreen() {
             <TaskTabs houseQuery={house && house !== householdId ? `?householdId=${house}` : ''} />
           ) : null}
           <div className="task-feed-content">
-            {pane ? (
+            {
               <fieldset className="studio-segments" aria-label="Список покупок">
                 <button
                   type="button"
@@ -337,7 +392,7 @@ export function ShoppingScreen() {
                   Только я
                 </button>
               </fieldset>
-            ) : null}
+            }
             {me.roles.length > 1 ? (
               <label className="field">
                 Дом
@@ -364,28 +419,39 @@ export function ShoppingScreen() {
                   Добавить одной строкой
                 </label>
                 <div className="shopping-quick__line voice-line">
-                  <input
+                  <textarea
                     ref={input}
                     id="shopping-quick-title"
                     className="input"
                     value={title}
-                    maxLength={ai.data?.enabled ? 20000 : 200}
+                    maxLength={ai.data?.enabled ? 20000 : 2000}
+                    rows={Math.min(5, Math.max(1, title.split('\n').length))}
                     placeholder="Что купить?"
                     required
                     enterKeyHint="done"
                     readOnly={state.disabled}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === 'Enter' &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing &&
+                        window.matchMedia('(hover: hover) and (pointer: fine)').matches
+                      ) {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
                     onChange={(event) => {
                       setTitle(event.target.value);
                       if (!event.target.value) setDictated(false);
-                      setDuplicate(false);
                     }}
                   />
                   <DictationButton dictation={dictation} />
-                  <AiCapture
+                  <ShoppingAiCapture
                     key={house}
                     text={title}
                     house={house || null}
-                    place={place}
+                    onDrafts={setDrafts}
                     beforeExtract={dictation.abort}
                   />
                   <button type="submit" className="btn btn--primary" disabled={state.disabled}>
@@ -393,7 +459,6 @@ export function ShoppingScreen() {
                   </button>
                 </div>
                 <DictationStatus dictation={dictation} />
-                {duplicate ? <p role="status">Уже в списке</p> : null}
                 <details className="studio-list-options">
                   <summary>Параметры покупки</summary>
                   <VisibilityPicker
