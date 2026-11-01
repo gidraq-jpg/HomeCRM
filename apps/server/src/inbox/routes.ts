@@ -12,7 +12,13 @@ import {
   sql,
   type Transaction,
 } from '@homecrm/db';
-import { canViewInbox, INBOX_MAX_BYTES, InboxCapture, InboxDraft } from '@homecrm/shared';
+import {
+  canCreate,
+  canViewInbox,
+  INBOX_MAX_BYTES,
+  InboxCapture,
+  InboxDraft,
+} from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AiConfig } from '../ai/config.ts';
@@ -29,15 +35,20 @@ import {
   prepareUpload,
 } from '../files/service.ts';
 import { fingerprint } from '../idempotency.ts';
+import { CreateObject } from '../objects/schemas.ts';
 import {
+  columnsOf,
   dataRoutes,
+  deny,
   Failure,
   factsOf,
   missing,
   parse,
+  placementFrom,
   readReference,
   requireWrite,
 } from '../objects/support.ts';
+import { validateProperty } from '../utilities/service.ts';
 import { processInbox } from './processing.ts';
 
 const Id = z.strictObject({ id: z.uuid() });
@@ -237,10 +248,16 @@ export async function inboxRoutes(
     });
   route('POST', '/api/inbox/:id/resolve', 200, async (tx, account, request) => {
     const input = parse(
-      z.union([Target, z.strictObject({ targets: z.array(Target).min(1).max(200) })]),
+      z.union([
+        Target.extend({ attachSource: z.boolean().default(true) }),
+        z.strictObject({
+          targets: z.array(Target).min(1).max(200),
+          attachSource: z.boolean().default(true),
+        }),
+      ]),
       request.body,
     );
-    const targets = 'targets' in input ? input.targets : [input];
+    const targets = 'targets' in input ? input.targets : [{ type: input.type, id: input.id }];
     const body = targets.find((target) => target.type !== 'shopping_item') ?? targets[0];
     if (!body) missing();
     const resolution = {
@@ -259,7 +276,10 @@ export async function inboxRoutes(
         signature([row.target, ...(row.target.additional ?? [])]) !== signature(targets)
       )
         throw new Failure(409, 'ALREADY_RESOLVED');
-      return { ok: true };
+      return {
+        ok: true,
+        attachedTo: input.attachSource && body.type !== 'shopping_item' ? [body.type] : [],
+      };
     }
     if (row.deletedAt) missing();
     for (const target of targets) {
@@ -288,9 +308,24 @@ export async function inboxRoutes(
       if (!id) missing();
       parent = (await readReference(tx, account, { type: 'object', id })).row;
       requireWrite(account, parent);
+      if (
+        input.attachSource &&
+        files.length &&
+        (parent.spaceId !== target.row.spaceId || parent.audience !== target.row.audience)
+      )
+        throw new Failure(409, 'FILE_PLACEMENT_MISMATCH');
+    }
+    // Новый объект отмечен сервером; существующий общий объект не получает личный файл.
+    const destinations: (typeof parent)[] = [];
+    if (input.attachSource && row.target?.type === 'object' && row.target.id !== parent.id) {
+      const object = await readReference(tx, account, { type: 'object', id: row.target.id });
+      if (object.row.deletedAt) missing();
+      requireWrite(account, object.row);
+      if (object.row.spaceId === target.row.spaceId && object.row.audience === target.row.audience)
+        destinations.push(object.row);
     }
     const moved: string[] = [];
-    for (const f of body.type === 'shopping_item' ? [] : files) {
+    for (const f of !input.attachSource || body.type === 'shopping_item' ? [] : files) {
       if (!options.files) throw new Failure(503, 'FILES_UNAVAILABLE');
       const bytes = options.files.cipher.open(
         await options.files.storage.get(f.storageKey),
@@ -318,6 +353,14 @@ export async function inboxRoutes(
         }),
       );
       moved.push(copy.id);
+      for (const destination of destinations)
+        await insertPreparedFile(
+          tx,
+          account,
+          'object',
+          destination,
+          prepareUpload(options.files, { data: bytes, mimeType: f.mimeType, name: f.title }),
+        );
     }
     if (body.type === 'meter_reading' || body.type === 'utility_charge') {
       if (body.type === 'meter_reading' && moved.length > 10)
@@ -351,18 +394,57 @@ export async function inboxRoutes(
           ...(file.previewStorageKey ? [file.previewStorageKey] : []),
         ]),
       );
-    return { ok: true };
+    const attachedTo = moved.length ? [body.type, ...(destinations.length ? ['object'] : [])] : [];
+    return { ok: true, attachedTo };
   });
   route('POST', '/api/inbox/:id/object', 200, async (tx, account, request) => {
     const row = await item(tx, account, parse(Id, request.params).id);
     if (row.deletedAt || row.resolvedAt) missing();
-    const { id } = parse(Id, request.body);
+    const input = parse(
+      z.union([
+        Id,
+        z.strictObject({
+          create: CreateObject.pick({ title: true, objectType: true, typeData: true }),
+        }),
+      ]),
+      request.body,
+    );
+    let id: string;
+    if ('id' in input) id = input.id;
+    else if (row.target?.type === 'object') id = row.target.id;
+    else {
+      const place = await placementFrom(tx, account);
+      if (!canCreate(account.viewer, { type: 'object', placement: place, authorId: account.id }))
+        deny();
+      if (input.create.typeData && input.create.objectType !== 'property')
+        throw new Failure(400, 'INVALID_INPUT');
+      const typeData =
+        input.create.objectType === 'property'
+          ? await validateProperty(tx, account, place, input.create.typeData ?? {})
+          : {};
+      const [created] = await tx
+        .insert(objects)
+        .values({
+          ...columnsOf(place),
+          authorId: account.id,
+          title: input.create.title,
+          objectType: input.create.objectType,
+          typeData,
+        })
+        .returning();
+      if (!created) throw new Error('Object insert returned no row');
+      id = created.id;
+      await tx
+        .update(inboxItems)
+        .set({ target: { type: 'object', id } })
+        .where(eq(inboxItems.id, row.id));
+    }
     const object = await readReference(tx, account, { type: 'object', id });
     if (object.row.deletedAt) missing();
     const draft = parse(InboxDraft, row.draft);
     draft.classification.objectId = { value: id, confident: true };
     draft.classification.newObject = null;
     await tx.update(inboxItems).set({ draft }).where(eq(inboxItems.id, row.id));
-    return { ok: true };
+    return { ok: true, id };
   });
 }

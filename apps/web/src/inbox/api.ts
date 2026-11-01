@@ -55,7 +55,12 @@ export function useInbox(deleted = false, autoParse = false) {
   return query;
 }
 export const inboxAction = (id: string, action: 'trash' | 'restore' | 'resolve', body?: unknown) =>
-  apiRequest('POST', `inbox/${id}/${action}`, Ok, body);
+  apiRequest(
+    'POST',
+    `inbox/${id}/${action}`,
+    Ok.extend({ attachedTo: z.array(z.string()).optional() }),
+    body,
+  );
 
 /** Устойчивые ключи всех покупок одного черновика переживают перезагрузку страницы. */
 export async function inboxOperationKey(id: string, kind: string, index = 0) {
