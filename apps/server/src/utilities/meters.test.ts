@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { redactUrl } from '../logging.ts';
 import type { Device } from '../testing/device.ts';
 import { signedInAdmin } from '../testing/flows.ts';
@@ -168,30 +168,36 @@ it('S3: четыре счётчика одним вводом, группиро�
   });
   expect(save.status, save.text).toBe(201);
   expect(save.json<Reading[]>().every((r) => r.consumption?.[0] === '10.000')).toBe(true);
-  const groups = (await adult.get(`/api/objects/${id}/transmission`)).json<
-    { number: string; transmission: unknown; readings: Reading[] }[]
-  >();
-  expect(groups).toHaveLength(1);
-  expect(groups[0]?.readings).toHaveLength(4);
-  expect(groups[0]?.number).toBe('FICTION-001');
-  const transmit = await adult.post(`/api/objects/${id}/readings/transmit`, {
-    readingIds: save.json<Reading[]>().map((r) => r.id),
-    method: 'Сайт поставщика',
-  });
-  expect(transmit.status, transmit.text).toBe(200);
-  expect(transmit.json<Reading[]>().every((r) => r.transmissionStatus === 'transmitted')).toBe(
-    true,
-  );
-  const again = await adult.post(`/api/objects/${id}/readings/transmit`, {
-    readingIds: save.json<Reading[]>().map((r) => r.id),
-    method: 'Повтор',
-  });
-  expect(again.status, again.text).toBe(200);
-  expect(again.json()).toEqual(transmit.json());
-  expect((await adult.get(`/api/objects/${id}/transmission`)).json()).toEqual([]);
-  const feed = await adult.get(`/api/objects/${id}/timeline`);
-  expect(feed.status, feed.text).toBe(200);
-  expect(feed.text).toContain('reading');
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-22T12:00:00Z'));
+  try {
+    const groups = (await adult.get(`/api/objects/${id}/transmission`)).json<
+      { number: string; transmission: unknown; readings: Reading[] }[]
+    >();
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.readings).toHaveLength(4);
+    expect(groups[0]?.number).toBe('FICTION-001');
+    const transmit = await adult.post(`/api/objects/${id}/readings/transmit`, {
+      readingIds: save.json<Reading[]>().map((r) => r.id),
+      method: 'Сайт поставщика',
+    });
+    expect(transmit.status, transmit.text).toBe(200);
+    expect(transmit.json<Reading[]>().every((r) => r.transmissionStatus === 'transmitted')).toBe(
+      true,
+    );
+    const again = await adult.post(`/api/objects/${id}/readings/transmit`, {
+      readingIds: save.json<Reading[]>().map((r) => r.id),
+      method: 'Повтор',
+    });
+    expect(again.status, again.text).toBe(200);
+    expect(again.json()).toEqual(transmit.json());
+    expect((await adult.get(`/api/objects/${id}/transmission`)).json()).toEqual([]);
+    const feed = await adult.get(`/api/objects/${id}/timeline`);
+    expect(feed.status, feed.text).toBe(200);
+    expect(feed.text).toContain('reading');
+  } finally {
+    vi.useRealTimers();
+  }
 });
 it('пакетный ввод и передача откатываются целиком, повторные даты и гонка не дублируют показания', async () => {
   const id = await object();
@@ -301,23 +307,29 @@ it('личное показание после «Поделиться» видн
     audience: 'adults',
   });
   expect(shared.status, shared.text).toBe(200);
-  for (const device of [adult, admin]) {
-    for (const path of paths) {
-      const result = await device.get(path);
-      expect(result.status, result.text).toBe(200);
-      expect(result.text).toContain(saved.id);
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-22T12:00:00Z'));
+  try {
+    for (const device of [adult, admin]) {
+      for (const path of paths) {
+        const result = await device.get(path);
+        expect(result.status, result.text).toBe(200);
+        expect(result.text).toContain(saved.id);
+      }
+      const readings = (await device.get(`/api/meters/${row.id}/readings`)).json<
+        (Reading & { spaceId: string; audience: string })[]
+      >();
+      expect(readings[0]).toMatchObject({
+        id: saved.id,
+        spaceId: world.houseId,
+        audience: 'adults',
+        values: ['123.456'],
+      });
     }
-    const readings = (await device.get(`/api/meters/${row.id}/readings`)).json<
-      (Reading & { spaceId: string; audience: string })[]
-    >();
-    expect(readings[0]).toMatchObject({
-      id: saved.id,
-      spaceId: world.houseId,
-      audience: 'adults',
-      values: ['123.456'],
-    });
+    for (const path of paths) expect((await child.get(path)).status, path).toBe(404);
+  } finally {
+    vi.useRealTimers();
   }
-  for (const path of paths) expect((await child.get(path)).status, path).toBe(404);
 });
 it('счёт того же объекта, чужие id скрыты; самостоятельная корзина и восстановление с объектом', async () => {
   const id = await object();
