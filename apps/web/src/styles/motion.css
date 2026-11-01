@@ -423,13 +423,13 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     animation: motion-surface-in var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-direction="forward"]:not([data-motion-feed])::view-transition-old(screen) {
-    animation: motion-surface-out var(--motion-screen) var(--ease-out) both;
+    animation: motion-surface-out var(--motion-close) var(--ease-out) both;
   }
   html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-new(screen) {
     animation: motion-surface-in var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(screen) {
-    animation: motion-surface-out var(--motion-screen) var(--ease-out) both;
+    animation: motion-surface-out var(--motion-close) var(--ease-out) both;
   }
   html[data-motion-card="forward"][data-motion-direction]::view-transition-new(screen) {
     animation: motion-card-in var(--motion-card) var(--ease-card) both;
@@ -438,10 +438,10 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     animation: motion-card-under-out var(--motion-card) var(--ease-card) both;
   }
   html[data-motion-card="back"][data-motion-direction]::view-transition-old(screen) {
-    animation: motion-card-out var(--motion-card) var(--ease-card) both;
+    animation: motion-card-out var(--motion-close) var(--ease-card) both;
   }
   html[data-motion-card="back"][data-motion-direction]::view-transition-new(screen) {
-    animation: motion-card-under-in var(--motion-card) var(--ease-card) both;
+    animation: motion-card-under-in var(--motion-close) var(--ease-card) both;
   }
   .sheet:not(.sheet--full) {
     transition: transform var(--motion-sheet) var(--ease-sheet);
@@ -521,14 +521,14 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
 }
 @media (prefers-reduced-motion: no-preference) {
   .section-indicator[data-moving="true"] {
-    transition: transform 420ms cubic-bezier(0.34, 1.28, 0.52, 1);
+    transition: transform var(--motion-screen) var(--ease-out);
   }
   html[data-design="studio"] .section-icon svg {
-    transition: transform 200ms var(--ease-out);
+    transition: transform var(--motion-fast) var(--ease-out);
   }
   html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link):active .section-icon svg {
     transform: scale(0.86);
-    transition-duration: 80ms;
+    transition-duration: var(--motion-fast);
   }
 }
 

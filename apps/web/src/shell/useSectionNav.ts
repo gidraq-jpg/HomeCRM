@@ -1,5 +1,6 @@
 import { type MouseEvent, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { motionTime } from '../ui/motion.ts';
 import { changeDockScreen, navigateWithMotion } from './motion.tsx';
 import { isStudio } from './studio.ts';
 
@@ -64,7 +65,7 @@ export function useSectionNav() {
     if (!reduce && icon) {
       for (const animation of icon.getAnimations()) animation.cancel();
       icon.animate([{ transform: 'scale(1.1)' }, { transform: 'scale(1)' }], {
-        duration: 320,
+        duration: motionTime('fast'),
         easing: getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim(),
       });
     }
