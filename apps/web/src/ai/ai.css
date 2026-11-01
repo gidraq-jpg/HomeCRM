@@ -35,3 +35,74 @@
 .voice-line:has(.ai-trigger) > .textarea {
   flex-basis: 100%;
 }
+
+.compact-draft {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.compact-draft__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.compact-draft__text strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.compact-draft__text p {
+  margin: 4px 0;
+  font-size: 13px;
+}
+.compact-draft__select {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+}
+.compact-draft__review {
+  color: var(--danger, #a22);
+}
+.compact-draft > .btn {
+  padding-inline: 8px;
+  min-height: 44px;
+}
+
+.compact-draft__select {
+  position: relative;
+}
+.compact-draft__select input {
+  position: absolute;
+  inset: 0;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.compact-draft__check {
+  width: 20px;
+  height: 20px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  pointer-events: none;
+}
+.compact-draft__select input:checked + .compact-draft__check {
+  background: var(--ink);
+  box-shadow: inset 0 0 0 4px var(--paper, #f8f5ef);
+}
+.compact-draft__select input:focus-visible + .compact-draft__check {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.compact-draft__text p {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.ai-drafts .ai-draft {
+  padding-bottom: 16px;
+}

@@ -38,7 +38,7 @@ test('D41: согласие, личные черновики пачкой и о�
     "INSERT INTO chat_grants(space_id,account_id,house_id,client_id,name,access_hash,refresh_hash,access_expires_at) VALUES ((SELECT id FROM spaces WHERE owner_account_id=$1),$1,$2,$3,'Учебный Claude','e2e-access-hash','e2e-refresh-hash',now()+interval '1 hour')",
     [person.id, family.houseId, client.rows[0].id],
   );
-  for (const kind of ['note', 'object', 'contact'])
+  for (const kind of ['note', 'object', 'contact', 'task'])
     await family.database.admin.query(
       "INSERT INTO inbox_items(id,space_id,space_kind,author_id,assignee_id,title,source,status,chat_draft) VALUES ($1,$2,'personal',$3,$3,$4,'chat','ready',$5)",
       [
@@ -57,10 +57,16 @@ test('D41: согласие, личные черновики пачкой и о�
   await page.goto(`${family.baseURL}#/more/inbox`);
   await expect(page.getByRole('heading', { name: 'Черновики от ИИ' })).toBeVisible();
   await expect(page.getByLabel('Куда сохранить')).toHaveValue('personal');
-  for (const checkbox of await page.getByRole('checkbox', { name: /От ИИ/ }).all())
-    await checkbox.check();
+  for (const card of await page.locator('.compact-draft').all()) {
+    await card.getByRole('button', { name: 'Изменить', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'Изменить черновик', exact: true })
+      .getByRole('button', { name: 'Готово', exact: true })
+      .click();
+  }
   await checkApp(page, info, 'd41-inbox');
-  await page.getByRole('button', { name: 'Сохранить выбранные' }).click();
+  await page.screenshot({ path: `../../docs/screenshots/d43/chat-${info.project.name}.png` });
+  await page.getByRole('button', { name: 'Сохранить все (4)' }).click();
   await expect(page.getByRole('heading', { name: 'Черновики от ИИ' })).toHaveCount(0);
   await page.goto('#/more/settings');
   await expect(page.getByRole('heading', { name: 'Устройства ИИ' })).toBeVisible();

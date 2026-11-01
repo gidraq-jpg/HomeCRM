@@ -213,7 +213,9 @@ export async function startAdd(page: Page, kind: string): Promise<void> {
 
 /** Быстрое дело в листе Studio 2. */
 export async function openQuick(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /^Добавить( дело)?$/ }).click();
+  await page
+    .getByRole('button', { name: /^Добавить( дело|\. Удерживайте, чтобы сказать ИИ)?$/ })
+    .click();
   await expect(page.getByRole('dialog')).toBeVisible();
   if (await page.getByRole('dialog', { name: 'Добавить', exact: true }).count())
     await page
