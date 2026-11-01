@@ -1,0 +1,11 @@
+.chat-checkbox {
+  min-width: 44px;
+  min-height: 44px;
+  accent-color: var(--accent);
+}
+
+.chat-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

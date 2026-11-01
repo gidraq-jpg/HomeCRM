@@ -35,6 +35,8 @@ describe('таблицы записей в коде и в базе', () => {
         'deadlines',
         'deadline_occurrences',
         'radar_actions',
+        'chat_grants', // Неизменяемое личное размещение, chat-matrix.test.ts, ADR-0048.
+        'chat_events',
       ].sort(),
     );
   });
@@ -309,6 +311,10 @@ describe('в базе нет таблицы, которой не знает ни
       `SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public'`,
     );
     const covered = new Set([
+      'chat_clients',
+      'chat_codes',
+      'chat_grants',
+      'chat_events', // chat-matrix.test.ts
       'ai_daily_usage', // ai-matrix.test.ts: расход лимита только участниками своего дома.
       'api_operations', // birthdays-matrix.test.ts: собственные неизменяемые ключи.
       'template_applications', // charges-matrix.test.ts: собственные неизменяемые квитанции.

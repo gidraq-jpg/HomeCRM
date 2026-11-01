@@ -103,6 +103,9 @@ export function HouseScreen() {
         )}
       </Section>
       <AiSettings spaceId={householdId} isAdmin={isAdmin} />
+      <ChatSettings spaceId={householdId} isAdmin={isAdmin} />
     </Page>
   );
 }
+
+import { ChatSettings } from '../chat/Chat.tsx';

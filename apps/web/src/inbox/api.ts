@@ -1,4 +1,4 @@
-import { INBOX_STATUSES, InboxDraft } from '@homecrm/shared';
+import { ChatItem, INBOX_STATUSES, InboxDraft } from '@homecrm/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { z } from 'zod';
@@ -10,6 +10,7 @@ import { parseCapturedInbox } from './parse.ts';
 export const InboxItem = z.object({
   id: z.uuid(),
   source: z.string(),
+  chatDraft: ChatItem.nullable().optional(),
   text: z.string(),
   status: z.enum(INBOX_STATUSES),
   draft: InboxDraft.nullable(),

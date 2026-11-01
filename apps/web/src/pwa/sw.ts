@@ -19,7 +19,7 @@ precacheAndRoute(self.__WB_MANIFEST, { ignoreURLParametersMatching: [] });
 cleanupOutdatedCaches();
 registerRoute(
   new NavigationRoute(createHandlerBoundToURL('index.html'), {
-    denylist: [/^\/api(?:\/|$)/, /^\/health(?:\/|$)/],
+    denylist: [/^\/api(?:\/|$)/, /^\/health(?:\/|$)/, /^\/(oauth|mcp|\.well-known)(?:\/|$)/],
   }),
 );
 // Ссылки с токенами получают общий index.html: их адрес и ответ в кэш не записываются.
