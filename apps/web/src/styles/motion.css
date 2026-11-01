@@ -585,3 +585,13 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
     transform: translate(-50%, 100%);
   }
 }
+
+/* Все соседи измерены до жеста и делят одну высоту, независимо от активной вкладки. */
+.feed-carousel .feed-carousel__track {
+  display: grid;
+}
+.feed-carousel .feed-carousel__pane {
+  position: relative;
+  grid-area: 1 / 1;
+  align-self: start;
+}
