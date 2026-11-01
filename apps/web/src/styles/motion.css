@@ -490,8 +490,8 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
 }
 
 /* Presence не удерживает фокус и aria ради завершения рисунка. */
-.sheet[data-state="closed"],
-.sheet-overlay[data-state="closed"] {
+.sheet[data-state="closed"]:not([data-motion-ghost]),
+.sheet-overlay[data-state="closed"]:not([data-motion-ghost]) {
   animation: none;
 }
 
@@ -574,5 +574,14 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
   }
   html[data-motion-form="back"]::view-transition-old(screen) {
     animation: motion-form-out var(--motion-close) var(--ease-out) both;
+  }
+}
+
+@keyframes motion-sheet-out {
+  from {
+    transform: var(--sheet-exit-from, translate(-50%, 0));
+  }
+  to {
+    transform: translate(-50%, 100%);
   }
 }

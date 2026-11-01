@@ -52,22 +52,12 @@ function exitSheetElement(source: HTMLElement, isSheet: boolean) {
   clone.style.transition = 'none';
   clone.dataset.motionGhost = '';
   document.body.append(clone);
-  const animation = clone.animate(
-    isSheet && !reduce
-      ? [{ transform }, { transform: 'translate(-50%, 100%)' }]
-      : [{ opacity: 1 }, { opacity: 0 }],
-    {
-      duration: motionTime(isSheet && !reduce ? 'sheet' : 'fast'),
-      easing: getComputedStyle(document.documentElement).getPropertyValue(
-        isSheet ? '--ease-sheet' : '--ease-out',
-      ),
-      fill: 'forwards',
-    },
-  );
-  void animation.finished.then(
-    () => clone.remove(),
-    () => clone.remove(),
-  );
+  clone.style.setProperty('--sheet-exit-from', transform);
+  clone.style.animation = `${isSheet && !reduce ? 'motion-sheet-out' : 'motion-fade-out'} ${motionTime(isSheet && !reduce ? 'close' : 'fast')}ms var(--ease-out) both`;
+  const remove = () => clone.remove();
+  clone.addEventListener('animationend', remove, { once: true });
+  // Без CSS-анимаций копия тоже освобождается.
+  setTimeout(remove, motionTime(isSheet && !reduce ? 'close' : 'fast') + 50);
 }
 function useSheetElementRef(
   isSheet: boolean,

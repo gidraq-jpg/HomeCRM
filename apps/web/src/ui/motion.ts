@@ -4,7 +4,7 @@ export function durationMilliseconds(value: string): number {
   return match ? Number(match[1]) * (match[2] === 's' ? 1000 : 1) : 0;
 }
 
-export function motionTime(name: 'fast' | 'base' | 'screen' | 'sheet' | 'fly'): number {
+export function motionTime(name: 'fast' | 'base' | 'screen' | 'sheet' | 'fly' | 'close'): number {
   return durationMilliseconds(
     getComputedStyle(document.documentElement).getPropertyValue(`--motion-${name}`),
   );
