@@ -134,7 +134,7 @@ for (const percent of [100, 200]) {
     ).toBeVisible();
   });
 
-  test(`UI-5: покупки, четыре вкладки, Enter, отмена и офлайн; текст ${percent}%`, async ({
+  test(`UI-5: покупки, четыре вкладки, добавление, отмена и офлайн; текст ${percent}%`, async ({
     page,
     family,
   }, info) => {
@@ -166,7 +166,7 @@ for (const percent of [100, 200]) {
     await expect(input).toBeFocused();
     await check(page, info, `shopping-${percent}`);
     await input.fill('Вымышленный хлеб');
-    await input.press('Enter');
+    await page.getByRole('button', { name: 'Добавить', exact: true }).click();
     await expect(page.getByRole('link', { name: 'Вымышленный хлеб', exact: true })).toBeVisible();
     await page.getByRole('checkbox', { name: 'Вымышленный хлеб', exact: true }).click();
     await expect(page.locator('.shopping-bought > summary')).toBeVisible();
@@ -278,7 +278,7 @@ test('UI-5: ребёнок видит только доступное и доб�
   await expect(page.getByText('Вымышленное чужое личное', { exact: true })).toHaveCount(0);
   await open(page, '/more/shopping');
   await page.getByLabel('Добавить одной строкой').fill('Вымышленный детский хлеб');
-  await page.getByLabel('Добавить одной строкой').press('Enter');
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   await expect(
     page.getByRole('link', { name: 'Вымышленный детский хлеб', exact: true }),
   ).toBeVisible();

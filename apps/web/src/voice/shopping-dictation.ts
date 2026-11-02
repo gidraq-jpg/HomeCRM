@@ -2,7 +2,7 @@
 // - позиции делятся запятыми, точкой с запятой, точками и словами «и», «ещё», «а также», «потом»,
 //   «плюс», стоящими отдельным словом; поэтому «хлеб и соль» — две позиции, а «хлеб-соль» — одна;
 // - запятая или точка между цифрами — дробь («1,5 кг»), а не разделитель;
-// - количество берётся только в начале позиции: число цифрами или словом, «пару», «десяток»,
+// - количество берётся в начале или после названия: число цифрами или словом, «пару», «десяток»,
 //   «два десятка», затем необязательная единица («кг», «литр», «пачки», «батон»…);
 // - название из одного слова ставится в именительный падеж: без количества — винительный
 //   («сметану» → «сметана»), после количества — родительный («кг гречки» → «гречка»);
@@ -10,7 +10,12 @@
 //   слово остаётся как сказано. В названии из нескольких слов словарь правит только первое.
 import { plural } from '../ui/format.ts';
 
-export type ShoppingDraft = { title: string; quantity?: string };
+export type ShoppingDraft = {
+  title: string;
+  quantity?: string;
+  titleConfident?: boolean;
+  quantityConfident?: boolean;
+};
 
 const TITLE_LIMIT = 200;
 
@@ -280,6 +285,14 @@ function capitalize(text: string) {
 }
 
 function parseItem(part: string): ShoppingDraft | null {
+  const trailing = /^(.+?)\s+(\d+(?:[.,]\d+)?)(?:\s+(\p{L}+\.?))?$/u.exec(part);
+  if (
+    trailing &&
+    !/^\d/u.test(part) &&
+    (!trailing[3] || UNITS[trailing[3].toLocaleLowerCase('ru')])
+  ) {
+    return parseItem(`${trailing[2]} ${trailing[3] ?? ''} ${trailing[1]}`.replace(/\s+/gu, ' '));
+  }
   const words = part.replace(EDGE_WORD, '').split(' ').filter(Boolean);
   if (words.length === 0) return null;
   const lower = words.map((word) => word.toLocaleLowerCase('ru').replace(/[«»"]/gu, ''));
@@ -327,7 +340,11 @@ function parseItem(part: string): ShoppingDraft | null {
 
 /** Делит надиктованный текст на позиции. Пустые части и лишние разделители пропускаются. */
 export function splitShoppingDictation(text: string): ShoppingDraft[] {
-  const clean = text.replace(/\s+/gu, ' ').trim().replace(LEAD, '');
+  const clean = text
+    .replace(/\r\n?|\n/gu, ';')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .replace(LEAD, '');
   if (!clean) return [];
   return ` ${clean} `
     .split(SEPARATOR)

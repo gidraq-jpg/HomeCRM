@@ -110,9 +110,18 @@ export function ShoppingDrafts({
                   <input
                     className="input"
                     value={row.title}
+                    aria-label={`Название позиции ${index + 1}`}
+                    aria-describedby={
+                      row.titleConfident === false ? `draft-title-${row.id}` : undefined
+                    }
                     maxLength={200}
                     onChange={(event) => update(row.id, { title: event.target.value })}
                   />
+                  {row.titleConfident === false ? (
+                    <small className="muted" id={`draft-title-${row.id}`}>
+                      ИИ не уверен: проверьте название
+                    </small>
+                  ) : null}
                 </label>
                 <label>
                   <span>
@@ -121,9 +130,18 @@ export function ShoppingDrafts({
                   <input
                     className="input"
                     value={row.quantity ?? ''}
+                    aria-label={`Количество позиции ${index + 1}`}
+                    aria-describedby={
+                      row.quantityConfident === false ? `draft-quantity-${row.id}` : undefined
+                    }
                     maxLength={200}
                     onChange={(event) => update(row.id, { quantity: event.target.value })}
                   />
+                  {row.quantityConfident === false ? (
+                    <small className="muted" id={`draft-quantity-${row.id}`}>
+                      ИИ не уверен: проверьте количество
+                    </small>
+                  ) : null}
                 </label>
                 <button
                   type="button"

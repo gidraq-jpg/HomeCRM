@@ -1,0 +1,23 @@
+.shopping-quick textarea {
+  min-height: 48px;
+  max-height: 9rem;
+  resize: vertical;
+}
+.shopping-steps {
+  display: flex;
+  align-items: center;
+  flex: none;
+  justify-content: flex-end;
+  max-width: 146px;
+}
+.shopping-steps button {
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  padding: 0;
+  flex: none;
+}
+html[data-design="studio"] .shopping-steps .shopping-quantity {
+  max-width: 58px;
+  overflow-wrap: anywhere;
+}

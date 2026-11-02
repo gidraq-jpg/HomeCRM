@@ -150,7 +150,7 @@ test('D20a-12: сохранение показаний объясняет рез
   await checkApp(page, info, 'D20a-12-month');
 });
 
-test('D20a-13: видимое добавление, Enter, подсказка дубля и всё куплено', async ({
+test('D20a-13: видимое добавление, подсказка дубля и всё куплено', async ({
   page,
   family,
 }, info) => {
@@ -163,8 +163,10 @@ test('D20a-13: видимое добавление, Enter, подсказка д
   await add.click();
   await expect(page.getByRole('link', { name: /^Молоко/ })).toBeVisible();
   await title.fill('  м о л о к о  ');
-  await title.press('Enter');
-  await expect(page.getByText('Уже в списке', { exact: true })).toBeVisible();
+  await add.click();
+  await expect(
+    page.getByText('Добавлено 0 покупок. Пропущено дублей: 1', { exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Без магазина', exact: true })).toBeVisible();
   await checkApp(page, info, 'D20a-13-duplicate');
   await page.getByRole('checkbox', { name: 'Молоко', exact: true }).click();
@@ -174,7 +176,7 @@ test('D20a-13: видимое добавление, Enter, подсказка д
   await expect(page.getByText('В списке пусто', { exact: true })).toHaveCount(0);
   await checkApp(page, info, 'D20a-13-bought');
   await title.fill('Хлеб');
-  await title.press('Enter');
+  await add.click();
   await expect(page.getByRole('link', { name: /^Хлеб/ })).toBeVisible();
 });
 
