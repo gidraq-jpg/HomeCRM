@@ -1,7 +1,7 @@
 import { type MouseEvent, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router';
 import { motionTime } from '../ui/motion.ts';
-import { changeDockScreen, navigateWithMotion } from './motion.tsx';
+import { changeTabScreen, navigateWithMotion } from './motion.tsx';
 import { isStudio } from './studio.ts';
 
 /** Плашка движется только вслед за явным выбором раздела. */
@@ -68,9 +68,6 @@ export function useSectionNav() {
       return;
     }
     selected.current = to;
-    const button = (
-      event.currentTarget.querySelector('.section-icon') ?? event.currentTarget
-    ).getBoundingClientRect();
     const icon = event.currentTarget.querySelector('.section-icon');
     if (!reduce && icon?.animate) {
       for (const animation of icon.getAnimations()) animation.cancel();
@@ -79,13 +76,9 @@ export function useSectionNav() {
         easing: getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim(),
       });
     }
-    changeDockScreen(
-      button,
-      () => {
-        void navigate(to);
-      },
-      `#${to}`,
-    );
+    changeTabScreen(() => {
+      void navigate(to);
+    });
   };
   return { nav, choose };
 }

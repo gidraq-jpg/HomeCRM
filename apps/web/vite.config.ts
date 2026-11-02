@@ -89,7 +89,29 @@ export default defineConfig(({ mode }) => {
       port: webPort,
       strictPort: true,
       proxy: {
-        '/api': api,
+        '/api': {
+          target: api,
+          configure(proxy) {
+            // Только вымышленный D44-стенд на loopback: Android Chrome 133 не сохраняет
+            // Secure-cookie по HTTP даже на localhost. Имена восстанавливаются до API.
+            if (env.HOMECRM_DEMO !== '1') return;
+            proxy.on('proxyReq', (request) => {
+              const cookie = request.getHeader('cookie');
+              if (typeof cookie === 'string')
+                request.setHeader(
+                  'cookie',
+                  cookie.replace(/(^|;\s*)homecrm\./g, '$1__Secure-homecrm.'),
+                );
+            });
+            proxy.on('proxyRes', (response) => {
+              const cookies = response.headers['set-cookie'];
+              if (cookies)
+                response.headers['set-cookie'] = cookies.map((cookie) =>
+                  cookie.replace(/__Secure-homecrm\./g, 'homecrm.').replace(/;\s*Secure/gi, ''),
+                );
+            });
+          },
+        },
         '/health': api,
       },
     },

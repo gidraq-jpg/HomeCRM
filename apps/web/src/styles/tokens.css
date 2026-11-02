@@ -3,14 +3,12 @@
 :root {
   --motion-fast: calc(160ms * var(--motion-factor, 1));
   --motion-base: calc(240ms * var(--motion-factor, 1));
-  --motion-screen: calc(450ms * var(--motion-factor, 1));
-  --motion-close: calc(380ms * var(--motion-factor, 1));
+  --motion-screen: calc(330ms * var(--motion-factor, 1));
+  --motion-close: calc(330ms * var(--motion-factor, 1));
   --motion-fly: calc(560ms * var(--motion-factor, 1));
-  --motion-card: var(--motion-screen);
-  --motion-sheet: var(--motion-screen);
-  --ease-out: cubic-bezier(0.22, 0.8, 0.24, 1);
+  --motion-sheet: calc(300ms * var(--motion-factor, 1));
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-sheet: var(--ease-out);
-  --ease-card: var(--ease-out);
   --paper: #f7f7f2;
   --surface: #ffffff;
   --ink: #232d28;

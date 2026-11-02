@@ -1,8 +1,9 @@
 import { X } from '@phosphor-icons/react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { type ReactNode, type RefObject, useCallback, useRef } from 'react';
+import { type ReactNode, type RefObject, useCallback, useEffect, useRef } from 'react';
 import { motionTime, reducedMotion } from './motion.ts';
 import { dismissSheet } from './sheet-gesture.ts';
+import { registerSheet } from './sheet-history.ts';
 
 // Нижняя панель на основе Radix Dialog: фокус не уходит за панель, Esc закрывает,
 // заголовок и описание читаются как у диалога (WCAG 2.2 AA).
@@ -94,6 +95,12 @@ export function Sheet({
   fullScreen = false,
   returnFocusRef,
 }: SheetProps) {
+  const closeRef = useRef(onOpenChange);
+  closeRef.current = onOpenChange;
+  useEffect(() => {
+    if (!open) return;
+    return registerSheet(() => closeRef.current(false));
+  }, [open]);
   // Панели открываются не через Dialog.Trigger, поэтому Radix не знает, куда вернуть фокус:
   // запоминаем элемент, с которого панель открыли, и возвращаем фокус на него при закрытии.
   const openers = useRef<HTMLElement[]>([]);

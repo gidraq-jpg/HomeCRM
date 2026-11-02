@@ -2,6 +2,14 @@ import { useState } from 'react';
 
 const key = 'homecrm.motion-slow';
 export function loadSlowMotion() {
+  for (const name of ['Sections', 'Tabs', 'Forms']) {
+    try {
+      const value = localStorage.getItem(`homecrm.motion-${name}`);
+      if (value) document.documentElement.dataset[`motion${name}`] = value;
+    } catch {
+      /* Выбор действует до перезагрузки. */
+    }
+  }
   try {
     document.documentElement.toggleAttribute('data-motion-slow', localStorage.getItem(key) === '4');
   } catch {
@@ -37,6 +45,64 @@ export function SlowMotionControl() {
         />{' '}
         Анимации медленнее ×4
       </label>
+      <MotionChoice
+        name="Sections"
+        label="Разделы с главного"
+        values={['side', 'sheet']}
+        labels={['Сбоку', 'Снизу']}
+      />
+      <MotionChoice
+        name="Tabs"
+        label="Нижние вкладки"
+        values={['instant', 'fade']}
+        labels={['Мгновенно', 'Затухание 150 мс']}
+      />
+      <MotionChoice
+        name="Forms"
+        label="Длинные формы"
+        values={['sheet', 'side']}
+        labels={['Снизу во весь экран', 'Сбоку']}
+      />
     </details>
+  );
+}
+
+function MotionChoice({
+  name,
+  label,
+  values,
+  labels,
+}: {
+  name: string;
+  label: string;
+  values: string[];
+  labels: string[];
+}) {
+  const [value, setValue] = useState(
+    () => document.documentElement.dataset[`motion${name}`] ?? values[0],
+  );
+  return (
+    <label>
+      {label}
+      <select
+        value={value}
+        onChange={(event) => {
+          const next = event.target.value;
+          setValue(next);
+          document.documentElement.dataset[`motion${name}`] = next;
+          try {
+            localStorage.setItem(`homecrm.motion-${name}`, next);
+          } catch {
+            /* Выбор уже применён. */
+          }
+        }}
+      >
+        {values.map((item, index) => (
+          <option key={item} value={item}>
+            {labels[index]}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
