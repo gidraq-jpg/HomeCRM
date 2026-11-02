@@ -54,11 +54,11 @@ function exitSheetElement(source: HTMLElement, isSheet: boolean) {
   clone.dataset.motionGhost = '';
   document.body.append(clone);
   clone.style.setProperty('--sheet-exit-from', transform);
-  clone.style.animation = `${isSheet && !reduce ? 'motion-sheet-out' : 'motion-fade-out'} ${motionTime(isSheet && !reduce ? 'close' : 'fast')}ms var(--ease-out) both`;
+  clone.style.animation = `${isSheet && !reduce ? 'motion-sheet-out' : 'motion-fade-out'} ${motionTime(isSheet && !reduce ? 'sheet' : 'fast')}ms var(--ease-out) both`;
   const remove = () => clone.remove();
   clone.addEventListener('animationend', remove, { once: true });
   // Без CSS-анимаций копия тоже освобождается.
-  setTimeout(remove, motionTime(isSheet && !reduce ? 'close' : 'fast') + 50);
+  setTimeout(remove, motionTime(isSheet && !reduce ? 'sheet' : 'fast') + 50);
 }
 function useSheetElementRef(
   isSheet: boolean,

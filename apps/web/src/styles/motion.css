@@ -562,12 +562,21 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
     animation: none;
   }
   html[data-motion-tab]::view-transition-old(screen) {
-    animation: motion-fade-out 150ms var(--ease-out) both;
+    animation: motion-fade-out var(--motion-tab) var(--ease-out) both;
   }
   html[data-motion-tab]::view-transition-new(screen) {
-    animation: motion-fade-in 150ms var(--ease-out) both;
+    animation: motion-fade-in var(--motion-tab) var(--ease-out) both;
   }
 }
 .ui7-form-heading {
   touch-action: pan-x;
+}
+
+.motion-check label:has(select) {
+  flex-direction: column;
+  align-items: stretch;
+}
+.motion-check select {
+  width: 100%;
+  min-height: 44px;
 }
