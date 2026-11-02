@@ -78,8 +78,10 @@ function MotionChoice({
   values: string[];
   labels: string[];
 }) {
-  const [value, setValue] = useState(
-    () => document.documentElement.dataset[`motion${name}`] ?? values[0],
+  const [value, setValue] = useState(() =>
+    typeof document === 'undefined'
+      ? values[0]
+      : (document.documentElement.dataset[`motion${name}`] ?? values[0]),
   );
   return (
     <label>

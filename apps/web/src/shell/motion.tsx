@@ -124,17 +124,24 @@ export function changeScreenWithMotion(
   document.documentElement.dataset.motionDirection = direction;
   const root = document.documentElement;
   const from = typeof window === 'undefined' ? '' : window.location?.hash?.slice(1).split('?')[0];
-  if (
-    (form && root.dataset.motionForms !== 'side') ||
-    (!form &&
+  if (form && root.dataset.motionForms !== 'side') root.dataset.motionForm = direction;
+  const chooseSection = () => {
+    const to = typeof window === 'undefined' ? '' : window.location?.hash?.slice(1).split('?')[0];
+    const section = (path: string | undefined) =>
+      !!path && ['/home', '/documents', '/people', '/more/inbox', '/more/settings'].includes(path);
+    if (
+      !form &&
       root.dataset.motionSections === 'sheet' &&
-      (from === '/today' || (direction === 'back' && card?.parentPath === '/today')))
-  )
-    root.dataset.motionForm = direction;
+      ((from === '/today' && section(to)) || (to === '/today' && section(from)))
+    )
+      root.dataset.motionForm = direction;
+  };
   const transition = document.startViewTransition(() => {
     if (activeEpoch !== epoch) return;
     try {
-      return flushSync(update);
+      const result = flushSync(update);
+      if (result) return result.then(chooseSection);
+      chooseSection();
     } catch (error) {
       reportError(error);
       throw error;
