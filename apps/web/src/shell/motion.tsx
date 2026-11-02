@@ -12,7 +12,7 @@ import {
   useNavigate as useRouterNavigate,
 } from 'react-router';
 import { motionTime } from '../ui/motion.ts';
-import { consumeSheetBack, registerSheet } from '../ui/sheet-history.ts';
+import { consumeSheetBack, prepareSheetNavigation, registerSheet } from '../ui/sheet-history.ts';
 import {
   type CardOrigin,
   cardOrigins,
@@ -121,26 +121,20 @@ export function changeScreenWithMotion(
   }
   const activeEpoch = ++epoch;
   document.documentElement.dataset.motionDirection = direction;
-  const root = document.documentElement;
-  const from = typeof window === 'undefined' ? '' : window.location?.hash?.slice(1).split('?')[0];
-  if (form && root.dataset.motionForms !== 'side') root.dataset.motionForm = direction;
-  const chooseSection = () => {
-    const to = typeof window === 'undefined' ? '' : window.location?.hash?.slice(1).split('?')[0];
-    const section = (path: string | undefined) =>
-      !!path && ['/home', '/documents', '/people', '/more/inbox', '/more/settings'].includes(path);
-    if (
-      !form &&
-      root.dataset.motionSections === 'sheet' &&
-      ((from === '/today' && section(to)) || (to === '/today' && section(from)))
-    )
-      root.dataset.motionForm = direction;
+  if (form) document.documentElement.dataset.motionForm = direction;
+  const before = form ? document.querySelector('.main')?.getBoundingClientRect() : undefined;
+  const alignBackdrop = () => {
+    const after = before && document.querySelector('.main')?.getBoundingClientRect();
+    if (!before || !after) return;
+    document.documentElement.style.setProperty('--form-old-x', `${before.x - after.x}px`);
+    document.documentElement.style.setProperty('--form-old-y', `${before.y - after.y}px`);
   };
   const transition = document.startViewTransition(() => {
     if (activeEpoch !== epoch) return;
     try {
       const result = flushSync(update);
-      if (result) return result.then(chooseSection);
-      chooseSection();
+      if (result) return result.then(alignBackdrop);
+      alignBackdrop();
     } catch (error) {
       reportError(error);
       throw error;
@@ -152,10 +146,13 @@ export function changeScreenWithMotion(
   const clear = () => {
     if (current !== transition) return;
     current = undefined;
+    if (form) {
+      document.documentElement.style.removeProperty('--form-old-x');
+      document.documentElement.style.removeProperty('--form-old-y');
+    }
     delete document.documentElement.dataset.motionForm;
     delete document.documentElement.dataset.motionDirection;
     delete document.documentElement.dataset.motionFeed;
-    delete document.documentElement.dataset.motionTab;
   };
   void transition.finished.then(clear, clear);
 }
@@ -164,6 +161,7 @@ export function changeScreenWithMotion(
 export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => boolean) {
   const [value, setValue] = useState(initial);
   const form = useRef(isForm(value));
+  const needsHistoryEntry = useRef(true);
   const mode = useRef(value);
   const previousMode = useRef(value);
   const predicate = useRef(isForm);
@@ -172,7 +170,10 @@ export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => bo
     const nextForm = predicate.current(next);
     const previous = form.current;
     const update = () => {
-      if (nextForm && !previous) previousMode.current = mode.current;
+      if (nextForm && !previous) {
+        previousMode.current = mode.current;
+        needsHistoryEntry.current = !alongside;
+      }
       form.current = nextForm;
       mode.current = next;
       setValue(next);
@@ -189,7 +190,7 @@ export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => bo
   const historyOwner = useRef({});
   const formOpen = predicate.current(value);
   useEffect(() => {
-    if (!formOpen) return;
+    if (!formOpen || !needsHistoryEntry.current) return;
     return registerSheet(() => set(previousMode.current), historyOwner.current);
   }, [formOpen, set]);
   useEffect(() => {
@@ -254,8 +255,6 @@ export function systemHistoryMotion(
 ) {
   if (consumeSheetBack(event)) return;
   if (replayingHistory) return;
-  // Закрытие листа возвращает тот же адрес и ключ, экран под ним не двигается.
-  if (event.state?.key === previousKey && event.state?.idx === previousIndex) return;
   if (historyUpdate) {
     queueMicrotask(cancelMotionNavigation);
     return;
@@ -302,10 +301,11 @@ export function useNavigate(): NavigateFunction {
       if (typeof to === 'number') {
         return navigateHistoryWithMotion(to, navigate);
       }
+      const replaceSheet = prepareSheetNavigation();
       navigateWithMotion(pathname, resolvePath(to, pathname).pathname, () => {
         void navigate(to, {
           ...options,
-          replace: options?.replace ?? !!window.history.state?.motionSheet,
+          replace: options?.replace ?? replaceSheet,
         });
       });
     },
@@ -335,6 +335,7 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
           reloadDocument
         )
           return;
+        const replaceSheet = prepareSheetNavigation();
         const direction = event.currentTarget.classList.contains('back-link')
           ? 'back'
           : motionDirection(from.pathname, to.pathname);
@@ -346,6 +347,10 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
           event.currentTarget.closest('.tabs, .bottom-nav, .side-nav')
         ) {
           cancelMotionNavigation();
+          if (replaceSheet) {
+            event.preventDefault();
+            void navigate(props.to, { replace: true, state: props.state });
+          }
           return;
         }
         event.preventDefault();
@@ -369,7 +374,7 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
           () => {
             if (direction === 'back' && card) requestPosition(card.parentKey);
             void navigate(props.to, {
-              replace: props.replace ?? !!window.history.state?.motionSheet,
+              replace: props.replace ?? replaceSheet,
               state: props.state,
               relative: props.relative,
               preventScrollReset: props.preventScrollReset,
@@ -384,14 +389,8 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
   );
 }
 
-/** Нижние вкладки: без движения либо короткое затухание по выбору владельца. */
+/** Утверждено D44: нижние вкладки меняются мгновенно. */
 export function changeTabScreen(update: () => void) {
-  const root = document.documentElement;
-  if (root.dataset.motionTabs !== 'fade') {
-    cancelMotionNavigation();
-    update();
-    return;
-  }
-  root.dataset.motionTab = 'fade';
-  changeScreenWithMotion('forward', update);
+  cancelMotionNavigation();
+  update();
 }

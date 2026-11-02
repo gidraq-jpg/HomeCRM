@@ -501,17 +501,17 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
 }
 @keyframes motion-form-out {
   from {
-    transform: translateY(0);
+    transform: translate(var(--form-old-x, 0px), var(--form-old-y, 0px));
   }
   to {
-    transform: translateY(100%);
+    transform: translate(var(--form-old-x, 0px), calc(100% + var(--form-old-y, 0px)));
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  html[data-motion-form="forward"]::view-transition-new(screen) {
+  html[data-motion-direction][data-motion-form="forward"]::view-transition-new(screen) {
     animation: motion-form-in var(--motion-sheet) var(--ease-out) both;
   }
-  html[data-motion-form="back"]::view-transition-old(screen) {
+  html[data-motion-direction][data-motion-form="back"]::view-transition-old(screen) {
     animation: motion-form-out var(--motion-sheet) var(--ease-out) both;
   }
 }
@@ -557,26 +557,21 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html[data-motion-form="forward"]::view-transition-old(screen),
-  html[data-motion-form="back"]::view-transition-new(screen) {
+  html[data-motion-direction][data-motion-form="forward"]::view-transition-old(screen),
+  html[data-motion-direction][data-motion-form="back"]::view-transition-new(screen) {
     animation: none;
-  }
-  html[data-motion-tab]::view-transition-old(screen) {
-    animation: motion-fade-out var(--motion-tab) var(--ease-out) both;
-  }
-  html[data-motion-tab]::view-transition-new(screen) {
-    animation: motion-fade-in var(--motion-tab) var(--ease-out) both;
   }
 }
 .ui7-form-heading {
   touch-action: pan-x;
 }
 
-.motion-check label:has(select) {
-  flex-direction: column;
-  align-items: stretch;
-}
-.motion-check select {
-  width: 100%;
-  min-height: 44px;
+@media (prefers-reduced-motion: no-preference) {
+  /* Полная форма накрывает прежние шапку и меню, а не едет под ними. */
+  html[data-motion-form]::view-transition-group(screen) {
+    z-index: 3;
+  }
+  html[data-motion-direction][data-motion-form="forward"]::view-transition-old(screen) {
+    transform: translate(var(--form-old-x, 0px), var(--form-old-y, 0px));
+  }
 }

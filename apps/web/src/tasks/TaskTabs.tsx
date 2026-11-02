@@ -95,7 +95,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
       returnAnimation = node?.animate(
         [{ transform: `translateX(${from}px)` }, { transform: 'translateX(0)' }],
         {
-          duration: motionTime('screen'),
+          duration: motionTime('feed'),
           easing: getComputedStyle(root).getPropertyValue('--ease-out'),
         },
       );

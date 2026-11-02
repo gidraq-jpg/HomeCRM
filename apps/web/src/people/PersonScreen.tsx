@@ -10,6 +10,7 @@ import { organizationAbilities } from '../organizations/abilities.ts';
 import { OrganizationView } from '../organizations/OrganizationScreen.tsx';
 import { useOrganizationOptions } from '../organizations/queries.ts';
 import { Link, useNavigate, useScreenMode } from '../shell/motion.tsx';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { EXTERNAL_LINK } from '../ui/link.ts';
 import { Page } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';
@@ -41,7 +42,7 @@ export function ContactScreen() {
   if (query.isPending) {
     return (
       <Page title="Контакт" back={PEOPLE_BACK} documentTitle={TAB_TITLE}>
-        <Notice>Загружаем контакт…</Notice>
+        <ListSkeleton label="Загружаем контакт…" />
       </Page>
     );
   }

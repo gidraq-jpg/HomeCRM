@@ -13,6 +13,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { useSettings } from '../notifications/queries.ts';
 import { Link, useScreenMode } from '../shell/motion.tsx';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
@@ -37,7 +38,7 @@ export function TaskScreen() {
     return (
       <Page title="Дело" back={{ to: '/today', label: 'Сегодня' }}>
         {query.isPending ? (
-          <Notice>Загружаем дело…</Notice>
+          <ListSkeleton label="Загружаем дело…" />
         ) : (
           <Notice error>
             {taskError(query.error)}

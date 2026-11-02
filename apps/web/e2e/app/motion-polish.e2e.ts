@@ -99,16 +99,36 @@ async function swipe(
   inspect?: () => Promise<void>,
   fast = false,
 ) {
-  await target.scrollIntoViewIfNeeded();
-  const box = await target.boundingBox();
+  // Центр оставляет цель вне закреплённого нижнего меню и липкой шапки.
+  await target.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+  await settle(page);
+  let box = await target.boundingBox();
   if (!box) throw new Error('Missing gesture target');
-  const x = Math.min(
+  let x = Math.min(
     (page.viewportSize()?.width ?? 360) - 36,
     Math.max(36, fast ? box.x + box.width - 8 : box.x + box.width / 2),
   );
-  const y = box.y + Math.min(24, box.height / 2);
+  let y = box.y + Math.min(24, box.height / 2);
   // Длинный жест доходит почти до края экрана: действие — только дальше 65 % строки.
   const travel = fast ? 8 - x : dx;
+  await expect
+    .poll(async () => {
+      await target.evaluate((element) =>
+        element.scrollIntoView({ block: 'center', behavior: 'instant' }),
+      );
+      box = await target.boundingBox();
+      if (!box) return false;
+      x = Math.min(
+        (page.viewportSize()?.width ?? 360) - 36,
+        Math.max(36, fast ? box.x + box.width - 8 : box.x + box.width / 2),
+      );
+      y = box.y + Math.min(24, box.height / 2);
+      return target.evaluate(
+        (element, point) => element.contains(document.elementFromPoint(point.x, point.y)),
+        { x, y },
+      );
+    })
+    .toBe(true);
   const session = await page.context().newCDPSession(page);
   try {
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
@@ -144,9 +164,9 @@ for (const reduce of [false, true])
       await settle(page);
       let motion = await observed(page);
       expect(motion.direction).toBe('forward');
-      expect(motion.next).toBe(reduce ? 'motion-fade-in' : 'motion-card-in');
-      // D38: строка раскрывается окном за --motion-card.
-      expect(motion.duration).toBe(reduce ? '0.16s' : '0.45s');
+      expect(motion.next).toBe(reduce ? 'motion-fade-in' : 'motion-side-in');
+      // D44: новый экран едет справа, прежний остаётся под ним.
+      expect(motion.duration).toBe(reduce ? '0.16s' : '0.33s');
       expect(motion.dock).toBe('none');
       expect(motion.header).toBe('none');
       if (!reduce) {
@@ -158,7 +178,8 @@ for (const reduce of [false, true])
       await expect(page.locator('.ui7-fullscreen-form')).toBeVisible();
       await settle(page);
       motion = await observed(page);
-      expect(motion.header).toBe('motion-fade-in');
+      expect(motion.next).toBe(reduce ? 'motion-fade-in' : 'motion-form-in');
+      expect(motion.header).toBe('none');
       await check(page, info, `form-${reduce}`);
       await page.locator('.back-link').first().click();
       await expect(page.locator('.ui7-fullscreen-form')).toHaveCount(0);
@@ -168,7 +189,7 @@ for (const reduce of [false, true])
       await expect(page.getByRole('heading', { name: 'Сегодня', exact: true })).toBeVisible();
       await settle(page);
       // D38: список под сжимающимся окном карточки проявляется обратно.
-      expect((await observed(page)).next).toBe(reduce ? 'motion-fade-in' : 'motion-card-under-in');
+      expect((await observed(page)).next).toBe(reduce ? 'motion-fade-in' : 'motion-under-in');
       expect(await page.locator('.chrome').boundingBox()).toEqual(dock);
       // Прямой системный popstate не перехватывается и сохраняет штатную историю.
       await page.getByRole('link', { name: 'Вымышленный переход D30', exact: true }).click();
@@ -198,6 +219,9 @@ for (const reduce of [false, true])
       await api.post('tasks', { title: 'Вымышленная строка D30', planOn: homeDate(0) });
       await signInAs(page, family, 'adult');
       await observe(page);
+      // Жест начинает движение только после готовности соседней ленты.
+      await expect(page.locator('[data-feed-pane="1"]')).toHaveAttribute('data-feed-ready', 'true');
+      await settle(page);
       const content = page.locator('.feed-carousel__track');
       const dock = await page.locator('.chrome').boundingBox();
       await swipe(page, page.locator('.task-counts'), -25, 0, async () => {
