@@ -11,6 +11,7 @@ function fixture() {
     back: vi.fn(),
   };
   vi.stubGlobal('history', history);
+  vi.stubGlobal('location', { href: 'http://local/#/note' });
   return history;
 }
 describe('история листов', () => {
@@ -56,5 +57,43 @@ describe('история листов', () => {
     cleanUpper();
     cleanLower();
     await Promise.resolve();
+  });
+  it('новый адрес во время закрытия не принимается за Назад листа', async () => {
+    const history = fixture();
+    const close = vi.fn();
+    const cleanup = registerSheet(close, {});
+    const next = { key: 'next-page', idx: 3 };
+    history.state = next;
+    vi.stubGlobal('location', { href: 'http://local/#/task' });
+    const event = { state: next, stopImmediatePropagation: vi.fn() } as unknown as PopStateEvent;
+    try {
+      expect(consumeSheetBack(event)).toBe(false);
+      expect(close).not.toHaveBeenCalled();
+      expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+      await Promise.resolve();
+    }
+    expect(history.back).not.toHaveBeenCalled();
+  });
+  it('новая навигация отменяет ожидание popstate закрытого листа', async () => {
+    const history = fixture();
+    const cleanup = registerSheet(vi.fn(), {});
+    cleanup();
+    await Promise.resolve();
+    expect(history.back).toHaveBeenCalledOnce();
+    vi.stubGlobal('location', { href: 'http://local/#/task' });
+    const next = {
+      state: { key: 'next-page', idx: 3 },
+      stopImmediatePropagation: vi.fn(),
+    } as unknown as PopStateEvent;
+    expect(consumeSheetBack(next)).toBe(false);
+    vi.stubGlobal('location', { href: 'http://local/#/note' });
+    const back = {
+      state: { key: 'page', idx: 2 },
+      stopImmediatePropagation: vi.fn(),
+    } as unknown as PopStateEvent;
+    expect(consumeSheetBack(back)).toBe(false);
+    expect(back.stopImmediatePropagation).not.toHaveBeenCalled();
   });
 });

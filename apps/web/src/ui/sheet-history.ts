@@ -1,17 +1,43 @@
 // Листы занимают свой шаг истории, не меняя адрес карточки под ними.
+interface ParentEntry {
+  key: unknown;
+  idx: unknown;
+  sheet: unknown;
+  href: string;
+}
+const currentHref = () => (typeof location === 'undefined' ? '' : location.href);
+function matchesParent(parent: ParentEntry, state: PopStateEvent['state']) {
+  return (
+    state?.key === parent.key &&
+    state?.idx === parent.idx &&
+    state?.motionSheet === parent.sheet &&
+    currentHref() === parent.href
+  );
+}
 interface Entry {
   id: string;
   close: () => void;
   generation: number;
+  parent: ParentEntry;
 }
 const sheets: Entry[] = [];
 const owners = new WeakMap<object, Entry>();
 let next = 0;
-let closedHistoryKey: string | undefined;
+let closedParent: ParentEntry | undefined;
 export function registerSheet(close: () => void, owner: object) {
   let entry = owners.get(owner);
   if (!entry || !sheets.includes(entry)) {
-    entry = { id: `sheet-${++next}`, close, generation: 0 };
+    entry = {
+      id: `sheet-${++next}`,
+      close,
+      generation: 0,
+      parent: {
+        key: history.state?.key,
+        idx: history.state?.idx,
+        sheet: history.state?.motionSheet,
+        href: currentHref(),
+      },
+    };
     owners.set(owner, entry);
     sheets.push(entry);
     history.pushState({ ...history.state, motionSheet: entry.id }, '');
@@ -26,21 +52,24 @@ export function registerSheet(close: () => void, owner: object) {
       const index = sheets.indexOf(current);
       if (index >= 0) sheets.splice(index, 1);
       owners.delete(owner);
-      if (history.state?.motionSheet === current.id) {
-        closedHistoryKey = history.state.key;
+      if (history.state?.motionSheet === current.id && currentHref() === current.parent.href) {
+        closedParent = current.parent;
         history.back();
       }
     });
   };
 }
 export function consumeSheetBack(event: PopStateEvent) {
-  if (closedHistoryKey && event.state?.key === closedHistoryKey) {
-    closedHistoryKey = undefined;
+  const pendingClose = closedParent;
+  closedParent = undefined;
+  if (pendingClose && matchesParent(pendingClose, event.state)) {
     event.stopImmediatePropagation();
     return true;
   }
   const top = sheets.at(-1);
-  if (!top || event.state?.motionSheet === top.id) return false;
+  // Смена фрагмента адреса и переход к другой записи тоже вызывают popstate.
+  // Закрываем лист только при возврате к его настоящему родителю.
+  if (!top || !matchesParent(top.parent, event.state)) return false;
   sheets.pop();
   event.stopImmediatePropagation();
   top.close();
