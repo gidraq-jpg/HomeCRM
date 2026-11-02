@@ -78,11 +78,14 @@ function MotionChoice({
   values: string[];
   labels: string[];
 }) {
-  const [value, setValue] = useState(() =>
-    typeof document === 'undefined'
-      ? values[0]
-      : (document.documentElement.dataset[`motion${name}`] ?? values[0]),
-  );
+  const [value, setValue] = useState(() => {
+    if (typeof document === 'undefined') return values[0];
+    try {
+      return localStorage.getItem(`homecrm.motion-${name}`) ?? values[0];
+    } catch {
+      return document.documentElement.dataset[`motion${name}`] ?? values[0];
+    }
+  });
   return (
     <label>
       {label}

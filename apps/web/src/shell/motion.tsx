@@ -250,6 +250,8 @@ export function systemHistoryMotion(
 ) {
   if (consumeSheetBack(event)) return;
   if (replayingHistory) return;
+  // Закрытие листа возвращает тот же адрес и ключ, экран под ним не двигается.
+  if (event.state?.key === previousKey && event.state?.idx === previousIndex) return;
   if (historyUpdate) {
     queueMicrotask(cancelMotionNavigation);
     return;
