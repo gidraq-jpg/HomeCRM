@@ -189,10 +189,11 @@ export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => bo
     mode.current = next;
     setValue(next);
   }, []);
+  const historyOwner = useRef({});
   const formOpen = predicate.current(value);
   useEffect(() => {
     if (!formOpen) return;
-    return registerSheet(() => set(previousMode.current));
+    return registerSheet(() => set(previousMode.current), historyOwner.current);
   }, [formOpen, set]);
   useEffect(() => {
     if (!predicate.current(value)) return;

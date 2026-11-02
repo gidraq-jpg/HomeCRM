@@ -98,11 +98,12 @@ export function Sheet({
   historyEntry = true,
   returnFocusRef,
 }: SheetProps) {
+  const historyOwner = useRef({});
   const closeRef = useRef(onOpenChange);
   closeRef.current = onOpenChange;
   useEffect(() => {
     if (!open || !historyEntry) return;
-    return registerSheet(() => closeRef.current(false));
+    return registerSheet(() => closeRef.current(false), historyOwner.current);
   }, [open, historyEntry]);
   // Панели открываются не через Dialog.Trigger, поэтому Radix не знает, куда вернуть фокус:
   // запоминаем элемент, с которого панель открыли, и возвращаем фокус на него при закрытии.
