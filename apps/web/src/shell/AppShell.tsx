@@ -1,11 +1,10 @@
-import { Plus } from '@phosphor-icons/react';
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
 import { TaskSwipeActions } from '../tasks/TaskSwipeActions.tsx';
 import { loadSlowMotion, SlowMotionControl } from '../ui/SlowMotionControl.tsx';
 import { ToastRegion } from '../ui/Toast.tsx';
-import { AddActionContext } from './AddAction.tsx';
+import { AddAction, AddActionContext } from './AddAction.tsx';
 import { BottomNav, type ShellSection } from './BottomNav.tsx';
 import { cancelMotionNavigation, systemHistoryMotion, useNavigate } from './motion.tsx';
 import { SideNav } from './SideNav.tsx';
@@ -113,11 +112,7 @@ export function AppShell({
         <div className="chrome" ref={chrome}>
           <aside className="chrome__actions" aria-label="Быстрые действия">
             <ToastRegion />
-            {!isStudio() ? (
-              <button type="button" className="fab" aria-label="Добавить" onClick={onAdd}>
-                <Plus size={28} weight="bold" aria-hidden />
-              </button>
-            ) : null}
+            {!isStudio() ? <AddAction className="fab" /> : null}
           </aside>
           <BottomNav sections={sections} />
         </div>

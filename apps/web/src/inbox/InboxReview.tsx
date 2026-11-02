@@ -16,8 +16,10 @@ import { z } from 'zod';
 import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import { VISIBILITY_LABELS, type Visibility } from '../access/visibility.ts';
 import { useAiStatus } from '../ai/AiCapture.tsx';
+import { CompactDraft } from '../ai/CompactDraft.tsx';
+import { needsReview } from '../ai/compact.ts';
 import { useAiConsent } from '../ai/consent.tsx';
-import { ApiError, apiRequest } from '../auth/api.ts';
+import { apiRequest } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import {
   defaultDocumentVisibility,
@@ -39,8 +41,10 @@ import { createShopping } from '../shopping/api.ts';
 import { ShoppingEditor } from '../shopping/ShoppingScreen.tsx';
 import { mutateTask } from '../tasks/api.ts';
 import { createBody } from '../tasks/NewTaskScreen.tsx';
+import { RecordPicker, useTaskMembers } from '../tasks/options.tsx';
 import { TaskForm } from '../tasks/TaskForm.tsx';
 import { type DateOnly, formatFullDate, formatRub } from '../ui/format.ts';
+import { Sheet } from '../ui/Sheet.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import {
   type InboxItem,
@@ -122,6 +126,25 @@ function fieldsOf(
     return [];
   });
 }
+function editableFields(
+  value: unknown,
+  prefix = '',
+): { key: string; label: string; value: string; confident: boolean }[] {
+  if (!value || typeof value !== 'object') return [];
+  return Object.entries(value).flatMap(([key, field]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (field && typeof field === 'object' && 'value' in field && 'confident' in field)
+      return [
+        {
+          key: path,
+          label: labels[key] ?? key,
+          value: String(field.value ?? ''),
+          confident: !!field.confident,
+        },
+      ];
+    return editableFields(field, path);
+  });
+}
 export function InboxReview() {
   const { inboxId, editKind } = useParams();
   const [attachment, setAttachment] = useState<{ id?: string; value: boolean }>({ value: true });
@@ -159,6 +182,7 @@ function InboxItemReview({
   const navigate = useNavigate();
   const client = useQueryClient();
   const action = useAction();
+  const members = useTaskMembers(row.houseId);
   const status = useAiStatus(row.houseId);
   const consent = useAiConsent(row.houseId, status.data?.provider);
   const created = useRef<{
@@ -172,7 +196,56 @@ function InboxItemReview({
       | 'utility_charge';
     id: string;
   } | null>(null);
-  const draft = row.draft;
+  const [draft, setDraft] = useState(row.draft);
+  const [places, setPlaces] = useState<Record<number, Visibility>>({});
+  const [savedIndices, setSavedIndices] = useState<number[]>([]);
+  const [locked, setLocked] = useState(false);
+  const [editing, setEditing] = useState<number | null>(null);
+  const [excluded, setExcluded] = useState<number[]>([]);
+  const [confirmed, setConfirmed] = useState<number[]>([]);
+  const entries = draft ? [draft, ...draft.additional] : [];
+  const selected = entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ index }) => !excluded.includes(index) && !savedIndices.includes(index));
+  const unreviewed = selected.some(
+    ({ entry, index }) =>
+      needsReview({ classification: entry.classification, fields: entry.fields }) &&
+      !confirmed.includes(index),
+  );
+  function changeField(index: number, key: string, value: string) {
+    if (!draft) return;
+    const entry = entries[index];
+    if (!entry) return;
+    const fields = structuredClone(entry.fields);
+    let target: unknown = fields;
+    const path = key.split('.');
+    const leaf = path.pop();
+    for (const part of path) target = (target as Record<string, unknown>)[part];
+    if (!leaf || !target || typeof target !== 'object') return;
+    const old = (target as Record<string, { value: unknown }>)[leaf];
+    if (!old) return;
+    (target as Record<string, unknown>)[leaf] = {
+      ...old,
+      value:
+        typeof old.value === 'number'
+          ? Number(value)
+          : value || (['title', 'body'].includes(leaf) ? '' : null),
+      confident: true,
+    };
+    const next = {
+      ...entry,
+      fields,
+      classification:
+        key === 'objectId'
+          ? { ...entry.classification, objectId: { value: value || null, confident: true } }
+          : entry.classification,
+    } as typeof entry;
+    setDraft(
+      index === 0
+        ? { ...draft, fields: next.fields, classification: next.classification }
+        : { ...draft, additional: draft.additional.map((e, i) => (i + 1 === index ? next : e)) },
+    );
+  }
   const kind =
     editKind ?? (row.status === 'identity' ? 'document' : (draft?.classification.kind ?? 'note'));
   const [chosenOwner, setOwner] = useState<string | null>(null);
@@ -213,6 +286,7 @@ function InboxItemReview({
     created.current = target;
     const targets: Target[] = [target, ...(extra.current.get(-1) ?? [])];
     for (const [index, entry] of (draft?.additional ?? []).entries()) {
+      if (excluded.includes(index + 1)) continue;
       let saved = extra.current.get(index);
       if (!saved) {
         saved = await createEntry(entry, index + 1);
@@ -246,13 +320,44 @@ function InboxItemReview({
   }
   async function suggested() {
     if (!draft) return;
-    await save(async () => {
-      const [first, ...rest] = await createEntry(draft, 0);
-      if (!first) throw new ApiError(400, 'INVALID_INPUT');
-      extra.current.set(-1, rest);
-      return first;
+    if (unreviewed || (!selected.length && savedIndices.length !== entries.length)) return;
+    await action.run(async () => {
+      for (const { entry, index } of selected) {
+        let saved = extra.current.get(index - 1);
+        if (!saved) {
+          saved = await createEntry(entry, index);
+          extra.current.set(index - 1, saved);
+          setLocked(true);
+          setSavedIndices((current) => [...current, index]);
+        }
+      }
+      if (extra.current.size < entries.length) {
+        setExcluded([]);
+        return;
+      }
+      const allTargets = [...extra.current.values()].flat();
+      const result = await inboxAction(row.id, 'resolve', { targets: allTargets, attachSource });
+      await client.invalidateQueries({ queryKey: ['inbox', me.id] });
+      const attachedLabels: Record<string, string> = {
+        task: 'к делу',
+        note: 'к заметке',
+        document: 'к документу',
+        object: 'к объекту',
+        meter_reading: 'к показанию',
+        utility_charge: 'к начислению',
+      };
+      navigate('/more/inbox', {
+        state: {
+          attachmentMessage: row.files.length
+            ? result.attachedTo?.length
+              ? `Исходный файл прикреплён ${result.attachedTo.map((type) => attachedLabels[type]).join(' и ')}.`
+              : 'Исходный файл удалён.'
+            : '',
+        },
+      });
     });
   }
+
   async function createEntry(
     entry: Pick<InboxDraft, 'classification' | 'fields'>,
     entryIndex: number,
@@ -271,7 +376,7 @@ function InboxItemReview({
           assigneeId: f.assigneeId.value ?? me.id,
           objectId: classification.objectId.value ?? f.objectId.value ?? '',
           householdId: row.houseId ?? '',
-          visibility: 'personal',
+          visibility: places[entryIndex] ?? 'personal',
           repeatScope: 'this',
         },
         me.personalSpaceId,
@@ -294,7 +399,10 @@ function InboxItemReview({
         const result = await createShopping({
           title: f.title.value,
           quantity: f.quantity.value,
-          placement: { spaceId: me.personalSpaceId ?? '' },
+          placement:
+            places[entryIndex] && places[entryIndex] !== 'personal' && row.houseId
+              ? { spaceId: row.houseId, audience: places[entryIndex] }
+              : { spaceId: me.personalSpaceId ?? '' },
           idempotencyKey: await inboxOperationKey(row.id, 'shopping', entryIndex * 1000 + index),
         });
         targets.push({ type: 'shopping_item', id: result.id });
@@ -315,7 +423,9 @@ function InboxItemReview({
                 checklist: [],
                 idempotencyKey: await inboxOperationKey(row.id, 'note', entryIndex),
               },
-              { spaceId: me.personalSpaceId ?? '' },
+              places[entryIndex] && places[entryIndex] !== 'personal' && row.houseId
+                ? { spaceId: row.houseId, audience: places[entryIndex] }
+                : { spaceId: me.personalSpaceId ?? '' },
             )
           ).id,
         },
@@ -338,7 +448,10 @@ function InboxItemReview({
               note: f.fields.map((field) => `${field.name}: ${field.value.value}`).join('\n'),
             }),
             owner: { kind: ownerKind, id },
-            placement: docPlacement,
+            placement:
+              places[entryIndex] && places[entryIndex] !== 'personal' && row.houseId
+                ? { spaceId: row.houseId, audience: places[entryIndex] }
+                : docPlacement,
           })
         ).id,
       },
@@ -398,30 +511,12 @@ function InboxItemReview({
       !(draft?.additional ?? []).some((entry) => entry.classification.kind !== 'shopping') ? (
         <Notice>Фото не сохранится</Notice>
       ) : null}
-      {draft?.additional.length ? (
-        <div>
-          <h2>Также сохранится</h2>
-          {draft.additional.map((entry, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: порядок зафиксирован ответом разбора, строки не переставляются.
-            <div key={`${entry.classification.kind}-${index}`}>
-              <h3>{KIND_LABELS[entry.classification.kind]}</h3>
-              {fieldsOf(entry.fields).map((field) => (
-                <p key={field.key}>
-                  {field.label}: {field.value}
-                  {field.confident ? '' : ' — проверьте'}
-                </p>
-              ))}
-            </div>
-          ))}
-          {row.files.length ? <p>Файлы перейдут к записи с вложениями.</p> : null}
-        </div>
-      ) : null}
       {row.files.length ? (
         <label className="inbox-attach">
           <input
             type="checkbox"
             checked={attachSource}
-            disabled={action.pending || !!created.current}
+            disabled={action.pending || locked || !!created.current}
             onChange={(event) => setAttachSource(event.target.checked)}
           />
           Прикрепить исходный файл
@@ -438,7 +533,7 @@ function InboxItemReview({
       ) : null}
       {action.error ? (
         <Notice error>
-          {created.current
+          {created.current || locked
             ? 'Запись создана. Повторите перенос файлов — повторной записи не будет.'
             : 'Не удалось сохранить. Проверьте поля; исходное осталось во входящих.'}
         </Notice>
@@ -466,18 +561,172 @@ function InboxItemReview({
           )}
           {draft ? (
             <>
-              <h2>{KIND_LABELS[draft.classification.kind]}</h2>
-              <dl className="inbox-fields">
-                {fieldsOf(draft.fields).map((field) => (
-                  <div key={field.key}>
-                    <dt>
-                      {field.label}
-                      {field.confident ? '' : ' — проверьте'}
-                    </dt>
-                    <dd>{field.value}</dd>
-                  </div>
-                ))}
-              </dl>
+              <fieldset disabled={action.pending} className="ai-drafts">
+                {entries.map((entry, index) => {
+                  const fields = fieldsOf(entry.fields);
+                  return (
+                    <section className="ai-draft" key={index === 0 ? 'main' : String(index)}>
+                      <fieldset disabled={savedIndices.includes(index)} className="ai-drafts">
+                        <CompactDraft
+                          assignee={
+                            entry.classification.kind === 'task'
+                              ? (members.data?.find(
+                                  (m) =>
+                                    m.accountId ===
+                                    fields.find((f) => f.key === 'assigneeId')?.value,
+                                )?.displayName ?? me.displayName)
+                              : undefined
+                          }
+                          kind={entry.classification.kind}
+                          title={
+                            fields.find((f) => f.key === 'title' || f.key.endsWith(':title'))
+                              ?.value ?? KIND_LABELS[entry.classification.kind]
+                          }
+                          fields={entry.fields}
+                          place={
+                            places[index] === 'household'
+                              ? 'Семья'
+                              : places[index] === 'adults'
+                                ? 'Взрослые'
+                                : 'Только я'
+                          }
+                          selected={!excluded.includes(index)}
+                          onSelect={(value) =>
+                            setExcluded((current) =>
+                              value ? current.filter((i) => i !== index) : [...current, index],
+                            )
+                          }
+                          review={
+                            needsReview({
+                              classification: entry.classification,
+                              fields: entry.fields,
+                            }) && !confirmed.includes(index)
+                          }
+                          onEdit={() => setEditing(index)}
+                        />
+                      </fieldset>
+                      {savedIndices.includes(index) ? <p role="status">Уже сохранено</p> : null}
+                      {editing === index ? (
+                        <Sheet
+                          open
+                          title="Изменить черновик"
+                          description="Проверьте поля перед сохранением."
+                          onOpenChange={() => setEditing(null)}
+                        >
+                          {index === 0 && (kind === 'meter' || kind === 'receipt') ? (
+                            entries.some(
+                              (entry, related) =>
+                                related > 0 &&
+                                (excluded.includes(related) ||
+                                  (needsReview(entry) && !confirmed.includes(related))),
+                            ) ? (
+                              <Notice>
+                                Сначала проверьте и отметьте сопутствующие черновики. Исходный файл
+                                переносится вместе со всей группой.
+                              </Notice>
+                            ) : (
+                              <InboxUtilities
+                                row={{ ...row, draft }}
+                                kind={kind}
+                                onCreated={finish}
+                              />
+                            )
+                          ) : (
+                            <>
+                              {editableFields(entry.fields).map((field) => (
+                                <div className="field" key={field.key}>
+                                  <span>
+                                    {field.label}
+                                    {field.confident ? '' : ' — проверьте'}
+                                  </span>
+                                  {field.key === 'objectId' ? (
+                                    <RecordPicker
+                                      kind="object"
+                                      label="Объект"
+                                      value={field.value}
+                                      onChange={(value) => changeField(index, field.key, value)}
+                                    />
+                                  ) : field.key === 'assigneeId' ? (
+                                    <select
+                                      aria-label={field.label}
+                                      className="input"
+                                      value={field.value}
+                                      onChange={(event) =>
+                                        changeField(index, field.key, event.target.value)
+                                      }
+                                    >
+                                      <option value="">Я ({me.displayName})</option>
+                                      {(members.data ?? [])
+                                        .filter((m) => !m.formerMember)
+                                        .map((m) => (
+                                          <option key={m.accountId} value={m.accountId}>
+                                            {m.displayName}
+                                          </option>
+                                        ))}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      aria-label={field.label}
+                                      className="input"
+                                      type={
+                                        ['date', 'issuedOn', 'expiresOn', 'dueOn'].includes(
+                                          field.key,
+                                        )
+                                          ? 'date'
+                                          : field.key === 'time'
+                                            ? 'time'
+                                            : 'text'
+                                      }
+                                      value={field.value}
+                                      onChange={(event) =>
+                                        changeField(index, field.key, event.target.value)
+                                      }
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                              <VisibilityPicker
+                                value={places[index] ?? 'personal'}
+                                options={creatableVisibilities(
+                                  viewerOf(me),
+                                  row.houseId,
+                                  entry.classification.kind === 'shopping'
+                                    ? 'shopping_item'
+                                    : entry.classification.kind === 'document' ||
+                                        entry.classification.kind === 'medical'
+                                      ? 'document'
+                                      : entry.classification.kind === 'task'
+                                        ? 'task'
+                                        : 'note',
+                                )}
+                                onChange={(value) =>
+                                  setPlaces((current) => ({ ...current, [index]: value }))
+                                }
+                              />
+                              {editableFields(entry.classification).map((field) => (
+                                <p key={field.key}>
+                                  {field.label}: {field.value || 'Не указано'}
+                                  {field.confident ? '' : ' — проверьте'}
+                                </p>
+                              ))}
+                              <button
+                                className="btn btn--primary"
+                                type="button"
+                                onClick={() => {
+                                  setConfirmed((current) => [...current, index]);
+                                  setEditing(null);
+                                }}
+                              >
+                                Готово
+                              </button>
+                            </>
+                          )}
+                        </Sheet>
+                      ) : null}
+                    </section>
+                  );
+                })}
+              </fieldset>
               {['document', 'medical'].includes(kind) ? (
                 <p>
                   Новый документ: {VISIBILITY_LABELS[docVisibility]}. Файлы будут доступны тем же
@@ -502,21 +751,27 @@ function InboxItemReview({
                 type="button"
                 disabled={
                   action.pending ||
+                  unreviewed ||
+                  (!selected.length && savedIndices.length !== entries.length) ||
                   !!created.current ||
                   (['document', 'medical'].includes(kind) && !owners.ready)
                 }
                 onClick={() => void suggested()}
               >
-                Сохранить как предложено
+                {savedIndices.length === entries.length
+                  ? 'Завершить перенос файлов'
+                  : `Сохранить все (${selected.length})`}
               </button>
             ) : null}
-            <Link className="btn btn--secondary" to={`/more/inbox/${row.id}/edit/${kind}`}>
-              {row.status === 'identity' ? 'Заполнить вручную' : 'Изменить'}
-            </Link>
+            {!draft ? (
+              <Link className="btn btn--secondary" to={`/more/inbox/${row.id}/edit/${kind}`}>
+                {row.status === 'identity' ? 'Заполнить вручную' : 'Изменить'}
+              </Link>
+            ) : null}
             <button
               className="btn btn--secondary"
               type="button"
-              disabled={action.pending || !!created.current}
+              disabled={action.pending || locked || !!created.current}
               onClick={() =>
                 void action.run(async () => {
                   await inboxAction(row.id, 'trash');
@@ -533,6 +788,7 @@ function InboxItemReview({
               Другой тип
             </label>
             <select
+              disabled={locked || action.pending}
               id="inbox-type"
               className="select"
               value=""
@@ -693,9 +949,6 @@ function InboxItemReview({
       ) : (
         <Notice>Выберите тип записи.</Notice>
       )}
-      {!editKind && (kind === 'meter' || kind === 'receipt') ? (
-        <InboxUtilities row={row} kind={kind} onCreated={finish} />
-      ) : null}
     </StudioPage>
   );
 }

@@ -2,12 +2,14 @@ import {
   Buildings,
   FileText,
   ListChecks,
+  Microphone,
   Note,
   ShoppingCart,
   SquaresFour,
   UserPlus,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
+import { useVoiceAdd } from '../ai/VoiceAdd.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
@@ -24,6 +26,7 @@ interface AddMenuProps {
  * приглашение участника — администратору. Остальные разделы честно названы неготовыми.
  */
 export function AddMenu({ open, onOpenChange }: AddMenuProps) {
+  const voice = useVoiceAdd();
   const { isAdmin } = useHousehold();
   const navigate = useNavigate();
   const [quick, setQuick] = useState(false);
@@ -51,6 +54,17 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
       description="Что можно добавить сейчас"
     >
       <RowList label="Что можно добавить">
+        {voice?.enabled ? (
+          <Row
+            icon={<Microphone size={22} aria-hidden />}
+            title="Сказать ИИ"
+            meta="Надиктовать и проверить черновики"
+            onClick={() => {
+              onOpenChange(false);
+              voice.start();
+            }}
+          />
+        ) : null}
         <Row
           icon={<ShoppingCart size={22} aria-hidden />}
           title="Покупка"

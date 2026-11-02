@@ -55,6 +55,7 @@ export function useAiConsent(house: string | null, provider?: string) {
             } catch {
               /* При запрете хранилища — до закрытия страницы. */
             }
+            window.dispatchEvent(new Event('ai-consent'));
             setOpen(false);
             action.current?.();
             action.current = null;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { ScopeProvider } from './access/ScopeContext.tsx';
 import { ObjectAccounts } from './accounts/ObjectAccounts.tsx';
+import { VoiceAddProvider } from './ai/VoiceAdd.tsx';
 import type { Me } from './auth/api.ts';
 import { ExportScreen } from './auth/ExportScreen.tsx';
 import { SecurityScreen } from './auth/SecurityScreen.tsx';
@@ -81,88 +82,90 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
   }, [entering, navigate]);
   if (entering) return null;
   return (
-    <AppShell
-      sections={SECTIONS}
-      onAdd={() => setAdding(true)}
-      overlays={<AddMenu open={adding} onOpenChange={setAdding} />}
-    >
-      <PushBridge accountId={me.id} />
-      <OfflineBridge />
-      <Routes>
-        <Route index element={<Navigate to="/today" replace />} />
-        <Route path="more/inbox" element={<InboxScreen />} />
-        <Route path="more/inbox/new" element={<InboxScreen capture />} />
-        <Route path="more/inbox/trash" element={<InboxScreen trash />} />
-        <Route path="more/inbox/:inboxId" element={<InboxReview />} />
-        <Route path="more/inbox/:inboxId/edit/:editKind" element={<InboxReview />} />
-        <Route path="today" element={<TaskFeedCarousel />} />
-        <Route path="today/plan" element={<TaskFeedCarousel />} />
-        <Route path="today/all" element={<TaskFeedCarousel />} />
-        <Route path="today/new" element={<NewTaskScreen />} />
-        <Route path="today/tasks/:taskId" element={<TaskScreen />} />
-        <Route path="home" element={<ObjectsScreen />} />
-        <Route path="home/new" element={<NewObjectScreen />} />
-        <Route path="home/month" element={<MonthScreen />} />
-        <Route path="home/from-template" element={<NewFromTemplateScreen />} />
-        <Route path="home/from-template/:templateId" element={<NewFromTemplateScreen />} />
-        <Route path="start" element={<StartScreen />} />
-        <Route path="start/object/:templateId" element={<StartScreen fixedStep="object" />} />
-        <Route path="start/:step" element={<StartScreen />} />
-        <Route path="home/:objectId" element={<ObjectScreen />}>
-          <Route index element={<ObjectOverview />} />
-          <Route path="timeline" element={<ObjectTimeline />} />
-          <Route path="files" element={<ObjectFiles />} />
-          <Route path="accounts" element={<ObjectAccounts />} />
-          <Route path="accounts/:accountId/charges" element={<ChargesScreen />} />
-          <Route path="meters" element={<ObjectMeters />} />
-        </Route>
-        <Route path="home/:objectId/readings" element={<ReadingsLayout />}>
-          <Route index element={<ReadingsEntry />} />
-          <Route path="transfer" element={<ReadingsTransfer />} />
-        </Route>
-        <Route path="documents" element={<DocumentsScreen />} />
-        <Route path="documents/new" element={<NewDocumentScreen />} />
-        <Route path="documents/:documentId" element={<DocumentScreen />} />
-        <Route path="people" element={<PeopleScreen />} />
-        <Route path="people/import" element={<ImportScreen />} />
-        <Route path="people/contacts/new" element={<NewPersonScreen />} />
-        <Route path="people/contacts/:contactId" element={<ContactScreen />} />
-        <Route path="people/invite" element={<InviteScreen />} />
-        <Route path="people/members/:accountId" element={<MemberScreen />} />
-        <Route path="more" element={<MoreScreen />} />
-        <Route path="more/shopping" element={<TaskFeedCarousel />} />
-        <Route path="more/shopping/:shoppingId" element={<ShoppingCardScreen />} />
-        <Route path="more/offline" element={<OfflinePanel />} />
-        <Route path="more/profile" element={<ProfileScreen />} />
-        <Route
-          path="more/settings"
-          element={<SecurityScreen me={me} reload={reloadMe} onSignedOut={signOut} />}
-        />
-        <Route path="more/export" element={<ExportScreen />} />
-        <Route
-          path="more/spaces"
-          element={<SpacesScreen firstEntry={me.firstEntryShown === false} onShown={reloadMe} />}
-        />
-        <Route path="more/readings" element={<ReadingsPicker />} />
-        <Route path="more/notes" element={<NotesScreen />} />
-        <Route path="more/notes/new" element={<NewNoteScreen />} />
-        <Route path="more/notes/:noteId" element={<NoteScreen />} />
-        <Route path="more/organizations" element={<OrganizationsScreen />} />
-        <Route path="more/organizations/new" element={<NewOrganizationScreen />} />
-        <Route path="more/organizations/:organizationId" element={<OrganizationScreen />} />
-        <Route path="more/trash" element={<TrashScreen />} />
-        <Route path="more/radar" element={<RadarScreen />} />
-        <Route path="more/house" element={<HouseScreen />} />
-        <Route path="more/notifications" element={<NotificationsScreen />} />
-        <Route path="more/summaries" element={<SummariesScreen />} />
-        <Route path="more/summaries/:summaryId" element={<SummariesScreen />} />
-        <Route path="more/notifications/log" element={<DeliveriesScreen />} />
-        <Route path="open/:recordId" element={<OpenRecordScreen />} />
-        <Route path="open/:recordId/:screen" element={<OpenRecordScreen />} />
-        <Route path="search" element={<SearchScreen />} />
-        <Route path="*" element={<NotFoundScreen />} />
-      </Routes>
-    </AppShell>
+    <VoiceAddProvider>
+      <AppShell
+        sections={SECTIONS}
+        onAdd={() => setAdding(true)}
+        overlays={<AddMenu open={adding} onOpenChange={setAdding} />}
+      >
+        <PushBridge accountId={me.id} />
+        <OfflineBridge />
+        <Routes>
+          <Route index element={<Navigate to="/today" replace />} />
+          <Route path="more/inbox" element={<InboxScreen />} />
+          <Route path="more/inbox/new" element={<InboxScreen capture />} />
+          <Route path="more/inbox/trash" element={<InboxScreen trash />} />
+          <Route path="more/inbox/:inboxId" element={<InboxReview />} />
+          <Route path="more/inbox/:inboxId/edit/:editKind" element={<InboxReview />} />
+          <Route path="today" element={<TaskFeedCarousel />} />
+          <Route path="today/plan" element={<TaskFeedCarousel />} />
+          <Route path="today/all" element={<TaskFeedCarousel />} />
+          <Route path="today/new" element={<NewTaskScreen />} />
+          <Route path="today/tasks/:taskId" element={<TaskScreen />} />
+          <Route path="home" element={<ObjectsScreen />} />
+          <Route path="home/new" element={<NewObjectScreen />} />
+          <Route path="home/month" element={<MonthScreen />} />
+          <Route path="home/from-template" element={<NewFromTemplateScreen />} />
+          <Route path="home/from-template/:templateId" element={<NewFromTemplateScreen />} />
+          <Route path="start" element={<StartScreen />} />
+          <Route path="start/object/:templateId" element={<StartScreen fixedStep="object" />} />
+          <Route path="start/:step" element={<StartScreen />} />
+          <Route path="home/:objectId" element={<ObjectScreen />}>
+            <Route index element={<ObjectOverview />} />
+            <Route path="timeline" element={<ObjectTimeline />} />
+            <Route path="files" element={<ObjectFiles />} />
+            <Route path="accounts" element={<ObjectAccounts />} />
+            <Route path="accounts/:accountId/charges" element={<ChargesScreen />} />
+            <Route path="meters" element={<ObjectMeters />} />
+          </Route>
+          <Route path="home/:objectId/readings" element={<ReadingsLayout />}>
+            <Route index element={<ReadingsEntry />} />
+            <Route path="transfer" element={<ReadingsTransfer />} />
+          </Route>
+          <Route path="documents" element={<DocumentsScreen />} />
+          <Route path="documents/new" element={<NewDocumentScreen />} />
+          <Route path="documents/:documentId" element={<DocumentScreen />} />
+          <Route path="people" element={<PeopleScreen />} />
+          <Route path="people/import" element={<ImportScreen />} />
+          <Route path="people/contacts/new" element={<NewPersonScreen />} />
+          <Route path="people/contacts/:contactId" element={<ContactScreen />} />
+          <Route path="people/invite" element={<InviteScreen />} />
+          <Route path="people/members/:accountId" element={<MemberScreen />} />
+          <Route path="more" element={<MoreScreen />} />
+          <Route path="more/shopping" element={<TaskFeedCarousel />} />
+          <Route path="more/shopping/:shoppingId" element={<ShoppingCardScreen />} />
+          <Route path="more/offline" element={<OfflinePanel />} />
+          <Route path="more/profile" element={<ProfileScreen />} />
+          <Route
+            path="more/settings"
+            element={<SecurityScreen me={me} reload={reloadMe} onSignedOut={signOut} />}
+          />
+          <Route path="more/export" element={<ExportScreen />} />
+          <Route
+            path="more/spaces"
+            element={<SpacesScreen firstEntry={me.firstEntryShown === false} onShown={reloadMe} />}
+          />
+          <Route path="more/readings" element={<ReadingsPicker />} />
+          <Route path="more/notes" element={<NotesScreen />} />
+          <Route path="more/notes/new" element={<NewNoteScreen />} />
+          <Route path="more/notes/:noteId" element={<NoteScreen />} />
+          <Route path="more/organizations" element={<OrganizationsScreen />} />
+          <Route path="more/organizations/new" element={<NewOrganizationScreen />} />
+          <Route path="more/organizations/:organizationId" element={<OrganizationScreen />} />
+          <Route path="more/trash" element={<TrashScreen />} />
+          <Route path="more/radar" element={<RadarScreen />} />
+          <Route path="more/house" element={<HouseScreen />} />
+          <Route path="more/notifications" element={<NotificationsScreen />} />
+          <Route path="more/summaries" element={<SummariesScreen />} />
+          <Route path="more/summaries/:summaryId" element={<SummariesScreen />} />
+          <Route path="more/notifications/log" element={<DeliveriesScreen />} />
+          <Route path="open/:recordId" element={<OpenRecordScreen />} />
+          <Route path="open/:recordId/:screen" element={<OpenRecordScreen />} />
+          <Route path="search" element={<SearchScreen />} />
+          <Route path="*" element={<NotFoundScreen />} />
+        </Routes>
+      </AppShell>
+    </VoiceAddProvider>
   );
 }
 

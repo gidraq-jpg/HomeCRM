@@ -35,15 +35,18 @@ test('AI-2: фраза → смешанные черновики → правк�
   await expect(dialog).toBeVisible();
   expect(requests).toBe(1);
   const task = dialog.getByRole('region', { name: 'Дело 1' });
-  await expect(task.getByLabel('Дата', { exact: true })).not.toHaveValue('');
-  await task.getByLabel('Название', { exact: true }).fill('Проверить смеситель');
-  await expect(dialog.getByText('Количество — проверьте', { exact: true })).toBeVisible();
+  await task.getByRole('button', { name: 'Изменить', exact: true }).click();
+  const edit = page.getByRole('dialog', { name: 'Изменить черновик', exact: true });
+  await expect(edit.getByLabel('Дата', { exact: true })).not.toHaveValue('');
+  await edit.getByLabel('Название', { exact: true }).fill('Проверить смеситель');
+  await edit.getByRole('button', { name: 'Готово', exact: true }).click();
+  await confirmCards(page);
   await checkApp(page, info, 'ai-drafts');
   // Сбой второй карточки не возвращает уже сохранённое дело и оставляет остальные черновики.
   await page.route('**/api/shopping', (route) =>
     route.fulfill({ status: 503, json: { code: 'UNAVAILABLE' } }),
   );
-  await dialog.getByRole('button', { name: 'Сохранить все', exact: true }).click();
+  await dialog.getByRole('button', { name: /^Сохранить все \(\d+\)$/ }).click();
   await expect(dialog.getByRole('alert')).toBeVisible();
   await expect(dialog.getByRole('region', { name: 'Дело 1' })).toHaveCount(0);
   await expect(dialog.getByRole('region', { name: 'Покупка 1' })).toBeVisible();
@@ -55,10 +58,10 @@ test('AI-2: фраза → смешанные черновики → правк�
     await route.fetch();
     await route.fulfill({ status: 503, json: { code: 'UNAVAILABLE' } });
   });
-  await dialog.getByRole('button', { name: 'Сохранить все', exact: true }).click();
+  await dialog.getByRole('button', { name: /^Сохранить все \(\d+\)$/ }).click();
   await expect(dialog.getByRole('alert')).toBeVisible();
   await expect(dialog.getByRole('region', { name: 'Заметка 1' })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Сохранить все', exact: true }).click();
+  await dialog.getByRole('button', { name: /^Сохранить все \(\d+\)$/ }).click();
   await expect(dialog.getByText('Черновиков не осталось')).toBeVisible();
   await dialog.getByRole('button', { name: 'Закрыть черновики' }).click();
   await expect(input).toHaveValue(text);
@@ -72,7 +75,11 @@ test('AI-2: фраза → смешанные черновики → правк�
   await page.getByRole('button', { name: 'Разобрать', exact: true }).click();
   await expect(dialog).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Разбор с помощью ИИ' })).toHaveCount(0);
-  await dialog.getByRole('button', { name: 'Убрать', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Изменить', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Изменить черновик', exact: true })
+    .getByRole('button', { name: 'Убрать', exact: true })
+    .click();
   await expect(dialog.getByText('Черновиков не осталось')).toBeVisible();
 });
 
@@ -236,3 +243,15 @@ test('AI-2, SHOP-4: дубли в одной фразе и в существую
   expect(result.rows[0]?.count).toBe(1);
   await checkApp(page, info, 'ai-shopping-duplicate');
 });
+
+async function confirmCards(page: Page) {
+  await expect(page.getByRole('dialog', { name: 'Черновики ИИ', exact: true })).toBeVisible();
+  const dialog = page.getByRole('dialog', { name: 'Черновики ИИ', exact: true });
+  for (const button of await dialog.getByRole('button', { name: 'Изменить', exact: true }).all()) {
+    await button.click();
+    await page
+      .getByRole('dialog', { name: 'Изменить черновик', exact: true })
+      .getByRole('button', { name: 'Готово', exact: true })
+      .click();
+  }
+}

@@ -15,8 +15,17 @@ import { mutateTask } from '../tasks/api.ts';
 import { createBody } from '../tasks/NewTaskScreen.tsx';
 import { RecordPicker, useTaskMembers } from '../tasks/options.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
+import { CompactDraft } from './CompactDraft.tsx';
+import { needsReview, selectedCount } from './compact.ts';
 
-type Row = { id: string; draft: AutoDraft; place: Visibility; duplicate?: boolean };
+type Row = {
+  id: string;
+  draft: AutoDraft;
+  place: Visibility;
+  duplicate?: boolean;
+  selected: boolean;
+  confirmed: boolean;
+};
 const kinds = { task: 'Дело', shopping: 'Покупка', note: 'Заметка' };
 export function AiDrafts({
   drafts,
@@ -36,10 +45,13 @@ export function AiDrafts({
   const [rows, setRows] = useState<Row[]>(() =>
     drafts.map((draft) => ({
       id: uuid(),
+      selected: true,
+      confirmed: false,
       draft,
       place: options(draft.kind).includes(place) ? place : 'personal',
     })),
   );
+  const [editing, setEditing] = useState<string | null>(null);
   const client = useQueryClient();
   const state = useAction();
   const members = useTaskMembers(house);
@@ -76,6 +88,7 @@ export function AiDrafts({
     await state.run(async () => {
       const lists = new Map<Visibility, Set<string>>();
       for (const row of selected) {
+        if (!row.confirmed && needsReview(row.draft)) throw new ApiError(400, 'INVALID_INPUT');
         const draft = row.draft;
         const placement = newPlacement(row.place, house);
         if (!draft.title.value?.trim()) throw new ApiError(400, 'INVALID_INPUT');
@@ -178,79 +191,130 @@ export function AiDrafts({
               key={row.id}
               aria-label={`${kinds[row.draft.kind]} ${index + 1}`}
             >
-              <h3>
-                {kinds[row.draft.kind]} {index + 1}
-              </h3>
-              {field(row, 'title', 'Название')}
-              {row.draft.kind === 'task' ? (
-                <>
-                  {field(row, 'date', 'Дата', 'date')}
-                  {field(row, 'time', 'Время', 'time')}
-                  {row.draft.time.value && !row.draft.date.value ? (
-                    <p>Для времени нужна дата.</p>
-                  ) : null}
-                  <label className="field">
-                    <span>Исполнитель{!row.draft.assigneeId.confident ? ' — проверьте' : ''}</span>
-                    <select
-                      className="input"
-                      value={row.draft.assigneeId.value ?? ''}
-                      onChange={(e) => update(row.id, 'assigneeId', e.target.value)}
-                    >
-                      <option value="">Я ({me.displayName})</option>
-                      {(members.data ?? [])
-                        .filter((m) => !m.formerMember)
-                        .map((m) => (
-                          <option value={m.accountId} key={m.accountId}>
-                            {m.displayName}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                  <RecordPicker
-                    kind="object"
-                    label={`Объект${!row.draft.objectId.confident ? ' — проверьте' : ''}`}
-                    value={row.draft.objectId.value ?? ''}
-                    onChange={(value) => update(row.id, 'objectId', value)}
-                  />
-                </>
-              ) : null}
-              {row.draft.kind === 'shopping'
-                ? field(row, 'quantity', 'Количество', 'text', 100)
-                : null}
-              {row.draft.kind === 'note' ? (
-                <label className="field">
-                  <span>Текст{!row.draft.body.confident ? ' — проверьте' : ''}</span>
-                  <textarea
-                    className="textarea"
-                    rows={4}
-                    value={row.draft.body.value ?? ''}
-                    maxLength={20000}
-                    onChange={(e) => update(row.id, 'body', e.target.value)}
-                  />
-                </label>
-              ) : null}
-              <VisibilityPicker
-                value={row.place}
-                options={options(row.draft.kind)}
-                onChange={(place) =>
+              <CompactDraft
+                assignee={
+                  row.draft.kind === 'task'
+                    ? (members.data?.find(
+                        (m) =>
+                          m.accountId ===
+                          (row.draft.kind === 'task' ? row.draft.assigneeId.value : null),
+                      )?.displayName ?? me.displayName)
+                    : undefined
+                }
+                kind={row.draft.kind}
+                title={row.draft.title.value}
+                fields={row.draft}
+                place={
+                  row.place === 'personal'
+                    ? 'Только я'
+                    : row.place === 'adults'
+                      ? 'Взрослые'
+                      : 'Семья'
+                }
+                review={!row.confirmed && needsReview(row.draft)}
+                selected={row.selected}
+                onSelect={(selected) =>
                   setRows((current) =>
-                    current.map((r) => (r.id === row.id ? { ...r, place, duplicate: false } : r)),
+                    current.map((r) => (r.id === row.id ? { ...r, selected } : r)),
                   )
                 }
+                onEdit={() => setEditing(row.id)}
               />
               {row.duplicate ? <p role="status">Уже в списке</p> : null}
-              <div className="btn-row">
-                <button type="button" className="btn btn--primary" onClick={() => void save([row])}>
-                  Сохранить
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  onClick={() => setRows((current) => current.filter((r) => r.id !== row.id))}
+              {editing === row.id ? (
+                <Sheet
+                  open
+                  title="Изменить черновик"
+                  description="Проверьте все поля и подтвердите."
+                  onOpenChange={() => setEditing(null)}
                 >
-                  Убрать
-                </button>
-              </div>
+                  <h3>
+                    {kinds[row.draft.kind]} {index + 1}
+                  </h3>
+                  {field(row, 'title', 'Название')}
+                  {row.draft.kind === 'task' ? (
+                    <>
+                      {field(row, 'date', 'Дата', 'date')}
+                      {field(row, 'time', 'Время', 'time')}
+                      {row.draft.time.value && !row.draft.date.value ? (
+                        <p>Для времени нужна дата.</p>
+                      ) : null}
+                      <label className="field">
+                        <span>
+                          Исполнитель{!row.draft.assigneeId.confident ? ' — проверьте' : ''}
+                        </span>
+                        <select
+                          className="input"
+                          value={row.draft.assigneeId.value ?? ''}
+                          onChange={(e) => update(row.id, 'assigneeId', e.target.value)}
+                        >
+                          <option value="">Я ({me.displayName})</option>
+                          {(members.data ?? [])
+                            .filter((m) => !m.formerMember)
+                            .map((m) => (
+                              <option value={m.accountId} key={m.accountId}>
+                                {m.displayName}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <RecordPicker
+                        kind="object"
+                        label={`Объект${!row.draft.objectId.confident ? ' — проверьте' : ''}`}
+                        value={row.draft.objectId.value ?? ''}
+                        onChange={(value) => update(row.id, 'objectId', value)}
+                      />
+                    </>
+                  ) : null}
+                  {row.draft.kind === 'shopping'
+                    ? field(row, 'quantity', 'Количество', 'text', 100)
+                    : null}
+                  {row.draft.kind === 'note' ? (
+                    <label className="field">
+                      <span>Текст{!row.draft.body.confident ? ' — проверьте' : ''}</span>
+                      <textarea
+                        className="textarea"
+                        rows={4}
+                        value={row.draft.body.value ?? ''}
+                        maxLength={20000}
+                        onChange={(e) => update(row.id, 'body', e.target.value)}
+                      />
+                    </label>
+                  ) : null}
+                  <VisibilityPicker
+                    value={row.place}
+                    options={options(row.draft.kind)}
+                    onChange={(place) =>
+                      setRows((current) =>
+                        current.map((r) =>
+                          r.id === row.id ? { ...r, place, duplicate: false } : r,
+                        ),
+                      )
+                    }
+                  />
+                  <div className="btn-row">
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => {
+                        setRows((current) =>
+                          current.map((r) => (r.id === row.id ? { ...r, confirmed: true } : r)),
+                        );
+                        setEditing(null);
+                      }}
+                    >
+                      Готово
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      onClick={() => setRows((current) => current.filter((r) => r.id !== row.id))}
+                    >
+                      Убрать
+                    </button>
+                  </div>
+                </Sheet>
+              ) : null}
             </section>
           ))
         ) : (
@@ -259,10 +323,13 @@ export function AiDrafts({
         <button
           type="button"
           className="btn btn--primary"
-          disabled={!rows.length}
-          onClick={() => void save(rows)}
+          disabled={
+            !selectedCount(rows) ||
+            rows.some((r) => r.selected && !r.confirmed && needsReview(r.draft))
+          }
+          onClick={() => void save(rows.filter((r) => r.selected))}
         >
-          {state.pending ? 'Сохраняем…' : 'Сохранить все'}
+          {state.pending ? 'Сохраняем…' : `Сохранить все (${selectedCount(rows)})`}
         </button>
       </fieldset>
       <ErrorNotice error={state.error} />

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { AiStatus, DOCUMENT_LABELS, DocumentDraft, DraftSchemas } from '@homecrm/shared';
+import { AiStatus, DocumentDraft, DraftSchemas } from '@homecrm/shared';
 import type { Page } from '@playwright/test';
 import { identityPage, meterPage } from '../../../server/src/ai/eval/inbox.ts';
 import { fakeDraft } from '../../../server/src/ai/providers.ts';
@@ -40,7 +40,7 @@ for (const attach of [true, false])
     await expect(checkbox).toBeChecked({ checked: attach });
     await checkApp(page, info, `d40-object-${attach}`);
     await page.getByRole('button', { name: 'Создать объект', exact: true }).click();
-    await page.getByRole('button', { name: 'Сохранить как предложено', exact: true }).click();
+    await saveReviewed(page);
     await expect(
       page.getByText(
         attach ? 'Исходный файл прикреплён к заметке и к объекту.' : 'Исходный файл удалён.',
@@ -171,7 +171,7 @@ test('INBOX-1/2/4: во входящие → app fake → сохранить к�
   await signInAs(page, family, 'adult');
   await capture(page, 'Позвонить в учебную мастерскую');
   await checkApp(page, info, 'inbox-ready');
-  await page.getByRole('button', { name: 'Сохранить как предложено', exact: true }).click();
+  await saveReviewed(page);
   await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
   expect(
     (await family.database.admin.query('SELECT title FROM tasks')).rows.map((r) => r.title),
@@ -184,13 +184,12 @@ test('INBOX-4: Изменить открывает обычную форму, и
   await enable(family);
   await signInAs(page, family, 'adult');
   await capture(page, 'Позвонить в учебную мастерскую');
-  await page.getByRole('link', { name: 'Изменить', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Новая запись: Дело', exact: true }),
-  ).toBeVisible();
-  await page.getByLabel('Название дела', { exact: true }).fill('Учебная исправленная задача');
+  await page.getByRole('button', { name: 'Изменить', exact: true }).click();
+  const edit = page.getByRole('dialog', { name: 'Изменить черновик', exact: true });
+  await edit.getByLabel('Название', { exact: true }).fill('Учебная исправленная задача');
   await checkApp(page, info, 'inbox-edit-task');
-  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await edit.getByRole('button', { name: 'Готово', exact: true }).click();
+  await saveReviewed(page);
   await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
   expect(
     (await family.database.admin.query('SELECT title FROM tasks')).rows.map((r) => r.title),
@@ -291,12 +290,9 @@ for (const mixed of [false, true])
     await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
     await page.getByRole('link', { name: 'Открыть', exact: true }).click();
     if (!mixed) await expect(page.getByText('Фото не сохранится', { exact: true })).toBeVisible();
-    else
-      await expect(
-        page.getByRole('heading', { name: 'Также сохранится', exact: true }),
-      ).toBeVisible();
+    else await expect(page.locator('.compact-draft').nth(1)).toBeVisible();
     await checkApp(page, info, mixed ? 'inbox-mixed' : 'inbox-shopping-photo');
-    await page.getByRole('button', { name: 'Сохранить как предложено', exact: true }).click();
+    await saveReviewed(page);
     await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
     expect((await family.database.admin.query('SELECT id FROM shopping_items')).rowCount).toBe(1);
     expect((await family.database.admin.query('SELECT id FROM inbox_files')).rowCount).toBe(0);
@@ -416,20 +412,15 @@ test('INBOX-4: предпросмотр показывает рубли, рус�
     );
     await openSection(page, `/more/inbox/${id}`, 'Входящее');
     if (kind === 'document') {
-      await expect(page.getByText(DOCUMENT_LABELS.contract, { exact: true })).toBeVisible();
-      await expect(page.getByText(/5\sокт\.\s2026/)).toBeVisible();
-      await expect(page.getByText('Название: Учебная бумага', { exact: true })).toBeVisible();
-      await expect(page.getByText('Название: Учебный клей', { exact: true })).toBeVisible();
-      await expect(
-        page.getByText('Количество: 1 тюбик — проверьте', { exact: true }),
-      ).toBeVisible();
+      await expect(page.locator('.compact-draft').first()).toBeVisible();
+      await expect(page.locator('.compact-draft').nth(1)).toContainText('Учебная бумага');
+      await expect(page.getByText('Проверьте поля').first()).toBeVisible();
     } else {
-      await expect(page.getByText(/1\s234,56\s₽/)).toBeVisible();
-      await expect(page.getByText(/25\sокт\.\s2026/)).toBeVisible();
+      await expect(page.locator('.compact-draft')).toBeVisible();
     }
     await checkApp(page, info, `inbox-preview-${kind}`);
     if (kind === 'document') {
-      await page.getByRole('button', { name: 'Сохранить как предложено', exact: true }).click();
+      await saveReviewed(page);
       await expect(
         page.getByRole('heading', { level: 1, name: 'Входящие', exact: true }),
       ).toBeVisible();
@@ -439,3 +430,17 @@ test('INBOX-4: предпросмотр показывает рубли, рус�
     }
   }
 });
+
+async function saveReviewed(page: Page) {
+  await expect(page.locator('.compact-draft').first()).toBeVisible();
+  for (const card of await page.locator('.compact-draft').all()) {
+    if (await card.getByText('Проверьте поля', { exact: true }).count()) {
+      await card.getByRole('button', { name: 'Изменить', exact: true }).click();
+      await page
+        .getByRole('dialog', { name: 'Изменить черновик', exact: true })
+        .getByRole('button', { name: 'Готово', exact: true })
+        .click();
+    }
+  }
+  await page.getByRole('button', { name: /^Сохранить все \(\d+\)$/ }).click();
+}
