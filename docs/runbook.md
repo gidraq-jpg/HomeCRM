@@ -782,7 +782,7 @@ Linux Playwright + axe: все 30 сценариев «Входящих» на 3
 
 ## D44: стенд подбора движения
 
-В worktree `HomeCRM-d44`: `pnpm install --frozen-lockfile`, затем `pnpm dev:demo`.
+В worktree `HomeCRM-d44`: `pnpm install --frozen-lockfile`, затем `node apps/server/src/dev/demo.ts` (аналог `dev:demo`).
 Нужен Docker Desktop. Сценарий создаёт только проект `homecrm-test-fix-ui-9-motion-side-sheet`,
 PostgreSQL на `127.0.0.1:15490`, случайную базу с миграциями, вымышленную семью и данные.
 API — `8490`, Vite — `5350`. Рабочее окружение не используется.
