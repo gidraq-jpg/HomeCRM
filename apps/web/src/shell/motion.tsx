@@ -42,6 +42,8 @@ export function motionDirection(from: string, to: string): 'forward' | 'back' | 
   return null;
 }
 
+const routedSheet = (path: string) => /^\/more\/inbox\/[0-9a-f-]{36}(?:\/edit\/[^/]+)?$/.test(path);
+
 let current: ViewTransition | undefined;
 let epoch = 0;
 let historyUpdate: (() => void) | undefined;
@@ -64,7 +66,7 @@ export function cancelMotionNavigation() {
   delete document.documentElement.dataset.motionFeed;
 }
 export function navigateWithMotion(from: string, to: string, navigate: () => void) {
-  const direction = motionDirection(from, to);
+  const direction = routedSheet(from) || routedSheet(to) ? null : motionDirection(from, to);
   changeScreenWithMotion(
     direction,
     navigate,
@@ -220,7 +222,11 @@ export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => bo
 /** Снимок делается до history.go, новый — после popstate HashRouter. */
 export function navigateHistoryWithMotion(delta: number, navigate: NavigateFunction) {
   if (window.history.state?.idx === 0 && delta < 0) return navigate(delta);
-  if (!document.startViewTransition || document.documentElement.dataset.design !== 'studio') {
+  if (
+    routedSheet(window.location?.hash?.slice(1).split('?')[0] ?? '') ||
+    !document.startViewTransition ||
+    document.documentElement.dataset.design !== 'studio'
+  ) {
     cancelMotionNavigation();
     return navigate(delta);
   }
@@ -254,6 +260,10 @@ export function systemHistoryMotion(
   if (event.state?.key === previousKey && event.state?.idx === previousIndex) return;
   if (historyUpdate) {
     queueMicrotask(cancelMotionNavigation);
+    return;
+  }
+  if (routedSheet(previousPath) || routedSheet(location.hash.slice(1).split('?')[0] ?? '')) {
+    cancelMotionNavigation();
     return;
   }
   // Chromium сообщает, когда система уже нарисовала predictive back.
@@ -334,6 +344,8 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
         if (
           document.documentElement.dataset.design !== 'studio' ||
           !direction ||
+          routedSheet(from.pathname) ||
+          routedSheet(to.pathname) ||
           event.currentTarget.closest('.tabs, .bottom-nav, .side-nav')
         ) {
           cancelMotionNavigation();

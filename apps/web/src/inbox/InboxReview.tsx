@@ -54,6 +54,7 @@ import {
   STATUS_LABELS,
   useInbox,
 } from './api.ts';
+import { InboxScreen } from './InboxScreen.tsx';
 import { InboxUtilities } from './InboxUtilities.tsx';
 import { parseCapturedInbox } from './parse.ts';
 import { pdfMessages } from './pdf-messages.ts';
@@ -146,6 +147,28 @@ function editableFields(
   });
 }
 export function InboxReview() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <InboxScreen />
+      <Sheet
+        open
+        historyEntry={false}
+        title="Черновик"
+        description="Проверьте запись перед сохранением."
+        onOpenChange={(open) => {
+          if (!open) {
+            if ((history.state?.idx ?? 0) > 0) void navigate(-1);
+            else void navigate('/more/inbox', { replace: true });
+          }
+        }}
+      >
+        <InboxReviewContent />
+      </Sheet>
+    </>
+  );
+}
+function InboxReviewContent() {
   const { inboxId, editKind } = useParams();
   const [attachment, setAttachment] = useState<{ id?: string; value: boolean }>({ value: true });
   const attachSource = attachment.id === inboxId ? attachment.value : true;

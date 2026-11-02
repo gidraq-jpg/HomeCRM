@@ -10,6 +10,8 @@ import { registerSheet } from './sheet-history.ts';
 
 interface SheetProps {
   open: boolean;
+  /** Маршрут уже занимает шаг истории; отдельный шаг нужен только локальным листам. */
+  historyEntry?: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   /** Короткое пояснение под заголовком; читалки экрана произносят его вместе с заголовком. */
@@ -93,14 +95,15 @@ export function Sheet({
   children,
   role,
   fullScreen = false,
+  historyEntry = true,
   returnFocusRef,
 }: SheetProps) {
   const closeRef = useRef(onOpenChange);
   closeRef.current = onOpenChange;
   useEffect(() => {
-    if (!open) return;
+    if (!open || !historyEntry) return;
     return registerSheet(() => closeRef.current(false));
-  }, [open]);
+  }, [open, historyEntry]);
   // Панели открываются не через Dialog.Trigger, поэтому Radix не знает, куда вернуть фокус:
   // запоминаем элемент, с которого панель открыли, и возвращаем фокус на него при закрытии.
   const openers = useRef<HTMLElement[]>([]);
