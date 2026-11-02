@@ -21,6 +21,9 @@ import {
   saveCurrentPosition,
 } from './navigation-position.ts';
 
+const formPath = (path: string) =>
+  /\/(new|edit|invite|import)$/.test(path) || /^\/home\/from-template(?:\/|$)/.test(path);
+
 const feeds = new Set(['/today', '/today/plan', '/today/all', '/more/shopping']);
 const sections = new Set(['/today', '/home', '/documents', '/people', '/more']);
 
@@ -31,9 +34,8 @@ export function motionDirection(from: string, to: string): 'forward' | 'back' | 
     if (from === '/today' || from === '/more') return 'forward';
     return to === '/today' ? 'back' : null;
   }
-  const form = (path: string) => /\/(new|edit|invite)$/.test(path);
-  if (form(to)) return 'forward';
-  if (form(from)) return 'back';
+  if (formPath(to)) return 'forward';
+  if (formPath(from)) return 'back';
   const depth = (path: string) => path.split('/').filter(Boolean).length;
   if (from === '/today' || from === '/more') return 'forward';
   if (to === '/today' || to === '/more') return 'back';
@@ -67,12 +69,7 @@ export function cancelMotionNavigation() {
 }
 export function navigateWithMotion(from: string, to: string, navigate: () => void) {
   const direction = routedSheet(from) || routedSheet(to) ? null : motionDirection(from, to);
-  changeScreenWithMotion(
-    direction,
-    navigate,
-    undefined,
-    /\/(new|edit|invite)$/.test(from) || /\/(new|edit|invite)$/.test(to),
-  );
+  changeScreenWithMotion(direction, navigate, undefined, formPath(from) || formPath(to));
 }
 
 export function changeScreenWithMotion(
@@ -241,7 +238,7 @@ export function navigateHistoryWithMotion(delta: number, navigate: NavigateFunct
         void navigate(delta);
       }),
     delta === -1 ? currentCardOrigin() : undefined,
-    /\/(new|edit|invite)$/.test(
+    formPath(
       typeof window === 'undefined' ? '' : (window.location?.hash?.slice(1).split('?')[0] ?? ''),
     ) || !!document.querySelector?.('.ui7-fullscreen-form'),
   );
@@ -291,8 +288,7 @@ export function systemHistoryMotion(
       }
     },
     origin,
-    /\/(new|edit|invite)$/.test(previousPath) ||
-      /\/(new|edit|invite)$/.test(location.hash.slice(1).split('?')[0] ?? ''),
+    formPath(previousPath) || formPath(location.hash.slice(1).split('?')[0] ?? ''),
     true,
   );
 }
@@ -358,7 +354,7 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
           '.row, .task-row, .plan-row, .notes-pinned__card, [data-motion-origin]',
         );
         const card: CardOrigin | undefined =
-          direction === 'forward' && row && !/\/(new|edit|invite)$/.test(to.pathname)
+          direction === 'forward' && row && !formPath(to.pathname)
             ? {
                 parentKey: from.key,
                 parentPath: from.pathname,
@@ -381,7 +377,7 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
             if (direction === 'forward' && card) cardOrigins.set(window.history.state.key, card);
           },
           card,
-          /\/(new|edit|invite)$/.test(to.pathname) || /\/(new|edit|invite)$/.test(from.pathname),
+          formPath(to.pathname) || formPath(from.pathname),
         );
       }}
     />
