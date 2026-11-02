@@ -10,6 +10,7 @@ import { ContactObjects } from '../people/ContactObjects.tsx';
 import { PhoneRows, QuickActions } from '../people/ContactParts.tsx';
 import { InteractionsSection } from '../people/InteractionsSection.tsx';
 import { useNavigate, useScreenMode } from '../shell/motion.tsx';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { EXTERNAL_LINK } from '../ui/link.ts';
 import { Page } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';
@@ -38,7 +39,7 @@ export function OrganizationScreen() {
   if (query.isPending) {
     return (
       <Page title="Организация" back={BACK} documentTitle={TAB_TITLE}>
-        <Notice>Загружаем организацию…</Notice>
+        <ListSkeleton label="Загружаем организацию…" />
       </Page>
     );
   }

@@ -1,10 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router';
-import { motionTime, reducedMotion } from '../ui/motion.ts';
 import {
-  cardOrigins,
   clearNavigationPositions,
-  originLink,
   positions,
   requestedPosition,
   requestPosition,
@@ -37,16 +34,13 @@ export function useNavigationPosition() {
         : 0;
     previousPath.current = location.pathname;
     let restoring = target > 0;
-    let highlight: Animation | undefined;
     let frame = 0;
     let stableFrames = 0;
     let lastHeight = 0;
-    const origin = [...cardOrigins.values()].find((entry) => entry.parentKey === restoreKey);
     const restore = () => {
       if (!restoring) return;
       if (Math.abs(window.scrollY - target) > 0.5)
         window.scrollTo({ top: target, behavior: 'instant' });
-      const link = origin && originLink(origin);
       if (window.scrollY >= target - 1) {
         const height = document.documentElement.scrollHeight;
         const moving = document
@@ -68,16 +62,6 @@ export function useNavigationPosition() {
           return;
         }
         restoring = false;
-        if (link && !reducedMotion()) {
-          link.dataset.navigationReturn = '';
-          highlight = link.animate([{ opacity: 0.55 }, { opacity: 1 }], {
-            duration: motionTime('base'),
-          });
-          void highlight.finished.then(
-            () => delete link.dataset.navigationReturn,
-            () => delete link.dataset.navigationReturn,
-          );
-        }
       }
     };
     const record = () => {
@@ -104,7 +88,6 @@ export function useNavigationPosition() {
       cancelAnimationFrame(frame);
       observer.disconnect();
       mutations.disconnect();
-      highlight?.cancel();
       window.removeEventListener('scroll', record);
       window.removeEventListener('wheel', interrupt);
       window.removeEventListener('pointerdown', interrupt);

@@ -65,7 +65,7 @@ for (const reduce of [false, true]) {
         expect(JSON.stringify(frames)).not.toContain('scale(0.88)');
         expect(await page.locator('[data-dock-ghost]').count()).toBe(0);
         expect(await indicator.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe(
-          '0.45s',
+          '0.33s',
         );
       }
       await expectAccessible(page, 'D37 Дом');

@@ -290,7 +290,13 @@ for (const mixed of [false, true])
     await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
     await page.getByRole('link', { name: 'Открыть', exact: true }).click();
     if (!mixed) await expect(page.getByText('Фото не сохранится', { exact: true })).toBeVisible();
-    else await expect(page.locator('.compact-draft').nth(1)).toBeVisible();
+    else
+      await expect(
+        page
+          .getByRole('dialog', { name: 'Черновик', exact: true })
+          .locator('.compact-draft')
+          .nth(1),
+      ).toBeVisible();
     await checkApp(page, info, mixed ? 'inbox-mixed' : 'inbox-shopping-photo');
     await saveReviewed(page);
     await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
@@ -335,7 +341,12 @@ for (const automatic of [true, false])
       await page.getByRole('button', { name: 'Разобрать', exact: true }).click();
       await page.getByRole('button', { name: 'Согласен, разобрать', exact: true }).click();
     }
-    await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
+    await expect(
+      (automatic ? page : page.getByRole('dialog', { name: 'Черновик', exact: true })).getByText(
+        'Черновик готов',
+        { exact: true },
+      ),
+    ).toBeVisible({ timeout: 20000 });
     await checkApp(page, info, automatic ? 'inbox-reopen' : 'inbox-parse-button');
   });
 
@@ -412,11 +423,23 @@ test('INBOX-4: предпросмотр показывает рубли, рус�
     );
     await openSection(page, `/more/inbox/${id}`, 'Входящее');
     if (kind === 'document') {
-      await expect(page.locator('.compact-draft').first()).toBeVisible();
-      await expect(page.locator('.compact-draft').nth(1)).toContainText('Учебная бумага');
+      await expect(
+        page
+          .getByRole('dialog', { name: 'Черновик', exact: true })
+          .locator('.compact-draft')
+          .first(),
+      ).toBeVisible();
+      await expect(
+        page
+          .getByRole('dialog', { name: 'Черновик', exact: true })
+          .locator('.compact-draft')
+          .nth(1),
+      ).toContainText('Учебная бумага');
       await expect(page.getByText('Проверьте поля').first()).toBeVisible();
     } else {
-      await expect(page.locator('.compact-draft')).toBeVisible();
+      await expect(
+        page.getByRole('dialog', { name: 'Черновик', exact: true }).locator('.compact-draft'),
+      ).toBeVisible();
     }
     await checkApp(page, info, `inbox-preview-${kind}`);
     if (kind === 'document') {
@@ -432,8 +455,13 @@ test('INBOX-4: предпросмотр показывает рубли, рус�
 });
 
 async function saveReviewed(page: Page) {
-  await expect(page.locator('.compact-draft').first()).toBeVisible();
-  for (const card of await page.locator('.compact-draft').all()) {
+  await expect(
+    page.getByRole('dialog', { name: 'Черновик', exact: true }).locator('.compact-draft').first(),
+  ).toBeVisible();
+  for (const card of await page
+    .getByRole('dialog', { name: 'Черновик', exact: true })
+    .locator('.compact-draft')
+    .all()) {
     if (await card.getByText('Проверьте поля', { exact: true }).count()) {
       await card.getByRole('button', { name: 'Изменить', exact: true }).click();
       await page

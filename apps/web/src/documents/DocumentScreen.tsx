@@ -12,6 +12,7 @@ import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
 import { Link, useNavigate, useScreenMode } from '../shell/motion.tsx';
 import { ResponsibleField } from '../tasks/ResponsibleField.tsx';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Page } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';
 import { Status } from '../ui/Row.tsx';
@@ -49,7 +50,7 @@ export function DocumentScreen() {
   if (query.isPending) {
     return (
       <Page title="Документ" back={BACK} documentTitle={TAB_TITLE}>
-        <Notice>Загружаем документ…</Notice>
+        <ListSkeleton label="Загружаем документ…" />
       </Page>
     );
   }

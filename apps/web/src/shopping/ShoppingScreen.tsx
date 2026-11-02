@@ -28,6 +28,7 @@ import { TaskTabs } from '../tasks/TaskTabs.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
 import { countWord, plural } from '../ui/format.ts';
 import { groupBy } from '../ui/groupBy.ts';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { MotionGroups } from '../ui/MotionGroups.tsx';
 import { MotionList } from '../ui/MotionList.tsx';
 import { Page, Section } from '../ui/Page.tsx';
@@ -590,7 +591,7 @@ export function ShoppingCardScreen() {
     return (
       <Page title="Покупка" back={{ to: '/more/shopping', label: 'Покупки' }}>
         {query.isPending ? (
-          <Notice>Загружаем покупку…</Notice>
+          <ListSkeleton label="Загружаем покупку…" />
         ) : (
           <>
             <ShoppingError error={query.error} />

@@ -12,7 +12,7 @@ import { sectionAdd } from './section-add.ts';
 import { isStudio } from './studio.ts';
 import { TopBar } from './TopBar.tsx';
 import { useKeyboardAttribute } from './useKeyboardAttribute.ts';
-import { MotionPreload } from './useMotionPreload.ts';
+import { useMotionGestures } from './useMotionGestures.ts';
 import { useNavigationPosition } from './useNavigationPosition.ts';
 
 interface AppShellProps {
@@ -96,10 +96,10 @@ export function AppShell({
   useKeyboardAttribute();
 
   useNavigationPosition();
+  useMotionGestures();
 
   return (
     <AddActionContext.Provider value={add}>
-      {isStudio() ? <MotionPreload /> : null}
       <div className="app" ref={app}>
         <SideNav sections={sections} />
         <div className="app__content">

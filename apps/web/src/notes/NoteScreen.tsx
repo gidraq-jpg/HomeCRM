@@ -10,6 +10,7 @@ import { useMembers } from '../household/queries.ts';
 import { LinksSection } from '../links/LinksSection.tsx';
 import { useNavigate, useScreenMode } from '../shell/motion.tsx';
 import { CheckToggle } from '../ui/CheckToggle.tsx';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { RecordPage } from '../ui/RecordPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -59,7 +60,7 @@ export function NoteScreen() {
   if (query.isPending) {
     return (
       <Page title="Заметка" back={BACK} documentTitle={TAB_TITLE}>
-        <Notice>Загружаем заметку…</Notice>
+        <ListSkeleton label="Загружаем заметку…" />
       </Page>
     );
   }

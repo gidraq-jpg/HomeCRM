@@ -20,11 +20,6 @@
   view-transition-name: header;
 }
 :root[data-design="studio"] .main > .page > .page-heading {
-  view-transition-name: page-heading;
-}
-/* D38: шапка страницы карточки пересоздаётся, когда приходят данные; браузер прерывает переход,
-   если снятый элемент исчез. Раскрытие окна держит шапку внутри снимка экрана. */
-:root[data-design="studio"][data-motion-card] .main > .page > .page-heading {
   view-transition-name: none;
 }
 :root[data-motion-feed] .main {
@@ -70,12 +65,6 @@ html[data-motion-feed] {
 ::view-transition-new(page-heading) {
   animation: motion-fade-in var(--motion-fast) var(--ease-out) both;
 }
-html[data-motion-header="changed"]::view-transition-old(header) {
-  animation: motion-fade-out var(--motion-fast) var(--ease-out) both;
-}
-html[data-motion-header="changed"]::view-transition-new(header) {
-  animation: motion-fade-in var(--motion-fast) var(--ease-out) both;
-}
 ::view-transition-old(root),
 ::view-transition-new(root),
 ::view-transition-old(dock),
@@ -110,11 +99,6 @@ html:not([data-motion-feed])::view-transition-new(screen),
 html:not([data-motion-feed])::view-transition-old(screen) {
   background: var(--paper);
   border-radius: 32px 32px 0 0;
-}
-/* D38: прежний снимок стоит там, где был виден, а не у верхнего края нового экрана.
-   Это место, а не движение: сдвиг постоянный и при «Уменьшить движение». */
-html[data-motion-card]::view-transition-old(screen) {
-  transform: var(--card-shift, none);
 }
 html[data-motion-direction="forward"]:not([data-motion-feed])::view-transition-new(screen),
 html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(screen) {
@@ -305,55 +289,6 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
   }
 }
 
-/* D38: окно от границ строки; содержимое не растягивается, а проявляется за первые 60 %. */
-@keyframes motion-card-in {
-  0% {
-    clip-path: var(--card-clip);
-    opacity: 0;
-  }
-  40% {
-    opacity: 1;
-  }
-  100% {
-    clip-path: inset(0 0 0 0 round 0);
-    opacity: 1;
-  }
-}
-@keyframes motion-card-out {
-  0% {
-    clip-path: inset(0 0 0 0 round 0);
-    opacity: 1;
-  }
-  40% {
-    opacity: 1;
-  }
-  100% {
-    clip-path: var(--card-clip);
-    opacity: 0;
-  }
-}
-/* Список под карточкой гаснет вместе с раскрытием, а не исчезает. */
-@keyframes motion-card-under-out {
-  from {
-    transform: var(--card-shift, translate(0, 0)) scale(1);
-    filter: brightness(1);
-  }
-  to {
-    transform: var(--card-shift, translate(0, 0)) scale(0.97);
-    filter: brightness(0.9);
-  }
-}
-@keyframes motion-card-under-in {
-  from {
-    transform: scale(0.97);
-    filter: brightness(0.9);
-  }
-  to {
-    transform: scale(1);
-    filter: brightness(1);
-  }
-}
-
 @keyframes motion-feed-out {
   from {
     transform: translateX(var(--feed-start));
@@ -420,28 +355,16 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     transition: none;
   }
   html[data-motion-direction="forward"]:not([data-motion-feed])::view-transition-new(screen) {
-    animation: motion-surface-in var(--motion-screen) var(--ease-out) both;
+    animation: motion-side-in var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-direction="forward"]:not([data-motion-feed])::view-transition-old(screen) {
-    animation: motion-surface-out var(--motion-close) var(--ease-out) both;
+    animation: motion-under-out var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-new(screen) {
-    animation: motion-surface-in var(--motion-close) var(--ease-out) both;
+    animation: motion-under-in var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(screen) {
-    animation: motion-surface-out var(--motion-close) var(--ease-out) both;
-  }
-  html[data-motion-card="forward"][data-motion-direction]::view-transition-new(screen) {
-    animation: motion-card-in var(--motion-card) var(--ease-card) both;
-  }
-  html[data-motion-card="forward"][data-motion-direction]::view-transition-old(screen) {
-    animation: motion-card-under-out var(--motion-card) var(--ease-card) both;
-  }
-  html[data-motion-card="back"][data-motion-direction]::view-transition-old(screen) {
-    animation: motion-card-out var(--motion-close) var(--ease-card) both;
-  }
-  html[data-motion-card="back"][data-motion-direction]::view-transition-new(screen) {
-    animation: motion-card-under-in var(--motion-close) var(--ease-card) both;
+    animation: motion-side-out var(--motion-screen) var(--ease-out) both;
   }
   .sheet:not(.sheet--full) {
     transition: transform var(--motion-sheet) var(--ease-sheet);
@@ -532,24 +455,40 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
   }
 }
 
-@keyframes motion-surface-in {
+@keyframes motion-side-in {
   from {
-    transform: scale(0.98);
-    opacity: 0;
+    transform: translateX(100%);
   }
   to {
-    transform: scale(1);
-    opacity: 1;
+    transform: translateX(0);
   }
 }
-@keyframes motion-surface-out {
+@keyframes motion-side-out {
   from {
-    transform: scale(1);
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes motion-under-out {
+  from {
+    transform: translateX(0);
     opacity: 1;
   }
   to {
-    transform: scale(0.98);
-    opacity: 0;
+    transform: translateX(-30%);
+    opacity: 0.8;
+  }
+}
+@keyframes motion-under-in {
+  from {
+    transform: translateX(-30%);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 @keyframes motion-form-in {
@@ -562,18 +501,18 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
 }
 @keyframes motion-form-out {
   from {
-    transform: translateY(0);
+    transform: translate(var(--form-old-x, 0px), var(--form-old-y, 0px));
   }
   to {
-    transform: translateY(100%);
+    transform: translate(var(--form-old-x, 0px), calc(100% + var(--form-old-y, 0px)));
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  html[data-motion-form="forward"]::view-transition-new(screen) {
-    animation: motion-form-in var(--motion-screen) var(--ease-out) both;
+  html[data-motion-direction][data-motion-form="forward"]::view-transition-new(screen) {
+    animation: motion-form-in var(--motion-sheet) var(--ease-out) both;
   }
-  html[data-motion-form="back"]::view-transition-old(screen) {
-    animation: motion-form-out var(--motion-close) var(--ease-out) both;
+  html[data-motion-direction][data-motion-form="back"]::view-transition-old(screen) {
+    animation: motion-form-out var(--motion-sheet) var(--ease-out) both;
   }
 }
 
@@ -615,4 +554,24 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
   width: 44px;
   height: 44px;
   flex: 0 0 44px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-motion-direction][data-motion-form="forward"]::view-transition-old(screen),
+  html[data-motion-direction][data-motion-form="back"]::view-transition-new(screen) {
+    animation: none;
+  }
+}
+.ui7-form-heading {
+  touch-action: pan-x;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Полная форма накрывает прежние шапку и меню, а не едет под ними. */
+  html[data-motion-form]::view-transition-group(screen) {
+    z-index: 3;
+  }
+  html[data-motion-direction][data-motion-form="forward"]::view-transition-old(screen) {
+    transform: translate(var(--form-old-x, 0px), var(--form-old-y, 0px));
+  }
 }

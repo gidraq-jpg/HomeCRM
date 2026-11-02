@@ -2,7 +2,6 @@ import { CaretLeft, DotsThree, PencilSimple } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useMatch, useNavigate, useParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
-import { Notice } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
 import { useSourceDeadlines } from '../deadlines/queries.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
@@ -14,6 +13,7 @@ import { AddAction } from '../shell/AddAction.tsx';
 import { Link, useScreenMode } from '../shell/motion.tsx';
 import { FormHeading } from '../ui/FormHeading.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
+import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Page } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { objectAbilities } from './abilities.ts';
@@ -38,7 +38,7 @@ export function ObjectScreen() {
   if (query.isPending) {
     return (
       <Page title="Объект" back={BACK} documentTitle={TAB_TITLE}>
-        <Notice>Загружаем объект…</Notice>
+        <ListSkeleton label="Загружаем объект…" />
       </Page>
     );
   }

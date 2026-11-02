@@ -1,14 +1,17 @@
 import { X } from '@phosphor-icons/react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { type ReactNode, type RefObject, useCallback, useRef } from 'react';
+import { type ReactNode, type RefObject, useCallback, useEffect, useRef } from 'react';
 import { motionTime, reducedMotion } from './motion.ts';
 import { dismissSheet } from './sheet-gesture.ts';
+import { registerSheet } from './sheet-history.ts';
 
 // Нижняя панель на основе Radix Dialog: фокус не уходит за панель, Esc закрывает,
 // заголовок и описание читаются как у диалога (WCAG 2.2 AA).
 
 interface SheetProps {
   open: boolean;
+  /** Маршрут уже занимает шаг истории; отдельный шаг нужен только локальным листам. */
+  historyEntry?: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   /** Короткое пояснение под заголовком; читалки экрана произносят его вместе с заголовком. */
@@ -53,11 +56,11 @@ function exitSheetElement(source: HTMLElement, isSheet: boolean) {
   clone.dataset.motionGhost = '';
   document.body.append(clone);
   clone.style.setProperty('--sheet-exit-from', transform);
-  clone.style.animation = `${isSheet && !reduce ? 'motion-sheet-out' : 'motion-fade-out'} ${motionTime(isSheet && !reduce ? 'close' : 'fast')}ms var(--ease-out) both`;
+  clone.style.animation = `${isSheet && !reduce ? 'motion-sheet-out' : 'motion-fade-out'} ${motionTime(isSheet && !reduce ? 'sheet' : 'fast')}ms var(--ease-out) both`;
   const remove = () => clone.remove();
   clone.addEventListener('animationend', remove, { once: true });
   // Без CSS-анимаций копия тоже освобождается.
-  setTimeout(remove, motionTime(isSheet && !reduce ? 'close' : 'fast') + 50);
+  setTimeout(remove, motionTime(isSheet && !reduce ? 'sheet' : 'fast') + 50);
 }
 function useSheetElementRef(
   isSheet: boolean,
@@ -92,8 +95,16 @@ export function Sheet({
   children,
   role,
   fullScreen = false,
+  historyEntry = true,
   returnFocusRef,
 }: SheetProps) {
+  const historyOwner = useRef({});
+  const closeRef = useRef(onOpenChange);
+  closeRef.current = onOpenChange;
+  useEffect(() => {
+    if (!open || !historyEntry) return;
+    return registerSheet(() => closeRef.current(false), historyOwner.current);
+  }, [open, historyEntry]);
   // Панели открываются не через Dialog.Trigger, поэтому Radix не знает, куда вернуть фокус:
   // запоминаем элемент, с которого панель открыли, и возвращаем фокус на него при закрытии.
   const openers = useRef<HTMLElement[]>([]);

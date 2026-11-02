@@ -11,68 +11,45 @@ import {
   useResolvedPath,
   useNavigate as useRouterNavigate,
 } from 'react-router';
-
 import { motionTime } from '../ui/motion.ts';
+import { consumeSheetBack, prepareSheetNavigation, registerSheet } from '../ui/sheet-history.ts';
 import {
   type CardOrigin,
   cardOrigins,
   currentCardOrigin,
-  originLink,
   requestPosition,
   saveCurrentPosition,
 } from './navigation-position.ts';
+
+const formPath = (path: string) =>
+  /\/(new|edit|invite|import)$/.test(path) || /^\/home\/from-template(?:\/|$)/.test(path);
 
 const feeds = new Set(['/today', '/today/plan', '/today/all', '/more/shopping']);
 const sections = new Set(['/today', '/home', '/documents', '/people', '/more']);
 
 /** Вкладки меняют контекст, карточки и формы добавляют уровень. */
 export function motionDirection(from: string, to: string): 'forward' | 'back' | null {
-  if (from === to || (sections.has(from) && sections.has(to)) || (feeds.has(from) && feeds.has(to)))
-    return null;
-  const form = (path: string) => /\/(new|edit|invite)$/.test(path);
-  if (form(to)) return 'forward';
-  if (form(from)) return 'back';
+  if (from === to || (feeds.has(from) && feeds.has(to))) return null;
+  if (sections.has(from) && sections.has(to)) {
+    if (from === '/today' || from === '/more') return 'forward';
+    return to === '/today' ? 'back' : null;
+  }
+  if (formPath(to)) return 'forward';
+  if (formPath(from)) return 'back';
   const depth = (path: string) => path.split('/').filter(Boolean).length;
+  if (from === '/today' || from === '/more') return 'forward';
+  if (to === '/today' || to === '/more') return 'back';
   if (depth(to) < depth(from)) return 'back';
   if (depth(to) > depth(from)) return 'forward';
   return null;
 }
 
+const routedSheet = (path: string) => /^\/more\/inbox\/[0-9a-f-]{36}(?:\/edit\/[^/]+)?$/.test(path);
+
 let current: ViewTransition | undefined;
 let epoch = 0;
 let historyUpdate: (() => void) | undefined;
 
-/**
- * D38: карточка открывается окном от границ строки, без неравномерного масштаба снимка.
- * Отступы считаются от рамки экрана; радиус окна — как у строки.
- */
-export function cardClip(
-  screen: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
-  source: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
-) {
-  const px = (value: number) => `${Math.round(value * 100) / 100}px`;
-  // Нижний и правый края зависят от самой картинки: поздняя догрузка не растягивает окно.
-  const end = (value: number) => `calc(100% ${value < 0 ? '+' : '-'} ${px(Math.abs(value))})`;
-  return `inset(${px(source.top - screen.top)} ${end(source.right - screen.left)} ${end(source.bottom - screen.top)} ${px(source.left - screen.left)} round 16px)`;
-}
-
-/** Панель остаётся живой: D30 не снимает её вместе с экраном раздела. */
-export function changeDockScreen(button: DOMRect, update: () => void, href = '') {
-  const origin: CardOrigin = {
-    parentKey: window.history.state?.key,
-    parentPath: window.location.hash.slice(1).split('?')[0] ?? '',
-    href,
-    rect: button,
-  };
-  changeScreenWithMotion(
-    'forward',
-    () => {
-      update();
-      cardOrigins.set(window.history.state.key, origin);
-    },
-    origin,
-  );
-}
 /** Возврат по истории не должен быть затёрт ещё не снявшим снимок переходом. */
 export function cancelMotionNavigation() {
   // HashRouter уже обработал наш popstate; завершаем снимок нового экрана.
@@ -87,19 +64,12 @@ export function cancelMotionNavigation() {
   current?.skipTransition();
   current = undefined;
   delete document.documentElement.dataset.motionForm;
-  delete document.documentElement.dataset.motionCard;
   delete document.documentElement.dataset.motionDirection;
-  delete document.documentElement.dataset.motionHeader;
   delete document.documentElement.dataset.motionFeed;
 }
 export function navigateWithMotion(from: string, to: string, navigate: () => void) {
-  const direction = motionDirection(from, to);
-  changeScreenWithMotion(
-    direction,
-    navigate,
-    undefined,
-    /\/(new|edit|invite)$/.test(from) || /\/(new|edit|invite)$/.test(to),
-  );
+  const direction = routedSheet(from) || routedSheet(to) ? null : motionDirection(from, to);
+  changeScreenWithMotion(direction, navigate, undefined, formPath(from) || formPath(to));
 }
 
 export function changeScreenWithMotion(
@@ -152,46 +122,19 @@ export function changeScreenWithMotion(
   const activeEpoch = ++epoch;
   document.documentElement.dataset.motionDirection = direction;
   if (form) document.documentElement.dataset.motionForm = direction;
-  // Раскрытие окна заранее: оба снимка делаются без отдельной шапки страницы (motion.css).
-  if (card) document.documentElement.dataset.motionCard = direction;
-  const oldRect = card ? document.querySelector('.main')?.getBoundingClientRect() : undefined;
-  const header = document.querySelector?.('.topbar');
-  const before = header ? `${(header as HTMLElement).offsetHeight}:${header.innerHTML}` : '';
+  const before = form ? document.querySelector('.main')?.getBoundingClientRect() : undefined;
+  const alignBackdrop = () => {
+    const after = before && document.querySelector('.main')?.getBoundingClientRect();
+    if (!before || !after) return;
+    document.documentElement.style.setProperty('--form-old-x', `${before.x - after.x}px`);
+    document.documentElement.style.setProperty('--form-old-y', `${before.y - after.y}px`);
+  };
   const transition = document.startViewTransition(() => {
     if (activeEpoch !== epoch) return;
     try {
       const result = flushSync(update);
-      const compareHeader = () => {
-        if (card) {
-          const screen =
-            direction === 'back'
-              ? oldRect
-              : document.querySelector('.main')?.getBoundingClientRect();
-          const source =
-            direction === 'back'
-              ? (originLink(card)?.getBoundingClientRect() ?? card.rect)
-              : card.rect;
-          const next = document.querySelector('.main')?.getBoundingClientRect();
-          const root = document.documentElement;
-          // Без строки на экране остаётся прежний сдвиг D30.
-          delete root.dataset.motionCard;
-          if (screen?.width && screen.height && source?.width && source.height) {
-            root.dataset.motionCard = direction;
-            root.style.setProperty('--card-clip', cardClip(screen, source));
-            // Группа стоит на месте нового экрана; прежний снимок возвращается туда, где был виден.
-            root.style.setProperty(
-              '--card-shift',
-              oldRect && next
-                ? `translate(${oldRect.left - next.left}px, ${oldRect.top - next.top}px)`
-                : 'none',
-            );
-          }
-        }
-        const after = header ? `${(header as HTMLElement).offsetHeight}:${header.innerHTML}` : '';
-        if (before !== after) document.documentElement.dataset.motionHeader = 'changed';
-      };
-      if (result) return result.then(compareHeader);
-      compareHeader();
+      if (result) return result.then(alignBackdrop);
+      alignBackdrop();
     } catch (error) {
       reportError(error);
       throw error;
@@ -203,14 +146,12 @@ export function changeScreenWithMotion(
   const clear = () => {
     if (current !== transition) return;
     current = undefined;
-    if (card) {
-      document.documentElement.style.removeProperty('--card-clip');
-      document.documentElement.style.removeProperty('--card-shift');
+    if (form) {
+      document.documentElement.style.removeProperty('--form-old-x');
+      document.documentElement.style.removeProperty('--form-old-y');
     }
     delete document.documentElement.dataset.motionForm;
-    delete document.documentElement.dataset.motionCard;
     delete document.documentElement.dataset.motionDirection;
-    delete document.documentElement.dataset.motionHeader;
     delete document.documentElement.dataset.motionFeed;
   };
   void transition.finished.then(clear, clear);
@@ -220,6 +161,7 @@ export function changeScreenWithMotion(
 export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => boolean) {
   const [value, setValue] = useState(initial);
   const form = useRef(isForm(value));
+  const needsHistoryEntry = useRef(true);
   const mode = useRef(value);
   const previousMode = useRef(value);
   const predicate = useRef(isForm);
@@ -228,7 +170,10 @@ export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => bo
     const nextForm = predicate.current(next);
     const previous = form.current;
     const update = () => {
-      if (nextForm && !previous) previousMode.current = mode.current;
+      if (nextForm && !previous) {
+        previousMode.current = mode.current;
+        needsHistoryEntry.current = !alongside;
+      }
       form.current = nextForm;
       mode.current = next;
       setValue(next);
@@ -242,6 +187,12 @@ export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => bo
     mode.current = next;
     setValue(next);
   }, []);
+  const historyOwner = useRef({});
+  const formOpen = predicate.current(value);
+  useEffect(() => {
+    if (!formOpen || !needsHistoryEntry.current) return;
+    return registerSheet(() => set(previousMode.current), historyOwner.current);
+  }, [formOpen, set]);
   useEffect(() => {
     if (!predicate.current(value)) return;
     // Локальная форма сохраняет адрес карточки: её «Назад» закрывает режим.
@@ -270,7 +221,11 @@ export function useScreenMode<T>(initial: T | (() => T), isForm: (mode: T) => bo
 /** Снимок делается до history.go, новый — после popstate HashRouter. */
 export function navigateHistoryWithMotion(delta: number, navigate: NavigateFunction) {
   if (window.history.state?.idx === 0 && delta < 0) return navigate(delta);
-  if (!document.startViewTransition || document.documentElement.dataset.design !== 'studio') {
+  if (
+    routedSheet(window.location?.hash?.slice(1).split('?')[0] ?? '') ||
+    !document.startViewTransition ||
+    document.documentElement.dataset.design !== 'studio'
+  ) {
     cancelMotionNavigation();
     return navigate(delta);
   }
@@ -284,6 +239,9 @@ export function navigateHistoryWithMotion(delta: number, navigate: NavigateFunct
         void navigate(delta);
       }),
     delta === -1 ? currentCardOrigin() : undefined,
+    formPath(
+      typeof window === 'undefined' ? '' : (window.location?.hash?.slice(1).split('?')[0] ?? ''),
+    ) || !!document.querySelector?.('.ui7-fullscreen-form'),
   );
 }
 
@@ -295,9 +253,14 @@ export function systemHistoryMotion(
   previousIndex = 0,
   previousPath = '',
 ) {
+  if (consumeSheetBack(event)) return;
   if (replayingHistory) return;
   if (historyUpdate) {
     queueMicrotask(cancelMotionNavigation);
+    return;
+  }
+  if (routedSheet(previousPath) || routedSheet(location.hash.slice(1).split('?')[0] ?? '')) {
+    cancelMotionNavigation();
     return;
   }
   // Chromium сообщает, когда система уже нарисовала predictive back.
@@ -324,8 +287,7 @@ export function systemHistoryMotion(
       }
     },
     origin,
-    /\/(new|edit|invite)$/.test(previousPath) ||
-      /\/(new|edit|invite)$/.test(location.hash.slice(1).split('?')[0] ?? ''),
+    formPath(previousPath) || formPath(location.hash.slice(1).split('?')[0] ?? ''),
     true,
   );
 }
@@ -339,8 +301,12 @@ export function useNavigate(): NavigateFunction {
       if (typeof to === 'number') {
         return navigateHistoryWithMotion(to, navigate);
       }
+      const replaceSheet = prepareSheetNavigation();
       navigateWithMotion(pathname, resolvePath(to, pathname).pathname, () => {
-        void navigate(to, options);
+        void navigate(to, {
+          ...options,
+          replace: options?.replace ?? replaceSheet,
+        });
       });
     },
     [navigate, pathname],
@@ -369,15 +335,22 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
           reloadDocument
         )
           return;
+        const replaceSheet = prepareSheetNavigation();
         const direction = event.currentTarget.classList.contains('back-link')
           ? 'back'
           : motionDirection(from.pathname, to.pathname);
         if (
           document.documentElement.dataset.design !== 'studio' ||
           !direction ||
+          routedSheet(from.pathname) ||
+          routedSheet(to.pathname) ||
           event.currentTarget.closest('.tabs, .bottom-nav, .side-nav')
         ) {
           cancelMotionNavigation();
+          if (replaceSheet) {
+            event.preventDefault();
+            void navigate(props.to, { replace: true, state: props.state });
+          }
           return;
         }
         event.preventDefault();
@@ -386,7 +359,7 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
           '.row, .task-row, .plan-row, .notes-pinned__card, [data-motion-origin]',
         );
         const card: CardOrigin | undefined =
-          direction === 'forward' && row && !/\/(new|edit|invite)$/.test(to.pathname)
+          direction === 'forward' && row && !formPath(to.pathname)
             ? {
                 parentKey: from.key,
                 parentPath: from.pathname,
@@ -401,7 +374,7 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
           () => {
             if (direction === 'back' && card) requestPosition(card.parentKey);
             void navigate(props.to, {
-              replace: props.replace,
+              replace: props.replace ?? replaceSheet,
               state: props.state,
               relative: props.relative,
               preventScrollReset: props.preventScrollReset,
@@ -409,9 +382,15 @@ export function Link({ onClick, target, reloadDocument, ...props }: LinkProps) {
             if (direction === 'forward' && card) cardOrigins.set(window.history.state.key, card);
           },
           card,
-          /\/(new|edit|invite)$/.test(to.pathname) || /\/(new|edit|invite)$/.test(from.pathname),
+          formPath(to.pathname) || formPath(from.pathname),
         );
       }}
     />
   );
+}
+
+/** Утверждено D44: нижние вкладки меняются мгновенно. */
+export function changeTabScreen(update: () => void) {
+  cancelMotionNavigation();
+  update();
 }

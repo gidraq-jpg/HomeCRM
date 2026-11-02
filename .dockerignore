@@ -13,3 +13,7 @@ tools/access-probe/data
 **/.env.*
 secrets
 **/secrets
+
+# Временные секреты и настройки демонстрационного стенда.
+.demo
+.codex
