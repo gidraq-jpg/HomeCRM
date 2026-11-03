@@ -1,4 +1,5 @@
-import { useId } from 'react';
+import { useId, useLayoutEffect, useRef } from 'react';
+import { motionEasing, motionTime, reducedMotion } from '../ui/motion.ts';
 import { maxOf, ratio } from './analytics.ts';
 
 // Простая диаграмма из SVG без библиотек. Она только показывает форму данных: точные значения лежат
@@ -34,6 +35,36 @@ const AXIS = PLOT_TOP + PLOT_HEIGHT;
 
 /** Столбцы по месяцам. Второй столбец в группе заштрихован, отметка «год назад» — чёрточка. */
 export function BarChart({ slots, summary, maxLabel }: BarChartProps) {
+  const ref = useRef<SVGSVGElement>(null);
+  const previous = useRef(new Map<string, number>());
+  const version = JSON.stringify(slots);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: семантический ключ рисунка исключает повторный запуск при refetch
+  useLayoutEffect(() => {
+    const bars = ref.current?.querySelectorAll<SVGRectElement>('[data-chart-key]') ?? [];
+    const animations: Animation[] = [];
+    const next = new Map<string, number>();
+    bars.forEach((bar) => {
+      const key = bar.dataset.chartKey ?? '';
+      const height = Number(bar.getAttribute('height'));
+      const old = previous.current.get(key);
+      next.set(key, height);
+      if (old === undefined || old === height || typeof bar.animate !== 'function') return;
+      animations.push(
+        bar.animate(
+          reducedMotion() || !height
+            ? [{ opacity: 0 }, { opacity: 1 }]
+            : [{ transform: `scaleY(${old / height})` }, { transform: 'scaleY(1)' }],
+          { duration: motionTime(reducedMotion() ? 'fast' : 'base'), easing: motionEasing() },
+        ),
+      );
+    });
+    previous.current = next;
+    return () => {
+      animations.forEach((animation) => {
+        animation.cancel();
+      });
+    };
+  }, [version]);
   const hatch = `hatch-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const max = maxOf(
     slots.flatMap((slot) => [...slot.bars, ...(slot.marker === null ? [] : [slot.marker])]),
@@ -46,6 +77,7 @@ export function BarChart({ slots, summary, maxLabel }: BarChartProps) {
 
   return (
     <svg
+      ref={ref}
       className="chart"
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       role="img"
@@ -80,6 +112,7 @@ export function BarChart({ slots, summary, maxLabel }: BarChartProps) {
                   // Порядок столбцов в группе неизменен: позиция однозначно их различает.
                   // biome-ignore lint/suspicious/noArrayIndexKey: фиксированная группа столбцов
                   key={barIndex}
+                  data-chart-key={`${slot.key}:${barIndex}`}
                   className={barIndex === 0 ? 'chart__bar' : 'chart__bar chart__bar--second'}
                   x={x + barIndex * (barWidth + gap)}
                   y={AXIS - height}

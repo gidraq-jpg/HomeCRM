@@ -575,3 +575,27 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
     transform: translate(var(--form-old-x, 0px), var(--form-old-y, 0px));
   }
 }
+
+.content-motion {
+  position: relative;
+  overflow: clip;
+}
+.content-motion__old {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chip__label,
+  .studio-filter,
+  .tabs__link {
+    transition:
+      background-color var(--motion-fast) var(--ease-out),
+      color var(--motion-fast) var(--ease-out);
+  }
+}
+
+.chart__bar {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}

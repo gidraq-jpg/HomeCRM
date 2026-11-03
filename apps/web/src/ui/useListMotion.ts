@@ -1,5 +1,5 @@
 import { type RefObject, useLayoutEffect, useRef } from 'react';
-import { motionTime, reducedMotion } from './motion.ts';
+import { motionStagger, motionTime, reducedMotion } from './motion.ts';
 
 interface Snapshot {
   node: HTMLElement;
@@ -42,6 +42,12 @@ export function useListMotion(
     const easing = getComputedStyle(document.documentElement).getPropertyValue('--ease-out');
     const reduce = reducedMotion();
     const duration = motionTime(reduce ? 'fast' : 'base');
+    let entering = 0;
+    const replacing =
+      rows.some((row) => !previous.current.has(row.dataset.motionKey ?? '')) &&
+      [...previous.current.keys()].some(
+        (key) => !rows.some((row) => row.dataset.motionKey === key),
+      );
     for (const [index, row] of rows.entries()) {
       const key = row.dataset.motionKey;
       if (!key) continue;
@@ -65,7 +71,16 @@ export function useListMotion(
                   { height: '0px', opacity: 0 },
                   { height: `${height}px`, opacity: 1 },
                 ],
-          { duration, easing },
+          {
+            duration,
+            easing,
+            delay:
+              reduce || kind === 'toast'
+                ? 0
+                : (replacing ? motionTime('fast') : 0) +
+                  motionStagger(entering++, motionTime('base')),
+            fill: 'backwards',
+          },
         );
         cleanup.push(() => animation.cancel());
       }

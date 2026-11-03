@@ -149,6 +149,7 @@ export function flyTask(id: string, kind: 'done' | 'trash') {
       [{ transform: 'scale(1)' }, { transform: 'scale(1.08)' }, { transform: 'scale(1)' }],
       {
         duration: motionTime('fast'),
+        easing: getComputedStyle(document.documentElement).getPropertyValue('--ease-out'),
         delay: reverse ? 0 : motionTime('fly') - motionTime('fast'),
       },
     );

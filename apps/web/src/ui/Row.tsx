@@ -1,5 +1,5 @@
 import { CaretRight, CheckCircle, Info, Warning, WarningOctagon } from '@phosphor-icons/react';
-import { Children, type ReactNode, useRef } from 'react';
+import { Children, type ReactNode, useLayoutEffect, useRef } from 'react';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { Link } from '../shell/motion.tsx';
@@ -7,6 +7,17 @@ import { useListMotion } from './useListMotion.ts';
 
 export function RowList({ children, label }: { children: ReactNode; label?: string }) {
   const ref = useRef<HTMLUListElement>(null);
+  useLayoutEffect(() => {
+    const keys = Children.toArray(children).map((child) =>
+      typeof child === 'object' && 'key' in child ? String(child.key) : '',
+    );
+    [...(ref.current?.children ?? [])]
+      .filter((node) => !node.hasAttribute('data-motion-ghost'))
+      .forEach((node, index) => {
+        if (node instanceof HTMLElement && !node.dataset.motionKey && keys[index])
+          node.dataset.motionKey = keys[index];
+      });
+  });
   useListMotion(
     ref,
     Children.toArray(children)

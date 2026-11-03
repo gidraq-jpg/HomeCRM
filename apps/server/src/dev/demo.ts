@@ -29,7 +29,7 @@ await writeFile(
     image: postgres:18
     environment:
       POSTGRES_HOST_AUTH_METHOD: trust
-    ports: ["127.0.0.1:15490:5432"]
+    ports: ["127.0.0.1:15500:5432"]
     tmpfs: [/var/lib/postgresql]
     healthcheck:
       test: [CMD, pg_isready, -U, postgres]
@@ -37,28 +37,28 @@ await writeFile(
       retries: 60
 `,
 );
-const project = 'homecrm-test-fix-ui-9-motion-side-sheet';
+const project = 'homecrm-test-motion-template';
 execFileSync('docker', ['compose', '-p', project, '-f', compose, 'up', '-d', '--wait'], {
   stdio: 'inherit',
 });
 const bootstrap = new pg.Client({
-  connectionString: 'postgres://postgres@127.0.0.1:15490/postgres',
+  connectionString: 'postgres://postgres@127.0.0.1:15500/postgres',
 });
 await bootstrap.connect();
 await createRoles(bootstrap);
 await bootstrap.end();
-const database = await createTestDatabase('postgres://postgres@127.0.0.1:15490/postgres');
-const origin = 'http://localhost:5350';
+const database = await createTestDatabase('postgres://postgres@127.0.0.1:15500/postgres');
+const origin = 'http://localhost:5360';
 const auth = createAuthModule({
   db: createAuthDatabase(database.auth),
   appDb: createAppDatabase(database.app),
   secret: randomBytes(32).toString('base64url'),
   baseURL: origin,
-  trustedOrigins: ['http://127.0.0.1:5350'],
+  trustedOrigins: ['http://127.0.0.1:5360'],
 });
 const ai = loadAiConfig({ AI_EXTRACT_PROVIDER: 'fake', AI_STT_PROVIDER: 'fake' });
 const app = buildApp(
-  { LOG_LEVEL: 'silent', APP_VERSION: 'd44-demo' },
+  { LOG_LEVEL: 'silent', APP_VERSION: 'motion-template-demo' },
   {
     auth,
     worker: createWorkerDatabase(database.worker),
@@ -69,6 +69,13 @@ const app = buildApp(
     },
   },
 );
+app.get('/api/demo/enter', async (_request, reply) => {
+  reply.header(
+    'set-cookie',
+    signed.cookies.map((item) => `${item.name}=${item.value}; Path=/; HttpOnly; SameSite=Lax`),
+  );
+  return reply.redirect('/#/today/all');
+});
 const fixtures = createAuthDatabase(database.admin);
 const houseId = await createHousehold(fixtures, 'Семья Солнечных — демонстрация');
 const people = [];
@@ -143,6 +150,7 @@ for (let i = 0; i < 15; i++) {
       ][i % 5]
     } · ${i + 1}`,
     planOn: today,
+    status: (['open', 'done', 'cancelled'] as const)[i % 3],
     placement,
   });
   await post('shopping', {
@@ -182,13 +190,13 @@ for (let i = 0; i < 3; i++) {
   });
   await post(`inbox/${id}/parse`, { consent: `v4:${aiProvider(ai)}` });
 }
-await app.listen({ host: '127.0.0.1', port: 8490 });
+await app.listen({ host: '127.0.0.1', port: 8500 });
 const vite = spawn(
   process.execPath,
   [resolve(root, 'apps/web/node_modules/vite/bin/vite.js'), '--host', '127.0.0.1'],
   {
     cwd: resolve(root, 'apps/web'),
-    env: { ...process.env, PORT: '8490', WEB_PORT: '5350', HOMECRM_DEMO: '1' },
+    env: { ...process.env, PORT: '8500', WEB_PORT: '5360', HOMECRM_DEMO: '1' },
     stdio: 'inherit',
   },
 );
@@ -203,4 +211,6 @@ async function close() {
 }
 process.on('SIGINT', () => void close());
 process.on('SIGTERM', () => void close());
-console.log('D44 demo ready: http://localhost:5350; credentials are in .demo/credentials.txt');
+console.log(
+  'Motion template demo ready: http://localhost:5360; credentials are in .demo/credentials.txt',
+);

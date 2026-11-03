@@ -9,6 +9,7 @@ import { visibilityOf } from '../notes/abilities.ts';
 import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
@@ -233,45 +234,51 @@ export function DocumentsScreen() {
         </div>
       </div>
 
-      {list.isPending ? <ListSkeleton label="Загружаем документы…" /> : null}
-      {list.isError ? (
-        <>
-          <DocumentError error={list.error} action="load" />
-          <button className="text-button" type="button" onClick={() => void list.refetch()}>
-            Повторить загрузку документов
-          </button>
-        </>
-      ) : null}
-
-      {list.data && all.length === 0 && !filtered && status === 'valid' ? <EmptyDocuments /> : null}
-      {list.data && all.length === 0 && (filtered || status !== 'valid') ? (
-        <CompactEmptyState title="Ничего не нашлось">
-          <button type="button" className="text-button" onClick={reset}>
-            Сбросить фильтры
-          </button>
-          {scope !== 'all' ? (
-            <button type="button" className="text-button" onClick={() => setScope('all')}>
-              Показать «{SCOPE_LABELS.all}»
+      <ContentMotion
+        version={list.isPending ? 'loading' : all.map((card) => card.id + card.status).join(',')}
+      >
+        {list.isPending ? <ListSkeleton label="Загружаем документы…" /> : null}
+        {list.isError ? (
+          <>
+            <DocumentError error={list.error} action="load" />
+            <button className="text-button" type="button" onClick={() => void list.refetch()}>
+              Повторить загрузку документов
             </button>
-          ) : null}
-        </CompactEmptyState>
-      ) : null}
+          </>
+        ) : null}
 
-      {all.length > 0 ? (
-        <>
-          <DocumentRows documents={all} label="Документы" />
-          {list.hasNextPage ? (
-            <button
-              type="button"
-              className="btn btn--secondary btn--block list-action"
-              disabled={list.isFetchingNextPage}
-              onClick={() => void list.fetchNextPage()}
-            >
-              {list.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
+        {list.data && all.length === 0 && !filtered && status === 'valid' ? (
+          <EmptyDocuments />
+        ) : null}
+        {list.data && all.length === 0 && (filtered || status !== 'valid') ? (
+          <CompactEmptyState title="Ничего не нашлось">
+            <button type="button" className="text-button" onClick={reset}>
+              Сбросить фильтры
             </button>
-          ) : null}
-        </>
-      ) : null}
+            {scope !== 'all' ? (
+              <button type="button" className="text-button" onClick={() => setScope('all')}>
+                Показать «{SCOPE_LABELS.all}»
+              </button>
+            ) : null}
+          </CompactEmptyState>
+        ) : null}
+
+        {all.length > 0 ? (
+          <>
+            <DocumentRows documents={all} label="Документы" />
+            {list.hasNextPage ? (
+              <button
+                type="button"
+                className="btn btn--secondary btn--block list-action"
+                disabled={list.isFetchingNextPage}
+                onClick={() => void list.fetchNextPage()}
+              >
+                {list.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
+              </button>
+            ) : null}
+          </>
+        ) : null}
+      </ContentMotion>
     </StudioPage>
   );
 }
