@@ -21,8 +21,8 @@ export function LinkTabs({ label, items }: { label: string; items: readonly Link
       const indicator = list.querySelector<HTMLElement>('.tab-indicator');
       if (!active || !indicator) return;
       indicator.style.width = `${active.offsetWidth}px`;
-      indicator.style.height = '2px';
-      indicator.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop + active.offsetHeight - 2}px)`;
+      indicator.style.height = `${active.offsetHeight}px`;
+      indicator.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
     };
     measure();
     const observer = new ResizeObserver(measure);

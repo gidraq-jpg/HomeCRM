@@ -57,3 +57,4 @@ createRoot(root).render(
 );
 
 import './styles/motion.css';
+import './styles/calm.css';
