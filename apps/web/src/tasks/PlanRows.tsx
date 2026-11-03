@@ -9,11 +9,16 @@ import type { FeedTaskCard, TaskCard } from './api.ts';
 import { CompletionCheck } from './CompletionCheck.tsx';
 import { formatDateOnly } from './fields.tsx';
 import { useTaskMembers } from './options.tsx';
-import { isOverdue } from './plan.ts';
+import { overdueDays, overdueText } from './plan.ts';
 import { SwipeTaskRow } from './SwipeTaskRow.tsx';
 import { STATUS_LABELS } from './TaskForm.tsx';
 import { taskPath } from './TaskRows.tsx';
 
+/**
+ * Единая строка дела (UI-9): «Сегодня», «План», «Все дела», «Выполнено сегодня».
+ * Слева круг, в центре название и мета-строка, справа «Перенести». Доступ подписывается
+ * только исключением: «Взрослые» и «→ Имя».
+ */
 export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] }>({
   tasks,
   label,
@@ -26,6 +31,9 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   resumeBlocked,
   remember,
   dates = false,
+  waitingDetail = dates,
+  fromPlan = !dates,
+  shortDoneLabel = false,
 }: {
   tasks: readonly T[];
   label: string;
@@ -37,7 +45,14 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   resume?: (card: T) => void;
   resumeBlocked?: (card: T) => boolean;
   remember?: () => void;
+  /** «Все дела»: в мета-строке день и статус закрытого. */
   dates?: boolean;
+  /** Показывать, от кого ждём и когда проверить. */
+  waitingDetail?: boolean;
+  /** Ссылка помнит, откуда пришли, чтобы вернуться на тот же экран. */
+  fromPlan?: boolean;
+  /** «Сегодня»: кнопка круга зовётся просто «Выполнить», как и в карточке главного дела. */
+  shortDoneLabel?: boolean;
 }) {
   const location = useLocation();
   const { me, householdId } = useHousehold();
@@ -62,30 +77,35 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
               closed
                 ? 'plan-circle plan-circle--done'
                 : card.status === 'waiting'
-                  ? 'plan-circle plan-circle--waiting'
-                  : 'plan-circle'
+                  ? 'plan-circle plan-circle--waiting task-completion-circle'
+                  : 'plan-circle task-completion-circle'
             }
             aria-hidden
           >
-            {closed ? <CompletionCheck /> : null}
+            <CompletionCheck />
           </span>
         );
-        const visibility =
-          card.spaceKind === 'personal'
-            ? 'Личное'
-            : card.audience === 'adults'
-              ? 'Взрослые'
-              : 'Вся семья';
+        const other = card.assigneeId && card.assigneeId !== me.id;
+        const assignee =
+          other && (!dates || members.data?.some((person) => person.accountId === card.assigneeId))
+            ? `→ ${members.data?.find((person) => person.accountId === card.assigneeId)?.displayName ?? 'Участник'}`
+            : null;
+        const late = overdueDays(card, today);
         const metadata = [
+          card.repeatRule ? '↻' : null,
           dates && card.planOn ? formatDateOnly(card.planOn) : null,
           card.planTime,
+          late ? overdueText(late) : null,
           card.object?.title,
-          visibility,
-          dates && !['open', 'waiting'].includes(card.status) ? STATUS_LABELS[card.status] : null,
-        ]
-          .filter(Boolean)
-          .join(' · ');
-        const other = card.assigneeId && card.assigneeId !== me.id;
+          card.spaceKind !== 'personal' && card.audience === 'adults' ? 'Взрослые' : null,
+          assignee,
+          card.status === 'waiting'
+            ? waitingDetail
+              ? `Жду: ${card.waitingFrom?.title ?? 'адресат недоступен'} · проверить ${card.checkOn ? formatDateOnly(card.checkOn) : '—'}`
+              : 'Жду'
+            : null,
+          dates && closed ? STATUS_LABELS[card.status] : null,
+        ].filter(Boolean);
         return (
           <SwipeTaskRow
             className={closed ? 'plan-row plan-row--closed' : 'plan-row'}
@@ -99,7 +119,11 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
               <button
                 className="icon-button plan-row__done"
                 type="button"
-                aria-label={`${closed ? 'Возобновить' : 'Отметить сделанным'}: ${card.title}`}
+                aria-label={
+                  shortDoneLabel && !closed
+                    ? 'Выполнить'
+                    : `${closed ? 'Возобновить' : 'Отметить сделанным'}: ${card.title}`
+                }
                 disabled={pending || (closed && resumeBlocked?.(card))}
                 onClick={() => (closed ? resume?.(card) : complete(card))}
               >
@@ -110,58 +134,31 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
                 {circle}
               </span>
             )}
-            <div className="plan-row__body">
-              <Link
-                className="plan-row__title"
-                aria-label={
-                  closed ? `${card.title} · ${STATUS_LABELS[card.status].toLowerCase()}` : undefined
-                }
-                to={taskPath(card.id)}
-                state={dates ? undefined : { fromPlan: `${location.pathname}${location.search}` }}
-                onClick={remember}
-              >
-                {card.title}
-              </Link>
-              <p className="plan-row__meta">
-                {card.repeatRule ? (
-                  <>
-                    <span role="img" aria-label="Повторяется">
-                      ↻
-                    </span>{' '}
-                  </>
-                ) : null}
-                {metadata}
-              </p>
-              {other &&
-              (!dates || members.data?.some((person) => person.accountId === card.assigneeId)) ? (
-                <p className="plan-row__meta">
-                  →{' '}
-                  {members.data?.find((person) => person.accountId === card.assigneeId)
-                    ?.displayName ?? 'Участник'}
-                </p>
+            <Link
+              className="plan-row__link"
+              aria-label={
+                closed ? `${card.title} · ${STATUS_LABELS[card.status].toLowerCase()}` : card.title
+              }
+              to={taskPath(card.id)}
+              state={fromPlan ? { fromPlan: `${location.pathname}${location.search}` } : undefined}
+              onClick={remember}
+            >
+              <span className="plan-row__title">{card.title}</span>
+              {metadata.length ? (
+                <span className={late ? 'plan-row__meta plan-row__meta--late' : 'plan-row__meta'}>
+                  {metadata.join(' · ')}
+                </span>
               ) : null}
-              {card.status === 'waiting' ? (
-                <span className="studio-label studio-label--waiting">Жду</span>
-              ) : null}
-              {dates && card.status === 'waiting' ? (
-                <p className="plan-row__meta">
-                  Жду: {card.waitingFrom?.title ?? 'адресат недоступен'} · проверить{' '}
-                  {card.checkOn ? formatDateOnly(card.checkOn) : '—'}
-                </p>
-              ) : null}
-              {isOverdue(card, today) ? (
-                <span className="studio-label studio-label--overdue">Просрочено</span>
-              ) : null}
-            </div>
+            </Link>
             {editable && active && move ? (
               <button
-                className="icon-button"
+                className="icon-button plan-row__move"
                 type="button"
                 aria-label={`${card.planOn ? 'Перенести' : 'Назначить день'}: ${card.title}`}
                 disabled={pending}
                 onClick={() => move(card)}
               >
-                <Clock size={22} aria-hidden />
+                <Clock size={24} aria-hidden />
               </button>
             ) : null}
           </SwipeTaskRow>

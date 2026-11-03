@@ -35,3 +35,23 @@ export function overdueLabel(count: number) {
   const form = new Intl.PluralRules('ru').select(count);
   return `${count} ${form === 'one' ? 'просроченное дело' : form === 'few' ? 'просроченных дела' : 'просроченных дел'} — в «Сегодня»`;
 }
+
+/** На сколько дней дело просрочено: от крайнего срока, а без него — от дня плана. */
+export function overdueDays(card: TaskCard, today: string): number | null {
+  if (!['open', 'waiting'].includes(card.status)) return null;
+  const from =
+    card.dueOn && card.dueOn < today
+      ? card.dueOn
+      : card.planOn && card.planOn < today
+        ? card.planOn
+        : null;
+  if (!from) return null;
+  const days = Math.round(
+    (Date.parse(`${today}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000,
+  );
+  return days > 0 ? days : null;
+}
+export function overdueText(days: number) {
+  const form = new Intl.PluralRules('ru').select(days);
+  return `просрочено на ${days} ${form === 'one' ? 'день' : form === 'few' ? 'дня' : 'дней'}`;
+}

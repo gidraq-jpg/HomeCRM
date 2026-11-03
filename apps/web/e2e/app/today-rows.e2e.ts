@@ -77,7 +77,7 @@ test('D20b 1–4: кружки, компактные строки, выполн�
   await expect(row).not.toContainText('Ответственный — в карточке источника');
   const radarHeight = await row.evaluate((element) => element.getBoundingClientRect().height);
   const taskHeight = await page
-    .locator('.task-feed-item')
+    .locator('.plan-row')
     .first()
     .evaluate((element) => element.getBoundingClientRect().height);
   expect(radarHeight).toBeLessThanOrEqual(taskHeight * 2);

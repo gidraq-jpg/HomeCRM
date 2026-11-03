@@ -198,7 +198,7 @@ test('TASK-6: старые завершённые дела — через ста
   ).toBeVisible();
   await expect(page.locator('[data-feed-active="true"] .plan-row--closed')).toHaveCount(2);
   await expect(
-    page.locator('[data-feed-active="true"] .plan-row--closed .studio-label--overdue'),
+    page.locator('[data-feed-active="true"] .plan-row--closed .plan-row__meta--late'),
   ).toHaveCount(0);
   await page.getByLabel('Статус дел', { exact: true }).selectOption('cancelled');
   await expect(

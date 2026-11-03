@@ -1,20 +1,20 @@
 import { canWrite } from '@homecrm/shared';
-import { Clock, ListChecks, Star } from '@phosphor-icons/react';
+import { Clock, ListChecks } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { RadarItem } from '../deadlines/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { factsOf, viewerOf, visibilityOf } from '../notes/abilities.ts';
+import { factsOf, viewerOf } from '../notes/abilities.ts';
 import { fetchLinks } from '../objects/api.ts';
 import { useObjectsList } from '../objects/queries.ts';
 import { Link } from '../shell/motion.tsx';
 import { formatRub } from '../ui/format.ts';
-import { RowContent, RowList } from '../ui/Row.tsx';
+import { RowList } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import type { TaskCard } from './api.ts';
 import { CompletionCheck } from './CompletionCheck.tsx';
 import { formatDateOnly } from './fields.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
+import { PlanRows } from './PlanRows.tsx';
 import { repeatLabel } from './repeats.tsx';
 import { SwipeTaskRow } from './SwipeTaskRow.tsx';
 import { STATUS_LABELS } from './TaskForm.tsx';
@@ -50,6 +50,7 @@ export function TaskRows({
   radar = [],
   move,
   pending = false,
+  today = '',
 }: {
   tasks: readonly TaskCard[];
   label: string;
@@ -57,6 +58,8 @@ export function TaskRows({
   radar?: readonly RadarItem[];
   move?: (card: TaskCard) => void;
   pending?: boolean;
+  /** День дома: по нему считается просрочка в мета-строке. */
+  today?: string;
 }) {
   const { me } = useHousehold();
   const viewer = viewerOf(me);
@@ -91,6 +94,32 @@ export function TaskRows({
       });
     } else toast.show({ message: 'Дело обновлено' });
   });
+  const completeCard = (card: TaskCard) =>
+    void operation.run({
+      path: `tasks/${card.id}/status`,
+      body: { status: 'done', expectedUpdatedAt: card.updatedAt },
+      keyed: true,
+    });
+  if (!focus)
+    return (
+      <>
+        <OperationNotice operation={operation} />
+        {tasks.length === 0 ? <p className="muted">Дел под выбранные условия нет.</p> : null}
+        {tasks.length ? (
+          <PlanRows
+            tasks={tasks}
+            label={label}
+            today={today}
+            pending={operation.pending || pending}
+            completionFailed={!!operation.error || !!operation.confirmation}
+            move={move}
+            complete={completeCard}
+            waitingDetail
+            shortDoneLabel
+          />
+        ) : null}
+      </>
+    );
   return (
     <>
       <OperationNotice operation={operation} />
@@ -102,9 +131,7 @@ export function TaskRows({
             canWrite(viewer, factsOf(card, viewer, 'task')) ? (
               <button
                 key={card.id}
-                className={
-                  focus ? 'icon-button task-focus__done' : 'icon-button task-feed-item__done'
-                }
+                className={'icon-button task-focus__done'}
                 type="button"
                 aria-label="Выполнить"
                 disabled={operation.pending || pending}
@@ -120,12 +147,6 @@ export function TaskRows({
                   <CompletionCheck />
                 </span>
               </button>
-            ) : card.status === 'done' ? (
-              <span key={card.id} className="task-row-completed" aria-hidden>
-                <span className="plan-circle plan-circle--done">
-                  <CompletionCheck />
-                </span>
-              </span>
             ) : null;
           const reschedule =
             move &&
@@ -152,7 +173,7 @@ export function TaskRows({
           const objectTitle =
             payment?.object?.title ??
             objects.data?.pages.flat().find((object) => objectIds.includes(object.id))?.title;
-          return focus ? (
+          return (
             <SwipeTaskRow
               className="focus task-focus"
               key={card.id}
@@ -174,7 +195,9 @@ export function TaskRows({
                 <div>
                   <p className="focus__access">
                     {objectTitle && objectTitle !== card.title ? `${objectTitle} · ` : ''}
-                    <AccessBadge visibility={visibilityOf(card)} showLabel />
+                    {card.spaceKind !== 'personal' && card.audience === 'adults'
+                      ? 'Взрослые'
+                      : null}
                   </p>
                   <h3 className="focus__title">{card.title}</h3>
                 </div>
@@ -208,38 +231,6 @@ export function TaskRows({
                 {done}
                 {reschedule}
               </div>
-            </SwipeTaskRow>
-          ) : (
-            <SwipeTaskRow
-              className="task-feed-item today-task-row"
-              key={card.id}
-              card={card}
-              pending={operation.pending || pending}
-              completionFailed={!!operation.error || !!operation.confirmation}
-              complete={() => {
-                void operation.run({
-                  path: `tasks/${card.id}/status`,
-                  body: { status: 'done', expectedUpdatedAt: card.updatedAt },
-                  keyed: true,
-                });
-              }}
-            >
-              <Link className="row" to={taskPath(card.id)} aria-label={card.title}>
-                <RowContent
-                  icon={
-                    card.isMain ? (
-                      <Star size={22} weight="fill" aria-hidden />
-                    ) : (
-                      <ListChecks size={22} aria-hidden />
-                    )
-                  }
-                  title={card.title}
-                  badge={visibilityOf(card)}
-                  meta={<TaskMeta card={card} />}
-                />
-              </Link>
-              {done}
-              {reschedule}
             </SwipeTaskRow>
           );
         })}

@@ -78,6 +78,7 @@ export function ShoppingScreen() {
       : (householdId ?? ''),
   );
   const [trash, setTrash] = useState(false);
+  const [openStep, setOpenStep] = useState<string | null>(null);
   const houseNames = useHouseNames({
     scope: listScopeOf(scope),
     view: 'mine',
@@ -113,6 +114,7 @@ export function ShoppingScreen() {
     return undefined;
   });
   const input = useRef<HTMLTextAreaElement>(null);
+  const quick = useRef<HTMLFormElement>(null);
   const batch = useRef<{ fingerprint: string; value: ReturnType<typeof shoppingBatch> } | null>(
     null,
   );
@@ -246,62 +248,84 @@ export function ShoppingScreen() {
   function rows(items: ShoppingCard[]) {
     return (
       <MotionList className="task-list" version={items.map((card) => card.id).join(',')}>
-        {items.map((card) => (
-          <li
-            key={card.id}
-            data-motion-key={card.id}
-            className={card.boughtAt ? 'task-row task-row--done' : 'task-row'}
-          >
-            {!trash ? (
-              <CheckToggle
-                checked={!!card.boughtAt}
-                label={card.title}
-                disabled={
-                  action.disabled || !canWrite(viewer, factsOf(card, viewer, 'shopping_item'))
-                }
-                onChange={() => toggle(card)}
-              />
-            ) : null}
-            <Link className="task-row__body shopping-row-link" to={`/more/shopping/${card.id}`}>
-              <span className="row__title">{card.title}</span>
-              <span className="row__meta">
-                {[card.data.note, card.data.store, card.boughtAt ? 'Куплено' : null]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </span>
-            </Link>
-            <div className="shopping-steps">
-              {!trash && !card.boughtAt && quantityStep(card.quantity, -1) ? (
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  aria-label={`Уменьшить количество: ${card.title}`}
+        {items.map((card) => {
+          const writable =
+            !action.disabled && canWrite(viewer, factsOf(card, viewer, 'shopping_item'));
+          const adjustable = !trash && !card.boughtAt && writable;
+          // Количество показано всегда одним видом «×N»; у позиции без количества — «×1».
+          const quantity = card.quantity ?? (adjustable ? '1' : null);
+          const stepping = adjustable && openStep === card.id;
+          // Доступ подписывается только исключением: «Взрослые».
+          const meta = [
+            card.data.note,
+            card.data.store,
+            card.spaceKind !== 'personal' && card.audience === 'adults' ? 'Взрослые' : null,
+            card.boughtAt ? 'Куплено' : null,
+          ]
+            .filter(Boolean)
+            .join(' · ');
+          return (
+            <li
+              key={card.id}
+              data-motion-key={card.id}
+              className={card.boughtAt ? 'task-row task-row--done' : 'task-row'}
+            >
+              {!trash ? (
+                <CheckToggle
+                  checked={!!card.boughtAt}
+                  label={card.title}
                   disabled={
                     action.disabled || !canWrite(viewer, factsOf(card, viewer, 'shopping_item'))
                   }
-                  onClick={() => step(card, -1)}
-                >
-                  −
-                </button>
+                  onChange={() => toggle(card)}
+                />
+              ) : (
+                <span className="shopping-row__spacer" aria-hidden />
+              )}
+              <Link className="task-row__body shopping-row-link" to={`/more/shopping/${card.id}`}>
+                <span className="row__title">{card.title}</span>
+                {meta ? <span className="row__meta">{meta}</span> : null}
+              </Link>
+              {quantity ? (
+                adjustable ? (
+                  <button
+                    type="button"
+                    className="shopping-quantity shopping-quantity--button"
+                    aria-expanded={stepping}
+                    aria-label={`Количество ${quantity}, изменить: ${card.title}`}
+                    onClick={() => setOpenStep(stepping ? null : card.id)}
+                  >
+                    ×{quantity}
+                  </button>
+                ) : (
+                  <span className="shopping-quantity">×{quantity}</span>
+                )
               ) : null}
-              {card.quantity ? <span className="shopping-quantity">{card.quantity}</span> : null}
-              {!trash && !card.boughtAt && quantityStep(card.quantity, 1) ? (
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  aria-label={`Увеличить количество: ${card.title}`}
-                  disabled={
-                    action.disabled || !canWrite(viewer, factsOf(card, viewer, 'shopping_item'))
-                  }
-                  onClick={() => step(card, 1)}
-                >
-                  +
-                </button>
+              {stepping ? (
+                <div className="shopping-steps">
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    aria-label={`Уменьшить количество: ${card.title}`}
+                    disabled={!quantityStep(card.quantity, -1)}
+                    onClick={() => step(card, -1)}
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    aria-label={`Увеличить количество: ${card.title}`}
+                    disabled={!quantityStep(card.quantity, 1)}
+                    onClick={() => step(card, 1)}
+                  >
+                    +
+                  </button>
+                </div>
               ) : null}
-            </div>
-            <AccessBadge visibility={visibilityOf(card)} />
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </MotionList>
     );
   }
@@ -342,7 +366,11 @@ export function ShoppingScreen() {
     <AddActionContext.Provider
       value={() => {
         setTrash(false);
-        requestAnimationFrame(() => input.current?.focus());
+        requestAnimationFrame(() => {
+          // Заголовок строки добавления не прячется под липкие вкладки.
+          quick.current?.scrollIntoView({ block: 'start' });
+          input.current?.focus({ preventScroll: true });
+        });
       }}
     >
       <FeedPage
@@ -415,7 +443,7 @@ export function ShoppingScreen() {
               </label>
             ) : null}
             {!trash ? (
-              <form className="shopping-quick" onSubmit={add}>
+              <form ref={quick} className="shopping-quick" onSubmit={add}>
                 <label className="field__label" htmlFor="shopping-quick-title">
                   Добавить одной строкой
                 </label>

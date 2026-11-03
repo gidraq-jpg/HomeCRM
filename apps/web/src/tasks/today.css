@@ -138,9 +138,9 @@ html[data-design="studio"] .today-panel .task-focus {
 html[data-design="studio"] .today-panel .section__title--eyebrow {
   border: 0;
   padding: 0;
-  color: var(--ink);
-  font-size: 0.8125rem;
-  font-weight: 500;
+  color: var(--text-subtle);
+  font-size: var(--text-section);
+  font-weight: var(--weight-section);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -179,59 +179,80 @@ html[data-design="studio"] .plan-page {
   padding-bottom: calc(var(--nav-height) + 40px + env(safe-area-inset-bottom));
 }
 .plan-day__title {
-  color: var(--muted);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  margin: 20px 4px 10px;
+  margin: var(--space-5) 0 var(--space-2);
+  color: var(--text-subtle);
+  font-size: var(--text-section);
+  font-weight: var(--weight-section);
+  line-height: var(--leading-section);
 }
 .plan-rows {
   list-style: none;
   margin: 0;
-  padding: 0 4px;
+  padding: 0;
   background: var(--surface);
   border-radius: 20px;
+  overflow: hidden;
 }
 .plan-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 6px;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: var(--space-3) var(--space-4);
 }
 .plan-row + .plan-row {
   border-top: 1px solid var(--paper);
 }
-.plan-row__body {
+.plan-row__link {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
   min-width: 0;
+  min-height: var(--tap);
+  color: var(--ink);
+  text-decoration: none;
   overflow-wrap: anywhere;
 }
 .plan-row__title {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--ink);
-  font-size: 0.9375rem;
-  text-decoration: none;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
 }
 .plan-row__meta {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 0.8125rem;
+  color: var(--text-subtle);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
 }
+.plan-row__meta--late {
+  color: var(--danger);
+}
+/* Круг 24 px в зоне нажатия 44 px: зона заходит в поля строки, круг стоит на 16 px. */
+.plan-row__done,
 .plan-row__readonly {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
   flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  margin-inline: -10px;
 }
 .plan-row .icon-button {
   flex: none;
 }
+.plan-row__move {
+  margin-inline-end: -10px;
+}
 .plan-circle {
   display: block;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border: 1.6px solid var(--border);
   border-radius: 50%;
 }
@@ -288,22 +309,16 @@ html[data-design="studio"] .plan-page {
 .icon-button:active .task-completion-circle svg {
   opacity: 1;
 }
-html[data-design="studio"] .today-task-row {
-  flex-wrap: nowrap;
-  gap: 2px;
+/* «Выполнено сегодня» — заголовок раздела в том же стиле, что и остальные (UI-9). */
+html[data-design="studio"] .task-completed {
+  margin-block: var(--space-5);
 }
-html[data-design="studio"] .today-task-row .row {
-  min-width: 0;
-  padding-inline: 8px;
+html[data-design="studio"] .task-completed > summary {
+  color: var(--text-subtle);
+  font-size: var(--text-section);
+  font-weight: var(--weight-section);
+  line-height: var(--leading-section);
 }
-html[data-design="studio"] .today-task-row .icon-button {
-  flex: none;
-  margin: 0;
-}
-.task-row-completed {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  flex: none;
+html[data-design="studio"] .task-completed > .plan-rows {
+  margin-top: var(--space-2);
 }
