@@ -9,22 +9,42 @@ import {
 } from './motion.ts';
 
 /** Данные и фокус обновляются сразу; уходящий снимок исключён из доступного дерева. */
-export function ContentMotion({ children, version }: { children: ReactNode; version: string }) {
+export function ContentMotion({
+  children,
+  version,
+  pending = false,
+}: {
+  children: ReactNode;
+  version: string;
+  pending?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const previous = useRef<{ version: string; node: HTMLElement; height: number } | null>(null);
+  const previous = useRef<{
+    version: string;
+    node: HTMLElement;
+    height: number;
+    pending?: boolean;
+  } | null>(null);
   const generation = useRef(0);
   useLayoutEffect(() => {
     const owner = ++generation.current;
     const host = ref.current;
     const live = host?.firstElementChild as HTMLElement | null;
-    if (!host || !live) return;
+    if (!host || !live || document.documentElement.dataset.design !== 'studio') return;
+    if (host.parentElement?.closest('[data-content-motion]')) return;
     const old = previous.current;
     previous.current = {
       version,
+      pending,
       node: motionGhost(live),
       height: live.getBoundingClientRect().height,
     };
-    if (!old || old.version === version || typeof live.animate !== 'function') return;
+    if (
+      !old ||
+      (old.version === version && old.pending === pending) ||
+      typeof live.animate !== 'function'
+    )
+      return;
     const leaves = (root: HTMLElement) => {
       const rows = [
         ...root.querySelectorAll<HTMLElement>('.row-list > li, [data-motion-key]'),
@@ -39,10 +59,13 @@ export function ContentMotion({ children, version }: { children: ReactNode; vers
     // Группы с прежним заголовком не означают прежние записи.
     if (currentRows.some((row) => row.dataset.motionKey && oldKeys.has(row.dataset.motionKey)))
       return;
+    live.querySelectorAll('[data-motion-ghost]').forEach((ghost) => {
+      ghost.remove();
+    });
     live.getAnimations({ subtree: true }).forEach((animation) => {
       animation.cancel();
     });
-    const reduce = reducedMotion();
+    const reduce = reducedMotion() || pending || old.pending;
     const base = motionTime('base');
     const exit = motionTime('fast');
     const easing = motionEasing();
@@ -52,9 +75,9 @@ export function ContentMotion({ children, version }: { children: ReactNode; vers
     host.append(ghost);
     const outgoing = ghost.animate(
       reduce
-        ? [{ opacity: 1 }, { opacity: 0 }]
+        ? [{ opacity: ghost.style.opacity || 1 }, { opacity: 0 }]
         : [
-            { opacity: 1, transform: 'translateX(0)' },
+            { opacity: ghost.style.opacity || 1, transform: ghost.style.transform || 'none' },
             { opacity: 0, transform: 'translateX(-8%)' },
           ],
       { duration: exit, easing, fill: 'both' },
@@ -67,7 +90,7 @@ export function ContentMotion({ children, version }: { children: ReactNode; vers
           ? [{ opacity: 0 }, { opacity: 1 }]
           : [
               { opacity: 0, transform: 'translateX(8%)' },
-              { opacity: 1, transform: 'translateX(0)' },
+              { opacity: ghost.style.opacity || 1, transform: ghost.style.transform || 'none' },
             ],
         {
           duration: reduce ? exit : base,
@@ -103,6 +126,7 @@ export function ContentMotion({ children, version }: { children: ReactNode; vers
       if (generation.current === owner) {
         previous.current = {
           version,
+          pending,
           node: motionGhost(live),
           height: live.getBoundingClientRect().height,
         };
@@ -110,12 +134,15 @@ export function ContentMotion({ children, version }: { children: ReactNode; vers
     });
     return () => {
       // React уже мог заменить дочерний DOM: снимаем уходящий слой, а не новую цель.
-      if (ghost.isConnected && ['running', 'paused'].includes(outgoing.playState)) {
-        const snapshot = motionSnapshot(ghost);
+      if (
+        ghost.isConnected ||
+        incoming.some((animation) => ['running', 'paused'].includes(animation.playState))
+      ) {
+        const snapshot = motionSnapshot(ghost.isConnected ? ghost : live);
         snapshot.classList.remove('content-motion__old', 'content-motion');
         snapshot.style.position = '';
         snapshot.style.inset = '';
-        previous.current = { version, node: snapshot, height: old.height };
+        previous.current = { version, pending, node: snapshot, height: old.height };
       }
       outgoing.cancel();
       incoming.forEach((animation) => {
@@ -125,7 +152,7 @@ export function ContentMotion({ children, version }: { children: ReactNode; vers
       ghost.remove();
       host.style.minHeight = '';
     };
-  }, [version]);
+  }, [version, pending]);
   return (
     <div ref={ref} className="content-motion" data-content-motion="">
       <div>{children}</div>

@@ -5,6 +5,7 @@ interface Snapshot {
   node: HTMLElement;
   source: HTMLElement;
   height: number;
+  top: number;
   next: string | undefined;
 }
 
@@ -56,8 +57,30 @@ export function useListMotion(
         node: row.cloneNode(true) as HTMLElement,
         source: row,
         height,
+        top: row.getBoundingClientRect().top - list.getBoundingClientRect().top,
         next: rows[index + 1]?.dataset.motionKey,
       });
+      const old = previous.current.get(key);
+      const top = row.getBoundingClientRect().top - list.getBoundingClientRect().top;
+      if (
+        old &&
+        !reduce &&
+        old.top !== top &&
+        rows.length === previous.current.size &&
+        rows.every((item) => previous.current.has(item.dataset.motionKey ?? ''))
+      ) {
+        const animation = row.animate(
+          [{ transform: `translateY(${old.top - top}px)` }, { transform: 'translateY(0)' }],
+          { duration, easing },
+        );
+        cleanup.push(() => {
+          const transform = getComputedStyle(row).transform;
+          const snapshot = next.get(key);
+          if (snapshot)
+            snapshot.top = top + (transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m42);
+          animation.cancel();
+        });
+      }
       if ((initialized.current || kind === 'toast') && !previous.current.has(key)) {
         const animation = row.animate(
           reduce

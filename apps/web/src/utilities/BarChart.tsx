@@ -41,7 +41,7 @@ export function BarChart({ slots, summary, maxLabel }: BarChartProps) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: семантический ключ рисунка исключает повторный запуск при refetch
   useLayoutEffect(() => {
     const bars = ref.current?.querySelectorAll<SVGRectElement>('[data-chart-key]') ?? [];
-    const animations: Animation[] = [];
+    const animations: { bar: SVGRectElement; animation: Animation }[] = [];
     const next = new Map<string, number>();
     bars.forEach((bar) => {
       const key = bar.dataset.chartKey ?? '';
@@ -49,18 +49,24 @@ export function BarChart({ slots, summary, maxLabel }: BarChartProps) {
       const old = previous.current.get(key);
       next.set(key, height);
       if (old === undefined || old === height || typeof bar.animate !== 'function') return;
-      animations.push(
-        bar.animate(
-          reducedMotion() || !height
-            ? [{ opacity: 0 }, { opacity: 1 }]
-            : [{ transform: `scaleY(${old / height})` }, { transform: 'scaleY(1)' }],
-          { duration: motionTime(reducedMotion() ? 'fast' : 'base'), easing: motionEasing() },
-        ),
+      const animation = bar.animate(
+        reducedMotion()
+          ? [{ opacity: 0 }, { opacity: 1 }]
+          : [
+              { height: `${old}px`, y: `${AXIS - old}px` },
+              { height: `${height}px`, y: `${AXIS - height}px` },
+            ],
+        { duration: motionTime(reducedMotion() ? 'fast' : 'base'), easing: motionEasing() },
       );
+      animations.push({ bar, animation });
     });
     previous.current = next;
     return () => {
-      animations.forEach((animation) => {
+      animations.forEach(({ bar, animation }) => {
+        previous.current.set(
+          bar.dataset.chartKey ?? '',
+          Number.parseFloat(getComputedStyle(bar).height),
+        );
         animation.cancel();
       });
     };

@@ -5,6 +5,7 @@ import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
 import { Link } from '../shell/motion.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { countWord, type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
 import { Section } from '../ui/Page.tsx';
@@ -168,7 +169,9 @@ export function MonthScreen() {
     return (
       <Page service title="Коммуналка за месяц" back={BACK}>
         {switcher}
-        <Notice>Загружаем месяц…</Notice>
+        <ContentMotion key="month-content" version="loading" pending>
+          <Notice>Загружаем месяц…</Notice>
+        </ContentMotion>
       </Page>
     );
   }
@@ -176,15 +179,17 @@ export function MonthScreen() {
     return (
       <Page service title="Коммуналка за месяц" back={BACK}>
         {switcher}
-        <Notice error>
-          {query.error instanceof ApiError && query.error.status === 400
-            ? 'Такого месяца нет. Выберите месяц стрелками.'
-            : 'Не удалось загрузить месяц. Проверьте подключение и повторите.'}
-        </Notice>
-        <button className="text-button" type="button" onClick={() => void query.refetch()}>
-          Повторить загрузку месяца
-        </button>
-        {toCurrent}
+        <ContentMotion key="month-content" version="error">
+          <Notice error>
+            {query.error instanceof ApiError && query.error.status === 400
+              ? 'Такого месяца нет. Выберите месяц стрелками.'
+              : 'Не удалось загрузить месяц. Проверьте подключение и повторите.'}
+          </Notice>
+          <button className="text-button" type="button" onClick={() => void query.refetch()}>
+            Повторить загрузку месяца
+          </button>
+          {toCurrent}
+        </ContentMotion>
       </Page>
     );
   }
@@ -197,66 +202,68 @@ export function MonthScreen() {
   return (
     <Page service title="Коммуналка за месяц" back={BACK}>
       {switcher}
-      {toCurrent}
+      <ContentMotion key="month-content" version={month}>
+        {toCurrent}
 
-      {objects.length === 0 ? (
-        <Section
-          title="Объекты"
-          aside={
-            <Link className="icon-button" aria-label="Добавить объект" to="/home/new">
-              <Plus size={20} aria-hidden />
-            </Link>
-          }
-        >
-          <CompactEmptyState title="Объектов пока нет" />
-        </Section>
-      ) : (
-        <>
-          {nothing ? (
-            <Section
-              title={`За ${label.toLocaleLowerCase('ru')}`}
-              aside={
-                first && firstAccount ? (
-                  <Link
-                    className="icon-button"
-                    aria-label="Добавить начисление"
-                    to={`/home/${first.id}/accounts/${firstAccount.id}/charges`}
-                  >
-                    <Plus size={20} aria-hidden />
-                  </Link>
-                ) : null
-              }
-            >
-              <CompactEmptyState title={`За ${label.toLocaleLowerCase('ru')} начислений нет`} />
-            </Section>
-          ) : null}
-
-          <Section title="Всего">
-            <div className="card">
-              <Money {...totals} />
-            </div>
-          </Section>
-
+        {objects.length === 0 ? (
           <Section
             title="Объекты"
             aside={
-              <span className="muted">
-                {countWord(objects.length, ['объект', 'объекта', 'объектов'])}
-              </span>
+              <Link className="icon-button" aria-label="Добавить объект" to="/home/new">
+                <Plus size={20} aria-hidden />
+              </Link>
             }
           >
-            <ul className="card-list" aria-label="Объекты за месяц">
-              {objects.map((object) => (
-                <ObjectMonth key={object.id} object={object} />
-              ))}
-            </ul>
-            <p className="muted month-note">
-              Оплата относится к тому месяцу, за который выставлено начисление, а не к дате платежа.
-              Переплата по одному начислению не гасит другое.
-            </p>
+            <CompactEmptyState title="Объектов пока нет" />
           </Section>
-        </>
-      )}
+        ) : (
+          <>
+            {nothing ? (
+              <Section
+                title={`За ${label.toLocaleLowerCase('ru')}`}
+                aside={
+                  first && firstAccount ? (
+                    <Link
+                      className="icon-button"
+                      aria-label="Добавить начисление"
+                      to={`/home/${first.id}/accounts/${firstAccount.id}/charges`}
+                    >
+                      <Plus size={20} aria-hidden />
+                    </Link>
+                  ) : null
+                }
+              >
+                <CompactEmptyState title={`За ${label.toLocaleLowerCase('ru')} начислений нет`} />
+              </Section>
+            ) : null}
+
+            <Section title="Всего">
+              <div className="card">
+                <Money {...totals} />
+              </div>
+            </Section>
+
+            <Section
+              title="Объекты"
+              aside={
+                <span className="muted">
+                  {countWord(objects.length, ['объект', 'объекта', 'объектов'])}
+                </span>
+              }
+            >
+              <ul className="card-list" aria-label="Объекты за месяц">
+                {objects.map((object) => (
+                  <ObjectMonth key={object.id} object={object} />
+                ))}
+              </ul>
+              <p className="muted month-note">
+                Оплата относится к тому месяцу, за который выставлено начисление, а не к дате
+                платежа. Переплата по одному начислению не гасит другое.
+              </p>
+            </Section>
+          </>
+        )}
+      </ContentMotion>
     </Page>
   );
 }

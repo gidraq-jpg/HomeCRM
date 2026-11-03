@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useScope } from '../access/ScopeContext.tsx';
 import { Results } from '../search/Results.tsx';
 import { useSearch } from '../search/useSearch.ts';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import '../search/search.css';
@@ -41,23 +42,33 @@ export function SearchScreen() {
               : 'В общих записях семьи.'}
         </p>
       </div>
-      {q.length === 0 ? (
-        <CompactEmptyState title="Поиск по вашим записям" />
-      ) : q.length < 3 ? (
-        <p role="status" className="muted">
-          Введите хотя бы 3 символа.
-        </p>
-      ) : !result ? (
-        <p role="status" className="muted">
-          Ищем…
-        </p>
-      ) : result.error ? (
-        <p role="alert">Не удалось выполнить поиск. Проверьте подключение и попробуйте ещё раз.</p>
-      ) : result.data?.total === 0 ? (
-        <CompactEmptyState title="Ничего не найдено" />
-      ) : result.data ? (
-        <Results data={result.data} />
-      ) : null}
+      <ContentMotion
+        pending={q.length >= 3 && !result}
+        version={
+          result?.data?.groups.flatMap((group) => group.items.map((item) => item.id)).join(',') ??
+          (result?.error ? 'error' : 'pending')
+        }
+      >
+        {q.length === 0 ? (
+          <CompactEmptyState title="Поиск по вашим записям" />
+        ) : q.length < 3 ? (
+          <p role="status" className="muted">
+            Введите хотя бы 3 символа.
+          </p>
+        ) : !result ? (
+          <p role="status" className="muted">
+            Ищем…
+          </p>
+        ) : result.error ? (
+          <p role="alert">
+            Не удалось выполнить поиск. Проверьте подключение и попробуйте ещё раз.
+          </p>
+        ) : result.data?.total === 0 ? (
+          <CompactEmptyState title="Ничего не найдено" />
+        ) : result.data ? (
+          <Results data={result.data} />
+        ) : null}
+      </ContentMotion>
     </Page>
   );
 }

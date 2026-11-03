@@ -1,6 +1,7 @@
 import { Notice } from '../auth/components.tsx';
 import { formatMoment } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { Status } from '../ui/Row.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import type { Delivery } from './api.ts';
@@ -21,7 +22,7 @@ function Attempt({
 }) {
   const result = resultInfo(delivery.result, delivery.errorCode);
   return (
-    <li className="log-item">
+    <li className="log-item" data-motion-key={delivery.id}>
       <strong>{formatMoment(delivery.attemptedAt, timeZone)}</strong>
       <span className="log-item__kind">{kindLabel(delivery.kind)}</span>
       <span className="log-item__device">{device}</span>
@@ -75,7 +76,12 @@ export function DeliveriesScreen() {
         значит, что служба взяла сообщение; прочитал ли его человек, журнал не знает. Названий
         записей здесь нет.
       </p>
-      {body}
+      <ContentMotion
+        pending={deliveries.isPending}
+        version={deliveries.data?.map((item) => item.id).join(',') ?? 'loading'}
+      >
+        {body}
+      </ContentMotion>
     </Page>
   );
 }

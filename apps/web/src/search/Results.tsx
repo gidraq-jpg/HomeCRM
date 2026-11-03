@@ -12,6 +12,7 @@ import { Link } from '../shell/motion.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { countWord } from '../ui/format.ts';
 import { Section } from '../ui/Page.tsx';
+import { RowList } from '../ui/Row.tsx';
 import type { SearchResult } from './api.ts';
 
 const icons = {
@@ -62,7 +63,7 @@ export function Results({ data }: { data: SearchResult }) {
             title={group.label}
             aside={<span className="muted">{group.items.length}</span>}
           >
-            <ul className="row-list">
+            <RowList>
               {group.items.map((item) => (
                 <li key={item.id} className="search-result">
                   <Link className="row" to={pathOf(item)}>
@@ -92,7 +93,7 @@ export function Results({ data }: { data: SearchResult }) {
                   ) : null}
                 </li>
               ))}
-            </ul>
+            </RowList>
           </Section>
         );
       })}

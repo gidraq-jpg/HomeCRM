@@ -7,8 +7,11 @@ import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { AddAction } from '../shell/AddAction.tsx';
 import { Link } from '../shell/motion.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { countWord, normalizeText } from '../ui/format.ts';
+import { MotionGroups } from '../ui/MotionGroups.tsx';
+import { MotionList } from '../ui/MotionList.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
 import { visibilityOf } from './abilities.ts';
@@ -103,41 +106,49 @@ export function NotesScreen() {
             />
           </div>
         ) : null}
-        {query.data && !shown.length ? (
-          all.length ? (
-            <p className="muted">Ничего не нашли среди загруженных заметок.</p>
-          ) : (
-            <section aria-label="Заметок пока нет">
-              <p className="muted">
-                <span>Заметок пока нет</span>.{' '}
-                {scope === 'all'
-                  ? 'Личное видно только вам, общее — семье.'
-                  : EMPTY_SCOPE_EXPLANATION[scope]}
-              </p>
-            </section>
-          )
-        ) : null}
-        {pinned.length ? (
-          <Section title="Закреплённые">
-            <ul className="notes-pinned" aria-label="Закреплённые заметки">
-              {pinned.map((note) => (
-                <li key={note.id} className="notes-pinned__item">
-                  <Link className="notes-pinned__card" to={`/more/notes/${note.id}`}>
-                    <span className="notes-pinned__title">{note.title}</span>
-                    <span className="notes-pinned__meta">
-                      {VISIBILITY_LABELS[visibilityOf(note)]}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Section>
-        ) : null}
-        {recent.length ? (
-          <Section title="Недавние">
-            <NoteRows notes={recent} label="Недавние заметки" />
-          </Section>
-        ) : null}
+        <ContentMotion pending={query.isPending} version={shown.map((note) => note.id).join(',')}>
+          {query.data && !shown.length ? (
+            all.length ? (
+              <p className="muted">Ничего не нашли среди загруженных заметок.</p>
+            ) : (
+              <section aria-label="Заметок пока нет">
+                <p className="muted">
+                  <span>Заметок пока нет</span>.{' '}
+                  {scope === 'all'
+                    ? 'Личное видно только вам, общее — семье.'
+                    : EMPTY_SCOPE_EXPLANATION[scope]}
+                </p>
+              </section>
+            )
+          ) : null}
+          <MotionGroups version={shown.map((note) => note.id).join(',')}>
+            {pinned.length ? (
+              <Section title="Закреплённые" motionKey="pinned">
+                <MotionList
+                  className="notes-pinned"
+                  label="Закреплённые заметки"
+                  version={pinned.map((note) => note.id).join(',')}
+                >
+                  {pinned.map((note) => (
+                    <li data-motion-key={note.id} key={note.id} className="notes-pinned__item">
+                      <Link className="notes-pinned__card" to={`/more/notes/${note.id}`}>
+                        <span className="notes-pinned__title">{note.title}</span>
+                        <span className="notes-pinned__meta">
+                          {VISIBILITY_LABELS[visibilityOf(note)]}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </MotionList>
+              </Section>
+            ) : null}
+            {recent.length ? (
+              <Section title="Недавние" motionKey="recent">
+                <NoteRows notes={recent} label="Недавние заметки" />
+              </Section>
+            ) : null}
+          </MotionGroups>
+        </ContentMotion>
         {query.hasNextPage ? (
           <button
             type="button"

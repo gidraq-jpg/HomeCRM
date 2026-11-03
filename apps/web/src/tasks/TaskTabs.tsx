@@ -4,7 +4,13 @@ import { useLocation, useNavigate } from 'react-router';
 import { AddAction } from '../shell/AddAction.tsx';
 import { cancelMotionNavigation } from '../shell/motion.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
-import { motionTime, reducedMotion } from '../ui/motion.ts';
+import {
+  motionEasing,
+  motionSnapshot,
+  motionStagger,
+  motionTime,
+  reducedMotion,
+} from '../ui/motion.ts';
 import { rowSwipeDirection, type SwipePoint, swipeDirection } from './swipe.ts';
 import '../styles/studio2-lists.css';
 
@@ -39,6 +45,9 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
     let start: (SwipePoint & { pointerId: number; horizontal: boolean }) | null = null;
     let offset = 0;
     let returnAnimation: Animation | undefined;
+    let stopTabMotion = () => {};
+    let tabGhost: HTMLElement | null = null;
+    let tabGeneration = 0;
     const preview = (show: boolean) => {
       const carousel = main.querySelector<HTMLElement>('.feed-carousel');
       if (!carousel) return;
@@ -66,7 +75,97 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
     const links = () => [
       ...(ref.current?.querySelectorAll<HTMLAnchorElement>('.tabs__link') ?? []),
     ];
-    const change = (next: HTMLAnchorElement, direction: number, _swiped = false) => {
+    const change = (next: HTMLAnchorElement, direction: number, swiped = false) => {
+      const track = content();
+      const oldPane = main.querySelector<HTMLElement>('[data-feed-active="true"]');
+      const snapshot = !swiped && oldPane ? motionSnapshot(tabGhost ?? oldPane) : null;
+      const owner = ++tabGeneration;
+      stopTabMotion();
+      if (!swiped && snapshot && track) {
+        returnAnimation?.cancel();
+        cancelMotionNavigation();
+        const height = track.getBoundingClientRect().height;
+        flushSync(() => {
+          void navigation.current(next.hash.slice(1));
+        });
+        const pane = main.querySelector<HTMLElement>('[data-feed-active="true"]');
+        if (!pane) return;
+        pane.getAnimations({ subtree: true }).forEach((animation) => {
+          animation.cancel();
+        });
+        snapshot.className = 'feed-tab-ghost';
+        track.style.minHeight = `${height}px`;
+        track.append(snapshot);
+        tabGhost = snapshot;
+        const reduce = reducedMotion();
+        const sign = Math.sign(direction);
+        const exit = motionTime('fast');
+        const options = { duration: exit, easing: motionEasing(), fill: 'both' as const };
+        const outgoing = snapshot.animate(
+          reduce
+            ? [{ opacity: snapshot.style.opacity || 1 }, { opacity: 0 }]
+            : [
+                {
+                  opacity: snapshot.style.opacity || 1,
+                  transform: snapshot.style.transform || 'none',
+                },
+                { opacity: 0, transform: `translateX(${-sign * 8}%)` },
+              ],
+          options,
+        );
+        const rows = [
+          ...pane.querySelectorAll<HTMLElement>('[data-motion-key], .row-list > li'),
+        ].filter(
+          (row, _, all) =>
+            !row.closest('[data-motion-ghost]') &&
+            !all.some((other) => other !== row && row.contains(other)),
+        );
+        const targets = rows.length ? rows : [pane];
+        const incoming = targets.map((row, index) =>
+          row.animate(
+            reduce
+              ? [{ opacity: 0 }, { opacity: 1 }]
+              : [
+                  { opacity: 0, transform: `translateX(${sign * 8}%)` },
+                  { opacity: 1, transform: 'translateX(0)' },
+                ],
+            {
+              ...options,
+              duration: motionTime(reduce ? 'fast' : 'base'),
+              delay: reduce ? 0 : exit + motionStagger(index, motionTime('base')),
+            },
+          ),
+        );
+        const reveal = rows.length
+          ? pane.animate([{ opacity: 0 }, { opacity: 1 }], {
+              ...options,
+              duration: 0,
+              delay: reduce ? 0 : exit,
+            })
+          : null;
+        const clean = () => {
+          outgoing.cancel();
+          incoming.forEach((animation) => {
+            animation.cancel();
+          });
+          reveal?.cancel();
+          snapshot.remove();
+          if (tabGeneration === owner) {
+            tabGhost = null;
+            track.style.minHeight = '';
+          }
+        };
+        stopTabMotion = clean;
+        void outgoing.finished.then(
+          () => {
+            if (tabGhost === snapshot) tabGhost = null;
+            snapshot.remove();
+          },
+          () => {},
+        );
+        void Promise.allSettled(incoming.map((animation) => animation.finished)).then(clean);
+        return;
+      }
       const root = document.documentElement;
       const node = content();
       const width = node?.getBoundingClientRect().width ?? 0;
@@ -160,6 +259,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
         )
       )
         return;
+      stopTabMotion();
       for (
         let element: Element | null = event.target;
         element && element !== main;
@@ -190,6 +290,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
       start.horizontal = true;
       main.setPointerCapture(event.pointerId);
       returnAnimation?.cancel();
+      stopTabMotion();
       const items = links();
       const index = items.findIndex((link) => link.getAttribute('aria-current') === 'page');
       offset = event.clientX - start.x;
@@ -285,6 +386,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
       main.removeEventListener('dragstart', cancel);
       main.removeEventListener('click', click, true);
       returnAnimation?.cancel();
+      stopTabMotion();
       const node = content();
       if (node) node.style.transform = '';
     };

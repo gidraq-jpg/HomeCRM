@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { apiRequest } from '../auth/api.ts';
 import { ErrorNotice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
+import { MotionGroups } from '../ui/MotionGroups.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { CompactDraft } from './CompactDraft.tsx';
@@ -57,139 +58,145 @@ export function ChatDrafts({
           )}
         </select>
       </label>
-      {rows.map((row) => {
-        const d = edits[row.id] ?? row.chatDraft;
-        if (!d) return null;
-        const edit = (patch: Partial<ChatItem>) =>
-          setEdits((v) => ({ ...v, [row.id]: { ...d, ...patch } }));
-        return (
-          <div key={row.id} className="auth-form">
-            <CompactDraft
-              kind={d.kind}
-              title={d.title}
-              fields={Object.fromEntries(Object.entries(d).map(([key, value]) => [key, { value }]))}
-              place={space === 'personal' ? 'Только я' : space === 'adults' ? 'Взрослые' : 'Семья'}
-              review={d.uncertain.length > 0}
-              selected={selected.includes(row.id)}
-              onSelect={(value) =>
-                setExcluded((v) => (value ? v.filter((id) => id !== row.id) : [...v, row.id]))
-              }
-              onEdit={() => setEditing(row.id)}
-            />
-            {editing === row.id ? (
-              <Sheet
-                open
-                title="Изменить черновик"
-                description="Проверьте все поля."
-                onOpenChange={() => setEditing(null)}
-              >
-                <label className="auth-field">
-                  Название
-                  <input value={d.title} onChange={(e) => edit({ title: e.target.value })} />
-                </label>
-                <label className="auth-field">
-                  Текст
-                  <textarea value={d.body} onChange={(e) => edit({ body: e.target.value })} />
-                </label>
-                {d.uncertain.length > 0 && (
-                  <p>Проверьте неуверенные поля: {d.uncertain.map((k) => names[k]).join(', ')}</p>
+      <MotionGroups version={rows.map((row) => row.id).join(',')}>
+        {rows.map((row) => {
+          const d = edits[row.id] ?? row.chatDraft;
+          if (!d) return null;
+          const edit = (patch: Partial<ChatItem>) =>
+            setEdits((v) => ({ ...v, [row.id]: { ...d, ...patch } }));
+          return (
+            <div data-motion-key={row.id} key={row.id} className="auth-form">
+              <CompactDraft
+                kind={d.kind}
+                title={d.title}
+                fields={Object.fromEntries(
+                  Object.entries(d).map(([key, value]) => [key, { value }]),
                 )}
-                <label className="auth-field">
-                  Тип черновика
-                  <select
-                    value={d.kind}
-                    onChange={(e) => edit({ kind: e.target.value as ChatItem['kind'] })}
-                  >
-                    {['task', 'note', 'shopping', 'object', 'contact', 'meter'].map((kind) => (
-                      <option key={kind} value={kind}>
-                        {names[kind]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {(d.kind === 'task' || d.kind === 'meter') && (
-                  <>
-                    <label className="auth-field">
-                      Дата в часовом поясе дома
-                      <input
-                        type="date"
-                        value={d.date ?? ''}
-                        onChange={(e) => edit({ date: e.target.value || null })}
-                      />
-                    </label>
-                    <label className="auth-field">
-                      Время
-                      <input
-                        type="time"
-                        value={d.time ?? ''}
-                        onChange={(e) => edit({ time: e.target.value || null })}
-                      />
-                    </label>
-                  </>
-                )}
-                {d.kind === 'meter' && (
+                place={
+                  space === 'personal' ? 'Только я' : space === 'adults' ? 'Взрослые' : 'Семья'
+                }
+                review={d.uncertain.length > 0}
+                selected={selected.includes(row.id)}
+                onSelect={(value) =>
+                  setExcluded((v) => (value ? v.filter((id) => id !== row.id) : [...v, row.id]))
+                }
+                onEdit={() => setEditing(row.id)}
+              />
+              {editing === row.id ? (
+                <Sheet
+                  open
+                  title="Изменить черновик"
+                  description="Проверьте все поля."
+                  onOpenChange={() => setEditing(null)}
+                >
                   <label className="auth-field">
-                    Точные показания через пробел
-                    <input
-                      value={d.values?.join(' ') ?? ''}
-                      onChange={(e) => edit({ values: e.target.value.split(' ') })}
-                    />
+                    Название
+                    <input value={d.title} onChange={(e) => edit({ title: e.target.value })} />
                   </label>
-                )}
-                {d.kind === 'shopping' && (
                   <label className="auth-field">
-                    Количество
-                    <input
-                      value={d.quantity ?? ''}
-                      onChange={(e) => edit({ quantity: e.target.value || null })}
-                    />
+                    Текст
+                    <textarea value={d.body} onChange={(e) => edit({ body: e.target.value })} />
                   </label>
-                )}
-                {d.kind === 'object' && (
+                  {d.uncertain.length > 0 && (
+                    <p>Проверьте неуверенные поля: {d.uncertain.map((k) => names[k]).join(', ')}</p>
+                  )}
                   <label className="auth-field">
-                    Вид объекта
+                    Тип черновика
                     <select
-                      value={d.objectType}
-                      onChange={(e) =>
-                        edit({ objectType: e.target.value as ChatItem['objectType'] })
-                      }
+                      value={d.kind}
+                      onChange={(e) => edit({ kind: e.target.value as ChatItem['kind'] })}
                     >
-                      <option value="other">Другое</option>
-                      <option value="property">Недвижимость</option>
-                      <option value="car">Автомобиль</option>
-                      <option value="appliance">Техника</option>
+                      {['task', 'note', 'shopping', 'object', 'contact', 'meter'].map((kind) => (
+                        <option key={kind} value={kind}>
+                          {names[kind]}
+                        </option>
+                      ))}
                     </select>
                   </label>
-                )}
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={() => {
-                    edit({ uncertain: [] });
-                    setEditing(null);
-                  }}
-                >
-                  Готово
-                </button>
-              </Sheet>
-            ) : null}
-            <button
-              className="text-button"
-              type="button"
-              disabled={state.disabled}
-              onClick={() =>
-                void state.run(async () => {
-                  await apiRequest('POST', `inbox/${row.id}/trash`, Ok, {});
-                  setExcluded((v) => v.filter((id) => id !== row.id));
-                  await refresh();
-                })
-              }
-            >
-              Удалить черновик
-            </button>
-          </div>
-        );
-      })}
+                  {(d.kind === 'task' || d.kind === 'meter') && (
+                    <>
+                      <label className="auth-field">
+                        Дата в часовом поясе дома
+                        <input
+                          type="date"
+                          value={d.date ?? ''}
+                          onChange={(e) => edit({ date: e.target.value || null })}
+                        />
+                      </label>
+                      <label className="auth-field">
+                        Время
+                        <input
+                          type="time"
+                          value={d.time ?? ''}
+                          onChange={(e) => edit({ time: e.target.value || null })}
+                        />
+                      </label>
+                    </>
+                  )}
+                  {d.kind === 'meter' && (
+                    <label className="auth-field">
+                      Точные показания через пробел
+                      <input
+                        value={d.values?.join(' ') ?? ''}
+                        onChange={(e) => edit({ values: e.target.value.split(' ') })}
+                      />
+                    </label>
+                  )}
+                  {d.kind === 'shopping' && (
+                    <label className="auth-field">
+                      Количество
+                      <input
+                        value={d.quantity ?? ''}
+                        onChange={(e) => edit({ quantity: e.target.value || null })}
+                      />
+                    </label>
+                  )}
+                  {d.kind === 'object' && (
+                    <label className="auth-field">
+                      Вид объекта
+                      <select
+                        value={d.objectType}
+                        onChange={(e) =>
+                          edit({ objectType: e.target.value as ChatItem['objectType'] })
+                        }
+                      >
+                        <option value="other">Другое</option>
+                        <option value="property">Недвижимость</option>
+                        <option value="car">Автомобиль</option>
+                        <option value="appliance">Техника</option>
+                      </select>
+                    </label>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => {
+                      edit({ uncertain: [] });
+                      setEditing(null);
+                    }}
+                  >
+                    Готово
+                  </button>
+                </Sheet>
+              ) : null}
+              <button
+                className="text-button"
+                type="button"
+                disabled={state.disabled}
+                onClick={() =>
+                  void state.run(async () => {
+                    await apiRequest('POST', `inbox/${row.id}/trash`, Ok, {});
+                    setExcluded((v) => v.filter((id) => id !== row.id));
+                    await refresh();
+                  })
+                }
+              >
+                Удалить черновик
+              </button>
+            </div>
+          );
+        })}
+      </MotionGroups>
       <button
         className="btn btn--primary"
         type="button"

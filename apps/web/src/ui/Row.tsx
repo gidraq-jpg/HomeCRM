@@ -3,9 +3,10 @@ import { Children, type ReactNode, useLayoutEffect, useRef } from 'react';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { Link } from '../shell/motion.tsx';
+import { ContentMotion } from './ContentMotion.tsx';
 import { useListMotion } from './useListMotion.ts';
 
-export function RowList({ children, label }: { children: ReactNode; label?: string }) {
+function RowListBody({ children, label }: { children: ReactNode; label?: string }) {
   const ref = useRef<HTMLUListElement>(null);
   useLayoutEffect(() => {
     const keys = Children.toArray(children).map((child) =>
@@ -28,6 +29,17 @@ export function RowList({ children, label }: { children: ReactNode; label?: stri
     <ul className="row-list" aria-label={label} ref={ref}>
       {children}
     </ul>
+  );
+}
+
+export function RowList({ children, label }: { children: ReactNode; label?: string }) {
+  const version = Children.toArray(children)
+    .map((child) => (typeof child === 'object' && 'key' in child ? child.key : ''))
+    .join(',');
+  return (
+    <ContentMotion version={version}>
+      <RowListBody label={label}>{children}</RowListBody>
+    </ContentMotion>
   );
 }
 

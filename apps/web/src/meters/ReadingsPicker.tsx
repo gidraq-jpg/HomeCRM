@@ -7,6 +7,7 @@ import type { ObjectSummary } from '../objects/api.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { useObjectsList } from '../objects/queries.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
@@ -65,27 +66,33 @@ export function ReadingsPicker() {
           </button>
         </>
       ) : null}
-      {query.data && properties.length === 0 ? (
-        <EmptyState icon={<Buildings size={24} aria-hidden />} title="Недвижимости пока нет">
-          <p>
-            Показания вводятся по квартире, дому или даче. Сначала добавьте объект в разделе «Дом».
-          </p>
-        </EmptyState>
-      ) : null}
-      {withWindow.length > 0 ? (
-        <Section title="Открыто окно показаний">
-          <PropertyList label="Недвижимость с открытым окном" objects={withWindow} />
-        </Section>
-      ) : null}
-      {others.length > 0 ? (
-        withWindow.length > 0 ? (
-          <Section title="Остальная недвижимость">
-            <PropertyList label="Остальная недвижимость" objects={others} />
+      <ContentMotion
+        pending={query.isPending}
+        version={properties.map((item) => item.id).join(',')}
+      >
+        {query.data && properties.length === 0 ? (
+          <EmptyState icon={<Buildings size={24} aria-hidden />} title="Недвижимости пока нет">
+            <p>
+              Показания вводятся по квартире, дому или даче. Сначала добавьте объект в разделе
+              «Дом».
+            </p>
+          </EmptyState>
+        ) : null}
+        {withWindow.length > 0 ? (
+          <Section title="Открыто окно показаний">
+            <PropertyList label="Недвижимость с открытым окном" objects={withWindow} />
           </Section>
-        ) : (
-          <PropertyList label="Недвижимость" objects={others} />
-        )
-      ) : null}
+        ) : null}
+        {others.length > 0 ? (
+          withWindow.length > 0 ? (
+            <Section title="Остальная недвижимость">
+              <PropertyList label="Остальная недвижимость" objects={others} />
+            </Section>
+          ) : (
+            <PropertyList label="Недвижимость" objects={others} />
+          )
+        ) : null}
+      </ContentMotion>
     </Page>
   );
 }

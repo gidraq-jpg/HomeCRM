@@ -235,6 +235,7 @@ export function DocumentsScreen() {
       </div>
 
       <ContentMotion
+        pending={list.isPending}
         version={list.isPending ? 'loading' : all.map((card) => card.id + card.status).join(',')}
       >
         {list.isPending ? <ListSkeleton label="Загружаем документы…" /> : null}

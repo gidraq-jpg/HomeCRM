@@ -8,6 +8,7 @@ import { useCanCreateOrganization } from '../organizations/CreateOrganization.ts
 import { ORGANIZATION_TYPE_LABELS } from '../organizations/form.ts';
 import { Link } from '../shell/motion.tsx';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
@@ -155,44 +156,46 @@ export function ContactsList() {
         </>
       ) : null}
 
-      {query.data && items.length === 0 ? (
-        <CompactEmptyState title={searching ? 'Ничего не нашлось' : 'Контактов пока нет'}>
-          {searching ? (
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                setText('');
-                setChoice('all');
-              }}
-            >
-              Сбросить поиск и фильтр
-            </button>
-          ) : null}
-        </CompactEmptyState>
-      ) : null}
+      <ContentMotion pending={query.isPending} version={items.map((item) => item.id).join(',')}>
+        {query.data && items.length === 0 ? (
+          <CompactEmptyState title={searching ? 'Ничего не нашлось' : 'Контактов пока нет'}>
+            {searching ? (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  setText('');
+                  setChoice('all');
+                }}
+              >
+                Сбросить поиск и фильтр
+              </button>
+            ) : null}
+          </CompactEmptyState>
+        ) : null}
 
-      {items.length > 0 ? (
-        <>
-          <RowList label="Контакты">
-            {items.map((contact) => (
-              <ContactRow key={contact.id} contact={contact} />
-            ))}
-          </RowList>
-          {query.hasNextPage ? (
-            <button
-              type="button"
-              className="btn btn--secondary btn--block list-action"
-              disabled={query.isFetchingNextPage}
-              onClick={() => void query.fetchNextPage()}
-            >
-              {query.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
-            </button>
-          ) : null}
-          {query.isError ? <ObjectError error={query.error} action="load" /> : null}
-          {add}
-        </>
-      ) : null}
+        {items.length > 0 ? (
+          <>
+            <RowList label="Контакты">
+              {items.map((contact) => (
+                <ContactRow key={contact.id} contact={contact} />
+              ))}
+            </RowList>
+            {query.hasNextPage ? (
+              <button
+                type="button"
+                className="btn btn--secondary btn--block list-action"
+                disabled={query.isFetchingNextPage}
+                onClick={() => void query.fetchNextPage()}
+              >
+                {query.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
+              </button>
+            ) : null}
+            {query.isError ? <ObjectError error={query.error} action="load" /> : null}
+            {add}
+          </>
+        ) : null}
+      </ContentMotion>
     </section>
   );
 }

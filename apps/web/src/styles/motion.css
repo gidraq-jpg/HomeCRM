@@ -599,3 +599,70 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
   transform-box: fill-box;
   transform-origin: center bottom;
 }
+
+.feed-carousel {
+  position: relative;
+}
+.feed-tab-ghost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tabs__list {
+  position: relative;
+  isolation: isolate;
+}
+.tab-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  background: var(--soft);
+  border-radius: 999px;
+  pointer-events: none;
+  transition:
+    transform var(--motion-base) var(--ease-out),
+    width var(--motion-base) var(--ease-out);
+}
+.feed-heading__variant {
+  opacity: 1;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+.feed-heading__variant[data-feed-heading-active="false"] {
+  opacity: 0;
+  visibility: visible;
+  pointer-events: none;
+}
+.form-submit-bar {
+  position: relative;
+}
+.form-submit-bar button {
+  min-inline-size: 10em;
+}
+.submit-state-ghost {
+  position: absolute;
+  pointer-events: none;
+  margin: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-indicator {
+    transition: none;
+  }
+}
+
+.tab-indicator {
+  display: none;
+}
+html[data-design="studio"] .tab-indicator {
+  display: block;
+  background: var(--accent);
+  border-radius: 0;
+}
+html[data-design="studio"] .tabs .tabs__link[aria-current="page"] {
+  background: transparent;
+  border-color: transparent;
+}
+
+html[data-design="studio"] .today-metric {
+  min-inline-size: 44px;
+}

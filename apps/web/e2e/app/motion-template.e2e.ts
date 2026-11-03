@@ -28,7 +28,9 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       await status.focus();
       await status.selectOption('open');
       await settle(page);
-      await expect(page.locator('.content-motion li[data-motion-key]')).toHaveCount(4);
+      await expect(
+        page.locator('[data-feed-active="true"] .content-motion li[data-motion-key]'),
+      ).toHaveCount(4);
       // Отслеживаем запуск до серверного ответа: ключ результата меняется только после новых данных.
       await page.evaluate(() => {
         const original = Element.prototype.animate;
@@ -46,9 +48,11 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
         };
       });
       await status.selectOption('done');
-      await expect(page.locator('.content-motion > [data-motion-ghost]')).toHaveCount(1);
+      await expect(
+        page.locator('[data-feed-active="true"] .content-motion > [data-motion-ghost]'),
+      ).toHaveCount(1);
       await expect(status).toBeFocused();
-      const ghost = page.locator('.content-motion > [data-motion-ghost]');
+      const ghost = page.locator('[data-feed-active="true"] .content-motion > [data-motion-ghost]');
       await expect(ghost).toHaveAttribute('aria-hidden', 'true');
       expect(await ghost.evaluate((node) => (node as HTMLElement).inert)).toBe(true);
       await page.screenshot({ path: info.outputPath('transition-start.png') });
@@ -61,6 +65,19 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
           });
       });
       await page.screenshot({ path: info.outputPath('transition-middle.png') });
+      const beforeRapid = await ghost.evaluate((node) => ({
+        left: node.getBoundingClientRect().left,
+        opacity: Number(getComputedStyle(node).opacity),
+      }));
+      await status.selectOption('open');
+      const afterRapid = await ghost.evaluate((node) => ({
+        left: node.getBoundingClientRect().left,
+        opacity: Number(getComputedStyle(node).opacity),
+      }));
+      expect(afterRapid.left).toBeCloseTo(beforeRapid.left, 1);
+      expect(afterRapid.opacity).toBeCloseTo(beforeRapid.opacity, 2);
+      await status.selectOption('done');
+
       if (reducedMotion === 'reduce') {
         const calls = await page.evaluate(
           () =>
@@ -88,7 +105,9 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
           });
       });
       await settle(page);
-      await expect(page.locator('.content-motion > [data-motion-ghost]')).toHaveCount(0);
+      await expect(
+        page.locator('[data-feed-active="true"] .content-motion > [data-motion-ghost]'),
+      ).toHaveCount(0);
       const calls = await page.evaluate(
         () => (window as unknown as { motionCalls: unknown[] }).motionCalls.length,
       );
@@ -105,7 +124,9 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       await status.selectOption('cancelled');
       await expect(page.getByText('Дел под выбранные условия нет.')).toBeVisible();
       await settle(page);
-      await expect(page.locator('.content-motion [data-motion-ghost]')).toHaveCount(0);
+      await expect(
+        page.locator('[data-feed-active="true"] .content-motion [data-motion-ghost]'),
+      ).toHaveCount(0);
       await expect(status).toBeFocused();
       await checkScreen(page, info, `motion-template-empty-${reducedMotion}`);
       await status.selectOption('open');
@@ -115,7 +136,9 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
         Object.assign(window, { motionPause: true });
       });
       await status.selectOption('cancelled');
-      const leaving = page.locator('.content-motion > [data-motion-ghost]');
+      const leaving = page.locator(
+        '[data-feed-active="true"] .content-motion > [data-motion-ghost]',
+      );
       await expect(leaving).toHaveCount(1);
       const geometry = await leaving.evaluate((node) => ({
         old: node.getBoundingClientRect().height,
