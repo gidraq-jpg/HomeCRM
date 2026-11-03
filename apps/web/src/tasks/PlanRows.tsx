@@ -92,7 +92,6 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
             : null;
         const late = overdueDays(card, today);
         const metadata = [
-          card.repeatRule ? '↻' : null,
           dates && card.planOn ? formatDateOnly(card.planOn) : null,
           card.planTime,
           late ? overdueText(late) : null,
@@ -144,8 +143,15 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
               onClick={remember}
             >
               <span className="plan-row__title">{card.title}</span>
-              {metadata.length ? (
+              {metadata.length || card.repeatRule ? (
                 <span className={late ? 'plan-row__meta plan-row__meta--late' : 'plan-row__meta'}>
+                  {card.repeatRule ? (
+                    <>
+                      <span role="img" aria-label="Повторяется">
+                        ↻
+                      </span>{' '}
+                    </>
+                  ) : null}
                   {metadata.join(' · ')}
                 </span>
               ) : null}

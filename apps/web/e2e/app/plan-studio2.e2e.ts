@@ -103,7 +103,9 @@ for (const textScale of [1, 2]) {
     ).toBeVisible();
     await plan(page);
     const width = info.project.use.viewport?.width;
-    await expect(page.getByText('18:00 · Вымышленная дача · Вся семья')).toBeVisible();
+    await expect(
+      page.locator('[data-feed-active="true"]').getByText('18:00 · Вымышленная дача'),
+    ).toBeVisible();
     await expect(page.getByRole('img', { name: 'Повторяется' })).toBeVisible();
     await expect(
       page.locator('[data-feed-active="true"]').getByText('→ Анна', { exact: false }),

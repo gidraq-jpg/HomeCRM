@@ -179,7 +179,8 @@ for (const width of [412, 1440])
             .locator('.swipe-task:not([data-motion-ghost])')
             .filter({ has: demo.getByRole('group', { name: `Дело: ${title}`, exact: true }) });
           await expect(row).toBeVisible();
-          await row.scrollIntoViewIfNeeded();
+          // Короткие строки помещаются под плавающее меню: ставим строку в середину экрана.
+          await row.evaluate((element) => element.scrollIntoView({ block: 'center' }));
           await settle(demo);
           await demo.evaluate(() => {
             (window as unknown as { flight: Observation }).flight = { samples: [], duration: 0 };
