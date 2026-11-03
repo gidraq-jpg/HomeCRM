@@ -37,13 +37,14 @@ test('SHOP-3: пять строк, количество, дубли и отме�
   await expect(
     page.getByText('Добавлены 2 покупки. Пропущено дублей: 1', { exact: true }),
   ).toBeVisible();
+  await page.getByRole('button', { name: /^Количество .*, изменить: Молоко$/ }).click();
   await page.getByRole('button', { name: 'Увеличить количество: Молоко' }).click();
   const row = page
     .locator('li.task-row')
     .filter({ has: page.getByRole('link', { name: 'Молоко', exact: true }) });
-  await expect(row.locator('.shopping-quantity')).toHaveText('3 л');
+  await expect(row.locator('.shopping-quantity')).toHaveText('×3 л');
   await page.getByRole('button', { name: 'Уменьшить количество: Молоко' }).click();
-  await expect(row.locator('.shopping-quantity')).toHaveText('2 л');
+  await expect(row.locator('.shopping-quantity')).toHaveText('×2 л');
   const api = await apiAs(family, 'adult');
   const saved = await api.get(
     `shopping?scope=household&spaceId=${family.houseId}&trash=false&bought=all`,

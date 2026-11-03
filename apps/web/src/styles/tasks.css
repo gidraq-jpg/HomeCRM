@@ -64,18 +64,6 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.task-feed-item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.task-feed-item .row {
-  flex: 1;
-  min-width: 200px;
-}
-.task-feed-item__done {
-  margin: 0 12px 12px auto;
-}
 .task-completed summary {
   min-height: 44px;
   padding-block: 12px;

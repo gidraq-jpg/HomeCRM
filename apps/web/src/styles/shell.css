@@ -632,17 +632,23 @@ html[data-design="studio"] .page-heading__eyebrow {
   font-weight: 400;
 }
 
+html[data-design="studio"] .section {
+  margin-bottom: var(--space-5);
+}
+
 html[data-design="studio"] .section__title {
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: var(--text-section);
+  font-weight: var(--weight-section);
+  line-height: var(--leading-section);
 }
 
 html[data-design="studio"] .section__title--eyebrow {
   padding-left: 0;
   border: 0;
-  color: var(--ink);
-  font-size: 1rem;
+  color: var(--text-subtle);
+  font-size: var(--text-section);
   letter-spacing: normal;
+  line-height: var(--leading-section);
   text-transform: none;
 }
 

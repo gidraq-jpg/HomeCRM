@@ -1,7 +1,7 @@
 .shopping-quick {
-  margin: var(--space-5, 20px) 0;
+  margin: var(--space-5) 0;
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .shopping-quick__line {
   display: flex;
