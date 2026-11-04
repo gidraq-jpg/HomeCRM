@@ -27,6 +27,7 @@ interface RecordPageProps {
   onActionsOpenChange?: (open: boolean) => void;
   actionsOpen?: boolean;
   children: ReactNode;
+  compactCard?: boolean;
 }
 
 /** Шапка по карточке объекта; операции и существующие подтверждения передаются самим экраном. */
@@ -49,6 +50,7 @@ export function RecordPage({
   actionsOpen,
   actionsRef,
   children,
+  compactCard = false,
 }: RecordPageProps) {
   const [panel, setPanel] = useState<'more' | 'access' | null>(null);
   useEffect(() => {
@@ -63,7 +65,7 @@ export function RecordPage({
     <Page
       title={title}
       documentTitle={documentTitle}
-      className={`ui6-record-page ${editing ? 'ui7-fullscreen-form' : ''}`}
+      className={`ui6-record-page ${compactCard ? 'approved-record-card' : ''} ${editing ? 'ui7-fullscreen-form' : ''}`}
       heading={
         editing ? (
           <FormHeading title={title} back={back} />
@@ -74,7 +76,7 @@ export function RecordPage({
                 <CaretLeft size={20} aria-hidden />
                 {back.label}
               </Link>
-              <AddAction />
+              {!compactCard ? <AddAction /> : null}
               {onEdit ? (
                 <button
                   className="icon-button"
@@ -101,8 +103,9 @@ export function RecordPage({
                 <DotsThree size={24} aria-hidden />
               </button>
             </div>
-            <p className="object-hero__type">{type}</p>
+            {!compactCard ? <p className="object-hero__type">{type}</p> : null}
             <h1>{title}</h1>
+            {compactCard ? <p className="object-hero__type">{type}</p> : null}
             <div className="object-hero__meta">
               {subtitle ? <span>{subtitle}</span> : null}
               {access || onAccess ? (
@@ -122,7 +125,7 @@ export function RecordPage({
                 badge
               )}
             </div>
-            {facts.length ? (
+            {!compactCard && facts.length ? (
               <dl className="object-facts">
                 {facts.slice(0, 3).map((fact) => (
                   <div key={fact.label}>
@@ -136,7 +139,19 @@ export function RecordPage({
         )
       }
     >
-      <div className="studio-panel studio-list-panel ui6-panel ui6-record-panel">{children}</div>
+      <div className="studio-panel studio-list-panel ui6-panel ui6-record-panel">
+        {compactCard && !editing && facts.length ? (
+          <dl className="approved-card-facts">
+            {facts.map((fact) => (
+              <div key={fact.label}>
+                <dt>{fact.label}</dt>
+                <dd>{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+        {children}
+      </div>
       <Sheet
         open={panel !== null}
         onOpenChange={(open) => {

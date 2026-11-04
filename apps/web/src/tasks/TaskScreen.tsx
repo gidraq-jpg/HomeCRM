@@ -57,6 +57,7 @@ function TaskView({ card }: { card: TimedTask }) {
   const client = useQueryClient();
   const refresh = useRefreshTasks();
   const settings = useSettings();
+  const historyState = useTaskHistory(card.id);
   const calendar = useToday(card.householdId);
   const feedActions = useFeedActions<TaskCard>((updated) => {
     client.setQueryData(['tasks', me.id, 'card', card.id], { ...card, ...updated });
@@ -184,6 +185,7 @@ function TaskView({ card }: { card: TimedTask }) {
   });
   return (
     <RecordPage
+      compactCard
       actionsRef={recordActions}
       actionsOpen={actionsOpen}
       onActionsOpenChange={setActionsOpen}
@@ -244,6 +246,7 @@ function TaskView({ card }: { card: TimedTask }) {
               `${card.dueOn ? formatDateOnly(card.dueOn) : 'Не задан'} ${card.dueTime ?? ''}`
             ),
         },
+        { label: 'Исполнитель', value: <TaskAssignee card={card} /> },
         { label: 'Повтор', value: repeatLabel(card.repeatRule) || 'Без повтора' },
       ]}
       more={
@@ -415,6 +418,51 @@ function TaskView({ card }: { card: TimedTask }) {
       ) : (
         <>
           {card.deletedAt ? <Notice>Дело в корзине. Правки недоступны.</Notice> : null}
+          <p className="task-description">{card.description || 'Описания нет.'}</p>
+          <dl className="facts">
+            {card.status === 'waiting' ? (
+              <div className="facts__item">
+                <dt>Жду</dt>
+                <dd>
+                  {card.waitingFrom?.title ?? 'Адресат недоступен'} · проверить{' '}
+                  {card.checkOn ? formatDateOnly(card.checkOn) : 'дату'}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+          {card.checklist.length ? (
+            <Section title="Чек-лист">
+              <ul className="task-list">
+                {[...card.checklist]
+                  .sort((a, b) => a.position - b.position)
+                  .map((item) => (
+                    <li key={item.id}>
+                      <label className="task-check-row">
+                        <input
+                          type="checkbox"
+                          checked={item.done}
+                          disabled={!active || operation.pending}
+                          onChange={(event) =>
+                            void operation.run({
+                              path: `tasks/${card.id}`,
+                              method: 'PATCH',
+                              body: {
+                                checklist: card.checklist.map((row) =>
+                                  row.id === item.id ? { ...row, done: event.target.checked } : row,
+                                ),
+                                expectedUpdatedAt: card.updatedAt,
+                              },
+                              keyed: true,
+                            })
+                          }
+                        />
+                        <span>{item.title}</span>
+                      </label>
+                    </li>
+                  ))}
+              </ul>
+            </Section>
+          ) : null}
           {active && ['open', 'waiting'].includes(card.status) ? (
             <div className="ui6-primary">
               <button
@@ -473,61 +521,23 @@ function TaskView({ card }: { card: TimedTask }) {
               ) : null}
             </div>
           ) : null}
-          <p className="task-description">{card.description || 'Описания нет.'}</p>
-          <dl className="facts">
-            {card.status === 'waiting' ? (
-              <div className="facts__item">
-                <dt>Жду</dt>
-                <dd>
-                  {card.waitingFrom?.title ?? 'Адресат недоступен'} · проверить{' '}
-                  {card.checkOn ? formatDateOnly(card.checkOn) : 'дату'}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-          <TaskAssignee card={card} />
-          {card.checklist.length ? (
-            <Section title="Чек-лист">
-              <ul className="task-list">
-                {[...card.checklist]
-                  .sort((a, b) => a.position - b.position)
-                  .map((item) => (
-                    <li key={item.id}>
-                      <label className="task-check-row">
-                        <input
-                          type="checkbox"
-                          checked={item.done}
-                          disabled={!active || operation.pending}
-                          onChange={(event) =>
-                            void operation.run({
-                              path: `tasks/${card.id}`,
-                              method: 'PATCH',
-                              body: {
-                                checklist: card.checklist.map((row) =>
-                                  row.id === item.id ? { ...row, done: event.target.checked } : row,
-                                ),
-                                expectedUpdatedAt: card.updatedAt,
-                              },
-                              keyed: true,
-                            })
-                          }
-                        />
-                        <span>{item.title}</span>
-                      </label>
-                    </li>
-                  ))}
-              </ul>
-            </Section>
-          ) : null}
-          <FilesSection
-            compact
-            parent={{ kind: 'task', id: card.id }}
-            card={card}
-            canAdd={active}
-            refresh={refresh}
-          />
-          <TaskLinks card={card} />
-          <History card={card} />
+          <div className="approved-card-details">
+            <details className="approved-card-fold">
+              <summary>Файлы</summary>
+              <FilesSection
+                compact
+                parent={{ kind: 'task', id: card.id }}
+                card={card}
+                canAdd={active}
+                refresh={refresh}
+              />
+            </details>
+            <TaskLinks card={card} />
+            <details className="approved-card-fold" open={historyState.error ? true : undefined}>
+              <summary>История дела</summary>
+              <History card={card} />
+            </details>
+          </div>
         </>
       )}
       {feedActions.moving && calendar.data ? (
@@ -654,13 +664,12 @@ function TaskAssignee({ card }: { card: TaskCard }) {
   const { me, householdId } = useHousehold();
   const members = useTaskMembers(card.householdId ?? householdId);
   return (
-    <p className="muted">
-      Исполнитель:{' '}
+    <span>
       {card.assigneeId === me.id
         ? 'Вы'
         : (members.data?.find((person) => person.accountId === card.assigneeId)?.displayName ??
           'участник дома')}
-    </p>
+    </span>
   );
 }
 function History({ card }: { card: TaskCard }) {

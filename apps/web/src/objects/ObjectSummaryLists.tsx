@@ -69,74 +69,69 @@ export function ObjectSummaryLists({ card }: { card: ObjectCard }) {
           </Link>
         </Section>
       ) : null}
-      <Section
-        title="Документы"
-        aside={
-          <Link className="icon-button" to="/documents/new" aria-label="Добавить документ">
-            <Plus size={20} aria-hidden />
-          </Link>
-        }
-      >
-        {documents.isPending ? (
-          <p className="muted">Загружаем документы…</p>
-        ) : documents.error ? (
-          <button type="button" className="text-button" onClick={() => void documents.refetch()}>
-            Повторить загрузку документов
-          </button>
-        ) : documents.data?.length ? (
-          <DocumentRows documents={documents.data} label="Документы объекта" />
-        ) : (
-          <p className="muted studio-empty">Документов пока нет</p>
-        )}
-      </Section>
-      <Section
-        title="Дела"
-        aside={
-          <Link
-            className="icon-button"
-            to={`/today/new?objectId=${card.id}`}
-            aria-label="Добавить дело к объекту"
-          >
-            <Plus size={20} aria-hidden />
-          </Link>
-        }
-      >
-        {tasks.error ? <QueryNotice query={tasks} /> : null}
-        {/* Загрузка и пустой ответ занимают одинаковую строку: факты ниже не прыгают. */}
-        {tasks.isPending ? (
-          <p className="muted studio-empty">Загружаем дела…</p>
-        ) : tasks.data?.pages.some((page) => page.length > 0) ? (
-          <TaskRows tasks={uniqueTasks(tasks.data.pages.flat())} label="Дела объекта" />
-        ) : tasks.data ? (
-          <p className="muted studio-empty">Дел пока нет</p>
-        ) : null}
-        <LoadMore query={tasks} label="Показать ещё дела объекта" />
-      </Section>
-      <Section
-        title="Файлы"
-        aside={
-          abilities.edit ? (
-            <Link className="icon-button" to={`${base}/files`} aria-label="Добавить файл к объекту">
-              <Plus size={20} aria-hidden />
-            </Link>
-          ) : null
-        }
-      >
-        {card.files.length ? (
-          <RowList label="Файлы объекта">
-            {card.files.map((file) => (
-              <Row
-                key={file.id}
+      <details className="approved-card-fold" open={documents.error ? true : undefined}>
+        <summary>Документы</summary>
+        <Section title="Документы">
+          {documents.isPending ? (
+            <p className="muted">Загружаем документы…</p>
+          ) : documents.error ? (
+            <button type="button" className="text-button" onClick={() => void documents.refetch()}>
+              Повторить загрузку документов
+            </button>
+          ) : documents.data?.length ? (
+            <DocumentRows documents={documents.data} label="Документы объекта" />
+          ) : (
+            <p className="muted studio-empty">Документов пока нет</p>
+          )}
+        </Section>
+      </details>
+      <details className="approved-card-fold" open={tasks.error ? true : undefined}>
+        <summary>Дела</summary>
+        <Section title="Дела">
+          {tasks.error ? <QueryNotice query={tasks} /> : null}
+          {/* Загрузка и пустой ответ занимают одинаковую строку: факты ниже не прыгают. */}
+          {tasks.isPending ? (
+            <p className="muted studio-empty">Загружаем дела…</p>
+          ) : tasks.data?.pages.some((page) => page.length > 0) ? (
+            <TaskRows tasks={uniqueTasks(tasks.data.pages.flat())} label="Дела объекта" />
+          ) : tasks.data ? (
+            <p className="muted studio-empty">Дел пока нет</p>
+          ) : null}
+          <LoadMore query={tasks} label="Показать ещё дела объекта" />
+        </Section>
+      </details>
+      <details className="approved-card-fold">
+        <summary>Файлы</summary>
+        <Section
+          title="Файлы"
+          aside={
+            abilities.edit ? (
+              <Link
+                className="icon-button"
                 to={`${base}/files`}
-                title={file.name}
-                icon={<FileText size={20} aria-hidden />}
-              />
-            ))}
-          </RowList>
-        ) : (
-          <p className="muted studio-empty">Файлов пока нет</p>
-        )}
-      </Section>
+                aria-label="Добавить файл к объекту"
+              >
+                <Plus size={20} aria-hidden />
+              </Link>
+            ) : null
+          }
+        >
+          {card.files.length ? (
+            <RowList label="Файлы объекта">
+              {card.files.map((file) => (
+                <Row
+                  key={file.id}
+                  to={`${base}/files`}
+                  title={file.name}
+                  icon={<FileText size={20} aria-hidden />}
+                />
+              ))}
+            </RowList>
+          ) : (
+            <p className="muted studio-empty">Файлов пока нет</p>
+          )}
+        </Section>
+      </details>
     </>
   );
 }

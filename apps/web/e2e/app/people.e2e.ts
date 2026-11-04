@@ -240,6 +240,10 @@ test('связь с объектом и взаимодействие с сумм
 
   // Лента объекта показывает то же взаимодействие, блок «Люди» — контакт с подписью роли.
   await page.goto(`#/home/${flat.id}`);
+  await page
+    .locator('.approved-card-fold > summary')
+    .filter({ hasText: 'Люди и организации' })
+    .click();
   const people = page.getByRole('list', { name: 'Люди и организации' });
   await expect(people).toContainText('Вымышленный Мастер Сергей');
   await expect(people).toContainText('Мастер');
@@ -277,6 +281,10 @@ test('связь с человеком из карточки объекта: «�
   });
   await signInAs(page, family, 'adult');
   await page.goto(`#/home/${flat.id}`);
+  await page
+    .locator('.approved-card-fold > summary')
+    .filter({ hasText: 'Люди и организации' })
+    .click();
   await page.getByRole('button', { name: 'Связать с человеком или организацией' }).click();
   await page.getByRole('button', { name: 'Связать с человеком…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Связать с человеком' });

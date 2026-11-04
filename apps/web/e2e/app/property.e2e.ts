@@ -71,8 +71,8 @@ test('S1: первая квартира, три лицевых счёта, дв�
   const heading = page.getByRole('heading', { level: 1, name: 'Квартира у парка', exact: true });
   await expect(heading).toBeVisible();
   await expect(page.locator('.page-heading').getByText('Живём')).toBeVisible();
-  await expect(page.getByText(/54,3\s*м²/).first()).toBeVisible();
   await openObjectDetails(page);
+  await expect(page.getByText(/54,3\s*м²/).first()).toBeVisible();
   await expect(page.getByText('66:41:0101001:123')).toBeVisible();
   await checkApp(page, info, 'property-card');
   const objectId = page.url().split('/home/')[1]?.split('/')[0] ?? '';
@@ -167,6 +167,10 @@ test('S1: первая квартира, три лицевых счёта, дв�
   await page
     .getByRole('navigation', { name: 'Разделы объекта' })
     .getByRole('link', { name: 'Обзор' })
+    .click();
+  await page
+    .locator('.approved-card-fold > summary')
+    .filter({ hasText: 'Люди и организации' })
     .click();
   await expect(page.getByRole('heading', { level: 2, name: 'Люди и организации' })).toBeVisible();
   await page.getByRole('button', { name: 'Связать с человеком или организацией' }).click();

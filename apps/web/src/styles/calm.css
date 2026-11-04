@@ -236,7 +236,7 @@ html[data-design="studio"] .row__meta {
 
 html[data-design="studio"] :is(.section__title, .studio-list-panel .section__title) {
   color: var(--ink);
-  font-size: 0.9375rem;
+  font-size: var(--text-section);
   font-weight: 500;
 }
 
@@ -338,4 +338,76 @@ html[data-design="studio"] .visibility__options {
 }
 :root[data-design="studio"] .people-tabs {
   margin-block: 16px;
+}
+
+/* Принятые карточки: структура ограничена объектом и делом. */
+html[data-design="studio"] .approved-object-card .row__meta {
+  color: var(--text-subtle);
+}
+html[data-design="studio"] :is(.approved-record-card, .approved-object-card) .object-hero__type {
+  text-transform: none;
+  letter-spacing: normal;
+  margin: 8px 0 0;
+}
+html[data-design="studio"] :is(.approved-record-card, .approved-object-card) .object-hero {
+  padding-block: 12px 16px;
+}
+html[data-design="studio"] .approved-object-card .tabs__list {
+  flex-wrap: wrap;
+}
+html[data-design="studio"] .approved-object-card .tabs {
+  overflow: visible;
+}
+html[data-design="studio"] .approved-card-facts {
+  margin: 0 0 20px;
+  border-radius: 16px;
+  background: var(--surface);
+  padding: 0 16px;
+}
+html[data-design="studio"] .approved-card-facts > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 56px;
+  padding-block: 8px;
+}
+html[data-design="studio"] .approved-card-facts > div + div {
+  border-top: 1px solid var(--line);
+}
+html[data-design="studio"] .approved-card-facts dt {
+  color: var(--muted);
+}
+html[data-design="studio"] .approved-card-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+html[data-design="studio"] .approved-card-fold {
+  margin-block: 12px;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 0 16px;
+}
+html[data-design="studio"] .approved-card-fold > summary {
+  min-height: 52px;
+  padding-block: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+html[data-design="studio"] .approved-card-fold > :not(summary) {
+  padding-bottom: 16px;
+}
+html[data-design="studio"] .approved-card-fold .section {
+  margin-top: 8px;
+}
+html[data-design="studio"] .approved-card-fold .section__head {
+  margin-top: 0;
+}
+html[data-design="studio"] .approved-record-card .task-description {
+  margin-block: 20px;
+}
+html[data-design="studio"] .approved-record-card .task-list {
+  background: var(--surface);
+  border-radius: 16px;
+  padding-inline: 16px;
 }

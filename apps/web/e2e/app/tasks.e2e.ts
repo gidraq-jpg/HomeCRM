@@ -870,6 +870,8 @@ test('файлы и все четыре связи дела; выбранный 
   }
   await signInAs(page, family, 'adult');
   await openTask(page, row.id, row.title);
+  await page.locator('.approved-card-fold > summary').filter({ hasText: 'Связи' }).click();
+  await page.locator('.approved-card-fold > summary').filter({ hasText: 'Файлы' }).click();
   for (const [kind, id] of [
     ['object', object.id],
     ['document', document.id],
