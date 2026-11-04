@@ -254,11 +254,15 @@ test('Studio 2: объект, четыре чипа, снятие и созда�
     document.documentElement.style.fontSize = '100%';
   });
   await page.goto(`#/home/${object.id}`);
-  await page.getByRole('link', { name: 'Добавить дело к объекту' }).click();
+  await expect(page.getByRole('link', { name: 'Добавить дело к объекту' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Сегодня', exact: true }).click();
+  await openQuick(page);
+  await page.getByRole('link', { name: 'Полная форма дела', exact: true }).click();
+  await page.getByLabel('Объект дела', { exact: true }).selectOption(object.id);
   await expect(
     page.getByRole('group', { name: 'Кто видит' }).getByRole('radio', { name: 'Вся семья' }),
   ).toBeChecked();
-  await page.getByLabel('Название дела').fill('Дело из карточки объекта');
+  await page.getByLabel('Название дела').fill('Дело для объекта из списка');
   await page
     .locator('form.task-form')
     .getByRole('button', { name: 'Сохранить', exact: true })
