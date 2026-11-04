@@ -413,7 +413,7 @@ test('D19a.11–12: ребёнку метка заметки без кнопки
   await check(page, info, 'note-child');
 });
 
-test('D19a.14: плюс открывает форму раздела из списка и карточки, шаблон — ссылкой', async ({
+test('D19a.14: создание из списка и доступных карточек; у объекта только свои действия', async ({
   page,
   family,
 }, info) => {
@@ -457,6 +457,11 @@ test('D19a.14: плюс открывает форму раздела из спи
   ]) {
     for (const source of [list, card]) {
       await page.goto(`#${source}`);
+      if (source === card && target === '/home/new') {
+        await expect(page.getByRole('heading', { level: 1, name: object.title })).toBeVisible();
+        await expect(page.locator('button.studio-add')).toHaveCount(0);
+        await page.getByRole('link', { name: 'Дом', exact: true }).first().click();
+      }
       if (source === card && target === '/documents/new') {
         await expect(page.locator('main .studio-add')).toBeVisible();
         await page.evaluate(() => {

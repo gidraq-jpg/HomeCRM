@@ -378,6 +378,10 @@ test('B3/A4: имена теряющих доступ, отказ, перено�
   await expect(page.getByRole('button', { name: 'Сделать личной' })).toHaveCount(0);
   await closeRecordActions(page);
   const preview = page.locator('.file-row__image');
+  await page
+    .locator('details.approved-card-fold > summary')
+    .filter({ hasText: /^Файлы$/ })
+    .click();
   await preview.scrollIntoViewIfNeeded();
   await expect(preview).toBeVisible();
   await expect

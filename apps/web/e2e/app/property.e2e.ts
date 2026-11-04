@@ -257,8 +257,8 @@ test('недвижимость: статус рядом с названием в
 
   await row.click();
   await expect(page.locator('.page-heading').getByText('Сдаётся')).toBeVisible();
-  await expect(page.getByText(/57,31\s*м²/).first()).toBeVisible();
   await openObjectDetails(page);
+  await expect(page.getByText(/57,31\s*м²/).first()).toBeVisible();
   await expect(page.getByText('Квартира', { exact: true })).toBeVisible();
 
   // Правка: статус и площадь; остальное сохраняется.
@@ -270,6 +270,7 @@ test('недвижимость: статус рядом с названием в
   await objectForm(page).getByRole('button', { name: 'Сохранить', exact: true }).click();
   await expect(toast(page)).toContainText('Объект сохранён');
   await expect(page.locator('.page-heading').getByText('Пустует')).toBeVisible();
+  await openObjectDetails(page);
   await expect(page.getByText(/60,5\s*м²/).first()).toBeVisible();
 
   const stored = await family.database.admin.query('SELECT type_data FROM objects WHERE id = $1', [

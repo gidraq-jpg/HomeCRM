@@ -231,6 +231,7 @@ html[data-design="studio"] .row__title {
 }
 
 html[data-design="studio"] .row__meta {
+  color: var(--text-subtle);
   line-height: 1.5;
 }
 

@@ -234,6 +234,8 @@ test('TASK-2: сохранение во время записи — запись
   // Распознаватель отменён без итога: и после паузы поле пустое, запись не идёт.
   expect(await page.evaluate(() => (window as unknown as VoiceWindow).__voiceAborted)).toBe(1);
   await page.waitForTimeout(200);
+  // Создание следующего дела доступно из списка, а не из карточки сохранённого дела.
+  await page.getByRole('link', { name: 'Сегодня', exact: true }).first().click();
   await openQuick(page);
   await expect(page.getByLabel('Быстрая строка')).toHaveValue('');
   await expect(page.getByRole('button', { name: 'Надиктовать', exact: true })).toHaveAttribute(
