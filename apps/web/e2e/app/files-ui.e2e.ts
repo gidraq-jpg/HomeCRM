@@ -115,6 +115,7 @@ test('фото профиля: загрузить, сменить, снять и
   const vera = await openAs(browser, family, info, 'child');
   try {
     await vera.page.goto('#/people');
+    await vera.page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
     const row = vera.page
       .getByRole('list', { name: 'Участники дома' })
       .getByRole('listitem')
@@ -191,6 +192,7 @@ test('фото профиля видит действующая семья; бы
   const watcher = await openAs(browser, family, info, 'child');
   try {
     await watcher.page.goto('#/people');
+    await watcher.page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
     const former = watcher.page.getByRole('list', { name: 'Бывшие участники' });
     await expect(former).toContainText('Борис');
     await expect(former.locator('.avatar__photo')).toHaveCount(0);
@@ -207,7 +209,10 @@ test('фото профиля видит действующая семья; бы
   }
   await signInAs(page, family, 'adult');
   await page.goto('#/people');
-  await expect(page.getByText('Вы не состоите в доме')).toBeVisible();
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
+  await expect(
+    page.getByRole('heading', { name: 'Вы не состоите в доме', exact: true }),
+  ).toBeVisible();
   await expect(page.locator('.avatar__photo')).toHaveCount(0);
   await checkApp(page, info, 'people-left');
 });

@@ -18,6 +18,7 @@ test('«Люди»: состав с ролями, карточка с телеф
   await seedProfiles(family);
   await signInAs(page, family, 'adult');
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   const rows = members(page).getByRole('listitem');
   await expect(rows).toHaveCount(3);
   await expect(rows.filter({ hasText: 'Анна' })).toContainText('Администратор');
@@ -41,9 +42,13 @@ test('«Люди»: состав с ролями, карточка с телеф
   // У взрослого и ребёнка телефона нет: это сказано, а не скрыто.
   await checkApp(page, info, 'member');
   await page.goBack();
+  await expect(page.getByRole('radio', { name: 'Участники дома', exact: true })).toBeChecked();
   await members(page).getByRole('link', { name: /Вера/ }).click();
   await expect(page.getByText('Не указан').first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Позвонить' })).toHaveCount(0);
+  await page.locator('.page-heading .back-link').click();
+  await expect(page.getByRole('radio', { name: 'Участники дома', exact: true })).toBeChecked();
+  await expect(members(page)).toBeVisible();
 });
 
 for (const role of ['adult', 'child'] as const) {
@@ -53,6 +58,7 @@ for (const role of ['adult', 'child'] as const) {
   }) => {
     await signInAs(page, family, role);
     await openSection(page, '/people', 'Люди');
+    await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
     await expect(page.getByRole('link', { name: 'Пригласить участника' })).toHaveCount(0);
     await members(page).getByRole('link', { name: /Анна/ }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Анна', exact: true })).toBeVisible();
@@ -101,6 +107,7 @@ test('«Обо мне»: просмотр и правка имени, даты �
 
   // Имя обновилось и в составе дома, и в настройках.
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(members(page).getByRole('link', { name: /Борис Ветров \(вы\)/ })).toBeVisible();
   const profile = await family.database.admin.query(
     'SELECT display_name, phone, birth_date::text AS birth FROM member_profiles WHERE account_id = $1',
@@ -143,6 +150,7 @@ test('администратор приглашает участника: ссы
 }, info) => {
   await signInAs(page, family, 'admin');
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await page.getByRole('link', { name: 'Пригласить участника' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Пригласить участника' })).toBeVisible();
   await expect(page.getByText('Непринятых приглашений нет.')).toBeVisible();
@@ -183,6 +191,7 @@ test('администратор меняет роль; последнего а�
 }, info) => {
   await signInAs(page, family, 'admin');
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await members(page).getByRole('link', { name: /Борис/ }).click();
   await page.getByRole('button', { name: 'Сменить роль' }).click();
   const dialog = page.getByRole('dialog', { name: 'Сменить роль' });
@@ -193,6 +202,7 @@ test('администратор меняет роль; последнего а�
   await expect(toast(page)).toContainText('Роль изменена: Борис — Ребёнок');
   await expect(dialog).toHaveCount(0);
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(members(page).getByRole('listitem').filter({ hasText: 'Борис' })).toContainText(
     'Ребёнок',
   );
@@ -219,6 +229,7 @@ test('конфликт роли объяснён: ответственный з�
 }) => {
   await signInAs(page, family, 'admin');
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await members(page).getByRole('link', { name: /Борис/ }).click();
   await page.route('**/members/*/role', (route) =>
     route.fulfill({ status: 409, json: { code: 'CONFLICT' } }),
@@ -236,6 +247,7 @@ test('администратор исключает участника: что �
 }, info) => {
   await signInAs(page, family, 'admin');
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await members(page).getByRole('link', { name: /Борис/ }).click();
   await page.getByRole('button', { name: 'Исключить из дома' }).click();
   const dialog = page.getByRole('alertdialog', { name: 'Исключить из дома?' });
@@ -245,6 +257,7 @@ test('администратор исключает участника: что �
   await dialog.getByRole('button', { name: 'Исключить', exact: true }).click();
   await expect(toast(page)).toContainText('Исключён из дома: Борис');
   await expect(page.getByRole('heading', { level: 1, name: 'Люди' })).toBeVisible();
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(members(page).getByRole('listitem')).toHaveCount(2);
   const former = page.getByRole('list', { name: 'Бывшие участники' });
   await expect(former).toContainText('Борис');
@@ -267,6 +280,7 @@ test('исключение при отложенной передаче отве
 }) => {
   await signInAs(page, family, 'admin');
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await members(page).getByRole('link', { name: /Вера/ }).click();
   await page.route('**/members/*/exclude', async (route) => {
     // Исключение выполняется по-настоящему, но ответ — как при сбое передачи ответственности.
@@ -280,6 +294,7 @@ test('исключение при отложенной передаче отве
     .click();
   await expect(toast(page)).toContainText('Исключён из дома: Вера');
   await expect(toast(page)).toContainText('завершится позже сама');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(page.getByRole('list', { name: 'Бывшие участники' })).toContainText('Вера');
 });
 
@@ -289,11 +304,13 @@ test('ссылка сброса пароля ребёнку: условия, п�
 }, info) => {
   await signInAs(page, family, 'admin');
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   // Взрослому ссылку не выдать: кнопки нет.
   await members(page).getByRole('link', { name: /Борис/ }).click();
   await settle(page);
   await expect(page.getByRole('button', { name: 'Ссылка для сброса пароля' })).toHaveCount(0);
   await page.goBack();
+  await expect(page.getByRole('radio', { name: 'Участники дома', exact: true })).toBeChecked();
 
   await members(page).getByRole('link', { name: /Вера/ }).click();
   await page.getByRole('button', { name: 'Ссылка для сброса пароля' }).click();
@@ -328,6 +345,7 @@ test('администратору без второго фактора экра
   await signInAs(page, family, 'admin');
   // Сервер закрыл данные из-за второго фактора уже после входа (например, его отключили).
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await members(page).getByRole('link', { name: /Вера/ }).click();
   await page.route('**/members/*/password-reset', (route) =>
     route.fulfill({ status: 403, json: { code: 'SECOND_FACTOR_REQUIRED' } }),
@@ -375,12 +393,14 @@ test('уход из дома: что останется, подтвержден�
   await dialog.getByRole('button', { name: 'Уйти из дома' }).click();
   await expect(toast(page)).toContainText('Вы вышли из дома');
   await expect(page.getByRole('heading', { level: 1, name: 'Люди' })).toBeVisible();
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(
     page.getByRole('heading', { level: 2, name: 'Вы не состоите в доме' }),
   ).toBeVisible();
   await checkApp(page, info, 'no-household');
   // Учётная запись при человеке: после перезагрузки он по-прежнему вошёл.
   await page.reload();
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(
     page.getByRole('heading', { level: 2, name: 'Вы не состоите в доме' }),
   ).toBeVisible();
@@ -419,6 +439,7 @@ test('уход при отложенной передаче ответствен
   await page.getByRole('alertdialog').getByRole('button', { name: 'Уйти из дома' }).click();
   await expect(toast(page)).toContainText('Вы вышли из дома');
   await expect(toast(page)).toContainText('завершится позже сама');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(
     page.getByRole('heading', { level: 2, name: 'Вы не состоите в доме' }),
   ).toBeVisible();
@@ -428,8 +449,11 @@ test('ошибка загрузки состава не ломает экран:
   await signInAs(page, family, 'adult');
   await page.route('**/members', (route) => route.fulfill({ status: 503, json: { code: 'DOWN' } }));
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(page.getByText('Не удалось загрузить данные')).toBeVisible();
+  await page.getByRole('radio', { name: 'Контакты', exact: true }).check();
   await expect(page.getByRole('heading', { level: 2, name: 'Контакты' })).toBeVisible();
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await page.unroute('**/members');
   await page.getByRole('button', { name: 'Повторить загрузку участников' }).click();
   await expect(members(page).getByRole('listitem')).toHaveCount(3);

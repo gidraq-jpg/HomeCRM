@@ -9,10 +9,12 @@ import { visibilityOf } from '../notes/abilities.ts';
 import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
+import { FilterButton, FilterTag } from '../ui/CompactFilters.tsx';
 import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
+import { Sheet } from '../ui/Sheet.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import {
   type DocumentCard,
@@ -125,6 +127,13 @@ export function DocumentsScreen() {
   const [expiry, setExpiry] = useState<ExpiryChoice>('any');
   const [status, setStatus] = useState<DocumentStatusFilter>('valid');
   const [text, setText] = useState('');
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState({ memberId, type, expiry, status });
+  const count =
+    Number(memberId !== null) +
+    Number(type !== null) +
+    Number(expiry !== 'any') +
+    Number(status !== 'valid');
   const query = useDebounced(text, 250);
 
   const filters: Omit<DocumentFilters, 'scope'> = {
@@ -146,6 +155,7 @@ export function DocumentsScreen() {
     setType(null);
     setExpiry('any');
     setText('');
+    setStatus('valid');
   }
 
   return (
@@ -153,9 +163,9 @@ export function DocumentsScreen() {
       title="Документы"
       {...(all.length > 0 ? { eyebrow: documentCount(all.length) } : {})}
     >
-      <div className="filters document-filters">
-        <div className="field">
-          <label className="field__label" htmlFor={ids.search}>
+      <div className="compact-filters">
+        <div className="compact-filters__search">
+          <label className="visually-hidden" htmlFor={ids.search}>
             Поиск по названию и типу
           </label>
           <input
@@ -165,74 +175,153 @@ export function DocumentsScreen() {
             value={text}
             maxLength={200}
             autoComplete="off"
-            placeholder="Например: загранпаспорт"
+            placeholder="Поиск документов…"
             onChange={(event) => setText(event.target.value)}
           />
-        </div>
-        <div className="filters__selects">
-          <div className="field">
-            <label className="field__label" htmlFor={ids.person}>
-              Человек
-            </label>
-            <select
-              id={ids.person}
-              className="select"
-              value={memberId ?? ''}
-              onChange={(event) => setMemberId(event.target.value || null)}
-            >
-              <option value="">Все</option>
-              {people.map((member) => (
-                <option key={member.accountId} value={member.accountId}>
-                  {member.displayName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor={ids.type}>
-              Тип
-            </label>
-            <select
-              id={ids.type}
-              className="select"
-              value={type ?? ''}
-              onChange={(event) => {
-                const value = event.target.value;
-                setType(DOCUMENT_TYPES.find((item) => item === value) ?? null);
-              }}
-            >
-              <option value="">Все типы</option>
-              {TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="field">
-          <span className="field__label" aria-hidden="true">
-            Срок
-          </span>
-          <ChipGroup
-            legend="Срок документа"
-            value={expiry}
-            options={EXPIRY_OPTIONS}
-            onChange={setExpiry}
+          <FilterButton
+            count={count}
+            onClick={() => {
+              setDraft({ memberId, type, expiry, status });
+              setOpen(true);
+            }}
           />
         </div>
-        <div className="field">
-          <span className="field__label" aria-hidden="true">
-            Версии
-          </span>
-          <ChipGroup
-            legend="Какие версии показывать"
-            value={status}
-            options={STATUS_OPTIONS}
-            onChange={setStatus}
-          />
+        <ChipGroup
+          legend="Срок документа: истекают в ближайшие 90 дней"
+          value={expiry}
+          options={[
+            { value: 'any', label: 'Все' },
+            { value: 'expiring', label: 'Истекают' },
+            { value: 'expired', label: 'Просрочены' },
+          ]}
+          onChange={setExpiry}
+        />
+        <div className="compact-filters__summary">
+          {memberId ? (
+            <FilterTag
+              label={
+                people.find((person) => person.accountId === memberId)?.displayName ?? 'Человек'
+              }
+              onRemove={() => setMemberId(null)}
+            />
+          ) : null}
+          {type ? <FilterTag label={DOCUMENT_LABELS[type]} onRemove={() => setType(null)} /> : null}
+          {expiry !== 'any' ? (
+            <FilterTag
+              label={expiry === 'expiring' ? 'Истекает в 90 дней' : 'Просрочен'}
+              onRemove={() => setExpiry('any')}
+            />
+          ) : null}
+          {status !== 'valid' ? (
+            <FilterTag label="Все версии" onRemove={() => setStatus('valid')} />
+          ) : null}
+          {count > 0 || text !== '' ? (
+            <button className="text-button" type="button" onClick={reset}>
+              Сбросить
+            </button>
+          ) : null}
         </div>
       </div>
+      <Sheet
+        open={open}
+        onOpenChange={setOpen}
+        title="Фильтры документов"
+        description="Выберите условия и примените их к списку. Истекают — в ближайшие 90 дней."
+      >
+        <form
+          className="compact-filters__form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setMemberId(draft.memberId);
+            setType(draft.type);
+            setExpiry(draft.expiry);
+            setStatus(draft.status);
+            setOpen(false);
+          }}
+        >
+          <div className="filters__selects">
+            <div className="field">
+              <label className="field__label" htmlFor={ids.person}>
+                Человек
+              </label>
+              <select
+                id={ids.person}
+                className="select"
+                value={draft.memberId ?? ''}
+                onChange={(event) => setDraft({ ...draft, memberId: event.target.value || null })}
+              >
+                <option value="">Все</option>
+                {people.map((member) => (
+                  <option key={member.accountId} value={member.accountId}>
+                    {member.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor={ids.type}>
+                Тип
+              </label>
+              <select
+                id={ids.type}
+                className="select"
+                value={draft.type ?? ''}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setDraft({
+                    ...draft,
+                    type: DOCUMENT_TYPES.find((item) => item === value) ?? null,
+                  });
+                }}
+              >
+                <option value="">Все типы</option>
+                {TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="field">
+            <span className="field__label" aria-hidden="true">
+              Срок
+            </span>
+            <ChipGroup
+              legend="Срок документа"
+              value={draft.expiry}
+              options={EXPIRY_OPTIONS}
+              onChange={(expiry) => setDraft({ ...draft, expiry })}
+            />
+          </div>
+          <div className="field">
+            <span className="field__label" aria-hidden="true">
+              Версии
+            </span>
+            <ChipGroup
+              legend="Какие версии показывать"
+              value={draft.status}
+              options={STATUS_OPTIONS}
+              onChange={(status) => setDraft({ ...draft, status })}
+            />
+          </div>
+
+          <div className="btn-row">
+            <button
+              className="btn btn--secondary"
+              type="button"
+              onClick={() =>
+                setDraft({ memberId: null, type: null, expiry: 'any', status: 'valid' })
+              }
+            >
+              Сбросить
+            </button>
+            <button className="btn btn--primary" type="submit">
+              Применить
+            </button>
+          </div>
+        </form>
+      </Sheet>
 
       <ContentMotion
         pending={list.isPending}

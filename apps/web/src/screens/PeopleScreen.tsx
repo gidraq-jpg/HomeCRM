@@ -1,5 +1,7 @@
 import { ROLE_LABELS } from '@homecrm/shared';
 import { AddressBook, UserPlus } from '@phosphor-icons/react';
+import { useEffect, useId } from 'react';
+import { useSearchParams } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
@@ -8,6 +10,8 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useMembers } from '../household/queries.ts';
 import { ContactsList } from '../people/ContactsList.tsx';
 import { Link } from '../shell/motion.tsx';
+import { ChipGroup } from '../ui/ChipGroup.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
@@ -95,19 +99,46 @@ export function PeopleScreen() {
   const { isAdmin } = useHousehold();
   // Участники дома — часть общего пространства: в режиме «Личное» их нет.
   const showMembers = scope !== 'personal';
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'members' ? 'members' : 'contacts';
+  const setTab = (value: 'contacts' | 'members') =>
+    setParams(value === 'members' ? { tab: 'members' } : {}, { replace: true });
+  const active = showMembers ? tab : 'contacts';
+  const panelId = useId();
+  useEffect(() => {
+    if (!showMembers && tab === 'members') setParams({}, { replace: true });
+  }, [showMembers, tab, setParams]);
 
   return (
     <StudioPage title="Люди">
-      {showMembers ? <Members /> : null}
-
-      {showMembers && isAdmin ? (
-        <Link className="text-button list-action" to="/people/invite">
-          <UserPlus size={20} aria-hidden />
-          Пригласить участника
-        </Link>
+      {showMembers ? (
+        <div className="people-tabs">
+          <ChipGroup
+            legend="Раздел людей"
+            value={active}
+            options={[
+              { value: 'contacts', label: 'Контакты' },
+              { value: 'members', label: 'Участники дома' },
+            ]}
+            onChange={setTab}
+          />
+        </div>
       ) : null}
+      <div>
+        <div hidden={active !== 'members'} id={`${panelId}-members`}>
+          <ContentMotion version={active}>{showMembers ? <Members /> : null}</ContentMotion>
 
-      <ContactsList />
+          {showMembers && isAdmin ? (
+            <Link className="text-button list-action" to="/people/invite">
+              <UserPlus size={20} aria-hidden />
+              Пригласить участника
+            </Link>
+          ) : null}
+        </div>
+        <div hidden={active !== 'contacts'} id={`${panelId}-contacts`}>
+          <ContactsList motionVersion={active} />
+        </div>
+      </div>
     </StudioPage>
   );
 }

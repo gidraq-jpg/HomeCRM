@@ -158,7 +158,9 @@ test('продление: новая версия, история версий, 
   // В списке по умолчанию только действующая версия, «Все версии» показывает обе.
   await openDocuments(page);
   await expect(documentLinks(page)).toHaveCount(1);
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByRole('radio', { name: 'Все версии' }).check();
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
   await expect(documentLinks(page)).toHaveCount(2);
 });
 
@@ -203,28 +205,36 @@ test('список: фильтры «истекает в 90 дней», «про
   await openDocuments(page);
   await expect(documentLinks(page)).toHaveCount(5);
 
-  await page.getByRole('radio', { name: 'Истекает в 90 дней' }).check();
+  await page.getByRole('radio', { name: 'Истекают', exact: true }).check();
   await expect(documentLinks(page)).toHaveCount(1);
   await expect(documentLinks(page).first()).toContainText('ОСАГО Субару');
   await expect(documentLinks(page).first()).toContainText('Истекает через 20 дней');
   await checkApp(page, info, 'documents-expiring');
 
-  await page.getByRole('radio', { name: 'Просрочен' }).check();
+  await page.getByRole('radio', { name: 'Просрочены', exact: true }).check();
   await expect(documentLinks(page)).toHaveCount(1);
   await expect(documentLinks(page).first()).toContainText('Полис КАСКО');
   await expect(documentLinks(page).first()).toContainText('Просрочен на 5 дней');
   await checkApp(page, info, 'documents-expired');
 
-  await page.getByRole('radio', { name: 'Любой срок' }).check();
+  await page.getByRole('radio', { name: 'Все', exact: true }).check();
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByLabel('Тип', { exact: true }).selectOption('contract');
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
   await expect(documentLinks(page)).toHaveCount(1);
   await expect(documentLinks(page).first()).toContainText('Договор аренды');
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByLabel('Тип', { exact: true }).selectOption('');
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
 
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByLabel('Человек').selectOption({ label: 'Вера' });
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
   await expect(documentLinks(page)).toHaveCount(1);
   await expect(documentLinks(page).first()).toContainText('Свидетельство Веры');
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByLabel('Человек').selectOption('');
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
 
   // Пространство — общий переключатель: «Общее» оставляет только документ ребёнка для взрослых.
   await setScope(page, 'Общее');

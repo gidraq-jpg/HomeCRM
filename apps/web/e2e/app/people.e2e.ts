@@ -38,7 +38,7 @@ test('человек с организацией и двумя телефона�
     data: { organizationType: 'clinic' },
   });
   await openPeople(page);
-  await page.getByRole('link', { name: 'Добавить человека' }).click();
+  await page.getByRole('button', { name: 'Добавить человека' }).click();
 
   // Форма: «Кто видит» над «Сохранить»; личный контакт по умолчанию «Только я».
   const form = page.locator('form.person-form');
@@ -118,14 +118,20 @@ test('человек с организацией и двумя телефона�
   await expect(contactLinks(page).first()).toContainText(NAME);
   expect(decodeURIComponent(page.url())).not.toContain('петрович');
   await page.getByLabel('Поиск по ФИО и названию').fill('');
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByRole('radio', { name: 'Организации' }).check();
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
   await expect(contactLinks(page)).toHaveCount(1);
   await expect(contactLinks(page).first()).toContainText('Вымышленная клиника');
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByRole('radio', { name: 'Врачи' }).check();
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
   await expect(contactLinks(page)).toHaveCount(1);
   await expect(contactLinks(page).first()).toContainText(NAME);
   await checkApp(page, info, 'people-list');
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByRole('radio', { name: 'Мастера' }).check();
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Ничего не нашлось' })).toBeVisible();
   await page.getByRole('button', { name: 'Сбросить поиск и фильтр' }).click();
   await expect(contactLinks(page)).toHaveCount(2);

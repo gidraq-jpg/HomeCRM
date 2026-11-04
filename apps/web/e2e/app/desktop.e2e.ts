@@ -69,6 +69,7 @@ test('боковое меню вместо нижнего, переключат�
     await expect(page.getByRole('heading', { level: 1, name: section, exact: true })).toBeVisible();
   }
   await side.getByRole('link', { name: 'Люди', exact: true }).click();
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(
     page.getByRole('list', { name: 'Участники дома' }).getByRole('listitem'),
   ).toHaveCount(3);

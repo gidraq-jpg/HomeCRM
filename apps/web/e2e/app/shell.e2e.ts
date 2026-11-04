@@ -26,7 +26,7 @@ test('вымышленных данных прототипа нет, все пя
   const sections: [string, string, string][] = [
     ['Дом', 'Объектов пока нет', 'home'],
     ['Документы', 'Документов пока нет', 'documents'],
-    ['Люди', 'Участники дома', 'people'],
+    ['Люди', 'Контактов пока нет', 'people'],
     ['Ещё', 'Обо мне', 'more'],
   ];
   for (const [section, marker, slug] of sections) {
@@ -80,6 +80,7 @@ test('переключатель «Всё · Общее · Личное» зап
 }, info) => {
   await signInAs(page, family, 'adult');
   await openSection(page, '/people', 'Люди');
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(
     page.getByRole('list', { name: 'Участники дома' }).getByRole('listitem'),
   ).toHaveCount(3);
@@ -98,12 +99,14 @@ test('переключатель «Всё · Общее · Личное» зап
 
   await setScope(page, 'Всё');
   await expect(page.getByRole('button', { name: 'Пространство: Всё', exact: true })).toBeVisible();
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(page.getByRole('list', { name: 'Участники дома' })).toBeVisible();
   await setScope(page, 'Общее');
   await page.reload();
   await expect(
     page.getByRole('button', { name: 'Пространство: Общее', exact: true }),
   ).toBeVisible();
+  await page.getByRole('radio', { name: 'Участники дома', exact: true }).check();
   await expect(page.getByRole('list', { name: 'Участники дома' })).toBeVisible();
 });
 

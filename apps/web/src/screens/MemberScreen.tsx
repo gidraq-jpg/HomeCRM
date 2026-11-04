@@ -28,7 +28,7 @@ export function MemberScreen() {
   const { accountId } = useParams();
   const { me, isAdmin } = useHousehold();
   const query = useMembers();
-  const back = { to: '/people', label: 'Люди' };
+  const back = { to: '/people?tab=members', label: 'Люди' };
 
   if (query.isPending) {
     return (

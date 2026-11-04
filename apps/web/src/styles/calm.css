@@ -287,3 +287,55 @@ html[data-design="studio"] .visibility__options {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+:root[data-design="studio"] .compact-filters {
+  display: grid;
+  gap: 12px;
+  margin-block: 16px;
+}
+:root[data-design="studio"] .compact-filters__search {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+:root[data-design="studio"] .compact-filters__search > .input {
+  flex: 1 1 140px;
+  min-width: 0;
+  width: 0;
+}
+:root[data-design="studio"] .compact-filters__button {
+  flex: 0 1 auto;
+}
+:root[data-design="studio"] .compact-filters__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+:root[data-design="studio"] .compact-filters__summary:empty {
+  display: none;
+}
+:root[data-design="studio"] .compact-filters__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+:root[data-design="studio"] .compact-filters__tag svg {
+  flex-shrink: 0;
+}
+:root[data-design="studio"] .compact-filters__form {
+  display: grid;
+  gap: 20px;
+}
+:root[data-design="studio"] .people-tabs {
+  margin-block: 16px;
+}

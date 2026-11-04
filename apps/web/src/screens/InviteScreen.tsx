@@ -78,7 +78,7 @@ export function InviteScreen() {
   const state = useAction();
   const [role, setRole] = useState<Role>('adult');
   const [issued, setIssued] = useState<{ link: IssuedLink; role: Role } | null>(null);
-  const back = { to: '/people', label: 'Люди' };
+  const back = { to: '/people?tab=members', label: 'Люди' };
 
   if (!isAdmin || householdId === null) {
     return (
