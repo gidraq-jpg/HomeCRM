@@ -189,7 +189,7 @@ test('SHOP-4: покупки голосом — черновики, правка
       has: page.getByRole('link', { name: title, exact: true }),
     });
     await expect(row).toHaveCount(1);
-    if (quantity) await expect(row.locator('.shopping-quantity')).toHaveText(quantity);
+    if (quantity) await expect(row.locator('.shopping-quantity')).toHaveText(`×${quantity}`);
   }
   await expect(page.getByRole('link', { name: 'Сыр', exact: true })).toHaveCount(0);
   await check(page, info, 'shopping-added');

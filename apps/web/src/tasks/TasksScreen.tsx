@@ -291,6 +291,7 @@ function TodayFeed({ house }: { house: string | null }) {
                   )}
                   move={actions.startMove}
                   pending={operation.pending}
+                  today={query.data.today}
                 />
               </Section>
               <p data-motion-target="done" className="task-counts">
@@ -300,7 +301,11 @@ function TodayFeed({ house }: { house: string | null }) {
               {query.data.completed.length ? (
                 <details className="task-completed">
                   <summary>Выполнено сегодня ({query.data.completed.length})</summary>
-                  <TaskRows label="Выполненные дела" tasks={query.data.completed} />
+                  <TaskRows
+                    label="Выполненные дела"
+                    tasks={query.data.completed}
+                    today={query.data.today}
+                  />
                 </details>
               ) : null}
               <Section title="Срочное из радара">

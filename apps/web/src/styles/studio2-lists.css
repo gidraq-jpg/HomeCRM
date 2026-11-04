@@ -104,6 +104,18 @@ html[data-design="studio"] .shopping-bought > summary {
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
 }
+html[data-design="studio"] .shopping-bought {
+  margin-top: var(--space-5);
+}
+html[data-design="studio"] .shopping-bought > summary {
+  color: var(--text-subtle);
+  font-size: var(--text-section);
+  font-weight: var(--weight-section);
+  line-height: var(--leading-section);
+}
+html[data-design="studio"] .shopping-bought > .task-list {
+  margin-top: var(--space-2);
+}
 html[data-design="studio"] .studio-radar-fold {
   border-top: 1px solid var(--line);
   margin-top: 16px;
@@ -135,9 +147,9 @@ html[data-design="studio"] .studio-segments > button[aria-pressed="true"] {
   color: var(--charcoal);
 }
 html[data-design="studio"] .studio-list-panel .section__title {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--muted);
+  font-size: var(--text-section);
+  font-weight: var(--weight-section);
+  color: var(--text-subtle);
 }
 html[data-design="studio"] .radar-page .section:has(.studio-radar-overdue) .section__title {
   color: #8a3a21;
@@ -190,26 +202,93 @@ html[data-design="studio"] .studio-radar-row--overdue .studio-radar-row__actions
   background: var(--accent);
   color: #fff;
 }
+/* Строка покупки на той же сетке, что и строка дела (UI-9): отметка, название, «×N». */
 html[data-design="studio"] .shopping-page .task-list {
-  padding: 0 4px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
   background: var(--surface);
   border-radius: 20px;
 }
 html[data-design="studio"] .shopping-page .task-row {
-  padding: 8px 6px;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: var(--tap) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: 56px;
+  padding: var(--space-3) var(--space-4);
   border: 0;
 }
 html[data-design="studio"] .shopping-page .task-row + .task-row {
   border-top: 1px solid var(--paper);
 }
+html[data-design="studio"] .shopping-page .check-toggle,
+html[data-design="studio"] .shopping-page .shopping-row__spacer {
+  width: var(--tap);
+  height: var(--tap);
+  margin: 0 -10px;
+}
+html[data-design="studio"] .shopping-page .check-toggle {
+  /* Зона нажатия 44 px заходит в поля строки, квадрат 24 px стоит на 16 px. */
+  grid-column: 1;
+}
 html[data-design="studio"] .shopping-page .check-toggle__circle {
+  width: 24px;
+  height: 24px;
   border-radius: 6px;
 }
+html[data-design="studio"] .shopping-page .task-row__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  padding: 0;
+  text-decoration: none;
+}
+html[data-design="studio"] .shopping-page .task-row .row__title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
+}
+html[data-design="studio"] .shopping-page .task-row .row__meta {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+}
 html[data-design="studio"] .shopping-quantity {
-  max-width: 30%;
-  font-size: 0.875rem;
-  overflow-wrap: anywhere;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  margin-inline-end: -10px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--text-subtle);
+  font: inherit;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-title);
+  white-space: nowrap;
+}
+html[data-design="studio"] .shopping-quantity--button {
+  cursor: pointer;
+}
+html[data-design="studio"] .shopping-quantity--button[aria-expanded="true"] {
+  color: var(--ink);
+}
+html[data-design="studio"] .shopping-page .shopping-steps {
+  grid-column: 2 / -1;
+  justify-self: end;
+  margin-inline-end: -10px;
 }
 html[data-design="studio"] .shopping-page .shopping-quick__line > .input {
   width: 100%;

@@ -98,7 +98,7 @@ test('AI-6/7: покупки — сохранение одной карточк�
   await dialog.getByLabel('Количество позиции 1', { exact: true }).fill('3 шт');
   await dialog.getByRole('button', { name: 'Добавить 1 позицию', exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByText('3 шт', { exact: true })).toBeVisible();
+  await expect(page.getByText('×3 шт', { exact: true })).toBeVisible();
   for (const code of [
     'AI_DAILY_LIMIT',
     'AI_UNAVAILABLE',

@@ -1,6 +1,14 @@
 import { expect, it } from 'vitest';
 import type { TaskCard } from './api.ts';
-import { emptyDays, isOverdue, nextWeekday, overdueLabel, planDay } from './plan.ts';
+import {
+  emptyDays,
+  isOverdue,
+  nextWeekday,
+  overdueDays,
+  overdueLabel,
+  overdueText,
+  planDay,
+} from './plan.ts';
 
 it('D19a.5: просрочка по крайнему сроку активного дела, не по дню плана', () => {
   const card = { status: 'open', planOn: '2026-10-01', dueOn: null } as TaskCard;
@@ -29,3 +37,19 @@ it('TASK-5: подписи дней, пустых промежутков и фо
 });
 
 import { CalendarDate } from '@homecrm/shared';
+
+it('UI-9: просрочка считается от крайнего срока, а без него от дня плана', () => {
+  const card = (patch: object) =>
+    ({ status: 'open', planOn: null, dueOn: null, ...patch }) as unknown as TaskCard;
+  expect(overdueDays(card({ dueOn: '2026-10-15' }), '2026-10-18')).toBe(3);
+  expect(overdueDays(card({ planOn: '2026-10-17' }), '2026-10-18')).toBe(1);
+  expect(overdueDays(card({ planOn: '2026-10-18' }), '2026-10-18')).toBeNull();
+  expect(overdueDays(card({ status: 'done', dueOn: '2026-10-15' }), '2026-10-18')).toBeNull();
+  expect(overdueDays(card({ dueOn: '2026-10-15' }), '')).toBeNull();
+  expect([1, 2, 5, 21].map(overdueText)).toEqual([
+    'просрочено на 1 день',
+    'просрочено на 2 дня',
+    'просрочено на 5 дней',
+    'просрочено на 21 день',
+  ]);
+});
