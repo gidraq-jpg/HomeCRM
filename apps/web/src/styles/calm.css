@@ -37,10 +37,22 @@ html[data-design="studio"] .studio-panel {
   border-radius: 0;
 }
 
-html[data-design="studio"] :is(.feed-heading, .studio-list-hero, .object-hero, .ui7-form-heading) {
+html[data-design="studio"] .studio-list-hero {
   background: var(--surface);
   color: var(--ink);
   border-bottom: 1px solid var(--line);
+}
+
+html[data-design="studio"]
+  :is(.feed-heading, .page-heading .studio-list-hero, .object-hero, .ui7-form-heading) {
+  background: var(--charcoal);
+  color: var(--on-dark);
+  border-bottom: 1px solid var(--charcoal);
+}
+
+/* Возврат перед заголовком составляет с ним единую тёмную область. */
+html[data-design="studio"] .app .studio-list-page {
+  background: var(--charcoal);
 }
 
 html[data-design="studio"] .feed-heading {
@@ -51,7 +63,7 @@ html[data-design="studio"] .feed-heading {
 html[data-design="studio"] .feed-heading__summary {
   min-height: 1.5em;
   font-size: 1rem;
-  color: var(--muted);
+  color: var(--muted-on-dark);
 }
 
 html[data-design="studio"]
@@ -76,11 +88,11 @@ html[data-design="studio"]
     .studio-list-count,
     .object-hero__type,
     .object-hero__meta,
-    .object-facts dt,
+    .object-hero .object-facts dt,
     .ui7-form-heading__title > p,
     .ui6-record-page .object-hero__meta > .access-badge
   ) {
-  color: var(--muted);
+  color: var(--muted-on-dark);
 }
 
 html[data-design="studio"]
@@ -88,15 +100,22 @@ html[data-design="studio"]
     .ui6-page .studio-list-hero > .back-link,
     .object-hero__actions .back-link,
     .object-hero .icon-button,
-    .ui6-record-page .object-facts a,
-    .studio-list-summary .text-button
+    .ui6-record-page .object-hero .object-facts a
   ) {
+  color: var(--accent-on-dark);
+}
+
+html[data-design="studio"] .studio-list-summary .text-button {
   color: var(--accent-strong);
 }
 
+html[data-design="studio"] .page-heading .studio-list-hero .studio-list-summary .text-button {
+  color: var(--accent-on-dark);
+}
+
 html[data-design="studio"] .object-access-trigger {
-  background: var(--soft);
-  color: var(--ink);
+  background: var(--charcoal);
+  color: var(--muted-on-dark);
 }
 
 html[data-design="studio"] .studio-list-summary {
@@ -131,7 +150,7 @@ html[data-design="studio"] .tabs .tabs__link {
 
 html[data-design="studio"] .studio-list-page > .back-link,
 html[data-design="studio"] .ui7-fullscreen-form .ui7-form-heading > .back-link {
-  color: var(--accent-strong);
+  color: var(--accent-on-dark);
 }
 
 html[data-design="studio"] .tab-indicator {
@@ -150,6 +169,11 @@ html[data-design="studio"] .ui6-page .studio-add {
   height: 48px;
   border: 0;
   border-radius: 14px;
+}
+
+/* Только действия: аватары, статусы и круги выбора сохраняют свою семантику. */
+html[data-design="studio"] :is(.icon-button, .fab, .chip-button, .chip__label) {
+  border-radius: 12px;
 }
 
 html[data-design="studio"]
