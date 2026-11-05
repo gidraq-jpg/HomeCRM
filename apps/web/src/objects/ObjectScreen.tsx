@@ -3,13 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useMatch, useNavigate, useParams } from 'react-router';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { formatMoment } from '../auth/dates.ts';
-import { useSourceDeadlines } from '../deadlines/queries.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { useMeters } from '../meters/queries.ts';
 import { viewerOf, visibilityOf } from '../notes/abilities.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
-import { formatArea } from '../property/property.ts';
-import { AddAction } from '../shell/AddAction.tsx';
 import { Link, useScreenMode } from '../shell/motion.tsx';
 import { FormHeading } from '../ui/FormHeading.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
@@ -77,14 +73,12 @@ function ObjectView({ card }: { card: ObjectCard }) {
   }, [location.key]);
   const editing = useMatch({ path: base, end: true }) !== null && panel === 'edit';
   const [accessOpen, setAccessOpen] = useState(false);
-  const meters = useMeters(card.id, 'active', property && !trashed);
-  const deadlines = useSourceDeadlines('objects', card.id);
   const eyebrow = `${OBJECT_TYPE_LABELS[card.objectType]} · изменён ${formatMoment(card.updatedAt, me.timeZone)}`;
 
   return (
     <Page
       title={card.title}
-      className={`object-page ${editing ? 'ui7-fullscreen-form' : ''}`}
+      className={`object-page approved-object-card ${editing ? 'ui7-fullscreen-form' : ''}`}
       documentTitle={TAB_TITLE}
       eyebrow={trashed ? `${eyebrow} · в корзине` : eyebrow}
       heading={
@@ -97,7 +91,6 @@ function ObjectView({ card }: { card: ObjectCard }) {
                 <CaretLeft size={20} aria-hidden />
                 Дом
               </Link>
-              <AddAction />
               {abilities.edit && !trashed ? (
                 <button
                   type="button"
@@ -127,11 +120,11 @@ function ObjectView({ card }: { card: ObjectCard }) {
                 <DotsThree size={24} aria-hidden />
               </button>
             </div>
+            <h1>{card.title}</h1>
             <p className="object-hero__type">
               {OBJECT_TYPE_LABELS[card.objectType]}
               {trashed ? ' · в корзине' : ''}
             </p>
-            <h1>{card.title}</h1>
             <div className="object-hero__meta">
               {card.typeData.address ? <span>{card.typeData.address}</span> : null}
               {!trashed ? (
@@ -148,26 +141,6 @@ function ObjectView({ card }: { card: ObjectCard }) {
                 <PropertyStatusBadge status={card.typeData.status} />
               ) : null}
             </div>
-            <dl className="object-facts">
-              {card.typeData.areaHundredths !== undefined ? (
-                <div>
-                  <dt>Площадь</dt>
-                  <dd>{formatArea(card.typeData.areaHundredths)}</dd>
-                </div>
-              ) : null}
-              {property && meters.data && !meters.error ? (
-                <div>
-                  <dt>Счётчики</dt>
-                  <dd>{meters.data.length}</dd>
-                </div>
-              ) : null}
-              {deadlines.data && !deadlines.error ? (
-                <div>
-                  <dt>Сроки</dt>
-                  <dd>{deadlines.data.length}</dd>
-                </div>
-              ) : null}
-            </dl>
           </div>
         )
       }

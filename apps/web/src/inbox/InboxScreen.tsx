@@ -12,7 +12,9 @@ import { useQueue } from '../offline/OfflinePanel.tsx';
 import { enqueue, synchronize } from '../offline/queue.ts';
 import { offlineDB, uuid } from '../offline/store.ts';
 import { Link } from '../shell/motion.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { countWord } from '../ui/format.ts';
+import { MotionList } from '../ui/MotionList.tsx';
 import { RollingNumber } from '../ui/RollingNumber.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';
@@ -247,55 +249,63 @@ export function InboxScreen({
           Не удалось загрузить список. Сохранённое без сети доступно в очереди изменений.
         </Notice>
       ) : null}
-      {query.data?.length === 0 ? (
-        <p className="inbox-empty">
-          Здесь пока пусто. Сохраните мысль, фото или документ и разберите, когда удобно.
-        </p>
-      ) : null}
-      {!trash && query.data?.some((row) => row.source === 'chat') && (
-        <ChatDrafts
-          rows={query.data.filter((row) => row.source === 'chat')}
-          refresh={query.refetch}
-        />
-      )}
-      <ul className="inbox-list">
-        {query.data
-          ?.filter((row) => row.source !== 'chat' || trash)
-          .map((row) => (
-            <li key={row.id}>
-              <p className="inbox-status">{STATUS_LABELS[row.status]}</p>
-              {row.status !== 'identity' ? (
-                <p className="inbox-text">{row.text || row.files[0]?.name || 'Входящее'}</p>
-              ) : null}
-              {row.draft ? <p>{KIND_LABELS[row.draft.classification.kind]}</p> : null}
-              <div className="btn-row">
-                {trash ? (
-                  <button
-                    className="btn btn--secondary"
-                    type="button"
-                    onClick={() =>
-                      void state.run(async () => {
-                        await inboxAction(row.id, 'restore');
-                        await query.refetch();
-                      })
-                    }
-                  >
-                    Восстановить
-                  </button>
-                ) : (
-                  <Link className="btn btn--secondary" to={`/more/inbox/${row.id}`}>
-                    {row.status === 'identity' ? 'Заполнить вручную' : 'Открыть'}
-                  </Link>
-                )}
-                {row.files.map((file, i) => (
-                  <a className="text-button" key={file.id} href={fileUrl(file.id)}>
-                    Страница {i + 1}
-                  </a>
-                ))}
-              </div>
-            </li>
-          ))}
-      </ul>
+      <ContentMotion
+        pending={query.isPending}
+        version={(query.data ?? []).map((row) => row.id).join(',')}
+      >
+        {query.data?.length === 0 ? (
+          <p className="inbox-empty">
+            Здесь пока пусто. Сохраните мысль, фото или документ и разберите, когда удобно.
+          </p>
+        ) : null}
+        {!trash && query.data?.some((row) => row.source === 'chat') && (
+          <ChatDrafts
+            rows={query.data.filter((row) => row.source === 'chat')}
+            refresh={query.refetch}
+          />
+        )}
+        <MotionList
+          className="inbox-list"
+          version={(query.data ?? []).map((row) => row.id).join(',')}
+        >
+          {query.data
+            ?.filter((row) => row.source !== 'chat' || trash)
+            .map((row) => (
+              <li data-motion-key={row.id} key={row.id}>
+                <p className="inbox-status">{STATUS_LABELS[row.status]}</p>
+                {row.status !== 'identity' ? (
+                  <p className="inbox-text">{row.text || row.files[0]?.name || 'Входящее'}</p>
+                ) : null}
+                {row.draft ? <p>{KIND_LABELS[row.draft.classification.kind]}</p> : null}
+                <div className="btn-row">
+                  {trash ? (
+                    <button
+                      className="btn btn--secondary"
+                      type="button"
+                      onClick={() =>
+                        void state.run(async () => {
+                          await inboxAction(row.id, 'restore');
+                          await query.refetch();
+                        })
+                      }
+                    >
+                      Восстановить
+                    </button>
+                  ) : (
+                    <Link className="btn btn--secondary" to={`/more/inbox/${row.id}`}>
+                      {row.status === 'identity' ? 'Заполнить вручную' : 'Открыть'}
+                    </Link>
+                  )}
+                  {row.files.map((file, i) => (
+                    <a className="text-button" key={file.id} href={fileUrl(file.id)}>
+                      Страница {i + 1}
+                    </a>
+                  ))}
+                </div>
+              </li>
+            ))}
+        </MotionList>
+      </ContentMotion>
       <Link className="text-button" to={trash ? '/more/inbox' : '/more/inbox/trash'}>
         {trash ? 'Назад во входящие' : 'Корзина входящих'}
       </Link>

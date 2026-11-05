@@ -34,12 +34,13 @@ async function check(page: Page, info: TestInfo, name: string) {
 
 /** Настоящие touch events Chromium: проверяем pointer capture и конфликт с вкладками. */
 async function drag(page: Page, target: Locator, dx: number, dy = 0, slow = false) {
-  await target.scrollIntoViewIfNeeded();
+  // Нативное «видно» не учитывает фиксированное нижнее меню поверх строки.
+  await target.evaluate((node) => node.scrollIntoView({ block: 'center' }));
   const box = await target.boundingBox();
   if (!box) throw new Error('Gesture target is missing');
   const width = page.viewportSize()?.width ?? 360;
   const longRowSwipe = dx !== 0 && !slow;
-  const x = Math.min(
+  let x = Math.min(
     width - 40,
     Math.max(
       40,
@@ -47,14 +48,21 @@ async function drag(page: Page, target: Locator, dx: number, dy = 0, slow = fals
     ),
   );
   // Длинный жест проходит больше половины строки независимо от загрузки CI.
-  const travel = longRowSwipe ? (dx > 0 ? width - 28 - x : 28 - x) : dx;
   const y = box.y + Math.min(30, box.height / 2);
   // Лента могла сдвинуться после замера (refetch, сообщение): жест должен начаться на цели,
   // иначе касание попадает в заголовок и листает ленту вместо строки.
   await expect
     .poll(async () => {
-      await target.scrollIntoViewIfNeeded();
+      await target.evaluate((node) => node.scrollIntoView({ block: 'center' }));
       const now = await target.boundingBox();
+      if (now)
+        x = Math.min(
+          width - 40,
+          Math.max(
+            40,
+            longRowSwipe ? (dx > 0 ? now.x + 8 : now.x + now.width - 8) : now.x + now.width / 2,
+          ),
+        );
       return target.evaluate(
         (element, point) => element.contains(document.elementFromPoint(point.x, point.y)),
         { x, y: now ? now.y + Math.min(30, now.height / 2) : y },
@@ -63,6 +71,7 @@ async function drag(page: Page, target: Locator, dx: number, dy = 0, slow = fals
     .toBe(true);
   const settled = await target.boundingBox();
   const startY = settled ? settled.y + Math.min(30, settled.height / 2) : y;
+  const travel = longRowSwipe ? (dx > 0 ? width - 28 - x : 28 - x) : dx;
   await gesture(page, x, startY, travel, dy, slow ? 80 : 0, 8);
 }
 

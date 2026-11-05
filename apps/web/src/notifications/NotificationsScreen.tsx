@@ -9,6 +9,7 @@ import { InstallApp } from '../pwa/InstallApp.tsx';
 import { NoHousehold } from '../screens/PeopleScreen.tsx';
 import { Link } from '../shell/motion.tsx';
 import { CheckLine } from '../ui/CheckLine.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
@@ -142,7 +143,7 @@ function DeviceItem({
   const toast = useToast();
   const action = useAction();
   return (
-    <li className="device">
+    <li className="device" data-motion-key={device.id}>
       <div className="device__body">
         <strong>{device.deviceName}</strong>
         {thisDevice ? <Status tone="ok">Это устройство</Status> : null}
@@ -207,7 +208,12 @@ function Devices() {
   return (
     <Section title="Мои устройства">
       <p className="muted">Видите и отключаете вы только свои устройства.</p>
-      {body}
+      <ContentMotion
+        pending={devices.isPending}
+        version={devices.data?.map((item) => item.id).join(',') ?? 'loading'}
+      >
+        {body}
+      </ContentMotion>
     </Section>
   );
 }

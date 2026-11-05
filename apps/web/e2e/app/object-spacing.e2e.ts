@@ -58,6 +58,10 @@ for (const percent of [100, 200]) {
       });
     try {
       await page.goto(`#/home/${object.id}`);
+      await page
+        .locator('details.approved-card-fold > summary')
+        .filter({ hasText: /^Дела$/ })
+        .click();
       await openObjectDetails(page);
       await expect(page.getByText('Загружаем дела…', { exact: true })).toBeVisible();
       expect(await gap(), 'отступ с запасным шрифтом').toBeGreaterThanOrEqual(16);

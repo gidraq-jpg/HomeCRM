@@ -5,6 +5,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { Link } from '../shell/motion.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Section } from '../ui/Page.tsx';
@@ -104,44 +105,46 @@ export function ObjectsScreen() {
 
   return (
     <StudioPage title="Дом" {...(all.length > 0 ? { eyebrow: objectCount(all.length) } : {})}>
-      {all.length === 0 ? (
-        <EmptyObjects />
-      ) : (
-        <>
-          {all.some((object) => object.objectType === 'property') ? (
-            <Link className="btn btn--secondary btn--block month-link" to={MONTH_SCREEN}>
-              <Receipt size={20} aria-hidden />
-              Коммуналка за месяц
+      <ContentMotion version={all.map((card) => card.id).join(',')}>
+        {all.length === 0 ? (
+          <EmptyObjects />
+        ) : (
+          <>
+            {all.some((object) => object.objectType === 'property') ? (
+              <Link className="btn btn--secondary btn--block month-link" to={MONTH_SCREEN}>
+                <Receipt size={20} aria-hidden />
+                Коммуналка за месяц
+              </Link>
+            ) : null}
+            {groups.map(([type, items]) => (
+              <Section
+                key={type}
+                title={OBJECT_TYPE_GROUPS[type]}
+                aside={<span className="muted">{items.length}</span>}
+              >
+                <ObjectRows objects={items} label={OBJECT_TYPE_GROUPS[type]} />
+              </Section>
+            ))}
+
+            {query.hasNextPage ? (
+              <button
+                type="button"
+                className="btn btn--secondary btn--block list-action"
+                disabled={query.isFetchingNextPage}
+                onClick={() => void query.fetchNextPage()}
+              >
+                {query.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
+              </button>
+            ) : null}
+            {query.isError ? <ObjectError error={query.error} action="load" /> : null}
+
+            <Link className="btn btn--secondary btn--block list-action" to={FROM_TEMPLATE}>
+              <ListChecks size={20} aria-hidden />
+              Создать из шаблона
             </Link>
-          ) : null}
-          {groups.map(([type, items]) => (
-            <Section
-              key={type}
-              title={OBJECT_TYPE_GROUPS[type]}
-              aside={<span className="muted">{items.length}</span>}
-            >
-              <ObjectRows objects={items} label={OBJECT_TYPE_GROUPS[type]} />
-            </Section>
-          ))}
-
-          {query.hasNextPage ? (
-            <button
-              type="button"
-              className="btn btn--secondary btn--block list-action"
-              disabled={query.isFetchingNextPage}
-              onClick={() => void query.fetchNextPage()}
-            >
-              {query.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
-            </button>
-          ) : null}
-          {query.isError ? <ObjectError error={query.error} action="load" /> : null}
-
-          <Link className="btn btn--secondary btn--block list-action" to={FROM_TEMPLATE}>
-            <ListChecks size={20} aria-hidden />
-            Создать из шаблона
-          </Link>
-        </>
-      )}
+          </>
+        )}
+      </ContentMotion>
     </StudioPage>
   );
 }

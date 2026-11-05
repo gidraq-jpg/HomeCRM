@@ -8,9 +8,12 @@ import { useCanCreateOrganization } from '../organizations/CreateOrganization.ts
 import { ORGANIZATION_TYPE_LABELS } from '../organizations/form.ts';
 import { Link } from '../shell/motion.tsx';
 import { ChipGroup } from '../ui/ChipGroup.tsx';
+import { FilterButton, FilterTag } from '../ui/CompactFilters.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Row, RowList, Status } from '../ui/Row.tsx';
+import { Sheet } from '../ui/Sheet.tsx';
 import type { ContactFilters, PersonCategory } from './api.ts';
 import { CATEGORY_FILTER_LABELS, categoriesLabel } from './labels.ts';
 import { useContactsList } from './queries.ts';
@@ -81,10 +84,12 @@ function ContactRow({ contact }: { contact: AnyContact }) {
  * «Контакты» в разделе «Люди» (CONT-1, CONT-2): люди и организации с поиском по ФИО и названию и
  * фильтром по категории. Поиск и фильтр живут в состоянии экрана и не попадают в адрес страницы.
  */
-export function ContactsList() {
+export function ContactsList({ motionVersion = '' }: { motionVersion?: string }) {
   const { me, householdId } = useHousehold();
   const [choice, setChoice] = useState<Choice>('all');
   const [text, setText] = useState('');
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<Choice>('all');
   const deferred = useDeferredValue(text);
   const query = useContactsList(filtersOf(choice, deferred));
   const canCreateOrganization = useCanCreateOrganization();
@@ -113,37 +118,83 @@ export function ContactsList() {
 
   return (
     <section className="section" aria-labelledby={`${searchId}-title`}>
-      <div className="section__head">
-        <h2 className="section__title" id={`${searchId}-title`}>
-          Контакты
-        </h2>
-        {canCreatePerson ? (
-          <Link className="icon-button" to={NEW_PERSON} aria-label="Добавить человека">
-            <Plus size={22} aria-hidden />
-          </Link>
-        ) : null}
+      <h2 className="visually-hidden" id={`${searchId}-title`}>
+        Контакты
+      </h2>
+      <div className="compact-filters">
+        <div className="compact-filters__search">
+          <label className="visually-hidden" htmlFor={searchId}>
+            Поиск по ФИО и названию
+          </label>
+          <input
+            id={searchId}
+            className="input"
+            type="search"
+            value={text}
+            maxLength={200}
+            autoComplete="off"
+            placeholder="Поиск людей и организаций…"
+            onChange={(event) => setText(event.target.value)}
+          />
+          <FilterButton
+            count={Number(choice !== 'all')}
+            onClick={() => {
+              setDraft(choice);
+              setOpen(true);
+            }}
+          />
+        </div>
+        <div className="compact-filters__summary">
+          {choice !== 'all' ? (
+            <FilterTag
+              label={CHOICES.find((option) => option.value === choice)?.label ?? choice}
+              onRemove={() => setChoice('all')}
+            />
+          ) : null}
+          {choice !== 'all' || text !== '' ? (
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => {
+                setChoice('all');
+                setText('');
+              }}
+            >
+              Сбросить
+            </button>
+          ) : null}
+        </div>
       </div>
-
-      <div className="field">
-        <label className="field__label" htmlFor={searchId}>
-          Поиск по ФИО и названию
-        </label>
-        <input
-          id={searchId}
-          className="input"
-          type="search"
-          value={text}
-          maxLength={200}
-          autoComplete="off"
-          onChange={(event) => setText(event.target.value)}
-        />
-      </div>
-      <ChipGroup
-        legend="Категория контакта"
-        value={choice}
-        options={CHOICES}
-        onChange={setChoice}
-      />
+      <Sheet
+        open={open}
+        onOpenChange={setOpen}
+        title="Фильтры контактов"
+        description="Выберите категорию контакта или организации."
+      >
+        <form
+          className="compact-filters__form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setChoice(draft);
+            setOpen(false);
+          }}
+        >
+          <ChipGroup
+            legend="Категория контакта"
+            value={draft}
+            options={CHOICES}
+            onChange={setDraft}
+          />
+          <div className="btn-row">
+            <button className="btn btn--secondary" type="button" onClick={() => setDraft('all')}>
+              Сбросить
+            </button>
+            <button className="btn btn--primary" type="submit">
+              Применить
+            </button>
+          </div>
+        </form>
+      </Sheet>
 
       {query.isPending ? <ListSkeleton label="Загружаем контакты…" /> : null}
       {query.isError && items.length === 0 ? (
@@ -155,44 +206,49 @@ export function ContactsList() {
         </>
       ) : null}
 
-      {query.data && items.length === 0 ? (
-        <CompactEmptyState title={searching ? 'Ничего не нашлось' : 'Контактов пока нет'}>
-          {searching ? (
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                setText('');
-                setChoice('all');
-              }}
-            >
-              Сбросить поиск и фильтр
-            </button>
-          ) : null}
-        </CompactEmptyState>
-      ) : null}
+      <ContentMotion
+        pending={query.isPending}
+        version={motionVersion + items.map((item) => item.id).join(',')}
+      >
+        {query.data && items.length === 0 ? (
+          <CompactEmptyState title={searching ? 'Ничего не нашлось' : 'Контактов пока нет'}>
+            {searching ? (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  setText('');
+                  setChoice('all');
+                }}
+              >
+                Сбросить поиск и фильтр
+              </button>
+            ) : null}
+          </CompactEmptyState>
+        ) : null}
 
-      {items.length > 0 ? (
-        <>
-          <RowList label="Контакты">
-            {items.map((contact) => (
-              <ContactRow key={contact.id} contact={contact} />
-            ))}
-          </RowList>
-          {query.hasNextPage ? (
-            <button
-              type="button"
-              className="btn btn--secondary btn--block list-action"
-              disabled={query.isFetchingNextPage}
-              onClick={() => void query.fetchNextPage()}
-            >
-              {query.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
-            </button>
-          ) : null}
-          {query.isError ? <ObjectError error={query.error} action="load" /> : null}
-          {add}
-        </>
-      ) : null}
+        {items.length > 0 ? (
+          <>
+            <RowList label="Контакты">
+              {items.map((contact) => (
+                <ContactRow key={contact.id} contact={contact} />
+              ))}
+            </RowList>
+            {query.hasNextPage ? (
+              <button
+                type="button"
+                className="btn btn--secondary btn--block list-action"
+                disabled={query.isFetchingNextPage}
+                onClick={() => void query.fetchNextPage()}
+              >
+                {query.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
+              </button>
+            ) : null}
+            {query.isError ? <ObjectError error={query.error} action="load" /> : null}
+          </>
+        ) : null}
+      </ContentMotion>
+      {add}
     </section>
   );
 }

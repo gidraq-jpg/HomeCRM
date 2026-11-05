@@ -193,10 +193,16 @@ export function ObjectOverview() {
         </Notice>
       ) : null}
 
-      {!trashed ? <PeopleBlock card={card} /> : null}
       {!trashed ? <ObjectSummaryLists card={card} /> : null}
+      {!trashed ? (
+        <details className="approved-card-fold">
+          <summary>Люди и организации</summary>
+          <PeopleBlock card={card} />
+        </details>
+      ) : null}
+
       <details
-        className="object-details"
+        className="object-details approved-card-fold"
         open={detailsOpen}
         onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
       >
@@ -265,7 +271,7 @@ export function ObjectOverview() {
       {!trashed ? <DeadlinesSection source="objects" card={card} compact /> : null}
 
       {!trashed && card.objectType === 'property' ? (
-        <details className="object-details">
+        <details className="object-details approved-card-fold">
           <summary>Аналитика объекта</summary>
           <ObjectAnalytics objectId={card.id} />
         </details>

@@ -61,6 +61,13 @@ async function observe(page: Page) {
         document.documentElement.dataset.feedFade = 'true';
       if (this.classList.contains('feed-carousel__track'))
         document.documentElement.dataset.observedFeed = JSON.stringify({ frames, options });
+      if (
+        this.closest('.feed-carousel') &&
+        !this.classList.contains('feed-carousel__track') &&
+        Array.isArray(frames) &&
+        frames.some((frame) => frame.transform)
+      )
+        document.documentElement.dataset.observedLocalFeed = JSON.stringify({ frames, options });
       if (this.parentElement?.classList.contains('rolling-number'))
         document.documentElement.dataset.rollingCount = String(
           Number(document.documentElement.dataset.rollingCount ?? 0) + 1,
@@ -254,9 +261,9 @@ for (const reduce of [false, true])
       await settle(page);
       if (!reduce) {
         const motion = JSON.parse(
-          (await page.locator('html').getAttribute('data-observed-feed')) ?? '{}',
+          (await page.locator('html').getAttribute('data-observed-local-feed')) ?? '{}',
         );
-        expect(motion.options.duration).toBe(450);
+        expect(motion.options.duration).toBe(240);
         expect(motion.frames[0].transform).toMatch(/translateX\(-/);
       }
       await page.getByRole('link', { name: 'Покупки', exact: true }).click();
@@ -264,7 +271,7 @@ for (const reduce of [false, true])
       await settle(page);
       if (!reduce)
         expect(
-          JSON.parse((await page.locator('html').getAttribute('data-observed-feed')) ?? '{}')
+          JSON.parse((await page.locator('html').getAttribute('data-observed-local-feed')) ?? '{}')
             .frames[0].transform,
         ).not.toMatch(/translateX\(-/);
       await check(page, info, `shopping-${reduce}`);

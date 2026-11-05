@@ -6,6 +6,7 @@ import { Notice } from '../auth/components.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { Link } from '../shell/motion.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Row, RowList, Status } from '../ui/Row.tsx';
@@ -125,35 +126,37 @@ export function OrganizationsScreen() {
         ) : null}
       </div>
       {filter}
-      {all.length === 0 ? (
-        <CompactEmptyState title={type === '' ? 'Организаций пока нет' : 'Таких организаций нет'}>
-          {scope === 'all' ? null : (
-            <button type="button" className="text-button" onClick={() => setScope('all')}>
-              Показать «{SCOPE_LABELS.all}»
-            </button>
-          )}
-          {type === '' ? null : (
-            <button type="button" className="text-button" onClick={() => setType('')}>
-              Показать все типы
-            </button>
-          )}{' '}
-        </CompactEmptyState>
-      ) : (
-        <>
-          <OrganizationRows organizations={all} label="Организации" />
-          {query.hasNextPage ? (
-            <button
-              type="button"
-              className="btn btn--secondary btn--block list-action"
-              disabled={query.isFetchingNextPage}
-              onClick={() => void query.fetchNextPage()}
-            >
-              {query.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
-            </button>
-          ) : null}
-          {query.isError ? <ObjectError error={query.error} action="load" /> : null}
-        </>
-      )}
+      <ContentMotion version={all.map((item) => item.id).join(',')}>
+        {all.length === 0 ? (
+          <CompactEmptyState title={type === '' ? 'Организаций пока нет' : 'Таких организаций нет'}>
+            {scope === 'all' ? null : (
+              <button type="button" className="text-button" onClick={() => setScope('all')}>
+                Показать «{SCOPE_LABELS.all}»
+              </button>
+            )}
+            {type === '' ? null : (
+              <button type="button" className="text-button" onClick={() => setType('')}>
+                Показать все типы
+              </button>
+            )}{' '}
+          </CompactEmptyState>
+        ) : (
+          <>
+            <OrganizationRows organizations={all} label="Организации" />
+            {query.hasNextPage ? (
+              <button
+                type="button"
+                className="btn btn--secondary btn--block list-action"
+                disabled={query.isFetchingNextPage}
+                onClick={() => void query.fetchNextPage()}
+              >
+                {query.isFetchingNextPage ? 'Загружаем…' : 'Показать ещё'}
+              </button>
+            ) : null}
+            {query.isError ? <ObjectError error={query.error} action="load" /> : null}
+          </>
+        )}
+      </ContentMotion>
     </StudioPage>
   );
 }

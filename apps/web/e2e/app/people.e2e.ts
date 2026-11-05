@@ -38,7 +38,7 @@ test('человек с организацией и двумя телефона�
     data: { organizationType: 'clinic' },
   });
   await openPeople(page);
-  await page.getByRole('link', { name: 'Добавить человека' }).click();
+  await page.getByRole('button', { name: 'Добавить человека' }).click();
 
   // Форма: «Кто видит» над «Сохранить»; личный контакт по умолчанию «Только я».
   const form = page.locator('form.person-form');
@@ -118,14 +118,20 @@ test('человек с организацией и двумя телефона�
   await expect(contactLinks(page).first()).toContainText(NAME);
   expect(decodeURIComponent(page.url())).not.toContain('петрович');
   await page.getByLabel('Поиск по ФИО и названию').fill('');
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByRole('radio', { name: 'Организации' }).check();
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
   await expect(contactLinks(page)).toHaveCount(1);
   await expect(contactLinks(page).first()).toContainText('Вымышленная клиника');
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByRole('radio', { name: 'Врачи' }).check();
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
   await expect(contactLinks(page)).toHaveCount(1);
   await expect(contactLinks(page).first()).toContainText(NAME);
   await checkApp(page, info, 'people-list');
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
   await page.getByRole('radio', { name: 'Мастера' }).check();
+  await page.getByRole('button', { name: 'Применить', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Ничего не нашлось' })).toBeVisible();
   await page.getByRole('button', { name: 'Сбросить поиск и фильтр' }).click();
   await expect(contactLinks(page)).toHaveCount(2);
@@ -234,6 +240,10 @@ test('связь с объектом и взаимодействие с сумм
 
   // Лента объекта показывает то же взаимодействие, блок «Люди» — контакт с подписью роли.
   await page.goto(`#/home/${flat.id}`);
+  await page
+    .locator('.approved-card-fold > summary')
+    .filter({ hasText: 'Люди и организации' })
+    .click();
   const people = page.getByRole('list', { name: 'Люди и организации' });
   await expect(people).toContainText('Вымышленный Мастер Сергей');
   await expect(people).toContainText('Мастер');
@@ -271,6 +281,10 @@ test('связь с человеком из карточки объекта: «�
   });
   await signInAs(page, family, 'adult');
   await page.goto(`#/home/${flat.id}`);
+  await page
+    .locator('.approved-card-fold > summary')
+    .filter({ hasText: 'Люди и организации' })
+    .click();
   await page.getByRole('button', { name: 'Связать с человеком или организацией' }).click();
   await page.getByRole('button', { name: 'Связать с человеком…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Связать с человеком' });

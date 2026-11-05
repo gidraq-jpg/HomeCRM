@@ -6,6 +6,7 @@ import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { radarFromToday } from '../shell/BottomNav.tsx';
 import { Link } from '../shell/motion.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { countWord } from '../ui/format.ts';
 import { Page, Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
@@ -221,43 +222,44 @@ export function RadarScreen() {
           <RecalculatingNotice stalled={radar.stalled} onRetry={radar.retry} />
         ) : null}
 
-        {radar.rows.length === 0 && radar.recalculating ? null : shown.length === 0 ? (
-          <p className="muted">
-            {hasFilters
-              ? 'Под выбранные фильтры сроков нет'
-              : radar.visibleCount === 0
-                ? 'Сроков пока нет'
-                : view === 'mine'
-                  ? 'У вас сроков нет'
-                  : 'Под выбранный режим сроков нет'}
-          </p>
-        ) : (
-          GROUP_ORDER.map((group) =>
-            groups[group].length === 0 ? null : group === '30days' || group === '90days' ? (
-              <details className="studio-radar-fold" key={group}>
-                <summary>
-                  {GROUP_LABELS[group]} · {groups[group].length} ·{' '}
-                  {groups[group]
-                    .slice(0, 2)
-                    .map((row) => row.title ?? row.what)
-                    .join(', ')}
-                </summary>
-                <RadarRows rows={groups[group]} label={GROUP_LABELS[group]} />
-              </details>
-            ) : (
-              <Section
-                key={group}
-                title={GROUP_LABELS[group]}
-                aside={<span className="muted">{groups[group].length}</span>}
-              >
-                <div className={group === 'overdue' ? 'studio-radar-overdue' : undefined}>
+        <ContentMotion version={shown.map((row) => row.id).join(',')}>
+          {radar.rows.length === 0 && radar.recalculating ? null : shown.length === 0 ? (
+            <p className="muted">
+              {hasFilters
+                ? 'Под выбранные фильтры сроков нет'
+                : radar.visibleCount === 0
+                  ? 'Сроков пока нет'
+                  : view === 'mine'
+                    ? 'У вас сроков нет'
+                    : 'Под выбранный режим сроков нет'}
+            </p>
+          ) : (
+            GROUP_ORDER.map((group) =>
+              groups[group].length === 0 ? null : group === '30days' || group === '90days' ? (
+                <details className="studio-radar-fold" key={group}>
+                  <summary>
+                    {GROUP_LABELS[group]} · {groups[group].length} ·{' '}
+                    {groups[group]
+                      .slice(0, 2)
+                      .map((row) => row.title ?? row.what)
+                      .join(', ')}
+                  </summary>
                   <RadarRows rows={groups[group]} label={GROUP_LABELS[group]} />
-                </div>
-              </Section>
-            ),
-          )
-        )}
-
+                </details>
+              ) : (
+                <Section
+                  key={group}
+                  title={GROUP_LABELS[group]}
+                  aside={<span className="muted">{groups[group].length}</span>}
+                >
+                  <div className={group === 'overdue' ? 'studio-radar-overdue' : undefined}>
+                    <RadarRows rows={groups[group]} label={GROUP_LABELS[group]} />
+                  </div>
+                </Section>
+              ),
+            )
+          )}
+        </ContentMotion>
         {radar.unresolved > 0 ? (
           <p className="muted">
             У {pointCount(radar.unresolved)} не нашлась запись: перейти в карточку нельзя.

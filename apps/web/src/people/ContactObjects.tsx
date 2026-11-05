@@ -8,7 +8,9 @@ import { createLink, MAX_ROLE, type RecordLink, restoreLink, trashLink } from '.
 import { ObjectError } from '../objects/components.tsx';
 import { useLinks, useObjectCard } from '../objects/queries.ts';
 import { Link } from '../shell/motion.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { normalizeText } from '../ui/format.ts';
+import { MotionList } from '../ui/MotionList.tsx';
 import { RowContent, RowList } from '../ui/Row.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -143,31 +145,37 @@ function LinkObjectSheet({
               maxLength={200}
             />
           </div>
-          {shown.length === 0 ? (
-            <p className="muted sheet__block">Ничего не нашли среди загруженных объектов.</p>
-          ) : (
-            <ul className="row-list picker-list" aria-label="Объекты, которые можно связать">
-              {shown.map((item) => {
-                const on = item.id === chosen;
-                return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      className="row"
-                      aria-pressed={on}
-                      onClick={() => setChosen(on ? null : item.id)}
-                    >
-                      <RowContent
-                        icon={<Buildings size={22} aria-hidden />}
-                        title={item.title}
-                        aside={on ? <Check size={20} weight="bold" aria-hidden /> : undefined}
-                      />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <ContentMotion version={shown.map((item) => item.id).join(',')}>
+            {shown.length === 0 ? (
+              <p className="muted sheet__block">Ничего не нашли среди загруженных объектов.</p>
+            ) : (
+              <MotionList
+                version={shown.map((item) => item.id).join(',')}
+                className="row-list picker-list"
+                label="Объекты, которые можно связать"
+              >
+                {shown.map((item) => {
+                  const on = item.id === chosen;
+                  return (
+                    <li data-motion-key={item.id} key={item.id}>
+                      <button
+                        type="button"
+                        className="row"
+                        aria-pressed={on}
+                        onClick={() => setChosen(on ? null : item.id)}
+                      >
+                        <RowContent
+                          icon={<Buildings size={22} aria-hidden />}
+                          title={item.title}
+                          aside={on ? <Check size={20} weight="bold" aria-hidden /> : undefined}
+                        />
+                      </button>
+                    </li>
+                  );
+                })}
+              </MotionList>
+            )}
+          </ContentMotion>
           <div className="field">
             <label className="field__label" htmlFor={ids.role}>
               Подпись связи (роль)

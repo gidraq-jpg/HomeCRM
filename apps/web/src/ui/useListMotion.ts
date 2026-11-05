@@ -1,10 +1,11 @@
 import { type RefObject, useLayoutEffect, useRef } from 'react';
-import { motionTime, reducedMotion } from './motion.ts';
+import { motionStagger, motionTime, reducedMotion } from './motion.ts';
 
 interface Snapshot {
   node: HTMLElement;
   source: HTMLElement;
   height: number;
+  top: number;
   next: string | undefined;
 }
 
@@ -42,6 +43,12 @@ export function useListMotion(
     const easing = getComputedStyle(document.documentElement).getPropertyValue('--ease-out');
     const reduce = reducedMotion();
     const duration = motionTime(reduce ? 'fast' : 'base');
+    let entering = 0;
+    const replacing =
+      rows.some((row) => !previous.current.has(row.dataset.motionKey ?? '')) &&
+      [...previous.current.keys()].some(
+        (key) => !rows.some((row) => row.dataset.motionKey === key),
+      );
     for (const [index, row] of rows.entries()) {
       const key = row.dataset.motionKey;
       if (!key) continue;
@@ -50,8 +57,30 @@ export function useListMotion(
         node: row.cloneNode(true) as HTMLElement,
         source: row,
         height,
+        top: row.getBoundingClientRect().top - list.getBoundingClientRect().top,
         next: rows[index + 1]?.dataset.motionKey,
       });
+      const old = previous.current.get(key);
+      const top = row.getBoundingClientRect().top - list.getBoundingClientRect().top;
+      if (
+        old &&
+        !reduce &&
+        old.top !== top &&
+        rows.length === previous.current.size &&
+        rows.every((item) => previous.current.has(item.dataset.motionKey ?? ''))
+      ) {
+        const animation = row.animate(
+          [{ transform: `translateY(${old.top - top}px)` }, { transform: 'translateY(0)' }],
+          { duration, easing },
+        );
+        cleanup.push(() => {
+          const transform = getComputedStyle(row).transform;
+          const snapshot = next.get(key);
+          if (snapshot)
+            snapshot.top = top + (transform === 'none' ? 0 : new DOMMatrixReadOnly(transform).m42);
+          animation.cancel();
+        });
+      }
       if ((initialized.current || kind === 'toast') && !previous.current.has(key)) {
         const animation = row.animate(
           reduce
@@ -65,7 +94,16 @@ export function useListMotion(
                   { height: '0px', opacity: 0 },
                   { height: `${height}px`, opacity: 1 },
                 ],
-          { duration, easing },
+          {
+            duration,
+            easing,
+            delay:
+              reduce || kind === 'toast'
+                ? 0
+                : (replacing ? motionTime('fast') : 0) +
+                  motionStagger(entering++, motionTime('base')),
+            fill: 'backwards',
+          },
         );
         cleanup.push(() => animation.cancel());
       }

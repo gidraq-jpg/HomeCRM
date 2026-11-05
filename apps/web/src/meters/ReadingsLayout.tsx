@@ -12,6 +12,7 @@ import { ObjectError } from '../objects/components.tsx';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectCard, useObjectsList } from '../objects/queries.ts';
 import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import { Page } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
@@ -120,21 +121,23 @@ function SwitchSheet({ currentId, onClose }: { currentId: string; onClose: () =>
     >
       {query.isPending ? <Notice>Загружаем объекты…</Notice> : null}
       {query.isError ? <ObjectError error={query.error} action="load" /> : null}
-      {query.data && others.length === 0 ? (
-        <p className="muted sheet__block">Других объектов недвижимости пока нет.</p>
-      ) : null}
-      {withWindow.length > 0 ? (
-        <>
-          <p className="sheet__label">Открыто окно показаний</p>
-          <SwitchRows label="Недвижимость с открытым окном" objects={withWindow} />
-        </>
-      ) : null}
-      {rest.length > 0 ? (
-        <>
-          {withWindow.length > 0 ? <p className="sheet__label">Остальная недвижимость</p> : null}
-          <SwitchRows label="Недвижимость" objects={rest} />
-        </>
-      ) : null}
+      <ContentMotion pending={query.isPending} version={others.map((item) => item.id).join(',')}>
+        {query.data && others.length === 0 ? (
+          <p className="muted sheet__block">Других объектов недвижимости пока нет.</p>
+        ) : null}
+        {withWindow.length > 0 ? (
+          <>
+            <p className="sheet__label">Открыто окно показаний</p>
+            <SwitchRows label="Недвижимость с открытым окном" objects={withWindow} />
+          </>
+        ) : null}
+        {rest.length > 0 ? (
+          <>
+            {withWindow.length > 0 ? <p className="sheet__label">Остальная недвижимость</p> : null}
+            <SwitchRows label="Недвижимость" objects={rest} />
+          </>
+        ) : null}
+      </ContentMotion>
     </Sheet>
   );
 }

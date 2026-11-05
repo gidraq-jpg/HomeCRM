@@ -17,6 +17,7 @@ import { todayIn } from '../objects/dates.ts';
 import { useQueue } from '../offline/OfflinePanel.tsx';
 import { Link } from '../shell/motion.tsx';
 import { FirstRunCard } from '../templates/FirstRunCard.tsx';
+import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { countWord, plural } from '../ui/format.ts';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
@@ -551,25 +552,27 @@ function AllFeed({ house }: { house: string | null }) {
       ) : null}
       <QueryNotice query={query} />
       {!moving ? <OperationNotice operation={operation} /> : null}
-      {query.data && !selected.length ? (
-        <p className="muted">Дел под выбранные условия нет.</p>
-      ) : null}
-      <MotionGroups version={selected.map((card) => card.id + card.status).join(',')}>
-        {today
-          ? groups.map((group) =>
-              group.tasks.length ? (
-                <Section
-                  key={group.title}
-                  motionKey={group.title}
-                  title={group.title}
-                  aside={<span className="muted">{group.tasks.length}</span>}
-                >
-                  {rows(group.tasks, group.title)}
-                </Section>
-              ) : null,
-            )
-          : rows(selected, 'Все дела')}
-      </MotionGroups>
+      <ContentMotion version={selected.map((card) => card.id + card.status).join(',')}>
+        {query.data && !selected.length ? (
+          <p className="muted">Дел под выбранные условия нет.</p>
+        ) : null}
+        <MotionGroups version={selected.map((card) => card.id + card.status).join(',')}>
+          {today
+            ? groups.map((group) =>
+                group.tasks.length ? (
+                  <Section
+                    key={group.title}
+                    motionKey={group.title}
+                    title={group.title}
+                    aside={<span className="muted">{group.tasks.length}</span>}
+                  >
+                    {rows(group.tasks, group.title)}
+                  </Section>
+                ) : null,
+              )
+            : rows(selected, 'Все дела')}
+        </MotionGroups>
+      </ContentMotion>
       <LoadMore query={query} label="Показать ещё дела" />
       {moving && timeZone ? (
         <MoveTaskSheet

@@ -101,94 +101,97 @@ export function TaskLinks({ card }: { card: TaskCard }) {
     queryFn: ({ signal }) => fetchLinks({ type: 'task', id: card.id }, signal),
   });
   return (
-    <Section
-      title="Связи"
-      aside={
-        canWrite(viewerOf(me), factsOf(card, viewerOf(me), 'task')) ? (
-          <button
-            className="icon-button"
-            aria-label="Добавить связь…"
-            type="button"
-            onClick={() => setOpen(true)}
-          >
-            <Plus size={20} aria-hidden />
-          </button>
-        ) : null
-      }
-    >
-      {query.error ? (
-        <Notice error>
-          {taskError(query.error)}
-          <button type="button" className="text-button" onClick={() => void query.refetch()}>
-            Обновить связи
-          </button>
-        </Notice>
-      ) : null}
-      <ul className="task-links">
-        {query.data?.map((link) => (
-          <LinkedRecord key={link.id} link={link} card={card} />
-        ))}
-      </ul>
+    <details className="approved-card-fold" open={query.error ? true : undefined}>
+      <summary>Связи</summary>
+      <Section
+        title="Связи"
+        aside={
+          canWrite(viewerOf(me), factsOf(card, viewerOf(me), 'task')) ? (
+            <button
+              className="icon-button"
+              aria-label="Добавить связь…"
+              type="button"
+              onClick={() => setOpen(true)}
+            >
+              <Plus size={20} aria-hidden />
+            </button>
+          ) : null
+        }
+      >
+        {query.error ? (
+          <Notice error>
+            {taskError(query.error)}
+            <button type="button" className="text-button" onClick={() => void query.refetch()}>
+              Обновить связи
+            </button>
+          </Notice>
+        ) : null}
+        <ul className="task-links">
+          {query.data?.map((link) => (
+            <LinkedRecord key={link.id} link={link} card={card} />
+          ))}
+        </ul>
 
-      {open ? (
-        <Sheet
-          open
-          onOpenChange={setOpen}
-          title="Связать дело"
-          description="Связь видна только тем, кто видит обе записи."
-        >
-          <SelectField
-            label="Вид связи"
-            value={kind}
-            onChange={(value) => {
-              setKind(value as OptionKind);
-              setId('');
-            }}
-            options={[
-              { value: 'object', label: 'Объект' },
-              { value: 'contact', label: 'Контакт' },
-              { value: 'document', label: 'Документ' },
-              { value: 'utility_charge', label: 'Начисление' },
-            ]}
-          />
-          {kind === 'utility_charge' ? (
-            <RecordPicker
-              kind="utility_account"
-              label="Лицевой счёт начисления"
-              value={accountId}
+        {open ? (
+          <Sheet
+            open
+            onOpenChange={setOpen}
+            title="Связать дело"
+            description="Связь видна только тем, кто видит обе записи."
+          >
+            <SelectField
+              label="Вид связи"
+              value={kind}
               onChange={(value) => {
-                setAccountId(value);
+                setKind(value as OptionKind);
                 setId('');
               }}
+              options={[
+                { value: 'object', label: 'Объект' },
+                { value: 'contact', label: 'Контакт' },
+                { value: 'document', label: 'Документ' },
+                { value: 'utility_charge', label: 'Начисление' },
+              ]}
             />
-          ) : null}
-          <RecordPicker
-            key={`${kind}:${accountId}`}
-            kind={kind}
-            label="Запись для связи"
-            value={id}
-            onChange={setId}
-            accountId={accountId}
-          />
-          <TextField label="Подпись связи" value={role} maxLength={200} onChange={setRole} />
-          {state.error ? <Notice error>{taskError(state.error)}</Notice> : null}
-          <button
-            className="btn btn--primary"
-            type="button"
-            disabled={!id || state.disabled}
-            onClick={() =>
-              void state.run(async () => {
-                await createLink({ type: 'task', id: card.id }, { type: kind, id }, role);
-                await query.refetch();
-                await client.invalidateQueries({ queryKey: ['links'] });
-                setOpen(false);
-              })
-            }
-          >
-            Связать
-          </button>
-        </Sheet>
-      ) : null}
-    </Section>
+            {kind === 'utility_charge' ? (
+              <RecordPicker
+                kind="utility_account"
+                label="Лицевой счёт начисления"
+                value={accountId}
+                onChange={(value) => {
+                  setAccountId(value);
+                  setId('');
+                }}
+              />
+            ) : null}
+            <RecordPicker
+              key={`${kind}:${accountId}`}
+              kind={kind}
+              label="Запись для связи"
+              value={id}
+              onChange={setId}
+              accountId={accountId}
+            />
+            <TextField label="Подпись связи" value={role} maxLength={200} onChange={setRole} />
+            {state.error ? <Notice error>{taskError(state.error)}</Notice> : null}
+            <button
+              className="btn btn--primary"
+              type="button"
+              disabled={!id || state.disabled}
+              onClick={() =>
+                void state.run(async () => {
+                  await createLink({ type: 'task', id: card.id }, { type: kind, id }, role);
+                  await query.refetch();
+                  await client.invalidateQueries({ queryKey: ['links'] });
+                  setOpen(false);
+                })
+              }
+            >
+              Связать
+            </button>
+          </Sheet>
+        ) : null}
+      </Section>
+    </details>
   );
 }

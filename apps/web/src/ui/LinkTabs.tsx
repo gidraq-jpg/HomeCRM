@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router';
+import { useLayoutEffect, useRef } from 'react';
+import { NavLink, useLocation } from 'react-router';
 
 export interface LinkTab {
   to: string;
@@ -9,9 +10,29 @@ export interface LinkTab {
 
 /** Вкладки внутри раздела: обычные ссылки, текущая отмечена `aria-current="page"`. */
 export function LinkTabs({ label, items }: { label: string; items: readonly LinkTab[] }) {
+  const ref = useRef<HTMLUListElement>(null);
+  const { pathname } = useLocation();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: маршрут задаёт положение индикатора
+  useLayoutEffect(() => {
+    const list = ref.current;
+    if (!list) return;
+    const measure = () => {
+      const active = list.querySelector<HTMLElement>('[aria-current="page"]');
+      const indicator = list.querySelector<HTMLElement>('.tab-indicator');
+      if (!active || !indicator) return;
+      indicator.style.width = `${active.offsetWidth}px`;
+      indicator.style.height = `${active.offsetHeight}px`;
+      indicator.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [pathname]);
   return (
     <nav className="tabs" aria-label={label}>
-      <ul className="tabs__list">
+      <ul className="tabs__list" ref={ref}>
+        <li className="tab-indicator" aria-hidden="true" />
         {items.map((item) => (
           <li key={item.to}>
             <NavLink to={item.to} end={item.end ?? false} className="tabs__link">
