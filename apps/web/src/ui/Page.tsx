@@ -1,8 +1,6 @@
 import { CaretLeft } from '@phosphor-icons/react';
 import { type ReactNode, useEffect } from 'react';
-import { AddAction } from '../shell/AddAction.tsx';
 import { Link } from '../shell/motion.tsx';
-import { isStudio } from '../shell/studio.ts';
 
 /** Название вкладки браузера и читалок экрана меняется вместе с экраном. */
 export function usePageTitle(title: string): void {
@@ -59,7 +57,6 @@ export function Page({
             <div className="page-heading__line">
               <h1>{title}</h1>
               {status}
-              {isStudio() ? <AddAction /> : null}
             </div>
           </>
         )}

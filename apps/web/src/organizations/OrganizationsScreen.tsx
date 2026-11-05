@@ -93,14 +93,14 @@ export function OrganizationsScreen() {
 
   if (query.isPending) {
     return (
-      <StudioPage title="Организации" back={BACK}>
+      <StudioPage title="Организации" back={BACK} listAdd={false}>
         <Notice>Загружаем организации…</Notice>
       </StudioPage>
     );
   }
   if (query.data === undefined) {
     return (
-      <StudioPage title="Организации" back={BACK}>
+      <StudioPage title="Организации" back={BACK} listAdd={false}>
         <ObjectError error={query.error} action="load" />
         <button className="text-button" type="button" onClick={() => void query.refetch()}>
           Повторить загрузку организаций
@@ -115,6 +115,7 @@ export function OrganizationsScreen() {
     <StudioPage
       title="Организации"
       back={BACK}
+      listAdd={false}
       {...(all.length > 0 ? { eyebrow: organizationCount(all.length) } : {})}
     >
       <div className="section__head">
