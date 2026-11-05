@@ -562,7 +562,27 @@ html[data-design="studio"]
   background: linear-gradient(var(--paper), var(--paper)) no-repeat 60px 0 / calc(100% - 60px) 1px;
 }
 
-/* Смена содержимого обрезает края (overflow: clip): запас под мягкую тень групп. */
-html[data-design="studio"] .content-motion {
-  overflow-clip-margin: 48px;
+/* UI-10: обрезка смены содержимого и ленты дел нужна только на время движения. В покое
+   тень групп падает прямо на фон страницы без прямой границы; соседние ленты скрыты, а
+   за край экрана ничего не выходит: .main режет по горизонтали сам. */
+html[data-design="studio"] .content-motion:not(:has(> .content-motion__old)) {
+  overflow: visible;
+}
+/* Лента режет и по высоте: соседние ленты не должны удлинять страницу. Поле обрезки шире
+   тени, соседние ленты в покое прозрачны — видны только во время свайпа. */
+html[data-design="studio"] .feed-carousel:not([data-feed-preview]):not(:has(.feed-tab-ghost)) {
+  overflow-clip-margin: 64px;
+}
+html[data-design="studio"]
+  .feed-carousel:not([data-feed-preview]):not(:has(.feed-tab-ghost))
+  .feed-carousel__pane[data-feed-active="false"] {
+  opacity: 0;
+}
+
+/* UI-10: рамка фокуса строки внутри группы рисуется внутри своей цели: её не режут ни
+   скругление группы, ни обёртка свайпа, у первой и последней строки тоже. */
+html[data-design="studio"]
+  :is(.row-list, .plan-rows, .shopping-page .task-list)
+  :is(a[href], button, summary):focus-visible {
+  outline-offset: -2px;
 }
