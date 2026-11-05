@@ -2,7 +2,6 @@ import { CaretLeft, DotsThree, PencilSimple } from '@phosphor-icons/react';
 import { type ReactNode, type RefObject, useEffect, useState } from 'react';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
-import { AddAction } from '../shell/AddAction.tsx';
 import { Link } from '../shell/motion.tsx';
 import { FormHeading } from './FormHeading.tsx';
 import { Page } from './Page.tsx';
@@ -30,7 +29,10 @@ interface RecordPageProps {
   compactCard?: boolean;
 }
 
-/** Шапка по карточке объекта; операции и существующие подтверждения передаются самим экраном. */
+/**
+ * Шапка по стандарту карточки объекта (UI-3, D46): возврат, название, тип обычным регистром,
+ * короткая мета; справа только «Изменить» и «Ещё». Создания новых записей в шапке нет.
+ */
 export function RecordPage({
   title,
   documentTitle,
@@ -76,7 +78,6 @@ export function RecordPage({
                 <CaretLeft size={20} aria-hidden />
                 {back.label}
               </Link>
-              {!compactCard ? <AddAction /> : null}
               {onEdit ? (
                 <button
                   className="icon-button"
@@ -103,9 +104,8 @@ export function RecordPage({
                 <DotsThree size={24} aria-hidden />
               </button>
             </div>
-            {!compactCard ? <p className="object-hero__type">{type}</p> : null}
             <h1>{title}</h1>
-            {compactCard ? <p className="object-hero__type">{type}</p> : null}
+            <p className="object-hero__type">{type}</p>
             <div className="object-hero__meta">
               {subtitle ? <span>{subtitle}</span> : null}
               {access || onAccess ? (

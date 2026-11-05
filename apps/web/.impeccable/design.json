@@ -322,9 +322,14 @@
     },
     "shadows": [
       {
-        "name": "toast",
-        "value": "0 6px 16px rgb(32 32 30 / 0.2)",
-        "purpose": "shell.css: .toast"
+        "name": "shadow-raised",
+        "value": "0 1px 2px rgb(74 52 30 / 0.05), 0 10px 30px rgb(74 52 30 / 0.09)",
+        "purpose": "tokens.css: группы и карточки на paper (UI-10, D46)"
+      },
+      {
+        "name": "shadow-float",
+        "value": "0 2px 6px rgb(74 52 30 / 0.08), 0 16px 40px rgb(74 52 30 / 0.14)",
+        "purpose": "tokens.css: нижнее меню, toast, листы, главная карточка экрана (UI-10, D46)"
       },
       {
         "name": "screen-edge",
@@ -439,7 +444,7 @@
       "name": "Card",
       "kind": "card",
       "refersTo": "card",
-      "description": "Группа строк — surface с границей line, разделителями и studio-group; hover строки — soft только на устройствах с hover, active — soft. Общая отдельная card имеет padding 18px, без границы и тени; служебные вложенные card могут быть прозрачными. Панель содержимого не получает внешнего скругления.",
+      "description": "Группа строк — surface с границей line, разделителями и studio-group; hover строки — soft только на устройствах с hover, active — soft. Общая отдельная card имеет padding 18px, без границы, с --shadow-raised; служебные вложенные card могут быть прозрачными. Панель содержимого не получает внешнего скругления.",
       "html": "<article class=\"ds-card\"><h3 class=\"ds-card-title\">&#1047;&#1072;&#1084;&#1077;&#1090;&#1082;&#1072;</h3></article>",
       "css": ".ds-card{padding:18px;border:0;border-radius:16px;background:var(--surface,#f8f5ef);color:var(--ink,#22201c);font-family:var(--font-sans,\"Onest Studio\",Onest,\"Segoe UI\",system-ui,sans-serif);}.ds-card-title{margin:0;font-size:1.0625rem;font-weight:500;line-height:1.35;}"
     },
@@ -447,7 +452,7 @@
       "name": "Row Group",
       "kind": "card",
       "refersTo": "row-group",
-      "description": "Группа строк — surface с границей line, разделителями и studio-group; hover строки — soft только на устройствах с hover, active — soft. Общая отдельная card имеет padding 18px, без границы и тени; служебные вложенные card могут быть прозрачными. Панель содержимого не получает внешнего скругления.",
+      "description": "Группа строк — surface с границей line, разделителями и studio-group; hover строки — soft только на устройствах с hover, active — soft. Общая отдельная card имеет padding 18px, без границы, с --shadow-raised; служебные вложенные card могут быть прозрачными. Панель содержимого не получает внешнего скругления.",
       "html": "<ul class=\"ds-group\"><li><a class=\"ds-row\" href=\"#object\">&#1050;&#1074;&#1072;&#1088;&#1090;&#1080;&#1088;&#1072;</a></li><li><a class=\"ds-row\" href=\"#document\">&#1044;&#1086;&#1082;&#1091;&#1084;&#1077;&#1085;&#1090;</a></li></ul>",
       "css": ".ds-group{margin:0;padding:0;list-style:none;overflow:hidden;border:1px solid var(--line,#dcd4c6);border-radius:16px;background:var(--surface,#f8f5ef);box-shadow:none;font-family:var(--font-sans,\"Onest Studio\",Onest,\"Segoe UI\",system-ui,sans-serif);}.ds-group>li+li{border-top:1px solid var(--line,#dcd4c6);}.ds-row{display:flex;align-items:center;min-height:64px;padding:14px 12px;color:var(--ink,#22201c);font-size:1rem;font-weight:500;line-height:1.4;text-decoration:none;}.ds-row:focus-visible{outline:2px solid var(--focus-ring,#b5532d);outline-offset:2px;outline-offset:-2px;}.ds-row:active{background:var(--soft,#e6dfd3);}@media(hover:hover){.ds-row:hover{background:var(--soft,#e6dfd3);}}"
     }

@@ -696,7 +696,7 @@ html[data-design="studio"] .chrome__actions {
 
 html[data-design="studio"] .fab {
   background: var(--accent);
-  box-shadow: 0 6px 16px rgb(32 32 30 / 0.2);
+  box-shadow: var(--shadow-float);
 }
 
 html[data-design="studio"] .fab:active {
@@ -741,7 +741,7 @@ html[data-design="studio"] .toast {
   border-radius: 16px;
   background: var(--charcoal);
   color: var(--on-dark);
-  box-shadow: 0 6px 16px rgb(32 32 30 / 0.2);
+  box-shadow: var(--shadow-float);
 }
 
 html[data-design="studio"] .toast__detail {

@@ -75,12 +75,12 @@ export function NotesScreen() {
                 </span>
               ) : null}
             </h1>
-            <AddAction />
           </div>
         </div>
       }
     >
       <div className="studio-panel studio-list-panel">
+        <AddAction list />
         {query.isPending ? <Notice>Загружаем заметки…</Notice> : null}
         {query.isError ? (
           <>

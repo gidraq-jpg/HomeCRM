@@ -121,6 +121,12 @@
   --success: #345d48;
   --success-soft: #e9eee7;
   --overlay: rgb(32 32 30 / 0.55);
+  /* UI-10 «Глубина» (D46): две мягкие тёплые тени цвета фона, не чёрные. Других значений
+     тени в Studio нет. raised — приподнятые группы и карточки на --paper; float — то, что над
+     содержимым (меню, листы, уведомление), и одна главная карточка экрана. */
+  --surface-raised: #fbf9f5;
+  --shadow-raised: 0 1px 2px rgb(74 52 30 / 0.05), 0 10px 30px rgb(74 52 30 / 0.09);
+  --shadow-float: 0 2px 6px rgb(74 52 30 / 0.08), 0 16px 40px rgb(74 52 30 / 0.14);
   --font-sans: "Onest Studio", Onest, "Segoe UI", system-ui, sans-serif;
   --font-serif: var(--font-sans);
   --gutter: 22px;

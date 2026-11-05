@@ -17,8 +17,11 @@ export function StudioPage({
   form = false,
   service = false,
   backHistory = false,
+  listAdd = true,
   ...props
 }: Parameters<typeof Page>[0] & {
+  /** Подписанное создание в начале списка; false, если экран показывает своё. */
+  listAdd?: boolean;
   form?: boolean;
   formEyebrow?: string;
   service?: boolean;
@@ -56,14 +59,16 @@ export function StudioPage({
             <div className="page-heading__line">
               <h1>{title}</h1>
               {status}
-              {!form ? <AddAction /> : null}
             </div>
             {eyebrow ? <p className="studio-list-count">{eyebrow}</p> : null}
           </div>
         ))
       }
     >
-      <div className="studio-panel studio-list-panel ui6-panel">{children}</div>
+      <div className="studio-panel studio-list-panel ui6-panel">
+        {listAdd && !form && !service && heading === undefined ? <AddAction list /> : null}
+        {children}
+      </div>
     </Page>
   );
 }

@@ -412,3 +412,157 @@ html[data-design="studio"] .approved-record-card .task-list {
   border-radius: 16px;
   padding-inline: 16px;
 }
+
+/* D46, часть Б. Тёмная шапка вплотную к верхней панели: у страниц с тёмным заголовком
+   нет отступа над ним, иначе между панелью и шапкой просвечивает светлая полоса фона. */
+html[data-design="studio"]
+  .app
+  :is(.object-page, .ui6-record-page, .studio-list-page)
+  > .page-heading {
+  margin-top: 0;
+}
+
+/* D46: на компьютере общий отступ .page (24px 32px) оставлял тёмный фон страницы списка
+   полосами по бокам светлой панели. Шапка и панель сами держат поля по 32 px. */
+@media (min-width: 960px) {
+  html[data-design="studio"] .app :is(.studio-list-page, .ui6-record-page, .object-page) {
+    padding: 0;
+  }
+}
+
+/* D46, UI-3: карточки на общем RecordPage — тип обычным регистром после названия,
+   факты короткой метой, а не блоком полей. */
+html[data-design="studio"] .ui6-record-page .object-hero__type {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+html[data-design="studio"] .ui6-record-page .object-hero .object-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 16px;
+  margin-top: 4px;
+}
+html[data-design="studio"] .ui6-record-page .object-hero .object-facts > div {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
+  min-width: 0;
+  min-height: 28px;
+}
+html[data-design="studio"] .ui6-record-page .object-hero .object-facts dt {
+  font-size: 0.875rem;
+}
+html[data-design="studio"] .ui6-record-page .object-hero .object-facts dt::after {
+  content: ":";
+}
+html[data-design="studio"] .ui6-record-page .object-hero .object-facts dd {
+  margin: 0;
+  color: var(--on-dark);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+/* Создание — в начале списка раздела, а не в тёмной шапке. */
+html[data-design="studio"] .list-add {
+  margin-bottom: 16px;
+}
+
+/* UI-10 «Глубина» (D46). Приподнятые группы и карточки на --paper — --shadow-raised и чуть
+   более светлая поверхность; над содержимым и одна главная карточка экрана — --shadow-float.
+   Строки внутри групп, поля, чипы, кнопки, тёмные шапки и вложенные карточки — без тени. */
+html[data-design="studio"]
+:is(
+  .studio-panel .row-list,
+  .window-card,
+  .notes-pinned__card,
+  .shopping-page .task-list,
+  .plan-rows,
+  .approved-card-facts,
+  .approved-card-fold,
+  .approved-record-card .task-list,
+  .ui6-service-page .ui6-panel > .section,
+  .ui6-service-page .notif-form > .section
+),
+html[data-design="studio"]
+  .ui6-record-panel
+  :is(
+    .facts,
+    .task-list,
+    .task-history,
+    .task-links,
+    .phone-list,
+    .timeline,
+    .version-list,
+    .deadline-list,
+    .file-list,
+    .upload-list
+  ),
+html[data-design="studio"]
+  .ui6-service-page
+  :is(
+    .security-list,
+    .log-list,
+    .device-list,
+    .trash-list,
+    .spaces-list,
+    .visibility-list,
+    .facts
+  ) {
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+
+/* Вложенная группа внутри приподнятой карточки остаётся плоской. */
+html[data-design="studio"]
+  :is(
+    .approved-card-fold,
+    .ui6-service-page .ui6-panel > .section,
+    .ui6-service-page .notif-form > .section
+  )
+  :is(
+    .row-list,
+    .task-list,
+    .facts,
+    .security-list,
+    .log-list,
+    .device-list,
+    .trash-list,
+    .spaces-list,
+    .visibility-list,
+    .file-list,
+    .deadline-list,
+    .timeline
+  ) {
+  box-shadow: none;
+}
+
+html[data-design="studio"] .today-panel .task-focus,
+html[data-design="studio"] .feed-panel .task-focus {
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-float);
+}
+
+html[data-design="studio"] :is(.bottom-nav, .toast, .fab, .sheet:not(.sheet--full)) {
+  box-shadow: var(--shadow-float);
+}
+
+/* Разделители групп с иконкой слева — с отступом по ширине иконки, цвет прежний. */
+html[data-design="studio"]
+  :is(.ui6-service-page, .studio-list-page:not(.feed-page))
+  .studio-panel
+  .row-list
+  > li
+  + li {
+  border-top: 0;
+  background: linear-gradient(var(--paper), var(--paper)) no-repeat 60px 0 / calc(100% - 60px) 1px;
+}
+
+/* Смена содержимого обрезает края (overflow: clip): запас под мягкую тень групп. */
+html[data-design="studio"] .content-motion {
+  overflow-clip-margin: 48px;
+}

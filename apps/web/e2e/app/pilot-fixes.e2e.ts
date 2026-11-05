@@ -457,22 +457,25 @@ test('D19a.14: создание из списка и доступных карт
   ]) {
     for (const source of [list, card]) {
       await page.goto(`#${source}`);
-      if (source === card && target === '/home/new') {
-        await expect(page.getByRole('heading', { level: 1, name: object.title })).toBeVisible();
-        await expect(page.locator('button.studio-add')).toHaveCount(0);
-        await page.getByRole('link', { name: 'Дом', exact: true }).first().click();
+      // D46 (UI-3): в шапке карточки создания нет; создают из списка раздела.
+      if (source === card) {
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await expect(page.locator('main .studio-add')).toHaveCount(0);
+        if (target === '/documents/new') {
+          await page.evaluate(() => {
+            window.document.documentElement.style.fontSize = '200%';
+          });
+          await check(page, info, 'document-text200');
+          await page.evaluate(() => {
+            window.document.documentElement.style.fontSize = '';
+          });
+        }
+        continue;
       }
-      if (source === card && target === '/documents/new') {
-        await expect(page.locator('main .studio-add')).toBeVisible();
-        await page.evaluate(() => {
-          window.document.documentElement.style.fontSize = '200%';
-        });
-        await check(page, info, 'document-text200');
-        await page.evaluate(() => {
-          window.document.documentElement.style.fontSize = '';
-        });
-      }
-      await page.locator(`button.studio-add[aria-label="${label}"]`).click();
+      await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(0);
+      if (target === '/more/organizations/new')
+        await page.getByRole('link', { name: label, exact: true }).first().click();
+      else await page.locator(`button.list-add[aria-label="${label}"]`).click();
       await expect(page).toHaveURL(new RegExp(`#${target}$`));
       await expect(
         page.getByRole('heading', { level: 1, name: heading, exact: true }),
@@ -496,7 +499,13 @@ test('D19a.14: Сегодня показывает меню, План/Все д�
   await page.locator('button.studio-add').click();
   await expect(page.getByRole('dialog', { name: 'Добавить', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
-  for (const path of ['/today/plan', '/today/all', '/more', '/more/profile', '/home/month']) {
+  // D46 (UI-3): служебные экраны без «+» в шапке; быстрое дело — из лент дел.
+  for (const path of ['/more', '/more/profile', '/home/month']) {
+    await page.goto(`#${path}`);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.locator('main .studio-add')).toHaveCount(0);
+  }
+  for (const path of ['/today/plan', '/today/all']) {
     await page.goto(`#${path}`);
     await page.locator('button.studio-add[aria-label="Добавить дело"]').click();
     await expect(page.getByRole('dialog', { name: 'Новое дело', exact: true })).toBeVisible();

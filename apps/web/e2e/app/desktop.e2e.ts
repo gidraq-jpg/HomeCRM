@@ -82,22 +82,17 @@ test('боковое меню вместо нижнего, переключат�
   await setScope(page, 'Всё');
   await checkApp(page, info, 'desktop-people');
 
-  // Studio 2, п. 4: «+» в заголовке раздела, рядом с названием, без перекрытия текста.
+  // D46 (UI-3): создание — подписанной кнопкой в начале списка, не в тёмной шапке.
   const add = page.getByRole('button', { name: 'Добавить человека', exact: true });
   await expect(add).toBeVisible();
+  await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(0);
+  await expect(page.locator('.studio-panel > .list-add')).toHaveCount(1);
   const box = await add.boundingBox();
   const headingBox = await page
     .getByRole('heading', { level: 1, name: 'Люди', exact: true })
     .boundingBox();
-  expect(box).not.toBeNull();
-  expect(headingBox).not.toBeNull();
-  expect(box && headingBox && box.x).toBeGreaterThanOrEqual(
-    headingBox ? headingBox.x + headingBox.width : 0,
-  );
+  expect(box && headingBox && box.y).toBeGreaterThan(headingBox ? headingBox.y : 0);
   expect(box && box.x + box.width).toBeLessThanOrEqual(1280);
-  expect(
-    box && headingBox && Math.abs(box.y + box.height / 2 - headingBox.y - headingBox.height / 2),
-  ).toBeLessThan(24);
 });
 
 test('заметки на компьютере: список, карточка и «Кто видит» рядом с боковым меню', async ({
