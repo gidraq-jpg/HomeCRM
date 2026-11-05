@@ -70,6 +70,11 @@ test('D19a.1–3/13: повтор возвращается отменой без
     return `rgb(${[1, 3, 5].map((index) => Number.parseInt(hex.slice(index, index + 2), 16)).join(', ')})`;
   });
   await expect(row.locator('.plan-row__title')).toHaveCSS('color', muted);
+  // Следующий экземпляр повтора приходит перезапросом и встаёт строкой после последней:
+  // до его появления Tab с предыдущей строки ведёт уже не в тост.
+  await expect(
+    page.locator('[data-feed-active="true"] .plan-row').filter({ hasText: 'Протереть стол D19' }),
+  ).toHaveCount(2);
   const undo = page.getByRole('button', { name: 'Отменить', exact: true });
   await undo.focus();
   await page.keyboard.press('Shift+Tab');
