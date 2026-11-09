@@ -284,3 +284,16 @@ export async function expectVisibilityBeforeSubmit(form: Locator): Promise<void>
     'после прокрутки вся строка «Кто видит» над кнопкой и не перекрыта панелью',
   ).toBe(true);
 }
+
+/** Фильтры дел на «Все дела» живут в листе «Фильтры дел» (D48, UI-12). */
+export async function withTaskFilters(
+  page: Page,
+  choose: (sheet: Locator) => Promise<void>,
+): Promise<void> {
+  await page.getByRole('button', { name: /^Фильтры/ }).click();
+  const sheet = page.getByRole('dialog', { name: 'Фильтры дел', exact: true });
+  await expect(sheet).toBeVisible();
+  await choose(sheet);
+  await sheet.getByRole('button', { name: 'Готово', exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+}

@@ -1,18 +1,16 @@
-import { AddressBook, Plus } from '@phosphor-icons/react';
+import { AddressBook } from '@phosphor-icons/react';
 import { useId, useState } from 'react';
 import { useScope } from '../access/ScopeContext.tsx';
 import { matchesScope, SCOPE_LABELS } from '../access/scope.ts';
 import { Notice } from '../auth/components.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
-import { Link } from '../shell/motion.tsx';
 import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { Row, RowList, Status } from '../ui/Row.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import type { ContactCard, OrganizationType } from './api.ts';
-import { useCanCreateOrganization } from './CreateOrganization.tsx';
 import { ORGANIZATION_TYPE_LABELS } from './form.ts';
 import { useOrganizationsList } from './queries.ts';
 
@@ -65,7 +63,6 @@ export function OrganizationsScreen() {
   const [type, setType] = useState<OrganizationType | ''>('');
   const query = useOrganizationsList(false, type === '' ? null : type);
   const { scope, setScope } = useScope();
-  const canCreate = useCanCreateOrganization();
   const typeId = useId();
 
   const filter = (
@@ -93,14 +90,14 @@ export function OrganizationsScreen() {
 
   if (query.isPending) {
     return (
-      <StudioPage title="Организации" back={BACK} listAdd={false}>
+      <StudioPage title="Организации" back={BACK}>
         <Notice>Загружаем организации…</Notice>
       </StudioPage>
     );
   }
   if (query.data === undefined) {
     return (
-      <StudioPage title="Организации" back={BACK} listAdd={false}>
+      <StudioPage title="Организации" back={BACK}>
         <ObjectError error={query.error} action="load" />
         <button className="text-button" type="button" onClick={() => void query.refetch()}>
           Повторить загрузку организаций
@@ -115,17 +112,8 @@ export function OrganizationsScreen() {
     <StudioPage
       title="Организации"
       back={BACK}
-      listAdd={false}
       {...(all.length > 0 ? { eyebrow: organizationCount(all.length) } : {})}
     >
-      <div className="section__head">
-        <h2 className="section__title">Организации</h2>
-        {canCreate ? (
-          <Link className="icon-button" to={NEW_ORGANIZATION} aria-label="Добавить организацию">
-            <Plus size={20} aria-hidden />
-          </Link>
-        ) : null}
-      </div>
       {filter}
       <ContentMotion version={all.map((item) => item.id).join(',')}>
         {all.length === 0 ? (

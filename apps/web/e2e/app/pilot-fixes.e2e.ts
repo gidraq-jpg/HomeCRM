@@ -462,7 +462,7 @@ test('D19a.14: создание из списка и доступных карт
   ]) {
     for (const source of [list, card]) {
       await page.goto(`#${source}`);
-      // D46 (UI-3): в шапке карточки создания нет; создают из списка раздела.
+      // D46 (UI-3), D48 (UI-12): в шапке карточки создания нет; создают одной плавающей «+».
       if (source === card) {
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
         await expect(page.locator('main .studio-add')).toHaveCount(0);
@@ -477,10 +477,8 @@ test('D19a.14: создание из списка и доступных карт
         }
         continue;
       }
-      await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(0);
-      if (target === '/more/organizations/new')
-        await page.getByRole('link', { name: label, exact: true }).first().click();
-      else await page.locator(`button.list-add[aria-label="${label}"]`).click();
+      await expect(page.locator('.studio-list-hero .studio-add, .list-add')).toHaveCount(0);
+      await page.locator(`button.fab[aria-label="${label}"]`).click();
       await expect(page).toHaveURL(new RegExp(`#${target}$`));
       await expect(
         page.getByRole('heading', { level: 1, name: heading, exact: true }),
@@ -501,7 +499,7 @@ test('D19a.14: Сегодня показывает меню, План/Все д�
 }, info) => {
   await signInAs(page, family, 'adult');
   await page.goto('#/today');
-  await page.locator('button.studio-add').click();
+  await page.locator('button.fab').click();
   await expect(page.getByRole('dialog', { name: 'Добавить', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   // D46 (UI-3): служебные экраны без «+» в шапке; быстрое дело — из лент дел.
@@ -512,7 +510,7 @@ test('D19a.14: Сегодня показывает меню, План/Все д�
   }
   for (const path of ['/today/plan', '/today/all']) {
     await page.goto(`#${path}`);
-    await page.locator('button.studio-add[aria-label="Добавить дело"]').click();
+    await page.locator('button.fab[aria-label="Добавить дело"]').click();
     await expect(page.getByRole('dialog', { name: 'Новое дело', exact: true })).toBeVisible();
     await check(page, info, `quick-${path.split('/').at(-1)}`);
     await page.keyboard.press('Escape');

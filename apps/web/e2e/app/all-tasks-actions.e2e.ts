@@ -6,6 +6,7 @@ import {
   expectAccessible,
   expectNoHorizontalScroll,
   expectTouchTargets,
+  withTaskFilters,
 } from '../support/helpers.ts';
 import { homeDate, setHomeZone } from './deadlines-support.ts';
 import { apiAs } from './notes-support.ts';
@@ -191,8 +192,12 @@ test('TASK-6: старые завершённые дела — через ста
       })
     ).status,
   ).toBe(403);
-  await page.locator('[data-feed-active="true"] .studio-list-options summary').click();
-  await page.getByLabel('Статус дел', { exact: true }).selectOption('done');
+  await withTaskFilters(page, (sheet) =>
+    sheet
+      .getByLabel('Статус дел', { exact: true })
+      .selectOption('done')
+      .then(() => undefined),
+  );
   await expect(
     page.getByRole('link', { name: 'Старое выполненное · выполнено', exact: true }),
   ).toBeVisible();
@@ -200,7 +205,12 @@ test('TASK-6: старые завершённые дела — через ста
   await expect(
     page.locator('[data-feed-active="true"] .plan-row--closed .plan-row__meta--late'),
   ).toHaveCount(0);
-  await page.getByLabel('Статус дел', { exact: true }).selectOption('cancelled');
+  await withTaskFilters(page, (sheet) =>
+    sheet
+      .getByLabel('Статус дел', { exact: true })
+      .selectOption('cancelled')
+      .then(() => undefined),
+  );
   await expect(
     page.getByRole('link', { name: 'Старое отменённое · отменено', exact: true }),
   ).toBeVisible();

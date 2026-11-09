@@ -18,6 +18,16 @@ export function LinkTabs({ label, items }: { label: string; items: readonly Link
     if (!list) return;
     const measure = () => {
       const active = list.querySelector<HTMLElement>('[aria-current="page"]');
+      // Вкладки в одну строку со сдвигом вбок: выбранная всегда в видимой зоне, край следующей виден.
+      const strip = list.parentElement;
+      if (active && strip && strip.scrollWidth > strip.clientWidth) {
+        const left = active.offsetLeft;
+        const right = left + active.offsetWidth;
+        const edge = 32;
+        if (left - edge < strip.scrollLeft) strip.scrollLeft = Math.max(0, left - edge);
+        else if (right + edge > strip.scrollLeft + strip.clientWidth)
+          strip.scrollLeft = right + edge - strip.clientWidth;
+      }
       const indicator = list.querySelector<HTMLElement>('.tab-indicator');
       if (!active || !indicator) return;
       indicator.style.width = `${active.offsetWidth}px`;

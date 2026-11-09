@@ -111,7 +111,7 @@ for (const reduce of [false, true])
     await signInAs(page, family, 'adult');
     await expect(page.locator('[data-feed-ready="true"]')).toHaveCount(4);
     const tabs = page.locator('.today-tabs');
-    const add = tabs.locator('.studio-add');
+    const add = page.locator('.chrome .fab');
     const first = await tabs.boundingBox();
     const plus = await add.boundingBox();
     const dir = resolve(import.meta.dirname, '../../test-results/screens/D32/after');

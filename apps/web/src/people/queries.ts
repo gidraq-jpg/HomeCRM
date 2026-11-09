@@ -1,4 +1,5 @@
 import {
+  infiniteQueryOptions,
   keepPreviousData,
   useInfiniteQuery,
   useQuery,
@@ -22,10 +23,8 @@ import type { AnyContact } from './schema.ts';
 const CONTACTS = 'contacts';
 
 /** Список людей и организаций под фильтры и режим «Всё · Общее · Личное»; постранично. */
-export function useContactsList(filters: Omit<ContactFilters, 'scope'>, trash = false) {
-  const { scope } = useScope();
-  const full: ContactFilters = { ...filters, scope: listScopeOf(scope) };
-  return useInfiniteQuery({
+export function contactsListOptions(full: ContactFilters, trash = false) {
+  return infiniteQueryOptions({
     queryKey: [CONTACTS, 'list', full, trash],
     initialPageParam: 0,
     // Набор в поиске не заменяет экран на «Загружаем…»: прежний список виден, фокус на месте.
@@ -34,6 +33,11 @@ export function useContactsList(filters: Omit<ContactFilters, 'scope'>, trash = 
     getNextPageParam: (last: AnyContact[], pages) =>
       last.length < PAGE_SIZE ? undefined : pages.length * PAGE_SIZE,
   });
+}
+
+export function useContactsList(filters: Omit<ContactFilters, 'scope'>, trash = false) {
+  const { scope } = useScope();
+  return useInfiniteQuery(contactsListOptions({ ...filters, scope: listScopeOf(scope) }, trash));
 }
 
 export function useContact(id: string | undefined) {

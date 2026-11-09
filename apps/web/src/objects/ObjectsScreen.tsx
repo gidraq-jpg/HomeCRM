@@ -7,12 +7,16 @@ import { PropertyStatusBadge } from '../property/PropertyStatusBadge.tsx';
 import { Link } from '../shell/motion.tsx';
 import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { CompactEmptyState } from '../ui/EmptyState.tsx';
+import { type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
+import { monthName, monthOf } from '../utilities/months.ts';
+import { useMonth } from '../utilities/queries.ts';
 import type { ObjectSummary } from './api.ts';
 import { ObjectError } from './components.tsx';
+import { todayIn } from './dates.ts';
 import { useObjectsList } from './queries.ts';
 import {
   OBJECT_TYPE_GROUPS,
@@ -75,6 +79,43 @@ function EmptyObjects() {
   return <CompactEmptyState title="Объектов пока нет" />;
 }
 
+/**
+ * Сводка вместо текстовой кнопки (D48): тот же переход на «Коммуналку за месяц», в строке — сумма
+ * к оплате и срок из ответа API. Пока ответа нет или начислений нет, строка без чисел.
+ */
+function MonthCard() {
+  const { me } = useHousehold();
+  const query = useMonth();
+  const month = query.data?.month ?? monthOf(todayIn(me.timeZone));
+  const totals = query.data?.totals;
+  const name = monthName(month).split(' ')[0]?.toLowerCase() ?? '';
+  let meta: string | null = null;
+  if (totals && totals.chargedCents > 0) {
+    meta =
+      totals.remainingCents > 0
+        ? `${totals.overdue ? 'Долг' : 'К оплате'} ${formatRub(totals.remainingCents)}${
+            totals.dueOn
+              ? `${totals.overdue ? ', срок был' : ' до'} ${formatShortDate(totals.dueOn as DateOnly)}`
+              : ''
+          }`
+        : 'Всё оплачено';
+  }
+  return (
+    <div className="month-card">
+      <RowList label="Коммуналка">
+        <Row
+          key="month"
+          to={MONTH_SCREEN}
+          icon={<Receipt size={22} aria-hidden />}
+          title={`Коммуналка за ${name}`}
+          {...(meta ? { meta } : {})}
+          chevron
+        />
+      </RowList>
+    </div>
+  );
+}
+
 /** «Дом» (OBJ-1…3): объекты по типам под переключателем «Всё · Общее · Личное». */
 export function ObjectsScreen() {
   const query = useObjectsList(false);
@@ -110,12 +151,7 @@ export function ObjectsScreen() {
           <EmptyObjects />
         ) : (
           <>
-            {all.some((object) => object.objectType === 'property') ? (
-              <Link className="btn btn--secondary btn--block month-link" to={MONTH_SCREEN}>
-                <Receipt size={20} aria-hidden />
-                Коммуналка за месяц
-              </Link>
-            ) : null}
+            {all.some((object) => object.objectType === 'property') ? <MonthCard /> : null}
             {groups.map(([type, items]) => (
               <Section
                 key={type}

@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router';
@@ -26,6 +26,7 @@ import './styles/tasks.css';
 import './styles/offline-shopping.css';
 import './styles/studio2.css';
 import { registerShell } from './pwa/register.ts';
+import { createQueryClient } from './query-client.ts';
 import { applyTheme, readTheme } from './theme/theme.ts';
 
 // Общие стили прототипа 0.5 сохраняются в его отдельном entry.
@@ -35,17 +36,7 @@ applyTheme(readTheme());
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Нет элемента #root');
-const client = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      gcTime: 0,
-      networkMode: 'always',
-      refetchOnReconnect: true,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const client = createQueryClient();
 registerShell();
 
 // Маршруты в части адреса после «#»: прототип работает из любой папки без сервера.
@@ -61,3 +52,4 @@ createRoot(root).render(
 
 import './styles/motion.css';
 import './styles/calm.css';
+import './styles/compact.css';

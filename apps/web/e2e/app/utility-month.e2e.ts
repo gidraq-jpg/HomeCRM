@@ -72,7 +72,7 @@ async function charge(
 async function openMonth(page: Page) {
   await page.goto('#/home');
   await expect(page.getByRole('heading', { level: 1, name: 'Дом', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Коммуналка за месяц' }).click();
+  await page.getByRole('link', { name: /Коммуналка за/ }).click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Коммуналка за месяц', exact: true }),
   ).toBeVisible();

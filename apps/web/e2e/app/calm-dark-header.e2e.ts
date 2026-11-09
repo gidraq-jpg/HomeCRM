@@ -80,7 +80,7 @@ test('Тёмные шапки и кнопки действий: контраст
         });
         try {
           const geometry = await page
-            .locator('button, a.icon-button, a.studio-add')
+            .locator('button:not(.fab), a.icon-button')
             .evaluateAll((nodes) =>
               nodes
                 .filter((node) => node.getBoundingClientRect().width > 0)

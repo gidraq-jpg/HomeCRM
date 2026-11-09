@@ -121,11 +121,11 @@ function ObjectView({ card }: { card: ObjectCard }) {
               </button>
             </div>
             <h1>{card.title}</h1>
-            <p className="object-hero__type">
-              {OBJECT_TYPE_LABELS[card.objectType]}
-              {trashed ? ' · в корзине' : ''}
-            </p>
             <div className="object-hero__meta">
+              <span className="object-hero__type">
+                {OBJECT_TYPE_LABELS[card.objectType]}
+                {trashed ? ' · в корзине' : ''}
+              </span>
               {card.typeData.address ? <span>{card.typeData.address}</span> : null}
               {!trashed ? (
                 <button

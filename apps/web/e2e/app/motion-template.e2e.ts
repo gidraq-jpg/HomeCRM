@@ -23,9 +23,10 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       }
       await signInAs(page, family, 'adult');
       await page.goto('#/today/all');
-      await page.getByText('Статус дел', { exact: true }).first().click();
-      const status = page.getByLabel('Статус дел', { exact: true });
-      await status.focus();
+      await page.getByRole('button', { name: /^Фильтры/ }).click();
+      const status = page
+        .getByRole('dialog', { name: 'Фильтры дел', exact: true })
+        .getByLabel('Статус дел', { exact: true });
       await status.selectOption('open');
       await settle(page);
       await expect(

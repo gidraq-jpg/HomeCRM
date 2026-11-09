@@ -50,7 +50,7 @@ test('Компактные фильтры: применение, отмена, �
   await filter.click();
   await expect(page.getByRole('radio', { name: 'Действующие', exact: true })).toBeChecked();
   await page.keyboard.press('Escape');
-  await page.getByRole('radio', { name: 'Истекают', exact: true }).check();
+  await page.getByRole('radio', { name: /^Истекают/ }).check();
   await expect(filter).toHaveText('Фильтры · 1');
   await page.getByRole('radio', { name: 'Все', exact: true }).check();
   await expect(filter).toHaveText('Фильтры');

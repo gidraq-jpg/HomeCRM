@@ -1,5 +1,4 @@
 import { CaretLeft } from '@phosphor-icons/react';
-import { AddAction } from '../shell/AddAction.tsx';
 import { Link, useNavigate } from '../shell/motion.tsx';
 import { FormHeading } from './FormHeading.tsx';
 import { Page } from './Page.tsx';
@@ -17,11 +16,8 @@ export function StudioPage({
   form = false,
   service = false,
   backHistory = false,
-  listAdd = true,
   ...props
 }: Parameters<typeof Page>[0] & {
-  /** Подписанное создание в начале списка; false, если экран показывает своё. */
-  listAdd?: boolean;
   form?: boolean;
   formEyebrow?: string;
   service?: boolean;
@@ -58,17 +54,18 @@ export function StudioPage({
             ) : null}
             <div className="page-heading__line">
               <h1>{title}</h1>
+              {eyebrow ? (
+                <span className="studio-list-count">
+                  <span aria-hidden>·</span> {eyebrow}
+                </span>
+              ) : null}
               {status}
             </div>
-            {eyebrow ? <p className="studio-list-count">{eyebrow}</p> : null}
           </div>
         ))
       }
     >
-      <div className="studio-panel studio-list-panel ui6-panel">
-        {listAdd && !form && !service && heading === undefined ? <AddAction list /> : null}
-        {children}
-      </div>
+      <div className="studio-panel studio-list-panel ui6-panel">{children}</div>
     </Page>
   );
 }
