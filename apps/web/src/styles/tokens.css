@@ -160,6 +160,9 @@
   --seg-on-fg: var(--ink);
   --hseg-on-bg: var(--on-dark);
   --hseg-on-fg: var(--charcoal);
+  --tabs-on-bg: var(--surface);
+  --tabs-on-fg: var(--ink);
+  --tabs-on-border: var(--border);
   --pressed-bg: var(--charcoal);
   --pressed-fg: var(--on-dark);
   --tile-bg: #f3ddd2;
@@ -232,6 +235,9 @@
   --seg-on-fg: #fff;
   --hseg-on-bg: #111;
   --hseg-on-fg: #fff;
+  --tabs-on-bg: #111;
+  --tabs-on-fg: #fff;
+  --tabs-on-border: #111;
   --pressed-bg: #111;
   --pressed-fg: #fff;
   --tile-bg: #f2f2f2;
@@ -299,6 +305,9 @@
   --seg-on-fg: #000;
   --hseg-on-bg: #fff;
   --hseg-on-fg: #000;
+  --tabs-on-bg: #fff;
+  --tabs-on-fg: #000;
+  --tabs-on-border: #fff;
   --pressed-bg: #0062cc;
   --pressed-fg: #fff;
   --tile-bg: #e6effa;

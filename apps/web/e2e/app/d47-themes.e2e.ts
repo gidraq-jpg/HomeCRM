@@ -79,6 +79,49 @@ test('D47: темы на четырёх экранах, 360 px, axe и без г
       ).toBeVisible();
       await expect(page.getByText(/Загружаем/)).toHaveCount(0);
       await settle(page);
+      if (screen.name === 'today') {
+        // Активный раздел меню и выбранная вкладка видны: фон плашки не равен фону меню,
+        // контраст подписи не ниже 4,5:1.
+        const nav = await page.evaluate(() => {
+          const parse = (value: string) => (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+          const light = (value: string) => {
+            const [r = 0, g = 0, b = 0] = parse(value).map((part) => {
+              const unit = part / 255;
+              return unit <= 0.03928 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4;
+            });
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          };
+          const ratio = (a: string, b: string) => {
+            const [hi, lo] = [light(a), light(b)].sort((x, y) => y - x);
+            return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
+          };
+          const pair = (indicator: string, link: string, menu: string) => {
+            const mark = document.querySelector(indicator);
+            const text = document.querySelector(link);
+            const base = document.querySelector(menu);
+            if (!mark || !text || !base) return null;
+            const fill = getComputedStyle(mark).backgroundColor;
+            return {
+              fill,
+              menu: getComputedStyle(base).backgroundColor,
+              contrast: ratio(getComputedStyle(text).color, fill),
+            };
+          };
+          return {
+            section: pair(
+              '.bottom-nav .section-indicator',
+              '.bottom-nav__link[aria-current="page"]',
+              '.bottom-nav',
+            ),
+            tab: pair('.tabs .tab-indicator', '.tabs__link[aria-current="page"]', '.tabs__list'),
+          };
+        });
+        expect(nav.section, `${label}: плашка раздела найдена`).not.toBeNull();
+        expect(nav.section?.fill, `${label}: плашка раздела`).not.toBe(nav.section?.menu);
+        expect(nav.section?.contrast ?? 0, `${label}: подпись раздела`).toBeGreaterThanOrEqual(4.5);
+        expect(nav.tab?.fill, `${label}: плашка вкладки`).not.toBe(nav.tab?.menu);
+        expect(nav.tab?.contrast ?? 0, `${label}: подпись вкладки`).toBeGreaterThanOrEqual(4.5);
+      }
       await page.screenshot({ path: resolve(SHOTS, `${label}-360.png`), fullPage: true });
       try {
         await expectNoHorizontalScroll(page);
