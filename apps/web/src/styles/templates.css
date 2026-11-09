@@ -78,9 +78,9 @@
 }
 
 .start-steps__item--current .start-steps__number {
-  border-color: var(--green);
-  background: var(--green);
-  color: #fff;
+  border-color: var(--fill);
+  background: var(--fill);
+  color: var(--on-accent);
 }
 
 .start-step > .btn-row,

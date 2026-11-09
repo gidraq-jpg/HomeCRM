@@ -10,7 +10,7 @@
 }
 
 html[data-design="studio"] ::selection {
-  background: var(--accent-strong);
+  background: var(--fill-accent-strong);
   color: var(--surface);
 }
 

@@ -12,7 +12,7 @@ html[data-design="studio"] .sheet:has(.task-quickline) .sheet__description {
 }
 html[data-design="studio"] .task-chip.task-chip--object,
 html[data-design="studio"] .task-chip.task-chip--assignee {
-  background: #e6dfd3;
+  background: var(--chip-neutral-bg);
 }
 html[data-design="studio"] .quickline-result > span:first-child {
   font-size: 0.75rem;
@@ -47,7 +47,7 @@ html[data-design="studio"] .task-chip__avatar {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #4a443c;
+  background: var(--avatar-bg);
   color: var(--surface);
   font-size: 0.75rem;
 }
@@ -84,7 +84,7 @@ html[data-design="studio"] .scope-button {
   border: 0;
   border-radius: 12px;
   padding: 4px 8px;
-  background: #262420;
+  background: var(--hdr-pill);
   color: var(--on-dark);
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
@@ -107,11 +107,11 @@ html[data-design="studio"] .studio-add {
   padding: 4px;
   border: 4px solid var(--paper);
   border-radius: 50%;
-  color: #fff;
-  background: var(--accent);
+  color: var(--on-accent);
+  background: var(--fill-accent);
 }
 html[data-design="studio"] .studio-add:active {
-  background: var(--accent-strong);
+  background: var(--fill-accent-strong);
 }
 html[data-design="studio"][data-keyboard="open"] .studio-add {
   visibility: hidden;
@@ -138,20 +138,20 @@ html[data-design="studio"] .row__icon {
   width: 40px;
   height: 40px;
   border-radius: 13px;
-  background: #f3ddd2;
-  color: var(--accent);
+  background: var(--tile-bg);
+  color: var(--tile-fg);
 }
 html[data-design="studio"] .row__icon--person {
-  background: #e6dfd3;
-  color: #4a443c;
+  background: var(--tile-neutral-bg);
+  color: var(--tile-neutral-fg);
 }
 html[data-design="studio"] .row__icon--water {
-  background: #dde8ee;
-  color: #2c5a73;
+  background: var(--tile-water-bg);
+  color: var(--tile-water-fg);
 }
 html[data-design="studio"] .row__icon--electricity {
-  background: #f2e5c4;
-  color: #6e5212;
+  background: var(--tile-light-bg);
+  color: var(--tile-light-fg);
 }
 html[data-design="studio"] .row__title {
   font-size: 0.9375rem;
@@ -229,7 +229,7 @@ html[data-design="studio"] .quickline-visibility > svg {
   flex-shrink: 0;
 }
 html[data-design="studio"] .task-quickline .textarea {
-  background: #fff;
+  background: var(--field-bg);
   border-color: var(--accent);
   border-radius: 16px;
   font-size: 1.0625rem;
@@ -274,7 +274,7 @@ html[data-design="studio"] .today-hints {
 html[data-design="studio"] .today-hints > :is(span, a) {
   padding: 5px 10px;
   border-radius: 10px;
-  background: #302c25;
+  background: var(--hdr-pill-2);
   color: var(--on-dark);
   font-size: 0.75rem;
 }
@@ -324,8 +324,8 @@ html[data-design="studio"] .task-focus__tile {
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  color: #fff;
-  background: var(--accent);
+  color: var(--on-accent);
+  background: var(--fill-accent);
 }
 html[data-design="studio"] .task-focus .focus__title {
   font-size: 1.125rem;
@@ -370,16 +370,16 @@ html[data-design="studio"] .studio-label {
   font-weight: 500;
 }
 html[data-design="studio"] .studio-label--waiting {
-  background: #f2e5c4;
-  color: #6e5212;
+  background: var(--tile-light-bg);
+  color: var(--tile-light-fg);
 }
 html[data-design="studio"] .studio-label--open {
-  background: #dcebe4;
-  color: #24604f;
+  background: var(--tile-ok-bg);
+  color: var(--tile-ok-fg);
 }
 html[data-design="studio"] .studio-label--overdue {
-  background: #f3ddd2;
-  color: #8a3a21;
+  background: var(--tile-danger-bg);
+  color: var(--tile-danger-fg);
 }
 html[data-design="studio"] .sheet:has(.task-quickline) .section__head {
   display: none;
@@ -396,7 +396,7 @@ html[data-design="studio"] .task-chip {
   padding: 0;
   border: 0;
   border-radius: 12px;
-  background: #f3ddd2;
+  background: var(--chip-bg);
   max-width: 100%;
 }
 html[data-design="studio"] .task-chip > button {
@@ -407,14 +407,14 @@ html[data-design="studio"] .task-chip > button {
   padding: 8px 12px;
   text-align: left;
   overflow-wrap: anywhere;
-  color: #6f2d18;
+  color: var(--chip-fg);
 }
 html[data-design="studio"] .task-chip svg {
   flex: none;
 }
 html[data-design="studio"] .task-chip.task-chip--object > button,
 html[data-design="studio"] .task-chip.task-chip--assignee > button {
-  color: #2f2b26;
+  color: var(--chip-neutral-fg);
 }
 html[data-design="studio"] .quickline-result {
   display: flex;
@@ -480,7 +480,7 @@ html[data-design="studio"] .object-access-trigger {
   padding: 4px 10px;
   border: 0;
   border-radius: 12px;
-  background: #262420;
+  background: var(--hdr-pill);
   color: var(--muted-on-dark);
 }
 html[data-design="studio"] .object-access-trigger .access-badge {

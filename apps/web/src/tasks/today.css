@@ -12,13 +12,13 @@ html[data-design="studio"] .today-hero .today-hints {
 }
 html[data-design="studio"] .today-metric__skeleton {
   color: transparent;
-  background: #514d45;
+  background: var(--hdr-line-2);
   border-radius: 4px;
 }
 html[data-design="studio"] .today-hints .today-hints__skeleton {
   width: 12rem;
   height: 1.75rem;
-  background: #514d45;
+  background: var(--hdr-line-2);
 }
 .today-feed-skeleton {
   min-height: 300px;
@@ -86,7 +86,7 @@ html[data-design="studio"] .today-metric {
   overflow-wrap: anywhere;
 }
 html[data-design="studio"] .today-metric + .today-metric {
-  border-left: 1px solid #514d45;
+  border-left: 1px solid var(--hdr-line-2);
   padding-left: 16px;
 }
 html[data-design="studio"] .today-metric__value {

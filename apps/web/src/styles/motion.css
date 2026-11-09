@@ -655,7 +655,7 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
 }
 html[data-design="studio"] .tab-indicator {
   display: block;
-  background: var(--accent);
+  background: var(--fill-accent);
   border-radius: 0;
 }
 html[data-design="studio"] .tabs .tabs__link[aria-current="page"] {

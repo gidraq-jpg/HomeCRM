@@ -181,12 +181,12 @@
   border: 1.5px solid var(--muted);
   border-radius: 8px;
   background: var(--surface);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .check-line input:checked + .check-line__box {
-  border-color: var(--green);
-  background: var(--green);
+  border-color: var(--fill);
+  background: var(--fill);
 }
 
 .check-line input:focus-visible + .check-line__box {

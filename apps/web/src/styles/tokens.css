@@ -55,6 +55,20 @@
   /* Мета-строка и заголовки разделов: не меньше 4,5:1 на paper, surface и soft. */
   --text-subtle: #5f574c;
 
+  /* Цвета, прежде прописанные в стилях (UI-11): общие значения; темы Studio переопределяют их ниже. */
+  --on-accent: #fff;
+  --field-bg: #fff;
+  --fill: var(--green);
+  --fill-strong: var(--green-strong);
+  --fill-accent: var(--accent);
+  --fill-accent-strong: var(--accent-strong);
+  --warning-ink: #70400f;
+  --meta-muted: #5b544a;
+  --label-muted: #5f584e;
+  --toast-detail: #d3dfd6;
+  --toast-action: #cfe9d8;
+  --shadow-pop: 0 6px 16px rgb(35 45 40 / 0.28);
+
   color-scheme: light;
 }
 
@@ -129,6 +143,41 @@
   --shadow-float: 0 2px 6px rgb(74 52 30 / 0.08), 0 16px 40px rgb(74 52 30 / 0.14);
   --font-sans: "Onest Studio", Onest, "Segoe UI", system-ui, sans-serif;
   --font-serif: var(--font-sans);
+  /* UI-11. Роли, которые меняют темы «Монохром» и «iOS»; здесь — значения Studio.
+     Светлые «таблетки» и линии на шапке: на тёмной шапке они чуть светлее неё. */
+  --hdr-pill: #262420;
+  --hdr-pill-2: #302c25;
+  --hdr-pill-3: #3b3934;
+  --hdr-line: #635e55;
+  --hdr-line-2: #514d45;
+  --avatar-bg: #4a443c;
+  --nav-bg: var(--charcoal);
+  --nav-link: var(--muted-on-dark);
+  --nav-active-bg: var(--paper);
+  --nav-active-fg: var(--ink);
+  --nav-hover: #3b3934;
+  --seg-on-bg: var(--surface);
+  --seg-on-fg: var(--ink);
+  --hseg-on-bg: var(--on-dark);
+  --hseg-on-fg: var(--charcoal);
+  --pressed-bg: var(--charcoal);
+  --pressed-fg: var(--on-dark);
+  --tile-bg: #f3ddd2;
+  --tile-fg: var(--accent);
+  --tile-neutral-bg: #e6dfd3;
+  --tile-neutral-fg: #4a443c;
+  --tile-water-bg: #dde8ee;
+  --tile-water-fg: #2c5a73;
+  --tile-light-bg: #f2e5c4;
+  --tile-light-fg: #6e5212;
+  --tile-ok-bg: #dcebe4;
+  --tile-ok-fg: #24604f;
+  --tile-danger-bg: #f3ddd2;
+  --tile-danger-fg: #8a3a21;
+  --chip-bg: #f3ddd2;
+  --chip-fg: #6f2d18;
+  --chip-neutral-bg: #e6dfd3;
+  --chip-neutral-fg: #2f2b26;
   --gutter: 22px;
   --column: 680px;
   --nav-height: 80px;
@@ -137,6 +186,136 @@
   --weight-medium: 500;
   font-variant-numeric: tabular-nums;
   font-synthesis: none;
+}
+
+/* UI-11. Темы переопределяют только токены (ADR-0052). Studio — без атрибута или data-theme="studio". */
+:root[data-design="studio"][data-theme="mono"] {
+  --charcoal: #fff;
+  --paper: #fff;
+  --surface: #fff;
+  --surface-raised: #fff;
+  --ink: #111;
+  --muted: #666;
+  --text-subtle: #666;
+  --meta-muted: #666;
+  --label-muted: #666;
+  --line: #e8e8e8;
+  --border: #8a8a8a;
+  --soft: #f2f2f2;
+  --accent: #b83a0b;
+  --accent-strong: #a33509;
+  --accent-on-dark: #b83a0b;
+  --focus-ring: #b83a0b;
+  --on-dark: #111;
+  --muted-on-dark: #666;
+  --overlay: rgb(0 0 0 / 0.4);
+  --fill: #111;
+  --fill-strong: #000;
+  --fill-accent: #111;
+  --fill-accent-strong: #000;
+  /* Теней нет: у групп и карточек рамка 1 px. */
+  --shadow-raised: 0 0 0 1px var(--line);
+  --shadow-float: 0 0 0 1px var(--line);
+  --shadow-pop: none;
+  --hdr-pill: #f2f2f2;
+  --hdr-pill-2: #f2f2f2;
+  --hdr-pill-3: #f2f2f2;
+  --hdr-line: #e8e8e8;
+  --hdr-line-2: #e8e8e8;
+  --avatar-bg: #111;
+  --nav-bg: #fff;
+  --nav-link: #666;
+  --nav-active-bg: #111;
+  --nav-active-fg: #fff;
+  --nav-hover: #f2f2f2;
+  --seg-on-bg: #111;
+  --seg-on-fg: #fff;
+  --hseg-on-bg: #111;
+  --hseg-on-fg: #fff;
+  --pressed-bg: #111;
+  --pressed-fg: #fff;
+  --tile-bg: #f2f2f2;
+  --tile-fg: #111;
+  --tile-neutral-bg: #f2f2f2;
+  --tile-neutral-fg: #111;
+  --tile-water-bg: #f2f2f2;
+  --tile-water-fg: #111;
+  --tile-light-bg: #f2f2f2;
+  --tile-light-fg: #111;
+  --tile-ok-bg: #f2f2f2;
+  --tile-ok-fg: #111;
+  --tile-danger-bg: #f2f2f2;
+  --tile-danger-fg: #b83a0b;
+  --chip-bg: #f2f2f2;
+  --chip-fg: #111;
+  --chip-neutral-bg: #f2f2f2;
+  --chip-neutral-fg: #111;
+}
+
+:root[data-design="studio"][data-theme="ios"] {
+  --charcoal: #f2f2f7;
+  --paper: #f2f2f7;
+  --surface: #fff;
+  --surface-raised: #fff;
+  --ink: #000;
+  --muted: #6c6c70;
+  --text-subtle: #6c6c70;
+  --meta-muted: #6c6c70;
+  --label-muted: #6c6c70;
+  --line: #e5e5ea;
+  /* Чуть темнее #8e8e93 из макета: рамка поля не ниже 3:1 и на сером фоне. */
+  --border: #8a8a8e;
+  --soft: #e3e3e8;
+  --accent: #0062cc;
+  --accent-strong: #0062cc;
+  --accent-on-dark: #0062cc;
+  --focus-ring: #0062cc;
+  --on-dark: #000;
+  --muted-on-dark: #6c6c70;
+  --overlay: rgb(0 0 0 / 0.4);
+  --fill: #0062cc;
+  --fill-strong: #004fa3;
+  --fill-accent: #0062cc;
+  --fill-accent-strong: #004fa3;
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 14px rgb(0 0 0 / 0.05);
+  --shadow-float: 0 2px 6px rgb(0 0 0 / 0.07), 0 10px 28px rgb(0 0 0 / 0.1);
+  --shadow-pop: 0 4px 12px rgb(0 0 0 / 0.15);
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, "Segoe UI", system-ui, sans-serif;
+  --font-serif: var(--font-sans);
+  --hdr-pill: #e3e3e8;
+  --hdr-pill-2: #e3e3e8;
+  --hdr-pill-3: #e3e3e8;
+  --hdr-line: #c7c7cc;
+  --hdr-line-2: #d1d1d6;
+  --avatar-bg: #636366;
+  --nav-bg: #f9f9fb;
+  --nav-link: #6c6c70;
+  --nav-active-bg: #e6effa;
+  --nav-active-fg: #0062cc;
+  --nav-hover: #e5e5ea;
+  --seg-on-bg: #fff;
+  --seg-on-fg: #000;
+  --hseg-on-bg: #fff;
+  --hseg-on-fg: #000;
+  --pressed-bg: #0062cc;
+  --pressed-fg: #fff;
+  --tile-bg: #e6effa;
+  --tile-fg: #0062cc;
+  --tile-neutral-bg: #e5e5ea;
+  --tile-neutral-fg: #3a3a3c;
+  --tile-water-bg: #e3f1fb;
+  --tile-water-fg: #0a5c9e;
+  --tile-light-bg: #fff1d6;
+  --tile-light-fg: #7a5200;
+  --tile-ok-bg: #e3f5e8;
+  --tile-ok-fg: #1c6b35;
+  --tile-danger-bg: #fde8e6;
+  --tile-danger-fg: #a52a22;
+  --chip-bg: #e6effa;
+  --chip-fg: #004a99;
+  --chip-neutral-bg: #e5e5ea;
+  --chip-neutral-fg: #1c1c1e;
 }
 @font-face {
   font-family: "Onest Studio";

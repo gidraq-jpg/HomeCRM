@@ -26,9 +26,12 @@ import './styles/tasks.css';
 import './styles/offline-shopping.css';
 import './styles/studio2.css';
 import { registerShell } from './pwa/register.ts';
+import { applyTheme, readTheme } from './theme/theme.ts';
 
 // Общие стили прототипа 0.5 сохраняются в его отдельном entry.
 document.documentElement.dataset.design = 'studio';
+// Тема ставится до первой отрисовки, чтобы не было мигания (UI-11).
+applyTheme(readTheme());
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Нет элемента #root');

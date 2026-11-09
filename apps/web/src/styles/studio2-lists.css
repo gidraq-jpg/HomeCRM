@@ -91,9 +91,9 @@ html[data-design="studio"] .studio-filter {
   white-space: nowrap;
 }
 html[data-design="studio"] .studio-filter[aria-pressed="true"] {
-  background: var(--charcoal);
-  border-color: var(--charcoal);
-  color: var(--on-dark);
+  background: var(--pressed-bg);
+  border-color: var(--pressed-bg);
+  color: var(--pressed-fg);
 }
 html[data-design="studio"] .studio-list-options > summary,
 html[data-design="studio"] .studio-radar-fold > summary,
@@ -128,7 +128,7 @@ html[data-design="studio"] .studio-segments {
   max-width: 100%;
   padding: 3px;
   border-radius: 24px;
-  background: #302c25;
+  background: var(--hdr-pill-2);
   margin-block: 12px;
   border: 0;
   min-width: 0;
@@ -143,8 +143,8 @@ html[data-design="studio"] .studio-segments > button {
   font-size: 0.84375rem;
 }
 html[data-design="studio"] .studio-segments > button[aria-pressed="true"] {
-  background: var(--on-dark);
-  color: var(--charcoal);
+  background: var(--hseg-on-bg);
+  color: var(--hseg-on-fg);
 }
 html[data-design="studio"] .studio-list-panel .section__title {
   font-size: var(--text-section);
@@ -152,7 +152,7 @@ html[data-design="studio"] .studio-list-panel .section__title {
   color: var(--text-subtle);
 }
 html[data-design="studio"] .radar-page .section:has(.studio-radar-overdue) .section__title {
-  color: #8a3a21;
+  color: var(--accent-strong);
 }
 html[data-design="studio"] .studio-radar-row {
   display: flex;
@@ -199,8 +199,8 @@ html[data-design="studio"] .studio-radar-row__actions .btn {
   white-space: normal;
 }
 html[data-design="studio"] .studio-radar-row--overdue .studio-radar-row__actions .btn {
-  background: var(--accent);
-  color: #fff;
+  background: var(--fill-accent);
+  color: var(--on-accent);
 }
 /* Строка покупки на той же сетке, что и строка дела (UI-9): отметка, название, «×N». */
 html[data-design="studio"] .shopping-page .task-list {

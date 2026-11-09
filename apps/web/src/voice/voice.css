@@ -5,8 +5,8 @@
   color: var(--ink, #272725);
 }
 .icon-button.voice-button--on {
-  background: var(--accent, #a84d30);
-  color: #fff;
+  background: var(--fill-accent, #a84d30);
+  color: var(--on-accent);
 }
 .icon-button.voice-button[disabled] {
   opacity: 0.45;

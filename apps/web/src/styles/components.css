@@ -23,12 +23,12 @@
 }
 
 .btn--primary {
-  background: var(--green);
-  color: #fff;
+  background: var(--fill);
+  color: var(--on-accent);
 }
 
 .btn--primary:active {
-  background: var(--green-strong);
+  background: var(--fill-strong);
 }
 
 .btn--secondary {
@@ -355,9 +355,9 @@
 }
 
 .chip input:checked + .chip__label {
-  border-color: var(--green);
-  background: var(--green);
-  color: #fff;
+  border-color: var(--fill);
+  background: var(--fill);
+  color: var(--on-accent);
 }
 
 .chip input:focus-visible + .chip__label {
@@ -404,7 +404,7 @@
   padding: 11px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--field-bg);
   color: var(--ink);
   font-size: 1rem;
 }
@@ -485,9 +485,9 @@
 }
 
 .visibility__option input:checked + .visibility__label {
-  border-color: var(--green);
-  background: var(--green);
-  color: #fff;
+  border-color: var(--fill);
+  background: var(--fill);
+  color: var(--on-accent);
 }
 
 .visibility__option input:focus-visible + .visibility__label {
@@ -565,12 +565,12 @@ html[data-design="studio"] .btn--secondary {
 }
 
 html[data-design="studio"] .btn--primary {
-  background: var(--accent);
+  background: var(--fill-accent);
 }
 
 html[data-design="studio"] .btn--primary:active,
 html[data-design="studio"] .btn--primary:hover:not([disabled]) {
-  background: var(--accent-strong);
+  background: var(--fill-accent-strong);
 }
 
 html[data-design="studio"]
@@ -633,7 +633,7 @@ html[data-design="studio"] .status--neutral {
 /* Нейтральный текст на тёплой поверхности сохраняет контраст WCAG AA. */
 html[data-design="studio"]
 :is(.status--neutral, .access-caption > p, .access-card__note, .choice__hint) {
-  color: #5b544a;
+  color: var(--meta-muted);
 }
 
 html[data-design="studio"] .empty-state {
