@@ -50,7 +50,9 @@ test('Принятые карточки: реальные данные, опер
   await page.goto(`#/today/tasks/${task.id}`);
   await expect(page.getByRole('heading', { level: 1, name: task.title })).toBeVisible();
   await expect(page.locator('.approved-card-facts')).toContainText('8 янв.');
-  await expect(page.getByRole('button', { name: 'Добавить дело', exact: true })).toHaveCount(0);
+  await expect(
+    page.locator('main').getByRole('button', { name: 'Добавить дело', exact: true }),
+  ).toHaveCount(0);
   await page.getByRole('checkbox', { name: 'Проверить напор воды' }).click();
   await expect(page.getByRole('checkbox', { name: 'Проверить напор воды' })).toBeChecked();
   await page.getByRole('button', { name: 'Выполнить', exact: true }).click();

@@ -40,15 +40,6 @@ html[data-design="studio"] .feed-panel {
   padding-bottom: calc(var(--nav-height) + var(--fab-size) + 32px + env(safe-area-inset-bottom));
 }
 
-/* Строка «У вас … открытых дел» под вкладками «Все дела» — без плашки. */
-html[data-design="studio"] .feed-all-summary .studio-list-hero {
-  background: transparent;
-  border: 0;
-}
-html[data-design="studio"] .feed-all-summary .studio-list-summary {
-  margin-top: 0;
-}
-
 /* Сводка «Коммуналка за …» в «Доме» отделена от групп объектов. */
 html[data-design="studio"] .month-card {
   margin-bottom: 16px;
@@ -142,4 +133,14 @@ html[data-design="studio"] .object-hero__meta .object-access-trigger {
 /* Шапка лент: текст прижат к вкладкам, лишняя высота уходит вверх, в тёмную область. */
 html[data-design="studio"] .feed-heading__variant {
   justify-content: flex-end;
+}
+
+/* Карточки объекта и записей: те же вкладки в одну строку; запас вокруг для кольца фокуса. */
+html[data-design="studio"] .approved-object-card .tabs {
+  overflow-x: auto;
+  padding-block: 4px;
+  margin-block: -4px;
+}
+html[data-design="studio"] .approved-object-card .tabs > .tabs__list {
+  flex-wrap: nowrap;
 }

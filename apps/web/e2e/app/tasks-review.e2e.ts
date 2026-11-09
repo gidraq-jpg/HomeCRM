@@ -448,6 +448,8 @@ test('B4: объект, документ и ручной срок H2 испол�
   }
   await api.post(`deadlines/${deadline}/assignee`, { assigneeId: family.person('adult').id });
   await page.goto(`#/home/${object.id}`);
+  // Срок изменён вне страницы: кэш экрана сначала показывает прежнее значение, поэтому читаем заново.
+  await page.reload();
   const field = page.locator('.deadline-item .task-responsible');
   await field.getByLabel('Ответственный').selectOption(member.id);
   await expect(field.locator(`option[value="${family.person('admin').id}"]`)).toHaveCount(0);

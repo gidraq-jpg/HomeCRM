@@ -20,6 +20,7 @@ describe('кэш данных клиента (D48)', () => {
     expect(CACHE_GC_MS).toBe(10 * 60_000);
     expect(options?.staleTime).toBe(CACHE_STALE_MS);
     expect(CACHE_STALE_MS).toBe(30_000);
+    expect(options?.refetchOnMount).toBe('always');
   });
 
   it('после выхода и входа другим участником в кэше нет данных первого', () => {

@@ -60,7 +60,9 @@ test('TASK-6/12: все дела — выполнение, возврат, пе�
   await expect(
     page.getByRole('list', { name: 'Просрочено', exact: true }).locator('.plan-row'),
   ).toHaveCount(1);
-  await expect(page.getByRole('link', { name: '2 открытых дела', exact: true })).toBeVisible();
+  await expect(
+    page.locator('[data-feed-heading-active="true"] .feed-heading__summary'),
+  ).toContainText('2 открытых');
   await capture(page, `after-${width}`);
   // После отмены лента перечитывается и может переставить строки. Следующий клик —
   // только после ответа с открытым делом, а не посреди обновления списка.
@@ -161,7 +163,9 @@ test('TASK-6: старые завершённые дела — через ста
   await expect(page.getByRole('link', { name: /Старое (выполненное|отменённое)/ })).toHaveCount(0);
   await expect(page.locator('[data-feed-active="true"] .plan-rows button')).toHaveCount(0);
   await expect(page.locator('[data-feed-active="true"] .plan-circle--done')).toHaveCount(1);
-  await expect(page.getByRole('link', { name: '1 открытое дело', exact: true })).toBeVisible();
+  await expect(
+    page.locator('[data-feed-heading-active="true"] .feed-heading__summary'),
+  ).toContainText('1 открытое');
   const child = await apiAs(family, 'child');
   const card = active.body as { id: string; updatedAt: string };
   expect(

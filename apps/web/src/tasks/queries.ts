@@ -36,6 +36,8 @@ export function useTaskList(
   const { scope } = useScope();
   return useInfiniteQuery({
     queryKey: ['tasks', me.id, selectedHouse ?? householdId, 'all', scope, filters, trash],
+    // Лента без условий кэшируется; перебор условий фильтра не копит снимков в памяти.
+    ...(Object.values(filters).some((value) => value !== undefined) ? { gcTime: 0 } : {}),
     initialPageParam: 0,
     queryFn: ({ signal, pageParam }) =>
       fetchTasks(listScopeOf(scope), filters, pageParam, trash, signal),

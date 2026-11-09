@@ -110,7 +110,11 @@ test('Тёмные шапки и кнопки действий: контраст
             expect(header.background).toBe('rgb(27, 26, 24)');
             expect(header.foreground).toBe('rgb(238, 233, 223)');
           }
-          if (name === 'tasks') {
+          // После D48 строка «просрочено» под вкладками есть только при просроченных делах.
+          if (
+            name === 'tasks' &&
+            (await page.locator('.feed-all-summary .studio-list-hero .text-button').count())
+          ) {
             const body = page.locator('.feed-all-summary .studio-list-hero');
             await expect(body).toHaveCSS('background-color', 'rgb(248, 245, 239)');
             await expect(body).toHaveCSS('color', 'rgb(34, 32, 28)');

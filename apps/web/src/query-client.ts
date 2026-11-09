@@ -27,6 +27,8 @@ export function createQueryClient(): QueryClient {
         retry: false,
         gcTime: CACHE_GC_MS,
         staleTime: CACHE_STALE_MS,
+        // Возврат на экран всегда показывает кэш сразу и перечитывает данные в фоне.
+        refetchOnMount: 'always',
         networkMode: 'always',
         refetchOnReconnect: true,
         refetchOnWindowFocus: false,

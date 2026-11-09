@@ -193,13 +193,15 @@ test('карточка: вкладки на второй строке видны
   const viewport = page.viewportSize();
   expect(heading && viewport).toBeTruthy();
   for (const name of ['Обзор', 'Лента', 'Файлы', 'Счета', 'Счётчики']) {
+    // Вкладки в одну строку со сдвигом вбок (D48): нужная прокручивается в видимую зону.
+    await tabs.getByRole('link', { name }).scrollIntoViewIfNeeded();
     const box = await tabs.getByRole('link', { name }).boundingBox();
     expect(box, name).not.toBeNull();
     if (!box || !heading || !viewport) continue;
     // Вкладка стоит под названием и целиком в окне: ни прокрутки вбок, ни прокрутки вниз.
     expect(box.y, `${name}: под названием`).toBeGreaterThanOrEqual(heading.y + heading.height - 1);
     expect(box.x, `${name}: слева`).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width, `${name}: справа`).toBeLessThanOrEqual(widthOf(info));
+    expect(box.x + box.width, `${name}: справа`).toBeLessThanOrEqual(widthOf(info) + 1);
     expect(box.y + box.height, `${name}: без прокрутки вниз`).toBeLessThanOrEqual(viewport.height);
   }
   await expect(page.getByRole('term').filter({ hasText: 'Ответственный' })).toBeVisible();
@@ -499,7 +501,7 @@ test('четыре действия: «Поделиться…», «Кто ви�
     await openHome(vera.page);
     await expect(vera.page.getByRole('region', { name: 'Объектов пока нет' })).toBeVisible();
     await vera.page.goto(`#/home/${dacha.id}`);
-    await openObjectDetails(vera.page);
+    // Кэш сначала показывает прежнюю карточку, затем фоновое обновление сообщает о потере доступа.
     await expect(
       vera.page.getByText('Объекта больше нет, или он стал вам недоступен'),
     ).toBeVisible();

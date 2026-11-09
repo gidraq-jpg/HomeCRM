@@ -107,7 +107,10 @@ test('D48: одна плавающая «+» на пяти экранах, бе�
   await expect(page.getByRole('radio', { name: /^Просрочены$/ })).toBeAttached();
   // «Все дела»: число открытых дел названо один раз.
   await page.goto('#/today/all');
-  await expect(page.getByText(/открытых дел|открытое дело|открытых дела/)).toHaveCount(1);
+  await expect(
+    page.locator('[data-feed-heading-active="true"] .feed-heading__summary'),
+  ).toContainText(/открыт/);
+  await expect(page.getByText(/^У вас /)).toHaveCount(0);
 });
 
 test('D48: «Все дела» и карточка объекта — плотная шапка, фильтры одной строкой, вкладки в одну строку', async ({
