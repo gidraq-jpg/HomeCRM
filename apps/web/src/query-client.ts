@@ -30,7 +30,7 @@ export function createQueryClient(): QueryClient {
         // Возврат на экран всегда показывает кэш сразу и перечитывает данные в фоне.
         refetchOnMount: 'always',
         networkMode: 'always',
-        refetchOnReconnect: true,
+        refetchOnReconnect: 'always',
         refetchOnWindowFocus: false,
       },
     },
