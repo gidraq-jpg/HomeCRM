@@ -258,10 +258,11 @@
   --surface: #fff;
   --surface-raised: #fff;
   --ink: #000;
-  --muted: #6c6c70;
-  --text-subtle: #6c6c70;
-  --meta-muted: #6c6c70;
-  --label-muted: #6c6c70;
+  /* Чуть темнее #6c6c70 из макета: 4,5:1 и на выбранной плашке --soft. */
+  --muted: #636366;
+  --text-subtle: #636366;
+  --meta-muted: #636366;
+  --label-muted: #636366;
   --line: #e5e5ea;
   /* Чуть темнее #8e8e93 из макета: рамка поля не ниже 3:1 и на сером фоне. */
   --border: #8a8a8e;
