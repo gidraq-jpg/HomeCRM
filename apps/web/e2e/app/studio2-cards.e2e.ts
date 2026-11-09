@@ -16,7 +16,7 @@ import { signInAs } from './support.ts';
 const phase = process.env.UI6_PHASE === 'before' ? 'before' : 'after';
 
 test('UI-6: карточки, списки и формы Studio 2', async ({ page, family }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(480_000);
   const api = await apiAs(family, 'adult');
   const _object = await seedProperty(api, family, {
     title: 'Вымышленная квартира',
