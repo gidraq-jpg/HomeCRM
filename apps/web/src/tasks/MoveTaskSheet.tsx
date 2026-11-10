@@ -61,6 +61,7 @@ export function MoveTaskSheet({
         <div className="plan-move-options">
           {scope === 'following' && !online ? <p className="muted">Нужна сеть</p> : null}
           {[
+            ...(!card.planOn ? [['Сегодня', today]] : []),
             ['Завтра', shiftTaskDate(today, 1)],
             ['В субботу', nextWeekday(today, 6)],
             ['В понедельник', nextWeekday(today, 1)],

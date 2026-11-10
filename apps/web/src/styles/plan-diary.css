@@ -1,0 +1,65 @@
+.plan-week {
+  position: sticky;
+  top: calc(var(--task-header-height, 88px) + 56px);
+  z-index: 8;
+  background: var(--paper);
+  padding-block: 4px;
+}
+.plan-week__heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+.plan-week__heading > span {
+  flex: 1;
+}
+.plan-week__heading .text-button {
+  font-size: 14px;
+  white-space: nowrap;
+}
+.plan-week__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.plan-week__days button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+.plan-week__days button > span:first-child {
+  font-size: 14px;
+}
+.plan-week__days button[aria-current] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.plan-week__dot {
+  font-weight: 700;
+}
+[data-plan-from] {
+  scroll-margin-top: calc(var(--task-header-height, 88px) + 168px);
+}
+
+.plan-diary-days {
+  overflow-anchor: none;
+}
+
+.plan-review {
+  display: block;
+  min-height: 44px;
+  padding: 16px;
+  margin-block: 16px;
+}
+
+.plan-diary-days :is(a, button) {
+  scroll-margin-block: calc(var(--plan-top-inset, 260px) + 16px) 140px;
+}

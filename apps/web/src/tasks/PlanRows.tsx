@@ -31,6 +31,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   resumeBlocked,
   remember,
   dates = false,
+  undatedAge = false,
   waitingDetail = dates,
   fromPlan = !dates,
   shortDoneLabel = false,
@@ -47,6 +48,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   remember?: () => void;
   /** «Все дела»: в мета-строке день и статус закрытого. */
   dates?: boolean;
+  undatedAge?: boolean;
   /** Показывать, от кого ждём и когда проверить. */
   waitingDetail?: boolean;
   /** Ссылка помнит, откуда пришли, чтобы вернуться на тот же экран. */
@@ -91,7 +93,15 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
             ? `→ ${members.data?.find((person) => person.accountId === card.assigneeId)?.displayName ?? 'Участник'}`
             : null;
         const late = overdueDays(card, today);
+        const weeks = Math.floor(
+          (Date.parse(`${today}T12:00:00Z`) - Date.parse(card.createdAt)) / (7 * 86400000),
+        );
         const metadata = [
+          undatedAge &&
+          weeks >= 2 &&
+          Date.parse(`${today}T12:00:00Z`) - Date.parse(card.createdAt) > 14 * 86400000
+            ? `лежит ${weeks} ${new Intl.PluralRules('ru').select(weeks) === 'one' ? 'неделю' : new Intl.PluralRules('ru').select(weeks) === 'few' ? 'недели' : 'недель'}`
+            : null,
           dates && card.planOn ? formatDateOnly(card.planOn) : null,
           card.planTime,
           late ? overdueText(late) : null,

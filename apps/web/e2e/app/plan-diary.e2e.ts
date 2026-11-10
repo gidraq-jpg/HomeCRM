@@ -1,0 +1,125 @@
+import { mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { expect, test } from '../auth/support/fixtures.ts';
+import {
+  expectAccessible,
+  expectNoHorizontalScroll,
+  expectTouchTargets,
+} from '../support/helpers.ts';
+import { homeDate, setHomeZone } from './deadlines-support.ts';
+import { apiAs } from './notes-support.ts';
+import { signInAs } from './support.ts';
+
+test('TASK-5: ежедневник, история, неделя, без даты и воскресный разбор', async ({
+  page,
+  family,
+}, info) => {
+  await page.setViewportSize({ width: info.project.name === 'w360' ? 360 : 412, height: 800 });
+  await setHomeZone(family);
+  const api = await apiAs(family, 'adult');
+  const make = async (fields: object) => {
+    const r = await api.post('tasks', {
+      title: 'Учебное дело',
+      placement: { spaceId: family.houseId, audience: 'household' },
+      ...fields,
+    });
+    expect(r.status).toBe(201);
+    return r.body as { id: string };
+  };
+  for (let i = 0; i < 8; i++) await make({ title: `Сегодняшнее дело ${i}`, planOn: homeDate(0) });
+  await make({ title: 'Завтрашнее дело', planOn: homeDate(1) });
+  await make({ title: 'Просроченное дело', planOn: homeDate(-2) });
+  const done = await make({ title: 'Выполненное вчера', planOn: homeDate(-3) });
+  expect((await api.post(`tasks/${done.id}/status`, { status: 'done' })).status).toBe(200);
+  await family.database.admin.query('UPDATE tasks SET done_at=$1::timestamptz WHERE id=$2', [
+    `${homeDate(-1)}T23:30:00+03:00`,
+    done.id,
+  ]);
+  // Только изолированная вымышленная база: возраст фикстуры задаём при отключённом guard.
+  await family.database.admin.query('ALTER TABLE tasks DISABLE TRIGGER USER');
+  try {
+    await family.database.admin.query(
+      "INSERT INTO tasks(space_id,space_kind,audience,author_id,assignee_id,household_id,title,created_at) VALUES($1,'household','household',$2,$2,$1,'Давняя идея',$3::timestamptz)",
+      [family.houseId, family.person('adult').id, `${homeDate(-24)}T12:00:00+03:00`],
+    );
+  } finally {
+    await family.database.admin.query('ALTER TABLE tasks ENABLE TRIGGER USER');
+  }
+  await signInAs(page, family, 'adult');
+  await page.goto('#/today/plan');
+  await expect(page.getByRole('navigation', { name: 'Неделя плана' })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Сегодняшнее дело 0', exact: true }),
+  ).toBeInViewport();
+  const shot = async (name: string) => {
+    await expectNoHorizontalScroll(page);
+    const y = await page.evaluate(() => window.scrollY);
+    await expectAccessible(page, name);
+    await page.evaluate((y) => window.scrollTo(0, y), y);
+    await expectTouchTargets(page);
+    const dir = resolve(import.meta.dirname, '../../test-results/screens/d49');
+    await mkdir(dir, { recursive: true });
+    await page.screenshot({ path: resolve(dir, `${name}-${info.project.name}.png`) });
+  };
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const day = [...document.querySelectorAll<HTMLElement>('.plan-day')].find((el) =>
+          el.querySelector('h2')?.textContent?.startsWith('Сегодня,'),
+        );
+        const nav = document.querySelector('.plan-week');
+        return day && nav
+          ? Math.abs(day.getBoundingClientRect().top - nav.getBoundingClientRect().bottom - 8)
+          : 1000;
+      }),
+    )
+    .toBeLessThan(5);
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const top = document.querySelector('.plan-week')?.getBoundingClientRect().bottom ?? 0;
+        const bottom =
+          document.querySelector('.bottom-nav')?.getBoundingClientRect().top ?? innerHeight;
+        return [...document.querySelectorAll('.plan-diary-days .plan-row')].filter(
+          (el) =>
+            el.getBoundingClientRect().top >= top && el.getBoundingClientRect().bottom <= bottom,
+        ).length;
+      }),
+    )
+    .toBeGreaterThanOrEqual(5);
+  await shot('today');
+  await page.getByRole('button', { name: /Предыдущая неделя/ }).click();
+  await expect(
+    page.getByRole('link', { name: 'Выполненное вчера · выполнено', exact: true }),
+  ).toHaveCount(1);
+  await page
+    .getByRole('link', { name: 'Выполненное вчера · выполнено', exact: true })
+    .scrollIntoViewIfNeeded();
+  await shot('history');
+  await page.getByRole('button', { name: 'Без даты · 1', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Без даты', exact: true })).toBeVisible();
+  await expect(page.getByText('лежит 3 недели')).toBeVisible();
+  await shot('undated');
+  await page.getByRole('button', { name: 'Назначить день: Давняя идея', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Сегодня', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Сегодня', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Назначить день', exact: true })).toHaveCount(0);
+  await page.goto('#/today/plan');
+  await expect(page.getByRole('button', { name: /Без даты ·/ })).toHaveCount(0);
+  await make({ title: 'Воскресная идея' });
+  await page.route('**/api/tasks/today*', async (route) => {
+    const r = await route.fetch();
+    const data = await r.json();
+    (data.data ?? data).today = '2026-11-15';
+    await route.fulfill({ response: r, json: data });
+  });
+  await page.goto('#/today');
+  await page.reload();
+  await expect(
+    page.getByRole('link', { name: 'Разобрать дела без даты: 1', exact: true }),
+  ).toBeVisible();
+  await shot('review');
+  await page.getByRole('link', { name: 'Разобрать дела без даты: 1', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Без даты', exact: true })).toBeVisible();
+});

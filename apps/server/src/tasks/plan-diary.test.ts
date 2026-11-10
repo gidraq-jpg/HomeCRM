@@ -58,6 +58,9 @@ it('TASK-5: история, часовой пояс, RLS, повтор и гра
   expect(ids(yesterday)).toEqual(expect.arrayContaining([late.id, before.id, repeat.id]));
   expect(ids(yesterday)).not.toContain(after.id);
   expect(ids(today)).toContain(after.id);
+  const snapshot = await adult.get(`${url}&offline=true`);
+  expect(snapshot.status).toBe(200);
+  expect(snapshot.json<{ data: typeof feed }>().data.days).toEqual(feed.days);
   const kid = (await child.get(url)).json<typeof feed>();
   expect(kid.days.flatMap((d) => d.tasks).map((t) => t.id)).not.toEqual(
     expect.arrayContaining([privateTask.id]),

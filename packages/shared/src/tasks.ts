@@ -58,7 +58,7 @@ export function taskPlanSchema<T extends z.ZodType>(card: T) {
     from: CalendarDate,
     days: z.array(z.object({ date: CalendarDate, tasks: z.array(card) })),
     undated: z.array(card),
-    prevCursor: CalendarDate.nullable(),
+    prevCursor: CalendarDate.nullable().default(null),
     nextCursor: CalendarDate.nullable(),
   });
 }

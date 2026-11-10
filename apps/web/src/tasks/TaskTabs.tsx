@@ -254,7 +254,7 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
       }
       if (
         event.target.closest(
-          'input, textarea, select, button, [contenteditable], [draggable="true"], .swipe-task, .today-tabs, .tabs, .studio-filters',
+          'input, textarea, select, button, [contenteditable], [draggable="true"], .swipe-task, .today-tabs, .tabs, .studio-filters, .plan-week',
         )
       )
         return;
