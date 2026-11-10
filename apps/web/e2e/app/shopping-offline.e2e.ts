@@ -1329,6 +1329,7 @@ test('B1: старый черновик без базы требует явно�
   await expect
     .poll(async () => ((await api.get(`notes/${note.id}`)).body as { body: string }).body)
     .toBe('Старый локальный текст');
+  await expect(page.getByRole('button', { name: 'Править', exact: true })).toBeVisible();
   const task = (
     await api.post('tasks', { title: 'Legacy task', description: 'Свежая версия дела' })
   ).body as { id: string };

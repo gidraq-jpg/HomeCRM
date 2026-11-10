@@ -101,7 +101,8 @@ async function gesture(
 }
 /** Случайный быстрый рывок по строке: 140 px за три события подряд. */
 async function flick(page: Page, target: Locator, dx: number) {
-  await target.scrollIntoViewIfNeeded();
+  // По центру окна: у края жест попадал бы под плавающее меню.
+  await target.evaluate((node) => node.scrollIntoView({ block: 'center' }));
   const box = await target.boundingBox();
   if (!box) throw new Error('Gesture target is missing');
   const width = page.viewportSize()?.width ?? 360;
@@ -227,6 +228,8 @@ for (const reduce of [false, true]) {
         await api.post('tasks', { title: 'Вымышленное дело', planOn: homeDate(0) });
         await api.post('tasks', { title: 'Вымышленный сосед', planOn: homeDate(0) });
         await signInAs(page, family, 'adult');
+        // Протяжка вправо на короткой странице заканчивается под плавающей «+»: на жест её скрываем.
+        await page.addStyleTag({ content: '.chrome .fab { visibility: hidden; }' });
         if (feed !== 'today') await page.goto(`#/${feed}`);
         const task = row(page, 'Вымышленное дело');
         await expect(task).toBeVisible();
@@ -239,8 +242,17 @@ for (const reduce of [false, true]) {
         await page.keyboard.press('Enter');
         await expect(page.getByText('Дело в корзине', { exact: true })).toBeVisible();
         await expect(task).toHaveCount(0);
+        const refetched = page
+          .waitForResponse(
+            (response) =>
+              response.request().method() === 'GET' && response.url().includes('/api/tasks'),
+            { timeout: 5000 },
+          )
+          .catch(() => undefined);
         await page.getByRole('button', { name: 'Отменить', exact: true }).click();
         await expect(page.getByText('Дело восстановлено', { exact: true })).toBeVisible();
+        // Фоновое обновление после отмены не должно прерывать следующий жест.
+        await refetched;
         await expect(task).toBeVisible();
         // Случайный рывок только открывает кнопку: дело не выполняется.
         await flick(page, task.locator('a').first(), 140);

@@ -1,0 +1,146 @@
+/* UI-12 (D48): плотные экраны. Подключается последним и только уточняет отступы Studio. */
+
+/* Заголовок раздела и счётчик — в одной строке: «Дом · 4 объекта». */
+html[data-design="studio"] .studio-list-hero {
+  padding: 8px var(--gutter) 12px;
+}
+html[data-design="studio"] .studio-list-hero .page-heading__line {
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 0;
+}
+html[data-design="studio"] .studio-list-hero .page-heading__line h1 {
+  flex: 0 1 auto;
+}
+html[data-design="studio"] .studio-list-hero .studio-list-count {
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+/* Список начинается сразу под шапкой; внизу запас под плавающую «+» и нижнее меню. */
+html[data-design="studio"] .studio-list-panel {
+  padding-top: 8px;
+  padding-bottom: calc(var(--nav-height) + var(--fab-size) + 32px + env(safe-area-inset-bottom));
+}
+html[data-design="studio"] .studio-list-panel > .section:first-child {
+  margin-top: 0;
+}
+
+/* «Сегодня»: шапка по содержимому, без пустой высоты. */
+html[data-design="studio"] .feed-heading {
+  min-height: 0;
+  padding-block: 8px 12px;
+}
+html[data-design="studio"] .feed-heading__summary {
+  min-height: 0;
+}
+html[data-design="studio"] .feed-panel {
+  padding-top: 8px;
+  padding-bottom: calc(var(--nav-height) + var(--fab-size) + 32px + env(safe-area-inset-bottom));
+}
+
+/* Сводка «Коммуналка за …» в «Доме» отделена от групп объектов. */
+html[data-design="studio"] .month-card {
+  margin-bottom: 16px;
+}
+
+/* Вкладки всегда в одну строку: сдвиг вбок без полосы, край следующей вкладки виден. */
+html[data-design="studio"] .tabs {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+html[data-design="studio"] .tabs::-webkit-scrollbar {
+  display: none;
+}
+html[data-design="studio"] .tabs > .tabs__list {
+  position: relative;
+  flex-wrap: nowrap;
+  width: max-content;
+  min-width: 100%;
+}
+html[data-design="studio"] .tabs > .tabs__list > li {
+  flex: none;
+}
+html[data-design="studio"] .tabs .tabs__link {
+  white-space: nowrap;
+}
+
+/* Карточка объекта: «Недвижимость · Вся семья» одной строкой под названием. */
+html[data-design="studio"] .object-hero {
+  padding-bottom: 12px;
+}
+html[data-design="studio"] .object-hero h1 {
+  margin-top: 4px;
+}
+html[data-design="studio"] .object-hero__meta {
+  margin-top: 4px;
+  column-gap: 8px;
+  row-gap: 0;
+}
+html[data-design="studio"] .object-hero__meta > .object-hero__type {
+  margin: 0;
+  font-size: 0.8125rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+html[data-design="studio"] .object-hero__meta > .object-hero__type::after {
+  content: " ·";
+}
+html[data-design="studio"] .object-panel {
+  padding-top: 8px;
+}
+html[data-design="studio"] .object-panel > .tabs {
+  margin-bottom: 8px;
+}
+
+/* Запас снизу на карточках и списках: плавающая «+» не закрывает последние строки. */
+html[data-design="studio"] .page:not(.ui7-fullscreen-form) .studio-panel {
+  padding-bottom: calc(var(--nav-height) + var(--fab-size) + 32px + env(safe-area-inset-bottom));
+}
+
+/* Фильтры дел: одна строка «Фильтры» и активные условия. */
+:root[data-design="studio"] .compact-filters.task-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block: 0 8px;
+}
+:root[data-design="studio"] .task-filters .compact-filters__button {
+  flex: none;
+  width: auto;
+}
+:root[data-design="studio"] .task-filters .compact-filters__summary {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+:root[data-design="studio"] .task-filters .compact-filters__summary:empty {
+  display: flex;
+}
+
+/* Карточка объекта: плотнее под названием и перед вкладками. */
+html[data-design="studio"] .object-hero {
+  padding-bottom: 4px;
+}
+html[data-design="studio"] .object-page > .page-heading {
+  margin-bottom: 0;
+}
+html[data-design="studio"] .object-hero__meta .object-access-trigger {
+  margin-block: -6px;
+}
+/* Шапка лент: текст прижат к вкладкам, лишняя высота уходит вверх, в тёмную область. */
+html[data-design="studio"] .feed-heading__variant {
+  justify-content: flex-end;
+}
+
+/* Карточки объекта и записей: те же вкладки в одну строку; запас вокруг для кольца фокуса. */
+html[data-design="studio"] .approved-object-card .tabs {
+  overflow-x: auto;
+  padding-block: 4px;
+  margin-block: -4px;
+}
+html[data-design="studio"] .approved-object-card .tabs > .tabs__list {
+  flex-wrap: nowrap;
+}

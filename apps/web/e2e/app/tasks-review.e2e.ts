@@ -13,6 +13,7 @@ import {
   expectTouchTargets,
   openObjectActions,
   openQuick,
+  withTaskFilters,
 } from '../support/helpers.ts';
 import { seedDeadline } from './deadlines-support.ts';
 import { seedDocument } from './documents-support.ts';
@@ -447,6 +448,8 @@ test('B4: объект, документ и ручной срок H2 испол�
   }
   await api.post(`deadlines/${deadline}/assignee`, { assigneeId: family.person('adult').id });
   await page.goto(`#/home/${object.id}`);
+  // Срок изменён вне страницы: кэш экрана сначала показывает прежнее значение, поэтому читаем заново.
+  await page.reload();
   const field = page.locator('.deadline-item .task-responsible');
   await field.getByLabel('Ответственный').selectOption(member.id);
   await expect(field.locator(`option[value="${family.person('admin').id}"]`)).toHaveCount(0);
@@ -476,8 +479,12 @@ test('B2/A3: отказ отмены виден после ухода строк
   const id = (created.body as { id: string }).id;
   await signInAs(page, family, 'adult');
   await page.goto('#/today/all');
-  await page.locator('.studio-list-options > summary').filter({ hasText: 'Статус дел' }).click();
-  await page.getByLabel('Статус дел').selectOption('open');
+  await withTaskFilters(page, (sheet) =>
+    sheet
+      .getByLabel('Статус дел')
+      .selectOption('open')
+      .then(() => undefined),
+  );
   await page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }).click();
   await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toBeVisible();
   const completed = (await api.get(`tasks/${id}`)).body as { nextTaskId: string };

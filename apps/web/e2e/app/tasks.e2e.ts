@@ -13,6 +13,7 @@ import {
   expectTouchTargets,
   openObjectActions,
   openQuick,
+  withTaskFilters,
 } from '../support/helpers.ts';
 import { homeDate, recalc, seedDeadline, setHomeZone } from './deadlines-support.ts';
 import { collectConsole, seedDocument } from './documents-support.ts';
@@ -130,7 +131,9 @@ test('три агрегированные ленты, главное, крайн
   await expect(page.getByRole('list', { name: 'Дела без даты' }).getByRole('link')).toHaveCount(52);
   await check(page, info, 'plan');
   await page.goto('#/today/all');
-  await page.getByRole('button', { name: 'Без даты', exact: true }).click();
+  await withTaskFilters(page, (sheet) =>
+    sheet.getByRole('button', { name: 'Без даты', exact: true }).click(),
+  );
   await expect(
     page.getByRole('list', { name: 'Без даты', exact: true }).getByRole('link'),
   ).toHaveCount(50);
@@ -139,8 +142,12 @@ test('три агрегированные ленты, главное, крайн
     page.getByRole('list', { name: 'Без даты', exact: true }).getByRole('link'),
   ).toHaveCount(53);
   await check(page, info, 'all');
-  await page.locator('.studio-list-options > summary').filter({ hasText: 'Статус дел' }).click();
-  await page.getByLabel('Статус дел').selectOption('done');
+  await withTaskFilters(page, (sheet) =>
+    sheet
+      .getByLabel('Статус дел')
+      .selectOption('done')
+      .then(() => undefined),
+  );
   await expect(
     page.getByRole('list', { name: 'Без даты', exact: true }).getByRole('link'),
   ).toHaveCount(1);

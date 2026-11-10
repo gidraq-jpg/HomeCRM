@@ -1,5 +1,6 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useScope } from '../access/ScopeContext.tsx';
+import type { Scope } from '../access/scope.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { listScopeOf } from '../notes/queries.ts';
 import {
@@ -35,6 +36,8 @@ export function useTaskList(
   const { scope } = useScope();
   return useInfiniteQuery({
     queryKey: ['tasks', me.id, selectedHouse ?? householdId, 'all', scope, filters, trash],
+    // Лента без условий кэшируется; перебор условий фильтра не копит снимков в памяти.
+    ...(Object.values(filters).some((value) => value !== undefined) ? { gcTime: 0 } : {}),
     initialPageParam: 0,
     queryFn: ({ signal, pageParam }) =>
       fetchTasks(listScopeOf(scope), filters, pageParam, trash, signal),
@@ -42,14 +45,17 @@ export function useTaskList(
       last.length === PAGE_SIZE ? pages.length * PAGE_SIZE : undefined,
   });
 }
-export function useToday(householdId: string | null) {
-  const { me } = useHousehold();
-  const { scope } = useScope();
-  return useQuery({
-    queryKey: ['tasks', me.id, householdId, 'today', scope],
+export function todayOptions(meId: string, householdId: string | null, scope: Scope) {
+  return queryOptions({
+    queryKey: ['tasks', meId, householdId, 'today', scope],
     gcTime: 5 * 60_000,
     queryFn: ({ signal }) => fetchToday(listScopeOf(scope), householdId, signal),
   });
+}
+export function useToday(householdId: string | null) {
+  const { me } = useHousehold();
+  const { scope } = useScope();
+  return useQuery(todayOptions(me.id, householdId, scope));
 }
 export function usePlan(householdId: string | null) {
   const { me } = useHousehold();

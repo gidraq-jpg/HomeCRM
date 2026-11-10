@@ -163,16 +163,20 @@ html[data-design="studio"] .tabs .tabs__link[aria-current="page"] {
   color: var(--tabs-on-fg);
 }
 
-html[data-design="studio"] .studio-add,
-html[data-design="studio"] .ui6-page .studio-add {
-  width: 48px;
-  height: 48px;
-  border: 0;
-  border-radius: 14px;
+/* UI-12: одна плавающая «+» — круг 56 px; цвет и тень из токенов темы. */
+html[data-design="studio"] .fab {
+  width: var(--fab-size);
+  height: var(--fab-size);
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  background: var(--fill-accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-float);
 }
 
 /* Только действия: аватары, статусы и круги выбора сохраняют свою семантику. */
-html[data-design="studio"] :is(.icon-button, .fab, .chip-button, .chip__label) {
+html[data-design="studio"] :is(.icon-button, .chip-button, .chip__label) {
   border-radius: 12px;
 }
 
@@ -465,11 +469,6 @@ html[data-design="studio"] .ui6-record-page .object-hero .object-facts dd {
   color: var(--on-dark);
   font-size: 0.875rem;
   font-weight: 400;
-}
-
-/* Создание — в начале списка раздела, а не в тёмной шапке. */
-html[data-design="studio"] .list-add {
-  margin-bottom: 16px;
 }
 
 /* UI-10 «Глубина» (D46). Приподнятые группы и карточки на --paper — --shadow-raised и чуть

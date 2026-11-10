@@ -59,8 +59,7 @@ html[data-design="studio"] .today-tabs .tabs__list {
   flex-wrap: nowrap;
   width: max-content;
 }
-html[data-design="studio"] .today-tabs .tabs__list > li,
-html[data-design="studio"] .today-tabs > .studio-add {
+html[data-design="studio"] .today-tabs .tabs__list > li {
   flex: none;
 }
 html[data-design="studio"] .today-tabs .tabs__link {

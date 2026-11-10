@@ -377,7 +377,7 @@ test('ребёнок: не видит «Счета» объекта «Взрос
   await expect(page.getByRole('link', { name: /Вымышленная УК/ })).toBeVisible();
   await checkApp(page, info, 'organizations-child');
   // Ребёнок может завести только личную организацию: «Только я» через id личного пространства.
-  await page.getByRole('link', { name: 'Добавить организацию' }).click();
+  await page.getByRole('button', { name: 'Добавить организацию' }).click();
   const visibility = page.locator('form.org-form').getByRole('group', { name: 'Кто видит' });
   await expect(visibility.getByRole('radio')).toHaveCount(1);
   await expect(visibility.getByRole('radio', { name: 'Только я' })).toBeChecked();
@@ -427,7 +427,7 @@ test('организации: только название, правка, ко�
   const empty = page.getByRole('region', { name: 'Организаций пока нет' });
   await expect(empty).toBeVisible();
   await checkApp(page, info, 'organizations-empty');
-  await page.getByRole('link', { name: 'Добавить организацию', exact: true }).click();
+  await page.getByRole('button', { name: 'Добавить организацию', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Новая организация' })).toBeVisible();
 
   // Название обязательно, остальное нет; «Вся семья» по умолчанию.

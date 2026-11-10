@@ -1,6 +1,12 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  infiniteQueryOptions,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useScope } from '../access/ScopeContext.tsx';
 import { ApiError } from '../auth/api.ts';
+import type { ListScope } from '../notes/api.ts';
 import { listScopeOf } from '../notes/queries.ts';
 import {
   fetchLinks,
@@ -18,10 +24,8 @@ const OBJECTS = 'objects';
 const LINKS = 'links';
 
 /** Список объектов под выбранный в шапке режим; постранично, чтобы не грузить всё сразу. */
-export function useObjectsList(trash: boolean) {
-  const { scope } = useScope();
-  const listScope = listScopeOf(scope);
-  return useInfiniteQuery({
+export function objectsListOptions(listScope: ListScope, trash: boolean) {
+  return infiniteQueryOptions({
     queryKey: [OBJECTS, 'list', listScope, trash],
     initialPageParam: 0,
     queryFn: ({ pageParam, signal }) =>
@@ -29,6 +33,11 @@ export function useObjectsList(trash: boolean) {
     getNextPageParam: (last: ObjectSummary[], pages) =>
       last.length < PAGE_SIZE ? undefined : pages.length * PAGE_SIZE,
   });
+}
+
+export function useObjectsList(trash: boolean) {
+  const { scope } = useScope();
+  return useInfiniteQuery(objectsListOptions(listScopeOf(scope), trash));
 }
 
 export function useObjectCard(id: string | undefined) {

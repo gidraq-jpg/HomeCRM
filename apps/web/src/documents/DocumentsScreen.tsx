@@ -145,6 +145,14 @@ export function DocumentsScreen() {
     query,
   };
   const list = useDocumentsList(filters);
+  // Счётчики в чипах (D48): те же условия, что у списка, но со сроком «истекают» и «просрочены».
+  // Ноль — без счётчика; если страница полная, число неточное и помечено плюсом.
+  const expiringList = useDocumentsList({ ...filters, expiry: 'expiring' });
+  const expiredList = useDocumentsList({ ...filters, expiry: 'expired' });
+  const chipCount = (result: typeof list) => {
+    const size = result.data?.pages.flat().length ?? 0;
+    return size === 0 ? '' : ` · ${size}${result.hasNextPage ? '+' : ''}`;
+  };
   const filtered = memberId !== null || type !== null || expiry !== 'any' || query.trim() !== '';
 
   const people = (members.data ?? []).filter((member) => !member.formerMember);
@@ -191,8 +199,8 @@ export function DocumentsScreen() {
           value={expiry}
           options={[
             { value: 'any', label: 'Все' },
-            { value: 'expiring', label: 'Истекают' },
-            { value: 'expired', label: 'Просрочены' },
+            { value: 'expiring', label: `Истекают${chipCount(expiringList)}` },
+            { value: 'expired', label: `Просрочены${chipCount(expiredList)}` },
           ]}
           onChange={setExpiry}
         />

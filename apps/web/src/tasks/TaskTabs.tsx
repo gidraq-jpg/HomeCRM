@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router';
-import { AddAction } from '../shell/AddAction.tsx';
 import { cancelMotionNavigation } from '../shell/motion.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import {
@@ -440,7 +439,6 @@ export function TaskTabs({ houseQuery = '' }: { houseQuery?: string }) {
           { to: `/more/shopping${houseQuery}`, label: 'Покупки', end: true },
         ]}
       />
-      <AddAction />
       <span className="visually-hidden" role="status" aria-live="polite">
         {pathname === '/today'
           ? 'Сегодня'

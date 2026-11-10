@@ -17,9 +17,10 @@ import { todayIn } from '../objects/dates.ts';
 import { useQueue } from '../offline/OfflinePanel.tsx';
 import { Link } from '../shell/motion.tsx';
 import { FirstRunCard } from '../templates/FirstRunCard.tsx';
+import { FilterButton, FilterTag } from '../ui/CompactFilters.tsx';
 import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
-import { countWord, plural } from '../ui/format.ts';
+import { plural } from '../ui/format.ts';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { MotionGroups } from '../ui/MotionGroups.tsx';
 import { Page, Section } from '../ui/Page.tsx';
@@ -363,6 +364,7 @@ function AllFeed({ house }: { house: string | null }) {
       return next;
     });
   const selectedStatus = params.get('status') === 'done' ? 'done' : filters.status;
+  const pane = useFeedPane();
   const query = useTaskList({ ...filters, status: selectedStatus }, false, house);
   const cachedToday = client.getQueryData<Today>(['tasks', me.id, house, 'today', scope]);
   const timeZone = !house || house === householdId ? me.timeZone : cachedToday?.timeZone;
@@ -413,8 +415,11 @@ function AllFeed({ house }: { house: string | null }) {
     );
   });
   const { operation, moving } = actions;
+  const activeFilters =
+    Number(!!filters.filter) + Number(!!selectedStatus) + Number(!!filters.objectId);
   const unfiltered = !filters.filter && !selectedStatus && !filters.objectId;
   const summary = query.data && !query.error && !query.hasNextPage && unfiltered;
+  // Число открытых дел называет только шапка (D48); под вкладками остаётся лишь «просрочено».
   useFeedSummary(
     query.data && !query.error ? active.length : undefined,
     query.error
@@ -447,96 +452,95 @@ function AllFeed({ house }: { house: string | null }) {
       hero={
         <div className="studio-list-hero">
           <h1>Все дела</h1>
-          {summary ? (
+          {summary && overdue.length ? (
             <p className="studio-list-summary">
-              У вас{' '}
               <Link
                 className="text-button"
-                to={listHref('open')}
+                to={listHref('overdue')}
                 onClick={() => {
                   setFilters({});
                 }}
               >
-                {countWord(active.length, ['открытое дело', 'открытых дела', 'открытых дел'])}
+                {overdue.length} просрочено
               </Link>
-              {overdue.length ? (
-                <>
-                  , из них{' '}
-                  <Link
-                    className="text-button"
-                    to={listHref('overdue')}
-                    onClick={() => {
-                      setFilters({});
-                    }}
-                  >
-                    {overdue.length} просрочено
-                  </Link>
-                </>
-              ) : null}
             </p>
           ) : null}
         </div>
       }
     >
-      <fieldset className="studio-filters" aria-label="Фильтр дел">
-        {(
-          [
-            { value: 'mine', label: 'Моё' },
-            { value: 'assigned', label: 'Другим' },
-            { value: 'waiting', label: 'Жду' },
-            { value: 'undated', label: 'Без даты' },
-          ] as const
-        ).map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            className="studio-filter"
-            aria-pressed={filters.filter === item.value}
-            onClick={() => {
-              setFilters((current) => ({
-                ...current,
-                filter: current.filter === item.value ? undefined : item.value,
-              }));
-              clearList();
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-        <button
-          type="button"
-          className="studio-filter"
-          aria-pressed={!!filters.objectId}
-          onClick={() => setObjectOpen(true)}
-        >
-          Объект ▾
-        </button>
-      </fieldset>
-      <details className="studio-list-options">
-        <summary>Статус дел</summary>
-        <SelectField
-          label="Статус дел"
-          value={selectedStatus ?? ''}
-          onChange={(value) => {
-            clearList();
-            setFilters((current) => ({
-              ...current,
-              status: value ? (value as TaskFilters['status']) : undefined,
-            }));
-          }}
-          options={[
-            { value: '', label: 'Все статусы' },
-            ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
-          ]}
-        />
-      </details>
+      <div className="compact-filters task-filters">
+        <FilterButton count={activeFilters} onClick={() => setObjectOpen(true)} />
+        <div className="compact-filters__summary">
+          {activeFilters === 0 ? <span className="muted">Все</span> : null}
+          {filters.filter ? (
+            <FilterTag
+              label={FILTER_LABELS[filters.filter]}
+              onRemove={() => {
+                setFilters((current) => ({ ...current, filter: undefined }));
+                clearList();
+              }}
+            />
+          ) : null}
+          {selectedStatus ? (
+            <FilterTag
+              label={STATUS_LABELS[selectedStatus] ?? 'Статус'}
+              onRemove={() => {
+                clearList();
+                setFilters((current) => ({ ...current, status: undefined }));
+              }}
+            />
+          ) : null}
+          {filters.objectId ? (
+            <FilterTag
+              label="Объект"
+              onRemove={() => setFilters((current) => ({ ...current, objectId: undefined }))}
+            />
+          ) : null}
+        </div>
+      </div>
       {objectOpen ? (
         <Sheet
           open
-          title="Фильтр по объекту"
-          description="Выберите объект для списка дел"
+          title="Фильтры дел"
+          description="Выберите условия: список меняется сразу"
           onOpenChange={setObjectOpen}
         >
+          <fieldset className="studio-filters" aria-label="Фильтр дел">
+            {(Object.entries(FILTER_LABELS) as [keyof typeof FILTER_LABELS, string][]).map(
+              ([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className="studio-filter"
+                  aria-pressed={filters.filter === value}
+                  onClick={() => {
+                    setFilters((current) => ({
+                      ...current,
+                      filter: current.filter === value ? undefined : value,
+                    }));
+                    clearList();
+                  }}
+                >
+                  {label}
+                </button>
+              ),
+            )}
+          </fieldset>
+          <SelectField
+            label="Статус дел"
+            value={selectedStatus ?? ''}
+            onChange={(value) => {
+              clearList();
+              setFilters((current) => ({
+                ...current,
+                status: value ? (value as TaskFilters['status']) : undefined,
+              }));
+            }}
+            options={[
+              { value: '', label: 'Все статусы' },
+              ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
+            ]}
+          />
           <RecordPicker
             kind="object"
             label="Фильтр по объекту"
@@ -549,7 +553,7 @@ function AllFeed({ house }: { house: string | null }) {
             Готово
           </button>
         </Sheet>
-      ) : null}
+      ) : null}{' '}
       <QueryNotice query={query} />
       {!moving ? <OperationNotice operation={operation} /> : null}
       <ContentMotion version={selected.map((card) => card.id + card.status).join(',')}>
@@ -588,6 +592,13 @@ function AllFeed({ house }: { house: string | null }) {
     </TasksPage>
   );
 }
+const FILTER_LABELS = {
+  mine: 'Моё',
+  assigned: 'Другим',
+  waiting: 'Жду',
+  undated: 'Без даты',
+} as const;
+
 export function QueryNotice({
   query,
 }: {

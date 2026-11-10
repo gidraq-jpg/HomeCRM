@@ -42,6 +42,7 @@ import { OrganizationsScreen } from './organizations/OrganizationsScreen.tsx';
 import { ImportScreen } from './people/ImportScreen.tsx';
 import { NewPersonScreen } from './people/NewPersonScreen.tsx';
 import { ContactScreen } from './people/PersonScreen.tsx';
+import { useSectionPrefetch } from './prefetch.ts';
 import { InviteScreen } from './screens/InviteScreen.tsx';
 import { MemberScreen } from './screens/MemberScreen.tsx';
 import { MoreScreen } from './screens/MoreScreen.tsx';
@@ -74,6 +75,7 @@ function Workspace({ me, reloadMe, signOut }: AppProps) {
   const [adding, setAdding] = useState(false);
   const navigate = useNavigate();
   const [entering, setEntering] = useState(me.firstEntryShown === false);
+  useSectionPrefetch();
   useEffect(() => {
     if (entering) {
       navigate('/more/spaces', { replace: true });

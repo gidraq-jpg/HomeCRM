@@ -112,7 +112,7 @@ export function AppShell({
         <div className="chrome" ref={chrome}>
           <aside className="chrome__actions" aria-label="Быстрые действия">
             <ToastRegion />
-            {!isStudio() ? <AddAction className="fab" /> : null}
+            <AddAction className="fab" />
           </aside>
           <BottomNav sections={sections} />
         </div>

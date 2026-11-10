@@ -5,7 +5,6 @@ import { VISIBILITY_LABELS } from '../access/visibility.ts';
 import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { AddAction } from '../shell/AddAction.tsx';
 import { Link } from '../shell/motion.tsx';
 import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
@@ -80,7 +79,6 @@ export function NotesScreen() {
       }
     >
       <div className="studio-panel studio-list-panel">
-        <AddAction list />
         {query.isPending ? <Notice>Загружаем заметки…</Notice> : null}
         {query.isError ? (
           <>
@@ -92,13 +90,14 @@ export function NotesScreen() {
         ) : null}
         {all.length ? (
           <div className="field search-field">
-            <label className="field__label" htmlFor={fieldId}>
+            <label className="visually-hidden" htmlFor={fieldId}>
               Найти по заголовку
             </label>
             <input
               id={fieldId}
               className="input"
               type="search"
+              placeholder="Найти по заголовку…"
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
               autoComplete="off"

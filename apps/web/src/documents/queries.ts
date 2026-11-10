@@ -1,4 +1,9 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  infiniteQueryOptions,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useScope } from '../access/ScopeContext.tsx';
 import { listScopeOf } from '../notes/queries.ts';
 import {
@@ -15,16 +20,19 @@ import {
 const DOCUMENTS = 'documents';
 
 /** Список документов под фильтры и выбранный в шапке режим «Всё · Общее · Личное»; постранично. */
-export function useDocumentsList(filters: Omit<DocumentFilters, 'scope'>, trash = false) {
-  const { scope } = useScope();
-  const full: DocumentFilters = { ...filters, scope: listScopeOf(scope) };
-  return useInfiniteQuery({
+export function documentsListOptions(full: DocumentFilters, trash = false) {
+  return infiniteQueryOptions({
     queryKey: [DOCUMENTS, 'list', full, trash],
     initialPageParam: 0,
     queryFn: ({ pageParam, signal }) => fetchDocuments(full, { trash, offset: pageParam }, signal),
     getNextPageParam: (last: DocumentCard[], pages) =>
       last.length < PAGE_SIZE ? undefined : pages.length * PAGE_SIZE,
   });
+}
+
+export function useDocumentsList(filters: Omit<DocumentFilters, 'scope'>, trash = false) {
+  const { scope } = useScope();
+  return useInfiniteQuery(documentsListOptions({ ...filters, scope: listScopeOf(scope) }, trash));
 }
 
 export function useDocument(id: string | undefined) {

@@ -18,7 +18,7 @@ async function check(page: Page, info: TestInfo, name: string) {
   if (await page.locator('.today-tabs').count()) {
     await page.locator('.today-tabs').scrollIntoViewIfNeeded();
     await expect(page.locator('.today-tabs [aria-current="page"]')).toBeInViewport({ ratio: 0.95 });
-    await expect(page.locator('.today-tabs .studio-add')).toBeInViewport({ ratio: 0.95 });
+    await expect(page.locator('.chrome .fab')).toBeInViewport({ ratio: 0.95 });
     await page.evaluate(() => window.scrollTo(0, 0));
   }
   if (process.platform === 'linux') {
@@ -61,11 +61,14 @@ for (const percent of [100, 200]) {
       'Проверить вымышленный фильтр',
     );
     await check(page, info, `all-tasks-${percent}`);
+    await page.getByRole('button', { name: /^Фильтры/ }).click();
     await page.getByRole('button', { name: 'Без даты', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Без даты', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
+    await page.getByRole('button', { name: 'Готово', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Снять фильтр: Без даты' })).toBeVisible();
     await expect(
       page.getByRole('link', { name: 'Разобрать вымышленный ящик', exact: true }),
     ).toBeVisible();
@@ -73,9 +76,9 @@ for (const percent of [100, 200]) {
       page.getByRole('link', { name: 'Полить вымышленные цветы', exact: true }),
     ).toHaveCount(0);
     await check(page, info, `all-filter-${percent}`);
-    await page.getByRole('button', { name: 'Без даты', exact: true }).click();
-    await page.getByRole('button', { name: 'Объект ▾', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Фильтр по объекту' })).toBeVisible();
+    await page.getByRole('button', { name: 'Снять фильтр: Без даты' }).click();
+    await page.getByRole('button', { name: /^Фильтры/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Фильтры дел' })).toBeVisible();
     await page.getByRole('button', { name: 'Готово', exact: true }).click();
     await page.getByRole('link', { name: '1 просрочено', exact: true }).click();
     await expect(

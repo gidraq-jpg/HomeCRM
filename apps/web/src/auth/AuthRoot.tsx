@@ -126,6 +126,8 @@ export function AuthRoot() {
       dropCacheOnAccountChange(client, client.getQueryData<Me | null>([ME_KEY]), next);
       return next;
     },
+    // Роль и участник проверяются при каждом возврате в окно, кэш раздела на них не влияет.
+    staleTime: 0,
     refetchOnWindowFocus: true,
   });
   // Sender может уже получить B, пока UI ещё показывает A: разрешение только после commit Me.

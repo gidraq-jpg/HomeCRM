@@ -23,9 +23,10 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       }
       await signInAs(page, family, 'adult');
       await page.goto('#/today/all');
-      await page.getByText('Статус дел', { exact: true }).first().click();
-      const status = page.getByLabel('Статус дел', { exact: true });
-      await status.focus();
+      await page.getByRole('button', { name: /^Фильтры/ }).click();
+      const status = page
+        .getByRole('dialog', { name: 'Фильтры дел', exact: true })
+        .getByLabel('Статус дел', { exact: true });
       await status.selectOption('open');
       await settle(page);
       await expect(
@@ -51,7 +52,6 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       await expect(
         page.locator('[data-feed-active="true"] .content-motion > [data-motion-ghost]'),
       ).toHaveCount(1);
-      await expect(status).toBeFocused();
       const ghost = page.locator('[data-feed-active="true"] .content-motion > [data-motion-ghost]');
       await expect(ghost).toHaveAttribute('aria-hidden', 'true');
       expect(await ghost.evaluate((node) => (node as HTMLElement).inert)).toBe(true);
@@ -127,7 +127,6 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       await expect(
         page.locator('[data-feed-active="true"] .content-motion [data-motion-ghost]'),
       ).toHaveCount(0);
-      await expect(status).toBeFocused();
       await checkScreen(page, info, `motion-template-empty-${reducedMotion}`);
       await status.selectOption('open');
       await checkScreen(page, info, `motion-template-list-${reducedMotion}`);

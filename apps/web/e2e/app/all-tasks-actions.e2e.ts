@@ -6,6 +6,7 @@ import {
   expectAccessible,
   expectNoHorizontalScroll,
   expectTouchTargets,
+  withTaskFilters,
 } from '../support/helpers.ts';
 import { homeDate, setHomeZone } from './deadlines-support.ts';
 import { apiAs } from './notes-support.ts';
@@ -59,7 +60,9 @@ test('TASK-6/12: все дела — выполнение, возврат, пе�
   await expect(
     page.getByRole('list', { name: 'Просрочено', exact: true }).locator('.plan-row'),
   ).toHaveCount(1);
-  await expect(page.getByRole('link', { name: '2 открытых дела', exact: true })).toBeVisible();
+  await expect(
+    page.locator('[data-feed-heading-active="true"] .feed-heading__summary'),
+  ).toContainText('2 открытых');
   await capture(page, `after-${width}`);
   // После отмены лента перечитывается и может переставить строки. Следующий клик —
   // только после ответа с открытым делом, а не посреди обновления списка.
@@ -160,7 +163,9 @@ test('TASK-6: старые завершённые дела — через ста
   await expect(page.getByRole('link', { name: /Старое (выполненное|отменённое)/ })).toHaveCount(0);
   await expect(page.locator('[data-feed-active="true"] .plan-rows button')).toHaveCount(0);
   await expect(page.locator('[data-feed-active="true"] .plan-circle--done')).toHaveCount(1);
-  await expect(page.getByRole('link', { name: '1 открытое дело', exact: true })).toBeVisible();
+  await expect(
+    page.locator('[data-feed-heading-active="true"] .feed-heading__summary'),
+  ).toContainText('1 открытое');
   const child = await apiAs(family, 'child');
   const card = active.body as { id: string; updatedAt: string };
   expect(
@@ -191,8 +196,12 @@ test('TASK-6: старые завершённые дела — через ста
       })
     ).status,
   ).toBe(403);
-  await page.locator('[data-feed-active="true"] .studio-list-options summary').click();
-  await page.getByLabel('Статус дел', { exact: true }).selectOption('done');
+  await withTaskFilters(page, (sheet) =>
+    sheet
+      .getByLabel('Статус дел', { exact: true })
+      .selectOption('done')
+      .then(() => undefined),
+  );
   await expect(
     page.getByRole('link', { name: 'Старое выполненное · выполнено', exact: true }),
   ).toBeVisible();
@@ -200,7 +209,12 @@ test('TASK-6: старые завершённые дела — через ста
   await expect(
     page.locator('[data-feed-active="true"] .plan-row--closed .plan-row__meta--late'),
   ).toHaveCount(0);
-  await page.getByLabel('Статус дел', { exact: true }).selectOption('cancelled');
+  await withTaskFilters(page, (sheet) =>
+    sheet
+      .getByLabel('Статус дел', { exact: true })
+      .selectOption('cancelled')
+      .then(() => undefined),
+  );
   await expect(
     page.getByRole('link', { name: 'Старое отменённое · отменено', exact: true }),
   ).toBeVisible();

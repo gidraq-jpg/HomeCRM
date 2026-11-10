@@ -8,16 +8,10 @@ import { isStudio } from './studio.ts';
 export const AddActionContext = createContext<(() => void) | null>(null);
 
 /**
- * Одно действие добавления. В Studio тёмные шапки не создают записей (D46, UI-3): действие
- * стоит в ленте дел и в начале списка раздела — `list` показывает его подписанной кнопкой.
+ * Одна плавающая «+» справа внизу над нижним меню на всех экранах (PRD, UI-12, D48). Подпись —
+ * по разделу («Добавить объект»); ни тёмные шапки, ни списки, ни вкладки своих кнопок не имеют.
  */
-export function AddAction({
-  className = 'studio-add',
-  list = false,
-}: {
-  className?: string;
-  list?: boolean;
-}) {
+export function AddAction({ className = 'fab' }: { className?: string }) {
   const add = useContext(AddActionContext);
   const voice = useVoiceAdd();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -34,19 +28,16 @@ export function AddAction({
   );
   const { pathname } = useLocation();
   const target = sectionAdd(pathname);
-  if (list && (!isStudio() || target.kind !== 'route')) return null;
   return add ? (
     <button
       type="button"
-      className={list ? 'btn btn--secondary btn--block list-add' : className}
+      className={className}
       aria-label={
-        list
+        isStudio()
           ? `${target.label}${voice?.enabled ? '. Удерживайте, чтобы сказать ИИ' : ''}`
           : voice?.enabled
             ? 'Добавить. Удерживайте, чтобы сказать ИИ'
-            : isStudio()
-              ? target.label
-              : 'Добавить'
+            : 'Добавить'
       }
       style={{ touchAction: 'none' }}
       onPointerDown={(event) => {
@@ -74,8 +65,7 @@ export function AddAction({
         add();
       }}
     >
-      <Plus size={list ? 20 : 22} aria-hidden />
-      {list ? <span aria-hidden>{target.label}</span> : null}
+      <Plus size={26} aria-hidden />
     </button>
   ) : null;
 }

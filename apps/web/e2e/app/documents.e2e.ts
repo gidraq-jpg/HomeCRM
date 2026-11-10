@@ -204,14 +204,17 @@ test('список: фильтры «истекает в 90 дней», «про
   await signInAs(page, family, 'adult');
   await openDocuments(page);
   await expect(documentLinks(page)).toHaveCount(5);
+  // D48 (UI-12): счётчики в чипах срока; ноль — без счётчика.
+  await expect(page.getByRole('radio', { name: 'Истекают · 1', exact: true })).toBeAttached();
+  await expect(page.getByRole('radio', { name: 'Просрочены · 1', exact: true })).toBeAttached();
 
-  await page.getByRole('radio', { name: 'Истекают', exact: true }).check();
+  await page.getByRole('radio', { name: /^Истекают/ }).check();
   await expect(documentLinks(page)).toHaveCount(1);
   await expect(documentLinks(page).first()).toContainText('ОСАГО Субару');
   await expect(documentLinks(page).first()).toContainText('Истекает через 20 дней');
   await checkApp(page, info, 'documents-expiring');
 
-  await page.getByRole('radio', { name: 'Просрочены', exact: true }).check();
+  await page.getByRole('radio', { name: /^Просрочены/ }).check();
   await expect(documentLinks(page)).toHaveCount(1);
   await expect(documentLinks(page).first()).toContainText('Полис КАСКО');
   await expect(documentLinks(page).first()).toContainText('Просрочен на 5 дней');

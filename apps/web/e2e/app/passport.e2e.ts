@@ -95,6 +95,7 @@ test('без даты рождения владельца: подсказка, �
   await page.getByLabel('День рождения').fill('2006-12-01');
   await page.getByRole('button', { name: 'Сохранить' }).click();
   await expect(toast(page)).toContainText('Контакт сохранён');
+  await expect(page.getByRole('button', { name: 'Править' })).toBeVisible();
 
   await page.goto(`#/documents/${passport.id}`);
   await expect(page.getByRole('heading', { level: 1, name: 'Паспорт соседки' })).toBeVisible();

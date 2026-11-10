@@ -82,17 +82,14 @@ test('боковое меню вместо нижнего, переключат�
   await setScope(page, 'Всё');
   await checkApp(page, info, 'desktop-people');
 
-  // D46 (UI-3): создание — подписанной кнопкой в начале списка, не в тёмной шапке.
+  // D48 (UI-12): создание — одной плавающей «+» в правом нижнем углу, не в шапке и не в списке.
   const add = page.getByRole('button', { name: 'Добавить человека', exact: true });
   await expect(add).toBeVisible();
-  await expect(page.locator('.studio-list-hero .studio-add')).toHaveCount(0);
-  await expect(page.locator('.studio-panel > .list-add')).toHaveCount(1);
+  await expect(page.locator('.studio-list-hero .studio-add, .list-add')).toHaveCount(0);
   const box = await add.boundingBox();
-  const headingBox = await page
-    .getByRole('heading', { level: 1, name: 'Люди', exact: true })
-    .boundingBox();
-  expect(box && headingBox && box.y).toBeGreaterThan(headingBox ? headingBox.y : 0);
+  expect(box && box.width).toBe(56);
   expect(box && box.x + box.width).toBeLessThanOrEqual(1280);
+  expect(box && box.x).toBeGreaterThan(1280 / 2);
 });
 
 test('заметки на компьютере: список, карточка и «Кто видит» рядом с боковым меню', async ({
