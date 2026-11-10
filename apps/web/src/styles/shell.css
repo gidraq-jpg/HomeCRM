@@ -67,8 +67,8 @@
 }
 
 .scope-switch__option input:checked + .scope-switch__label {
-  background: var(--green);
-  color: #fff;
+  background: var(--fill);
+  color: var(--on-accent);
 }
 
 .scope-switch__option input:focus-visible + .scope-switch__label {
@@ -110,14 +110,14 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: var(--green);
-  color: #fff;
-  box-shadow: 0 6px 16px rgb(35 45 40 / 0.28);
+  background: var(--fill);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-pop);
   pointer-events: auto;
 }
 
 .fab:active {
-  background: var(--green-strong);
+  background: var(--fill-strong);
 }
 
 .bottom-nav {
@@ -183,9 +183,9 @@ html[data-keyboard="open"] .chrome {
   padding: 10px 6px 10px 14px;
   border-radius: 12px;
   background: var(--ink);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 0.9375rem;
-  box-shadow: 0 6px 16px rgb(35 45 40 / 0.28);
+  box-shadow: var(--shadow-pop);
   pointer-events: auto;
 }
 
@@ -198,7 +198,7 @@ html[data-keyboard="open"] .chrome {
 }
 
 .toast__detail {
-  color: #d3dfd6;
+  color: var(--toast-detail);
   font-size: 0.8125rem;
 }
 
@@ -210,7 +210,7 @@ html[data-keyboard="open"] .chrome {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #cfe9d8;
+  color: var(--toast-action);
   font-weight: var(--weight-medium, 650);
 }
 
@@ -309,8 +309,8 @@ html[data-keyboard="open"] .chrome {
 }
 
 .tabs__link[aria-current="page"] {
-  background: var(--green);
-  color: #fff;
+  background: var(--fill);
+  color: var(--on-accent);
 }
 /* Нижняя панель */
 .sheet-overlay {
@@ -593,8 +593,8 @@ html[data-design="studio"] .topbar :is(.topbar__search, .topbar__profile) {
 }
 
 html[data-design="studio"] .topbar__profile {
-  border: 1px solid #635e55;
-  background: #3b3934;
+  border: 1px solid var(--hdr-line);
+  background: var(--hdr-pill-3);
 }
 
 html[data-design="studio"] .scope-switch {
@@ -606,14 +606,14 @@ html[data-design="studio"] .scope-switch {
 
 html[data-design="studio"] .scope-switch .scope-switch__label {
   border-radius: 22px;
-  color: #5f584e;
+  color: var(--label-muted);
   font-size: 0.875rem;
   font-weight: 400;
 }
 
 html[data-design="studio"] .scope-switch__option input:checked + .scope-switch__label {
-  background: var(--surface);
-  color: var(--ink);
+  background: var(--seg-on-bg);
+  color: var(--seg-on-fg);
   font-weight: 500;
 }
 
@@ -695,19 +695,19 @@ html[data-design="studio"] .chrome__actions {
 }
 
 html[data-design="studio"] .fab {
-  background: var(--accent);
+  background: var(--fill-accent);
   box-shadow: var(--shadow-float);
 }
 
 html[data-design="studio"] .fab:active {
-  background: var(--accent-strong);
+  background: var(--fill-accent-strong);
 }
 
 html[data-design="studio"] .bottom-nav {
   padding: 6px;
   border: 0;
   border-radius: 28px;
-  background: var(--charcoal);
+  background: var(--nav-bg);
   color: var(--on-dark);
 }
 
@@ -715,7 +715,7 @@ html[data-design="studio"] .bottom-nav__link {
   min-height: 54px;
   padding: 4px 2px;
   border-radius: 22px;
-  color: var(--muted-on-dark);
+  color: var(--nav-link);
 }
 
 html[data-design="studio"] .bottom-nav .bottom-nav__label {
@@ -724,8 +724,8 @@ html[data-design="studio"] .bottom-nav .bottom-nav__label {
 }
 
 html[data-design="studio"] .bottom-nav__link[aria-current="page"] {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--nav-active-bg);
+  color: var(--nav-active-fg);
 }
 
 html[data-design="studio"] .bottom-nav__link[aria-current="page"] .bottom-nav__label {
@@ -779,7 +779,7 @@ html[data-design="studio"] .sheet__title {
   html[data-design="studio"] .side-nav {
     padding: 24px 16px;
     border: 0;
-    background: var(--charcoal);
+    background: var(--nav-bg);
     color: var(--on-dark);
   }
 
@@ -788,16 +788,16 @@ html[data-design="studio"] .sheet__title {
   }
 
   html[data-design="studio"] .side-nav__link {
-    color: var(--muted-on-dark);
+    color: var(--nav-link);
   }
 
   html[data-design="studio"] .side-nav__link:hover {
-    background: #3b3934;
+    background: var(--nav-hover);
   }
 
   html[data-design="studio"] .side-nav__link[aria-current="page"] {
-    background: var(--paper);
-    color: var(--ink);
+    background: var(--nav-active-bg);
+    color: var(--nav-active-fg);
     font-weight: 500;
   }
 

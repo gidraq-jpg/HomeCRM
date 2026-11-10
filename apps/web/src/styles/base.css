@@ -77,8 +77,8 @@ html[data-design="studio"] {
 }
 
 html[data-design="studio"] ::selection {
-  background: var(--accent);
-  color: #fff;
+  background: var(--fill-accent);
+  color: var(--on-accent);
 }
 
 html[data-design="studio"] :is(input, textarea) {

@@ -7,6 +7,7 @@ import { useRefreshNotifications, useSettings } from '../notifications/queries.t
 import { prepareLogout } from '../offline/logout.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { Link } from '../shell/motion.tsx';
+import { AppearanceSettings } from '../theme/AppearanceSettings.tsx';
 import { Section } from '../ui/Page.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 import { ApiError, action, api, BackupCodes, Events, isAdmin, type Me } from './api.ts';
@@ -306,6 +307,7 @@ export function SecurityScreen({
         </button>
         <ErrorNotice error={state.error} />
       </Section>
+      <AppearanceSettings />
       <TodaySettings />
       <FactorSettings me={me} reload={reload} />
       <ChangePassword />

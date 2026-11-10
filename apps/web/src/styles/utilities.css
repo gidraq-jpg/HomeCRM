@@ -162,7 +162,7 @@
 }
 
 .chart-legend__mark--solid {
-  background: var(--green);
+  background: var(--fill);
 }
 
 .chart-legend__mark--hatch {

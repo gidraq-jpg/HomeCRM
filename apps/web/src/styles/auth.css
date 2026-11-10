@@ -133,7 +133,7 @@
   gap: 10px;
   padding: 12px 20px;
   background: var(--warning-soft);
-  color: #70400f;
+  color: var(--warning-ink);
   border-bottom: 1px solid var(--warning);
 }
 .offline-banner svg {

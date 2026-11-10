@@ -10,7 +10,7 @@
 }
 
 html[data-design="studio"] ::selection {
-  background: var(--accent-strong);
+  background: var(--fill-accent-strong);
   color: var(--surface);
 }
 
@@ -154,13 +154,13 @@ html[data-design="studio"] .ui7-fullscreen-form .ui7-form-heading > .back-link {
 }
 
 html[data-design="studio"] .tab-indicator {
-  border: 1px solid var(--border);
+  border: 1px solid var(--tabs-on-border);
   border-radius: 12px;
-  background: var(--surface);
+  background: var(--tabs-on-bg);
 }
 
 html[data-design="studio"] .tabs .tabs__link[aria-current="page"] {
-  color: var(--ink);
+  color: var(--tabs-on-fg);
 }
 
 html[data-design="studio"] .studio-add,

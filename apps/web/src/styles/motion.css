@@ -433,7 +433,7 @@ html[data-design="studio"] .section-indicator:not([hidden]) {
   left: 0;
   z-index: -1;
   border-radius: 22px;
-  background: var(--paper);
+  background: var(--nav-active-bg);
   pointer-events: none;
 }
 html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current="page"] {
@@ -655,7 +655,7 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
 }
 html[data-design="studio"] .tab-indicator {
   display: block;
-  background: var(--accent);
+  background: var(--fill-accent);
   border-radius: 0;
 }
 html[data-design="studio"] .tabs .tabs__link[aria-current="page"] {

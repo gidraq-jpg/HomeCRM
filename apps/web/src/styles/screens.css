@@ -69,12 +69,12 @@
   height: 27px;
   border: 1.5px solid var(--muted);
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .check-toggle input:checked + .check-toggle__circle {
-  border-color: var(--green);
-  background: var(--green);
+  border-color: var(--fill);
+  background: var(--fill);
 }
 
 .check-toggle input:focus-visible + .check-toggle__circle {
@@ -554,7 +554,7 @@ html[data-design="studio"] .meter-archive > summary {
 
 html[data-design="studio"] .start-steps__item--current .start-steps__number {
   border-color: var(--accent);
-  background: var(--accent);
+  background: var(--fill-accent);
 }
 
 html[data-design="studio"] .issued-link__text {
