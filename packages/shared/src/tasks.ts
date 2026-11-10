@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CalendarDate } from './deadlines.ts';
+import { CalendarDate, TimeZone } from './deadlines.ts';
 import { TaskOverduePolicy, TaskRepeatRule } from './task-repeats.ts';
 
 export const TASK_STATUSES = ['open', 'done', 'cancelled', 'not_done', 'waiting'] as const;
@@ -48,3 +48,17 @@ export const TaskData = TaskDataWithMissingTarget.refine(
 
 /** Первый доступный связанный объект в лентах дел. */
 export const TaskFeedObject = z.object({ id: z.uuid(), title: z.string() }).nullable();
+
+/** Контракт двусторонней ленты; карточка уточняется потребителем. */
+export function taskPlanSchema<T extends z.ZodType>(card: T) {
+  return z.object({
+    householdId: z.string().nullable(),
+    timeZone: TimeZone,
+    today: CalendarDate,
+    from: CalendarDate,
+    days: z.array(z.object({ date: CalendarDate, tasks: z.array(card) })),
+    undated: z.array(card),
+    prevCursor: CalendarDate.nullable(),
+    nextCursor: CalendarDate.nullable(),
+  });
+}
