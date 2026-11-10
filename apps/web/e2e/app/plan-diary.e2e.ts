@@ -28,6 +28,9 @@ test('TASK-5: ежедневник, история, неделя, без дат�
   };
   for (let i = 0; i < 8; i++) await make({ title: `Сегодняшнее дело ${i}`, planOn: homeDate(0) });
   await make({ title: 'Завтрашнее дело', planOn: homeDate(1) });
+  const weekOffset = (new Date(`${homeDate(0)}T12:00:00Z`).getUTCDay() + 6) % 7;
+  const futureSunday = homeDate(20 - weekOffset);
+  await make({ title: 'Дело в конце будущей недели', planOn: futureSunday });
   await make({ title: 'Просроченное дело', planOn: homeDate(-2) });
   await make({ title: 'Давнее открытое дело', planOn: homeDate(-20) });
   await make({ title: 'Ещё более давнее дело', planOn: homeDate(-40) });
@@ -91,6 +94,21 @@ test('TASK-5: ежедневник, история, неделя, без дат�
     )
     .toBeGreaterThanOrEqual(5);
   await shot('today');
+  await page.getByRole('button', { name: 'Следующая неделя', exact: true }).click();
+  await page.getByRole('button', { name: 'Следующая неделя', exact: true }).click();
+  await expect(
+    page.getByRole('link', { name: 'Дело в конце будущей недели', exact: true }),
+  ).toHaveCount(1);
+  const fullSunday = new Intl.DateTimeFormat('ru-RU', {
+    dateStyle: 'full',
+    timeZone: 'UTC',
+  }).format(new Date(`${futureSunday}T12:00:00Z`));
+  await expect(
+    page.getByRole('button', { name: `${fullSunday}, 1 дело`, exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Предыдущая неделя', exact: true }).click();
+  await page.getByRole('button', { name: 'Предыдущая неделя', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Следующая неделя', exact: true })).toBeEnabled();
   await page.evaluate(() => window.scrollTo(0, 0));
   const anchorTop = () =>
     page.evaluate(

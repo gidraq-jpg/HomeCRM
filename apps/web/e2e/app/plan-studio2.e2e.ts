@@ -163,7 +163,7 @@ for (const textScale of [1, 2]) {
         path: resolve(directory, `plan-sticky-${textScale * 100}-${width}.png`),
       });
     }
-    // Настоящее колесо прокрутки включает IntersectionObserver, а не только запасную кнопку.
+    // Настоящее колесо прокрутки включает подгрузку, а не только запасную кнопку.
     await page.mouse.wheel(0, 10000);
     await expect(page.getByRole('link', { name: 'Проверить запас', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Показать следующие дни' }).click();

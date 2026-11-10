@@ -37,7 +37,7 @@ await writeFile(
       retries: 60
 `,
 );
-const project = 'homecrm-test-d49-demo';
+const project = 'homecrm-test-d49';
 execFileSync('docker', ['compose', '-p', project, '-f', compose, 'up', '-d', '--wait'], {
   stdio: 'inherit',
 });

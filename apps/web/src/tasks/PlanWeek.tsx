@@ -114,7 +114,7 @@ export function PlanWeek({
               type="button"
               disabled={busy || date < minimum}
               aria-current={date === today ? 'date' : undefined}
-              aria-label={`${full}, ${plural(count, ['дело', 'дела', 'дел'])}`}
+              aria-label={`${full}, ${count} ${plural(count, ['дело', 'дела', 'дел'])}`}
               onClick={() => void choose(date)}
             >
               <span>{['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'][i]}</span>

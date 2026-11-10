@@ -1,5 +1,5 @@
 import '../styles/plan-diary.css';
-import { localDate } from '@homecrm/shared';
+import { localDate, shiftTaskDate } from '@homecrm/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -32,6 +32,7 @@ export function PlanFeed({ house }: { house: string | null }) {
     setParams(next, { replace: !open });
   };
   const list = useRef<HTMLDivElement>(null);
+  const jumpDone = useRef<(() => void) | null>(null);
   const [targetDate, setTargetDate] = useState<string | null>(null);
   useLayoutEffect(() => {
     if (!targetDate) return;
@@ -60,6 +61,8 @@ export function PlanFeed({ house }: { house: string | null }) {
             nav.offsetHeight -
             8,
         );
+      jumpDone.current?.();
+      jumpDone.current = null;
       setTargetDate(null);
     });
     return () => {
@@ -208,22 +211,19 @@ export function PlanFeed({ house }: { house: string | null }) {
     window.addEventListener('wheel', onGesture, { passive: true });
     window.addEventListener('touchmove', onGesture, { passive: true });
     window.addEventListener('keydown', onKey);
-    const observer =
-      typeof IntersectionObserver === 'undefined'
-        ? null
-        : new IntersectionObserver(
-            ([entry]) => {
-              nearEnd = !!entry?.isIntersecting;
-              load();
-            },
-            { rootMargin: '0px 0px 160px 0px' },
-          );
-    if (sentinel.current) observer?.observe(sentinel.current);
+    const onScroll = () => {
+      nearEnd =
+        !!sentinel.current &&
+        sentinel.current.getBoundingClientRect().top <= window.innerHeight + 160;
+      load();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
     return () => {
       window.removeEventListener('wheel', onGesture);
       window.removeEventListener('touchmove', onGesture);
       window.removeEventListener('keydown', onKey);
-      observer?.disconnect();
+      window.removeEventListener('scroll', onScroll);
     };
   }, [active, query.hasNextPage, query.isFetching, query.fetchNextPage]);
   const days = new Map<string, Map<string, FeedTaskCard>>();
@@ -268,23 +268,29 @@ export function PlanFeed({ house }: { house: string | null }) {
   );
   const hasDated = groups.length > 0;
   const jump = async (date: string) => {
+    const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+    const weekFrom = shiftTaskDate(date, -((weekday + 6) % 7));
+    const weekTo = shiftTaskDate(weekFrom, 6);
     try {
       let data = query.data;
-      while (data?.pages[0] && date < data.pages[0].from && data.pages[0].prevCursor) {
+      while (data?.pages[0] && weekFrom < data.pages[0].from && data.pages[0].prevCursor) {
         const result = await query.fetchPreviousPage();
         if (result.isError) throw result.error;
         data = result.data;
       }
       while (
         data?.pages.at(-1)?.days.at(-1) &&
-        date > (data.pages.at(-1)?.days.at(-1)?.date ?? '') &&
+        weekTo > (data.pages.at(-1)?.days.at(-1)?.date ?? '') &&
         data.pages.at(-1)?.nextCursor
       ) {
         const result = await query.fetchNextPage();
         if (result.isError) throw result.error;
         data = result.data;
       }
-      setTargetDate(date);
+      await new Promise<void>((resolve) => {
+        jumpDone.current = resolve;
+        setTargetDate(date);
+      });
     } catch (error) {
       operation.setError(error);
     }
@@ -413,6 +419,7 @@ export function PlanFeed({ house }: { house: string | null }) {
           if (query.hasNextPage && !query.isFetching) void query.fetchNextPage();
         }}
       />
+      <div className="plan-tail" aria-hidden />
       {active && undatedOpen && !moving ? (
         <Sheet
           open

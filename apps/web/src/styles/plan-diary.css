@@ -63,3 +63,8 @@
 .plan-diary-days :is(a, button) {
   scroll-margin-block: calc(var(--plan-top-inset, 260px) + 16px) 140px;
 }
+
+/* Последний день тоже можно поднять под прилипшую неделю. */
+.plan-tail {
+  height: max(0px, calc(100dvh - var(--plan-top-inset, 220px) - 120px));
+}
