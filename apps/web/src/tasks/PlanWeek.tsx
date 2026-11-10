@@ -44,7 +44,11 @@ export function PlanWeek({
       const top = document.querySelector('.plan-week')?.getBoundingClientRect().bottom ?? 200;
       const nodes = [...document.querySelectorAll<HTMLElement>('[data-plan-from]')];
       const node = nodes.find((el) => el.getBoundingClientRect().bottom > top);
-      if (node?.dataset.planFrom) setDay(node.dataset.planFrom);
+      if (node?.dataset.planFrom) {
+        const from = node.dataset.planFrom;
+        const until = node.dataset.planUntil ?? from;
+        setDay((current) => (current >= from && current <= until ? current : from));
+      }
     };
     window.addEventListener('scroll', track, { passive: true });
     return () => window.removeEventListener('scroll', track);

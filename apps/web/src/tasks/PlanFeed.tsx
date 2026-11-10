@@ -78,7 +78,12 @@ export function PlanFeed({ house }: { house: string | null }) {
     const date = anchor?.dataset.planFrom;
     const top = anchor?.getBoundingClientRect().top;
     await query.fetchPreviousPage();
-    requestAnimationFrame(async () => {
+    if (date && top !== undefined) setPreserve({ date, top });
+  };
+  const [preserve, setPreserve] = useState<{ date: string; top: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!preserve) return;
+    const frame = requestAnimationFrame(async () => {
       await Promise.allSettled(
         (list.current?.getAnimations({ subtree: true }) ?? []).map(
           (animation) => animation.finished,
@@ -88,13 +93,15 @@ export function PlanFeed({ house }: { house: string | null }) {
         ...(list.current?.querySelectorAll<HTMLElement>('[data-plan-from]') ?? []),
       ].find(
         (el) =>
-          date &&
-          (el.dataset.planFrom ?? '') <= date &&
-          (el.dataset.planUntil ?? el.dataset.planFrom ?? '') >= date,
+          preserve.date &&
+          (el.dataset.planFrom ?? '') <= preserve.date &&
+          (el.dataset.planUntil ?? el.dataset.planFrom ?? '') >= preserve.date,
       );
-      if (next && top !== undefined) window.scrollBy(0, next.getBoundingClientRect().top - top);
+      if (next) window.scrollBy(0, next.getBoundingClientRect().top - preserve.top);
+      setPreserve(null);
     });
-  };
+    return () => cancelAnimationFrame(frame);
+  }, [preserve]);
   const { scope } = useScope();
   const client = useQueryClient();
   const query = usePlan(house);
@@ -190,7 +197,8 @@ export function PlanFeed({ house }: { house: string | null }) {
         void query.fetchNextPage();
       }
     };
-    const onGesture = () => {
+    const onGesture = (event?: Event) => {
+      if (event instanceof WheelEvent && event.deltaY < 0) return;
       armed.current = true;
       load();
     };
@@ -293,11 +301,30 @@ export function PlanFeed({ house }: { house: string | null }) {
       )
         void prepend();
     };
-    window.addEventListener('wheel', up, { passive: true });
-    window.addEventListener('touchmove', up, { passive: true });
+    const wheel = (event: WheelEvent) => {
+      if (event.deltaY < 0) up();
+    };
+    let touchY: number | undefined;
+    const start = (event: TouchEvent) => {
+      touchY = event.touches[0]?.clientY;
+    };
+    const touch = (event: TouchEvent) => {
+      const y = event.touches[0]?.clientY;
+      if (y !== undefined && touchY !== undefined && y > touchY) up();
+      touchY = y;
+    };
+    const key = (event: KeyboardEvent) => {
+      if (['PageUp', 'Home', 'ArrowUp'].includes(event.key)) up();
+    };
+    window.addEventListener('wheel', wheel, { passive: true });
+    window.addEventListener('touchstart', start, { passive: true });
+    window.addEventListener('touchmove', touch, { passive: true });
+    window.addEventListener('keydown', key);
     return () => {
-      window.removeEventListener('wheel', up);
-      window.removeEventListener('touchmove', up);
+      window.removeEventListener('wheel', wheel);
+      window.removeEventListener('touchstart', start);
+      window.removeEventListener('touchmove', touch);
+      window.removeEventListener('keydown', key);
     };
   });
   return (
@@ -341,7 +368,7 @@ export function PlanFeed({ house }: { house: string | null }) {
         >
           {hasDated
             ? groups.map((group) =>
-                group.tasks.length ? (
+                group.tasks.length || group.from === today ? (
                   <section
                     className="section plan-day"
                     key={group.from}
@@ -355,7 +382,11 @@ export function PlanFeed({ house }: { house: string | null }) {
                         ? ` · ${group.tasks.filter((t) => t.status === 'done').length} из ${group.tasks.length}`
                         : ''}
                     </h2>
-                    {rows(group.tasks, `Дела ${group.from}`)}
+                    {group.tasks.length ? (
+                      rows(group.tasks, `Дела ${group.from}`)
+                    ) : (
+                      <p className="muted plan-empty-days">Свободно</p>
+                    )}
                   </section>
                 ) : (
                   <p

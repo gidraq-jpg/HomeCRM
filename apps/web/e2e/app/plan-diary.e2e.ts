@@ -29,6 +29,8 @@ test('TASK-5: ежедневник, история, неделя, без дат�
   for (let i = 0; i < 8; i++) await make({ title: `Сегодняшнее дело ${i}`, planOn: homeDate(0) });
   await make({ title: 'Завтрашнее дело', planOn: homeDate(1) });
   await make({ title: 'Просроченное дело', planOn: homeDate(-2) });
+  await make({ title: 'Давнее открытое дело', planOn: homeDate(-20) });
+  await make({ title: 'Ещё более давнее дело', planOn: homeDate(-40) });
   const done = await make({ title: 'Выполненное вчера', planOn: homeDate(-3) });
   expect((await api.post(`tasks/${done.id}/status`, { status: 'done' })).status).toBe(200);
   await family.database.admin.query('UPDATE tasks SET done_at=$1::timestamptz WHERE id=$2', [
@@ -89,6 +91,30 @@ test('TASK-5: ежедневник, история, неделя, без дат�
     )
     .toBeGreaterThanOrEqual(5);
   await shot('today');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const anchorTop = () =>
+    page.evaluate(
+      (date) =>
+        [...document.querySelectorAll<HTMLElement>('[data-plan-from]')]
+          .find(
+            (el) =>
+              (el.dataset.planFrom ?? '') <= date &&
+              (el.dataset.planUntil ?? el.dataset.planFrom ?? '') >= date,
+          )
+          ?.getBoundingClientRect().top ?? -1000,
+      homeDate(-14),
+    );
+  const beforePrepend = await anchorTop();
+  await page.getByRole('button', { name: 'Показать предыдущие дни', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Давнее открытое дело', exact: true })).toHaveCount(
+    1,
+  );
+  await expect.poll(async () => Math.abs((await anchorTop()) - beforePrepend)).toBeLessThan(3);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.mouse.wheel(0, -120);
+  await expect(page.getByRole('link', { name: 'Ещё более давнее дело', exact: true })).toHaveCount(
+    1,
+  );
   await page.getByRole('button', { name: /Предыдущая неделя/ }).click();
   await expect(
     page.getByRole('link', { name: 'Выполненное вчера · выполнено', exact: true }),
