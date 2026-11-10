@@ -19,6 +19,7 @@
   white-space: nowrap;
 }
 .plan-week__days {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
@@ -39,8 +40,24 @@
   font-size: 14px;
 }
 .plan-week__days button[aria-current] {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+.plan-week__selection {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(100% / 7);
+  border: 2px solid var(--accent-strong);
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 1;
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-week__selection {
+    transition: none;
+  }
 }
 .plan-week__dot {
   font-weight: 700;

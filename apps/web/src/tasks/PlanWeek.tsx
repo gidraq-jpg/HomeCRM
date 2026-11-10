@@ -38,6 +38,7 @@ export function PlanWeek({
     return () => observer.disconnect();
   }, []);
   const [day, setDay] = useState(today);
+  const [selectedDay, setSelectedDay] = useState(today);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!active) return;
@@ -57,7 +58,11 @@ export function PlanWeek({
   const selected = day || today;
   const weekday = new Date(`${selected}T12:00:00Z`).getUTCDay();
   const monday = shiftTaskDate(selected, -((weekday + 6) % 7));
+  const selectedIndex = Array.from({ length: 7 }, (_, i) => shiftTaskDate(monday, i)).indexOf(
+    selectedDay,
+  );
   const choose = async (date: string) => {
+    setSelectedDay(date);
     setBusy(true);
     try {
       await jump(date);
@@ -114,6 +119,15 @@ export function PlanWeek({
         ) : null}
       </div>
       <div className="plan-week__days">
+        <span
+          className="plan-week__selection"
+          aria-hidden
+          data-selected-date={selectedDay}
+          style={{
+            transform: `translateX(${Math.max(0, selectedIndex) * 100}%)`,
+            opacity: selectedIndex < 0 ? 0 : 1,
+          }}
+        />
         {Array.from({ length: 7 }, (_, i) => {
           const date = shiftTaskDate(monday, i);
           const count = counts.get(date);
@@ -127,6 +141,7 @@ export function PlanWeek({
               type="button"
               disabled={busy || date < minimum}
               aria-current={date === today ? 'date' : undefined}
+              aria-pressed={date === selectedDay}
               aria-label={
                 count === undefined
                   ? `${full}, дела не загружены`

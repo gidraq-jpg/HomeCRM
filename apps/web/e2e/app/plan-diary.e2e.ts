@@ -81,6 +81,13 @@ test('TASK-5: ежедневник, история, неделя, без дат�
   );
   expect(pastRequests).toEqual([]);
   expect(await page.evaluate(() => scrollY)).toBe(0);
+  const todayButton = page.locator('.plan-week__days button[aria-current="date"]');
+  const todayColors = await todayButton.evaluate((el) => ({
+    background: getComputedStyle(el).backgroundColor,
+    color: getComputedStyle(el).color,
+  }));
+  expect(todayColors.background).not.toBe('rgba(0, 0, 0, 0)');
+  expect(todayColors.background).not.toBe(todayColors.color);
   await shot('today');
   const browseWeek = async (name: 'Следующая неделя' | 'Предыдущая неделя') => {
     const button = page.getByRole('button', { name, exact: true });
@@ -129,6 +136,27 @@ test('TASK-5: ежедневник, история, неделя, без дат�
     )
     .toBeGreaterThanOrEqual(5);
   await shot('sticky');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const tomorrow = page.getByRole('button', { name: new RegExp(`^${full(homeDate(1))},`) });
+  await tomorrow.click();
+  await expect(tomorrow).toHaveAttribute('aria-pressed', 'true');
+  await tomorrow.evaluate((el) => el.blur());
+  const selection = page.locator('.plan-week__selection');
+  await expect(selection).toHaveCSS('opacity', '1');
+  await expect(selection).toHaveCSS('transition-property', 'transform');
+  await expect
+    .poll(async () => {
+      const frame = await selection.boundingBox();
+      const day = await tomorrow.boundingBox();
+      return frame && day ? Math.abs(frame.x - day.x) : 1000;
+    })
+    .toBeLessThan(1);
+  expect(await todayButton.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
+    todayColors.background,
+  );
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(selection).toHaveCSS('transition-duration', '0s');
+  await shot('selection');
   const beforePastWeek = await page.evaluate(() => scrollY);
   await browseWeek('Предыдущая неделя');
   expect(pastRequests).toEqual([]);
