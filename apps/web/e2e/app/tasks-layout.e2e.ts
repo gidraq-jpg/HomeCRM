@@ -193,11 +193,17 @@ test('заполненные ленты: главное перед вводом,
     .toBe('open');
   for (const view of ['plan', 'all'] as const) {
     await openFeed(page, view);
-    if (view === 'plan') await page.locator('.plan-undated summary').click();
+    if (view === 'plan')
+      await page.getByRole('button', { name: 'Без даты · 1', exact: true }).click();
     await expect(
       page.getByRole('link', { name: /Разобрать вымышленные бумаги без даты/ }),
     ).toBeVisible();
     await check(page, `filled-${view}-${info.project.use.viewport?.width}`);
+    if (view === 'plan')
+      await page
+        .getByRole('dialog', { name: 'Без даты', exact: true })
+        .getByRole('button', { name: 'Закрыть', exact: true })
+        .click();
   }
 });
 

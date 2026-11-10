@@ -2,6 +2,7 @@ import { shiftTaskDate } from '@homecrm/shared';
 import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { plural } from '../ui/format.ts';
+import { focusAfterTouch } from './TaskTabs.tsx';
 export function PlanWeek({
   today,
   counts,
@@ -67,14 +68,26 @@ export function PlanWeek({
   };
   const minimum = shiftTaskDate(today, -365);
   return (
-    <nav ref={root} className="plan-week" aria-label="Неделя плана">
+    <nav
+      ref={root}
+      className="plan-week"
+      aria-label="Неделя плана"
+      onPointerDown={(event) => {
+        const button = event.target instanceof Element ? event.target.closest('button') : null;
+        if (!button) return;
+        // Стандартный перевод фокуса учитывает scroll-padding шапки и может сдвинуть страницу.
+        event.preventDefault();
+        if (event.pointerType === 'touch') focusAfterTouch(button);
+        else button.focus({ preventScroll: true });
+      }}
+    >
       <div className="plan-week__heading">
         <button
           type="button"
           className="icon-button"
           aria-label="Предыдущая неделя"
           disabled={busy || monday <= minimum}
-          onClick={() => void choose([shiftTaskDate(monday, -7), minimum].sort().at(-1) ?? minimum)}
+          onClick={() => setDay([shiftTaskDate(monday, -7), minimum].sort().at(-1) ?? minimum)}
         >
           <CaretLeft size={20} />
         </button>
@@ -90,7 +103,7 @@ export function PlanWeek({
           className="icon-button"
           aria-label="Следующая неделя"
           disabled={busy}
-          onClick={() => void choose(shiftTaskDate(monday, 7))}
+          onClick={() => setDay(shiftTaskDate(monday, 7))}
         >
           <CaretRight size={20} />
         </button>
@@ -103,7 +116,7 @@ export function PlanWeek({
       <div className="plan-week__days">
         {Array.from({ length: 7 }, (_, i) => {
           const date = shiftTaskDate(monday, i);
-          const count = counts.get(date) ?? 0;
+          const count = counts.get(date);
           const full = new Intl.DateTimeFormat('ru-RU', {
             dateStyle: 'full',
             timeZone: 'UTC',
@@ -114,13 +127,17 @@ export function PlanWeek({
               type="button"
               disabled={busy || date < minimum}
               aria-current={date === today ? 'date' : undefined}
-              aria-label={`${full}, ${count} ${plural(count, ['дело', 'дела', 'дел'])}`}
+              aria-label={
+                count === undefined
+                  ? `${full}, дела не загружены`
+                  : `${full}, ${count} ${plural(count, ['дело', 'дела', 'дел'])}`
+              }
               onClick={() => void choose(date)}
             >
               <span>{['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'][i]}</span>
               <span>
                 {Number(date.slice(-2))}
-                {count > 0 ? (
+                {count !== undefined && count > 0 ? (
                   <span className="plan-week__dot" aria-hidden>
                     {' '}
                     ·

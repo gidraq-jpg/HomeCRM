@@ -263,7 +263,7 @@ for (const reduce of [false, true]) {
         // Длинная протяжка дальше порога выполняет сразу.
         await drag(page, task.locator('a').first(), 160);
         await expect(page.getByText('Дело выполнено', { exact: true })).toBeVisible();
-        if (feed === 'today/all') await expect(task.locator('.plan-circle--done')).toBeVisible();
+        if (feed !== 'today') await expect(task.locator('.plan-circle--done')).toBeVisible();
         else await expect(task).toHaveCount(0);
         await page.getByRole('button', { name: 'Отменить', exact: true }).click();
         await expect(task).toBeVisible();

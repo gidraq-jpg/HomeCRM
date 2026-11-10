@@ -147,13 +147,6 @@ export function PlanFeed({ house }: { house: string | null }) {
     });
     return () => cancelAnimationFrame(frame);
   }, [active, client, scrollKey]);
-  const initialized = useRef(false);
-  useEffect(() => {
-    if (!active || !query.data || initialized.current) return;
-    initialized.current = true;
-    if (client.getQueryData<number>(scrollKey) !== undefined) return;
-    void query.fetchPreviousPage().then(() => setTargetDate(today));
-  }, [active, query.data, query.fetchPreviousPage, client, scrollKey, today]);
   const remember = () => client.setQueryData(scrollKey, window.scrollY);
   const apply = (card: FeedTaskCard) => {
     card = FeedTaskCard.strip().parse(card);
@@ -273,7 +266,12 @@ export function PlanFeed({ house }: { house: string | null }) {
     const weekTo = shiftTaskDate(weekFrom, 6);
     try {
       let data = query.data;
-      while (data?.pages[0] && weekFrom < data.pages[0].from && data.pages[0].prevCursor) {
+      while (
+        date < today &&
+        data?.pages[0] &&
+        weekFrom < data.pages[0].from &&
+        data.pages[0].prevCursor
+      ) {
         const result = await query.fetchPreviousPage();
         if (result.isError) throw result.error;
         data = result.data;
@@ -295,44 +293,6 @@ export function PlanFeed({ house }: { house: string | null }) {
       operation.setError(error);
     }
   };
-  useEffect(() => {
-    if (!active) return;
-    const up = () => {
-      const first = list.current?.querySelector('[data-plan-from]');
-      if (
-        first &&
-        first.getBoundingClientRect().top > 200 &&
-        query.hasPreviousPage &&
-        !query.isFetching
-      )
-        void prepend();
-    };
-    const wheel = (event: WheelEvent) => {
-      if (event.deltaY < 0) up();
-    };
-    let touchY: number | undefined;
-    const start = (event: TouchEvent) => {
-      touchY = event.touches[0]?.clientY;
-    };
-    const touch = (event: TouchEvent) => {
-      const y = event.touches[0]?.clientY;
-      if (y !== undefined && touchY !== undefined && y > touchY) up();
-      touchY = y;
-    };
-    const key = (event: KeyboardEvent) => {
-      if (['PageUp', 'Home', 'ArrowUp'].includes(event.key)) up();
-    };
-    window.addEventListener('wheel', wheel, { passive: true });
-    window.addEventListener('touchstart', start, { passive: true });
-    window.addEventListener('touchmove', touch, { passive: true });
-    window.addEventListener('keydown', key);
-    return () => {
-      window.removeEventListener('wheel', wheel);
-      window.removeEventListener('touchstart', start);
-      window.removeEventListener('touchmove', touch);
-      window.removeEventListener('keydown', key);
-    };
-  });
   return (
     <>
       {today ? (

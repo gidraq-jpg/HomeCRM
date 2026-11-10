@@ -35,7 +35,7 @@ async function swipe(page: Page, forward: boolean) {
   const session = await page.context().newCDPSession(page);
   const width = page.viewportSize()?.width ?? 360;
   const content = page.url().endsWith('/today/plan')
-    ? page.getByText('На две недели вперёд дел нет', { exact: true })
+    ? page.locator('.plan-empty-days').first()
     : page.url().endsWith('/more/shopping')
       ? page.locator('.feed-heading')
       : page.locator('main .page-heading');

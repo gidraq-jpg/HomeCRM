@@ -239,6 +239,8 @@ test('D19a.3–5: План без observer, Tab подгружает дни, п�
   await page.goto('#/today/plan');
   await expect(page.getByRole('link', { name: /1 просроченное дело/ })).toBeVisible();
   await expect(page.locator('[data-feed-active="true"] .plan-row__meta--late')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Показать предыдущие дни', exact: true }).click();
+  await expect(page.locator('[data-feed-active="true"] .plan-row__meta--late')).toHaveCount(2);
   const load = page.getByRole('button', { name: 'Показать следующие дни' });
   await load.focus();
   await page.keyboard.press('Shift+Tab');
