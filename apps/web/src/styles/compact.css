@@ -375,10 +375,11 @@ html[data-design="studio"] .today-main__label {
   margin: 0;
 }
 
-html[data-design="studio"] .studio-panel .today-main > .row-list {
+html[data-design="studio"] .studio-panel .today-main .row-list {
   overflow: visible;
   border: 0;
   background: transparent;
+  box-shadow: none;
 }
 
 html[data-design="studio"] .today-main .swipe-task {
