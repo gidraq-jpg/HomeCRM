@@ -102,7 +102,9 @@ test('UI-9: одинаковые строки дел и покупок на «С
 
   // Единая сетка «Сегодня»: круг 22 px в зоне 44 px, название 15 px, мета 13 px.
   if (process.env.D45_PHASE !== 'before') {
-    const row = page.locator('.plan-row').first();
+    const row = page
+      .locator('.today-rows .plan-row:has(.plan-row__meta):has(.plan-row__done)')
+      .first();
     const geometry = await row.evaluate((element) => {
       const size = (selector: string) => {
         const target = element.querySelector(selector);
