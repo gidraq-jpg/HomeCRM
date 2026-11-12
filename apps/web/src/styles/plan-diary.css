@@ -3,13 +3,14 @@
   top: calc(var(--task-header-height, 88px) + 56px);
   z-index: 8;
   background: var(--paper);
-  padding-block: 4px;
+  padding-block: 0 2px;
 }
 .plan-week__heading {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 14px;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 0.875rem;
 }
 .plan-week__heading > span {
   flex: 1;
@@ -24,23 +25,29 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 .plan-week__days button {
+  position: relative;
   display: flex;
   flex-direction: column;
-  position: relative;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 48px;
-  padding: 2px 0 7px;
+  gap: 2px;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 0 7px;
   border: 0;
   border-radius: 12px;
   background: transparent;
   color: var(--text);
   font: inherit;
+  line-height: 1.15;
   white-space: nowrap;
 }
 .plan-week__days button > span:first-child {
-  font-size: 14px;
+  font-size: 0.6875rem;
+}
+.plan-week__number {
+  font-size: 0.9375rem;
+  font-variant-numeric: proportional-nums;
 }
 .plan-week__days button[aria-current] {
   background: var(--accent);
@@ -56,6 +63,13 @@
   pointer-events: none;
   z-index: 1;
   transition: transform var(--motion-fast) var(--ease-out);
+}
+html[data-design="studio"] .plan-week__days button:focus-visible {
+  outline-offset: -2px;
+}
+.plan-week__days:has(button[aria-pressed="true"]:focus-visible:not([data-touch-focus]))
+  .plan-week__selection {
+  visibility: hidden;
 }
 @media (prefers-reduced-motion: reduce) {
   .plan-week__selection {

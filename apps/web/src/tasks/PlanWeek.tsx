@@ -1,5 +1,4 @@
 import { shiftTaskDate } from '@homecrm/shared';
-import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { plural } from '../ui/format.ts';
 import { focusAfterTouch } from './TaskTabs.tsx';
@@ -87,31 +86,13 @@ export function PlanWeek({
       }}
     >
       <div className="plan-week__heading">
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="Предыдущая неделя"
-          disabled={busy || monday <= minimum}
-          onClick={() => setDay([shiftTaskDate(monday, -7), minimum].sort().at(-1) ?? minimum)}
-        >
-          <CaretLeft size={20} />
-        </button>
         <span>
           {new Intl.DateTimeFormat('ru-RU', {
             month: 'long',
-            year: 'numeric',
             timeZone: 'UTC',
-          }).format(new Date(`${selected}T12:00:00Z`))}
+          }).format(new Date(`${selected}T12:00:00Z`))}{' '}
+          {selected.slice(0, 4)}
         </span>
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="Следующая неделя"
-          disabled={busy}
-          onClick={() => setDay(shiftTaskDate(monday, 7))}
-        >
-          <CaretRight size={20} />
-        </button>
         {undated > 0 ? (
           <button type="button" className="text-button" onClick={openUndated}>
             Без даты · {undated}
@@ -151,7 +132,7 @@ export function PlanWeek({
               onClick={() => void choose(date)}
             >
               <span>{['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'][i]}</span>
-              <span>{Number(date.slice(-2))}</span>
+              <span className="plan-week__number">{Number(date.slice(-2))}</span>
             </button>
           );
         })}

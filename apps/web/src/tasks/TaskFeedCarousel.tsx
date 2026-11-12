@@ -32,13 +32,16 @@ export function TaskFeedCarousel() {
       return old?.count === summary.count &&
         old?.detail === summary.detail &&
         old?.ready === summary.ready &&
-        old?.house === summary.house
+        old?.house === summary.house &&
+        old?.greeting === summary.greeting &&
+        old?.eyebrow === summary.eyebrow
         ? current
         : { ...current, [index]: summary };
     });
   }, []);
   const active = Math.max(0, paths.indexOf(pathname));
   const summary = summaries[active];
+  const today = active === 0;
   const tabHouse = summary?.house ?? house;
   useLayoutEffect(() => {
     const carousel = root.current;
@@ -52,7 +55,13 @@ export function TaskFeedCarousel() {
     <>
       <Page
         title={labels[active] ?? 'Сегодня'}
-        className="feed-page"
+        className={
+          today
+            ? 'feed-page feed-page--today'
+            : active === 1
+              ? 'feed-page feed-page--plan'
+              : 'feed-page'
+        }
         heading={
           <div className="feed-heading">
             <h1 className="visually-hidden">{labels[active]}</h1>
@@ -69,14 +78,16 @@ export function TaskFeedCarousel() {
                     data-feed-heading-active={current}
                     aria-hidden={!current || undefined}
                   >
-                    <p className="page-heading__eyebrow">
-                      {own?.eyebrow ?? 'Дела дома и ваши личные'}
-                    </p>
+                    {index !== 0 ? (
+                      <p className="page-heading__eyebrow">
+                        {own?.eyebrow ?? 'Дела дома и ваши личные'}
+                      </p>
+                    ) : null}
                     {own?.greeting ? (
                       <p className="feed-heading__greeting">{own.greeting}</p>
                     ) : null}
                     <p className="feed-heading__summary">
-                      {label}:{' '}
+                      {index === 0 ? 'Сегодня · ' : `${label}: `}
                       {own?.count !== undefined ? (
                         <>
                           <RollingNumber value={own.count} />{' '}

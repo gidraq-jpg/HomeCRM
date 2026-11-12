@@ -61,16 +61,17 @@ test('D20b 1–4: кружки, компактные строки, выполн�
     page.getByRole('link', { name: 'Как устроены личное и общее', exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
-  for (const list of ['Главное дело', 'Дела на сегодня']) {
-    const done = page
-      .getByRole('list', { name: list, exact: true })
-      .getByRole('button', { name: 'Выполнить', exact: true });
-    await expect(done.locator('.plan-circle')).toBeVisible();
-    await expect(done.locator('svg')).toHaveCSS('opacity', '0');
-    expect(
-      await done.evaluate((element) => element.getBoundingClientRect().width),
-    ).toBeGreaterThanOrEqual(44);
-  }
+  const mainCard = page.getByRole('list', { name: 'Главное дело', exact: true });
+  await expect(mainCard.getByRole('button', { name: 'Готово', exact: true })).toBeVisible();
+  await expect(mainCard.getByRole('button', { name: 'Отложить', exact: true })).toBeVisible();
+  const done = page
+    .getByRole('list', { name: 'Дела на сегодня', exact: true })
+    .getByRole('button', { name: 'Выполнить', exact: true });
+  await expect(done.locator('.plan-circle')).toBeVisible();
+  await expect(done.locator('svg')).toHaveCSS('opacity', '0');
+  expect(
+    await done.evaluate((element) => element.getBoundingClientRect().width),
+  ).toBeGreaterThanOrEqual(44);
   const row = urgent.getByRole('listitem');
   await expect(row.getByRole('link')).toHaveCount(1);
   await expect(row.getByRole('button')).toHaveCount(1);
@@ -217,7 +218,7 @@ test('D20b 5: главное повторное дело переносится 
   await signInAs(page, family, 'adult');
   await page
     .getByRole('list', { name: 'Главное дело', exact: true })
-    .getByRole('button', { name: 'Перенести: Вымышленный главный повтор', exact: true })
+    .getByRole('button', { name: 'Отложить', exact: true })
     .click();
   const sheet = page.getByRole('dialog', { name: 'Перенести', exact: true });
   await expect(sheet.getByRole('button', { name: 'Этот и следующие', exact: true })).toHaveCount(0);

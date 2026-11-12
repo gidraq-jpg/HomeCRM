@@ -1,5 +1,5 @@
 import { canWrite } from '@homecrm/shared';
-import { Clock, ListChecks } from '@phosphor-icons/react';
+import { ListChecks } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import type { RadarItem } from '../deadlines/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
@@ -11,10 +11,10 @@ import { formatRub } from '../ui/format.ts';
 import { RowList } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import type { TaskCard } from './api.ts';
-import { CompletionCheck } from './CompletionCheck.tsx';
 import { formatDateOnly } from './fields.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
-import { PlanRows } from './PlanRows.tsx';
+import { OverdueBadge, PlanRows } from './PlanRows.tsx';
+import { overdueDays } from './plan.ts';
 import { repeatLabel } from './repeats.tsx';
 import { SwipeTaskRow } from './SwipeTaskRow.tsx';
 import { STATUS_LABELS } from './TaskForm.tsx';
@@ -51,6 +51,7 @@ export function TaskRows({
   move,
   pending = false,
   today = '',
+  todayStyle = false,
 }: {
   tasks: readonly TaskCard[];
   label: string;
@@ -60,6 +61,7 @@ export function TaskRows({
   pending?: boolean;
   /** День дома: по нему считается просрочка в мета-строке. */
   today?: string;
+  todayStyle?: boolean;
 }) {
   const { me } = useHousehold();
   const viewer = viewerOf(me);
@@ -110,6 +112,8 @@ export function TaskRows({
             tasks={tasks}
             label={label}
             today={today}
+            todayStyle={todayStyle}
+            radar={radar}
             pending={operation.pending || pending}
             completionFailed={!!operation.error || !!operation.confirmation}
             move={move}
@@ -126,41 +130,31 @@ export function TaskRows({
       {tasks.length === 0 ? <p className="muted">Дел под выбранные условия нет.</p> : null}
       <RowList label={label}>
         {tasks.map((card) => {
-          const done =
+          const editable =
             ['open', 'waiting'].includes(card.status) &&
-            canWrite(viewer, factsOf(card, viewer, 'task')) ? (
-              <button
-                key={card.id}
-                className={'icon-button task-focus__done'}
-                type="button"
-                aria-label="Выполнить"
-                disabled={operation.pending || pending}
-                onClick={() =>
-                  void operation.run({
-                    path: `tasks/${card.id}/status`,
-                    body: { status: 'done', expectedUpdatedAt: card.updatedAt },
-                    keyed: true,
-                  })
-                }
-              >
-                <span className="plan-circle task-completion-circle" aria-hidden>
-                  <CompletionCheck />
-                </span>
-              </button>
-            ) : null;
+            canWrite(viewer, factsOf(card, viewer, 'task'));
+          const late = overdueDays(card, today);
+          const done = editable ? (
+            <button
+              key={card.id}
+              className="btn btn--primary task-focus__done"
+              type="button"
+              disabled={operation.pending || pending}
+              onClick={() => completeCard(card)}
+            >
+              Готово
+            </button>
+          ) : null;
           const reschedule =
-            move &&
-            ['open', 'waiting'].includes(card.status) &&
-            canWrite(viewer, factsOf(card, viewer, 'task')) ? (
+            move && editable ? (
               <button
                 key={`move-${card.id}`}
-                className="icon-button"
+                className="btn task-focus__postpone"
                 type="button"
-                aria-label={`Перенести: ${card.title}`}
                 disabled={operation.pending || pending}
                 onClick={() => move(card)}
               >
-                <Clock size={22} aria-hidden />
+                Отложить
               </button>
             ) : null;
           const payment = radar.find(
@@ -180,31 +174,27 @@ export function TaskRows({
               card={card}
               pending={operation.pending || pending}
               completionFailed={!!operation.error || !!operation.confirmation}
-              complete={() => {
-                void operation.run({
-                  path: `tasks/${card.id}/status`,
-                  body: { status: 'done', expectedUpdatedAt: card.updatedAt },
-                  keyed: true,
-                });
-              }}
+              complete={() => completeCard(card)}
             >
               <div className="task-focus__heading">
                 <span className="task-focus__tile">
                   <ListChecks size={24} aria-hidden />
                 </span>
                 <div>
-                  <p className="focus__access">
-                    {objectTitle && objectTitle !== card.title ? `${objectTitle} · ` : ''}
+                  <h2 className="today-main__label">Главное на сегодня</h2>
+                  <Link className="focus__title task-focus__title" to={taskPath(card.id)}>
+                    {card.title}
+                  </Link>
+                  <p className="focus__meta">
+                    {objectTitle && objectTitle !== card.title ? `${objectTitle} · ` : null}
                     {card.spaceKind !== 'personal' && card.audience === 'adults'
-                      ? 'Взрослые'
+                      ? 'Взрослые · '
                       : null}
+                    <TaskMeta card={card} />
                   </p>
-                  <h3 className="focus__title">{card.title}</h3>
+                  {late ? <OverdueBadge days={late} /> : null}
                 </div>
               </div>
-              <p className="focus__meta">
-                <TaskMeta card={card} />
-              </p>
               {payment?.remainingCents != null ? (
                 <p className="task-focus__remaining">
                   осталось {formatRub(payment.remainingCents)}
@@ -220,17 +210,12 @@ export function TaskRows({
                   value={Math.min(payment.totalCents, Math.max(0, payment.paidCents))}
                 />
               ) : null}
-              <div className="focus__actions">
-                <Link
-                  className="btn btn--primary"
-                  to={taskPath(card.id)}
-                  aria-label={`Открыть дело: ${card.title}`}
-                >
-                  Открыть дело
-                </Link>
-                {done}
-                {reschedule}
-              </div>
+              {done || reschedule ? (
+                <div className="focus__actions">
+                  {done}
+                  {reschedule}
+                </div>
+              ) : null}
             </SwipeTaskRow>
           );
         })}

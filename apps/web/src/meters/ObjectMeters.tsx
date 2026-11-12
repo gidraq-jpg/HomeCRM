@@ -1,4 +1,11 @@
-import { ArrowsClockwise, Gauge, PencilLine, PencilSimple, Plus } from '@phosphor-icons/react';
+import {
+  ArrowsClockwise,
+  CaretDown,
+  Gauge,
+  PencilLine,
+  PencilSimple,
+  Plus,
+} from '@phosphor-icons/react';
 import { type ReactNode, useState } from 'react';
 import type { AccountCard } from '../accounts/api.ts';
 import { useAccounts } from '../accounts/queries.ts';
@@ -338,7 +345,9 @@ export function ObjectMeters() {
 
       {archived.length > 0 ? (
         <details className="meter-archive">
-          <summary>Заменённые и снятые ({archived.length})</summary>
+          <summary className="object-disclosure">
+            Заменённые и снятые ({archived.length})<CaretDown size={16} aria-hidden />
+          </summary>
           <ul className="card-list" aria-label="Заменённые и снятые счётчики">
             {archived.map((item) => (
               <MeterItem

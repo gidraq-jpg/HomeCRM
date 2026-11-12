@@ -160,6 +160,10 @@
   --seg-on-fg: var(--ink);
   --hseg-on-bg: var(--on-dark);
   --hseg-on-fg: var(--charcoal);
+  --today-tabs-bg: #ded6c8;
+  --today-tabs-shadow: 0 1px 2px rgb(74 52 30 / 0.12);
+  --overdue: #8c1d2b;
+  --overdue-soft: #f6dcdc;
   --tabs-on-bg: var(--surface);
   --tabs-on-fg: var(--ink);
   --tabs-on-border: var(--border);

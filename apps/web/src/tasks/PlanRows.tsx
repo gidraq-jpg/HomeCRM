@@ -1,9 +1,12 @@
 import { canWrite } from '@homecrm/shared';
 import { Clock } from '@phosphor-icons/react';
+import { useId } from 'react';
 import { useLocation } from 'react-router';
+import type { RadarItem } from '../deadlines/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
 import { Link } from '../shell/motion.tsx';
+import { formatRub, plural } from '../ui/format.ts';
 import { MotionList } from '../ui/MotionList.tsx';
 import type { FeedTaskCard, TaskCard } from './api.ts';
 import { CompletionCheck } from './CompletionCheck.tsx';
@@ -35,6 +38,8 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   waitingDetail = dates,
   fromPlan = !dates,
   shortDoneLabel = false,
+  todayStyle = false,
+  radar = [],
 }: {
   tasks: readonly T[];
   label: string;
@@ -55,8 +60,11 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   fromPlan?: boolean;
   /** «Сегодня»: кнопка круга зовётся просто «Выполнить», как и в карточке главного дела. */
   shortDoneLabel?: boolean;
+  todayStyle?: boolean;
+  radar?: readonly RadarItem[];
 }) {
   const location = useLocation();
+  const overdueId = useId();
   const { me, householdId } = useHousehold();
   const members = useTaskMembers(
     tasks.find((card) => card.householdId)?.householdId ?? householdId,
@@ -65,7 +73,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
   const viewer = viewerOf(me);
   return (
     <MotionList
-      className="plan-rows"
+      className={todayStyle ? 'plan-rows today-rows' : 'plan-rows'}
       label={label}
       version={tasks.map((card) => card.id + card.status).join(',')}
     >
@@ -93,6 +101,12 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
             ? `→ ${members.data?.find((person) => person.accountId === card.assigneeId)?.displayName ?? 'Участник'}`
             : null;
         const late = overdueDays(card, today);
+        const showLateBadge = todayStyle || dates;
+        const amount = todayStyle
+          ? radar.find(
+              (item) => item.id === card.radarOccurrenceId && item.sourceKind === 'payment',
+            )?.remainingCents
+          : undefined;
         const weeks = Math.floor(
           (Date.parse(`${today}T12:00:00Z`) - Date.parse(card.createdAt)) / (7 * 86400000),
         );
@@ -104,7 +118,7 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
             : null,
           dates && card.planOn ? formatDateOnly(card.planOn) : null,
           card.planTime,
-          late ? overdueText(late) : null,
+          late && !showLateBadge ? overdueText(late) : null,
           card.object?.title,
           card.spaceKind !== 'personal' && card.audience === 'adults' ? 'Взрослые' : null,
           assignee,
@@ -148,13 +162,20 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
               aria-label={
                 closed ? `${card.title} · ${STATUS_LABELS[card.status].toLowerCase()}` : card.title
               }
+              aria-describedby={showLateBadge && late ? overdueId + card.id : undefined}
               to={taskPath(card.id)}
               state={fromPlan ? { fromPlan: `${location.pathname}${location.search}` } : undefined}
               onClick={remember}
             >
               <span className="plan-row__title">{card.title}</span>
               {metadata.length || card.repeatRule ? (
-                <span className={late ? 'plan-row__meta plan-row__meta--late' : 'plan-row__meta'}>
+                <span
+                  className={
+                    late && !showLateBadge
+                      ? 'plan-row__meta plan-row__meta--late'
+                      : 'plan-row__meta'
+                  }
+                >
                   {card.repeatRule ? (
                     <>
                       <span role="img" aria-label="Повторяется">
@@ -165,7 +186,9 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
                   {metadata.join(' · ')}
                 </span>
               ) : null}
+              {showLateBadge && late ? <OverdueBadge days={late} id={overdueId + card.id} /> : null}
             </Link>
+            {amount != null ? <span className="today-row__amount">{formatRub(amount)}</span> : null}
             {editable && active && move ? (
               <button
                 className="icon-button plan-row__move"
@@ -181,5 +204,14 @@ export function PlanRows<T extends TaskCard & { object?: FeedTaskCard['object'] 
         );
       })}
     </MotionList>
+  );
+}
+
+export function OverdueBadge({ days, id }: { days: number; id?: string }) {
+  return (
+    <span className="today-overdue" id={id}>
+      <Clock size={14} aria-hidden />
+      на {days} {plural(days, ['день', 'дня', 'дней'])} позже срока
+    </span>
   );
 }

@@ -100,7 +100,7 @@ test('UI-9: одинаковые строки дел и покупок на «С
   await page.getByText('Выполнено сегодня (1)', { exact: true }).click();
   await check(page, info, 'today');
 
-  // Единая сетка: круг 24 px в зоне 44 px, название 17 px, мета 14 px, высота от 56 px.
+  // Единая сетка «Сегодня»: круг 22 px в зоне 44 px, название 15 px, мета 13 px.
   if (process.env.D45_PHASE !== 'before') {
     const row = page.locator('.plan-row').first();
     const geometry = await row.evaluate((element) => {
@@ -118,14 +118,14 @@ test('UI-9: одинаковые строки дел и покупок на «С
       };
     });
     expect(geometry.height).toBeGreaterThanOrEqual(56);
-    expect(geometry.title).toBe('17px');
-    expect(geometry.meta).toBe('14px');
-    expect(geometry.circle).toBe(24);
+    expect(geometry.title).toBe('15px');
+    expect(geometry.meta).toBe('13px');
+    expect(geometry.circle).toBe(22);
     expect(geometry.zone).toBeGreaterThanOrEqual(44);
     expect(geometry.icons).toBe(0);
     const today = page.getByRole('list', { name: 'Дела на сегодня', exact: true });
     await expect(today).not.toContainText('Открыто');
-    await expect(today).toContainText('просрочено на 3 дня');
+    await expect(today).toContainText('на 3 дня позже срока');
     await expect(today).toContainText('↻');
     await expect(today).toContainText('Взрослые');
     await expect(today).toContainText('→ ');

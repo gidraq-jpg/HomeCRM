@@ -175,6 +175,14 @@ html[data-keyboard="open"] .chrome {
   pointer-events: none;
 }
 
+.chrome > .toast-region {
+  padding-inline: var(--gutter);
+}
+
+.chrome > .toast-region:has(.toast) {
+  padding-block-end: 10px;
+}
+
 .toast {
   display: flex;
   flex-wrap: wrap;
@@ -485,6 +493,10 @@ html[data-keyboard="open"] .chrome {
     right: 24px;
     left: auto;
     width: min(360px, calc(100% - 48px));
+  }
+
+  .chrome > .toast-region {
+    padding-inline: 0;
   }
 
   .chrome__actions {

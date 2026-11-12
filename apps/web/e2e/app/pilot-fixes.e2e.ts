@@ -204,7 +204,7 @@ test('D19a.2: выполненное без сети старое дело ос�
     .getByRole('button', { name: 'Отметить сделанным: Старое дело D19', exact: true })
     .click();
   const completed = page
-    .getByRole('list', { name: 'Просрочено', exact: true })
+    .getByRole('list', { name: 'Завершённые', exact: true })
     .getByRole('link', { name: 'Старое дело D19 · выполнено', exact: true });
   await expect(completed).toBeVisible();
   await check(page, info, 'all-offline');

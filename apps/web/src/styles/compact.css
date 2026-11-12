@@ -21,7 +21,7 @@ html[data-design="studio"] .studio-list-hero .studio-list-count {
 /* Список начинается сразу под шапкой; внизу запас под плавающую «+» и нижнее меню. */
 html[data-design="studio"] .studio-list-panel {
   padding-top: 8px;
-  padding-bottom: calc(var(--nav-height) + var(--fab-size) + 32px + env(safe-area-inset-bottom));
+  padding-bottom: var(--list-bottom-clearance, calc(var(--fab-size) + 56px));
 }
 html[data-design="studio"] .studio-list-panel > .section:first-child {
   margin-top: 0;
@@ -37,7 +37,25 @@ html[data-design="studio"] .feed-heading__summary {
 }
 html[data-design="studio"] .feed-panel {
   padding-top: 8px;
-  padding-bottom: calc(var(--nav-height) + var(--fab-size) + 32px + env(safe-area-inset-bottom));
+  padding-bottom: var(--list-bottom-clearance, calc(var(--fab-size) + 56px));
+}
+
+/* Компактная шапка недельной ленты «План». */
+html[data-design="studio"] .feed-page--plan .feed-heading {
+  padding-block: 2px 4px;
+}
+html[data-design="studio"] .feed-page--plan .feed-panel {
+  padding-top: 4px;
+}
+html[data-design="studio"] .feed-page--plan .today-tabs {
+  margin-bottom: 2px;
+  padding-block: 2px;
+}
+html[data-design="studio"] .feed-page--plan .plan-day__title {
+  margin-top: 8px;
+}
+html[data-design="studio"] .feed-page--plan .plan-empty-days {
+  margin-block: 8px;
 }
 
 /* Сводка «Коммуналка за …» в «Доме» отделена от групп объектов. */
@@ -97,7 +115,7 @@ html[data-design="studio"] .object-panel > .tabs {
 
 /* Запас снизу на карточках и списках: плавающая «+» не закрывает последние строки. */
 html[data-design="studio"] .page:not(.ui7-fullscreen-form) .studio-panel {
-  padding-bottom: calc(var(--nav-height) + var(--fab-size) + 32px + env(safe-area-inset-bottom));
+  padding-bottom: var(--list-bottom-clearance, calc(var(--fab-size) + 56px));
 }
 
 /* Фильтры дел: одна строка «Фильтры» и активные условия. */
@@ -143,4 +161,350 @@ html[data-design="studio"] .approved-object-card .tabs {
 }
 html[data-design="studio"] .approved-object-card .tabs > .tabs__list {
   flex-wrap: nowrap;
+}
+
+/* D50: меню и создание занимают один ряд, списки оставляют место под ним. */
+@media (width < 960px) {
+  html[data-design="studio"] {
+    --list-bottom-clearance: calc(88px + env(safe-area-inset-bottom));
+    scroll-padding-bottom: var(--list-bottom-clearance);
+  }
+
+  html[data-design="studio"] .chrome {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--fab-size);
+    column-gap: 8px;
+    width: min(100%, var(--column));
+    margin-inline: auto;
+    padding-inline: 8px;
+  }
+
+  html[data-design="studio"][data-keyboard="open"] .chrome {
+    display: none;
+  }
+
+  html[data-design="studio"] .bottom-nav {
+    grid-column: 1;
+    grid-row: 2;
+    padding: 6px;
+    border-radius: 20px;
+  }
+
+  html[data-design="studio"] .bottom-nav__list {
+    display: flex;
+  }
+
+  html[data-design="studio"] .bottom-nav__list > li:not(.section-indicator) {
+    flex: 1 1 auto;
+    min-width: var(--tap);
+  }
+
+  html[data-design="studio"] .bottom-nav__link {
+    gap: 2px;
+    min-width: var(--tap);
+    min-height: var(--tap);
+    padding: 0 2px;
+    border-radius: 14px;
+  }
+
+  html[data-design="studio"] .bottom-nav__link .section-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  html[data-design="studio"] .bottom-nav__link:not([aria-current="page"]) .section-icon svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  html[data-design="studio"] .bottom-nav .bottom-nav__label {
+    display: none;
+    font-size: 0.6875rem;
+  }
+
+  html[data-design="studio"] .bottom-nav__link[aria-current="page"] .bottom-nav__label {
+    display: block;
+  }
+
+  html[data-design="studio"] .bottom-nav .section-indicator {
+    border-radius: 14px;
+  }
+
+  html[data-design="studio"] .chrome__actions {
+    grid-column: 2;
+    grid-row: 2;
+    padding: 0;
+  }
+
+  html[data-design="studio"] .chrome > .toast-region {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding-inline: 0;
+  }
+
+  html[data-design="studio"] .chrome > .toast-region:has(.toast) {
+    padding-block-end: 8px;
+  }
+
+  html[data-design="studio"] .fab {
+    border-radius: 20px;
+  }
+
+  html[data-design="studio"] .page:not(.ui7-fullscreen-form, .feed-page):not(:has(.studio-panel)) {
+    padding-bottom: var(--list-bottom-clearance);
+  }
+}
+
+/* D50: дата в ряду управления, приветствие и сводка под ним. */
+html[data-design="studio"] .topbar--today {
+  flex-wrap: nowrap;
+  gap: 4px;
+  padding: calc(12px + env(safe-area-inset-top)) 20px 0;
+}
+
+html[data-design="studio"] .topbar__date {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted-on-dark);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+html[data-design="studio"] .topbar--today .topbar__profile {
+  display: grid;
+  border: 0;
+}
+
+html[data-design="studio"] .topbar--today .avatar {
+  width: 32px;
+  height: 32px;
+}
+
+html[data-design="studio"] .feed-page--today .feed-heading {
+  padding: 4px 20px 20px;
+}
+
+html[data-design="studio"] .feed-page--today .feed-heading__greeting {
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1.15;
+}
+
+html[data-design="studio"] .feed-page--today .feed-heading__summary {
+  margin-top: 4px;
+  font-size: 0.9375rem;
+  color: var(--on-dark);
+}
+
+/* D50: четыре одинаковые цели и существующий подвижный индикатор. */
+html[data-design="studio"] .today-tabs > .tabs > .tabs__list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  width: 100%;
+}
+
+html[data-design="studio"][data-theme="studio"] .today-tabs > .tabs > .tabs__list {
+  padding: 3px;
+  border-radius: 14px;
+  background: var(--today-tabs-bg);
+}
+
+html[data-design="studio"][data-theme="studio"] .today-tabs .tab-indicator {
+  border: 0;
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: var(--today-tabs-shadow);
+}
+
+html[data-design="studio"] .today-tabs .tabs__link {
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  font-size: 0.8125rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+html[data-design="studio"] .today-tabs .tabs__link[aria-current="page"] {
+  font-weight: 500;
+}
+
+html[data-design="studio"] .object-disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--tap);
+  cursor: pointer;
+  list-style: none;
+}
+
+html[data-design="studio"] .object-disclosure::-webkit-details-marker {
+  display: none;
+}
+
+html[data-design="studio"] .object-disclosure svg {
+  flex: none;
+}
+
+html[data-design="studio"] .today-overdue svg {
+  flex: none;
+}
+
+html[data-design="studio"] details[open] > .object-disclosure svg {
+  transform: rotate(180deg);
+}
+
+/* D50: главное дело и список «Ещё на сегодня». */
+html[data-design="studio"] .today-main {
+  margin-bottom: var(--space-5);
+}
+
+html[data-design="studio"] .today-main__empty {
+  padding: 4px 0;
+  color: var(--text-subtle);
+  font-size: 0.8125rem;
+}
+
+html[data-design="studio"] .today-main__label {
+  margin: 0;
+}
+
+html[data-design="studio"] .today-main .row-list {
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+html[data-design="studio"] .today-main .swipe-task {
+  border-radius: 20px;
+  box-shadow: var(--shadow-raised);
+}
+
+html[data-design="studio"] .today-main .task-focus {
+  border: 0;
+  border-radius: inherit;
+  background: var(--surface-raised);
+  box-shadow: none;
+}
+
+html[data-design="studio"] .today-main .task-focus__tile {
+  border-radius: 12px;
+  color: var(--tile-neutral-fg);
+  background: var(--tile-neutral-bg);
+}
+
+html[data-design="studio"] .today-main .task-focus__title {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin-block: -10px;
+  color: var(--ink);
+  font-size: 1.0625rem;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+html[data-design="studio"] .today-main .focus__meta {
+  margin-top: 2px;
+}
+
+html[data-design="studio"] .today-main .focus__actions > .btn {
+  min-height: 48px;
+  border: 0;
+  border-radius: 16px;
+}
+
+html[data-design="studio"] .today-main .focus__actions .task-focus__done {
+  background: var(--fill-accent);
+}
+
+html[data-design="studio"] .today-main .focus__actions .task-focus__done:active {
+  background: var(--fill-accent-strong);
+}
+
+html[data-design="studio"] .today-main .task-focus__postpone {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+html[data-design="studio"] .today-extra .section__head {
+  align-items: center;
+}
+
+/* Заголовки лент читаются так же, как группы объектов в «Доме». */
+html[data-design="studio"]
+  .feed-panel
+  :is(
+    .section__title,
+    .today-main__label,
+    .plan-day__title,
+    .plan-week__heading > span,
+    .task-completed > summary,
+    .shopping-bought > summary
+  ) {
+  color: var(--ink);
+  font-size: var(--text-section);
+  font-weight: var(--weight-section);
+  line-height: var(--leading-section);
+}
+
+html[data-design="studio"] .today-inbox-link {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+html[data-design="studio"] .today-rows .plan-circle {
+  width: 22px;
+  height: 22px;
+}
+
+html[data-design="studio"] .today-rows .plan-row__title {
+  font-size: 0.9375rem;
+}
+
+html[data-design="studio"] .today-rows .plan-row__meta {
+  font-size: 0.8125rem;
+}
+
+html[data-design="studio"] .today-rows > .swipe-task + .swipe-task {
+  border-top: 1px solid var(--line);
+  background: none;
+}
+
+.today-row__amount {
+  max-width: 45%;
+  overflow-wrap: anywhere;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-align: end;
+}
+
+.today-overdue {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-block: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--overdue-soft);
+  color: var(--overdue);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.all-tasks-overdue {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  text-decoration: none;
 }

@@ -64,7 +64,7 @@ test('пустые ленты: исходный фокус, подписи и о
     }
     if (view === 'today') {
       await expect(page.getByRole('heading', { name: 'Что сегодня важнее всего?' })).toBeVisible();
-      await expect(page.locator(TODAY_HEADING).locator('.page-heading__eyebrow')).toContainText(
+      await expect(page.locator('.topbar__date')).toContainText(
         formatLongDate(homeDate(0) as DateOnly),
       );
       await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
@@ -176,12 +176,14 @@ test('заполненные ленты: главное перед вводом,
   await api.post('tasks', { title: 'Позвонить мастеру завтра', planOn: homeDate(1) });
   await api.post('tasks', { title: 'Разобрать вымышленные бумаги без даты' });
   await signInAs(page, family, 'adult');
-  await expect(page.getByRole('heading', { level: 3, name: title })).toBeVisible();
+  await expect(
+    page.getByRole('list', { name: 'Главное дело' }).getByRole('link', { name: title }),
+  ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Добавить', exact: true })).toBeVisible();
   await check(page, `main-today-${info.project.use.viewport?.width}`);
   await page
     .getByRole('list', { name: 'Главное дело' })
-    .getByRole('button', { name: 'Выполнить', exact: true })
+    .getByRole('button', { name: 'Готово', exact: true })
     .click();
   await page.getByRole('button', { name: 'Отменить', exact: true }).click();
   await expect

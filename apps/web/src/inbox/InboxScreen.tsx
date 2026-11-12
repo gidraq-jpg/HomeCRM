@@ -31,20 +31,15 @@ export function InboxLink() {
       !data.data?.some((entry) => entry.id === row.body.id),
   ).length;
   return (
-    <div className="btn-row">
-      <Link className="btn btn--secondary" to="/more/inbox/new">
-        Записать во входящие
-      </Link>
-      <Link className="btn btn--secondary" to="/more/inbox">
-        Входящие
-        {data.data || pending ? (
-          <>
-            {' '}
-            · <RollingNumber value={(data.data?.length ?? 0) + pending} />
-          </>
-        ) : null}
-      </Link>
-    </div>
+    <Link className="text-button today-inbox-link" to="/more/inbox">
+      Входящие
+      {data.data || pending ? (
+        <>
+          {' '}
+          · <RollingNumber value={(data.data?.length ?? 0) + pending} />
+        </>
+      ) : null}
+    </Link>
   );
 }
 export function InboxScreen({

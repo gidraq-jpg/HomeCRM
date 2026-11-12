@@ -6,6 +6,7 @@ import {
   Note,
   ShoppingCart,
   SquaresFour,
+  Tray,
   UserPlus,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -65,6 +66,11 @@ export function AddMenu({ open, onOpenChange }: AddMenuProps) {
             }}
           />
         ) : null}
+        <Row
+          icon={<Tray size={22} aria-hidden />}
+          title="Записать во входящие"
+          onClick={() => go('/more/inbox/new')}
+        />
         <Row
           icon={<ShoppingCart size={22} aria-hidden />}
           title="Покупка"
