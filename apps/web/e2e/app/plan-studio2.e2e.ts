@@ -144,6 +144,8 @@ for (const textScale of [1, 2]) {
     await check(page, `assign-day-${textScale * 100}-${width}`);
     await page.getByRole('button', { name: 'Завтра', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    // При тексте 200% уведомление перекрывает строку, и Playwright докручивает её перед кликом.
+    await expect(page.locator('.toast')).toHaveCount(0, { timeout: 10_000 });
     await page.evaluate(() => window.scrollTo(0, 600));
     const tabs = page.locator('.today-tabs');
     const header = page.locator('.topbar');
