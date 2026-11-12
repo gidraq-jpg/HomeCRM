@@ -1,4 +1,4 @@
-// D44: изолированный стенд, только вымышленная семья; секреты остаются в .demo.
+// D49: изолированный стенд, только вымышленная семья; секреты остаются в .demo.
 
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -37,7 +37,7 @@ await writeFile(
       retries: 60
 `,
 );
-const project = 'homecrm-test-fix-ui-9-motion-side-sheet';
+const project = 'homecrm-test-d49';
 execFileSync('docker', ['compose', '-p', project, '-f', compose, 'up', '-d', '--wait'], {
   stdio: 'inherit',
 });
@@ -58,7 +58,7 @@ const auth = createAuthModule({
 });
 const ai = loadAiConfig({ AI_EXTRACT_PROVIDER: 'fake', AI_STT_PROVIDER: 'fake' });
 const app = buildApp(
-  { LOG_LEVEL: 'silent', APP_VERSION: 'd44-demo' },
+  { LOG_LEVEL: 'silent', APP_VERSION: 'd49-demo' },
   {
     auth,
     worker: createWorkerDatabase(database.worker),
@@ -71,6 +71,9 @@ const app = buildApp(
 );
 const fixtures = createAuthDatabase(database.admin);
 const houseId = await createHousehold(fixtures, 'Семья Солнечных — демонстрация');
+await database.admin.query("UPDATE spaces SET time_zone='Asia/Yekaterinburg' WHERE id=$1", [
+  houseId,
+]);
 const people = [];
 for (const role of ['admin', 'adult', 'child'] as const) {
   const password = randomBytes(18).toString('base64url');
@@ -161,6 +164,36 @@ for (let i = 0; i < 15; i++) {
     placement,
   });
 }
+// TASK-5: история и планы вымышленной семьи.
+const day = (offset: number) =>
+  new Date(Date.parse(`${today}T12:00:00Z`) + offset * 86400000).toISOString().slice(0, 10);
+for (let i = 1; i <= 14; i++) {
+  const task = await post('tasks', {
+    title: `Домашнее дело за прошлые дни · ${i}`,
+    planOn: day(-i),
+    placement,
+  });
+  await post(`tasks/${task.id}/status`, { status: 'done' });
+  await database.admin.query('UPDATE tasks SET done_at=$1::timestamptz WHERE id=$2', [
+    `${day(-i)}T18:30:00+05:00`,
+    task.id,
+  ]);
+}
+for (let i = 1; i <= 3; i++)
+  await post('tasks', { title: `Просроченное учебное дело · ${i}`, planOn: day(-i), placement });
+for (let i = 1; i <= 6; i++)
+  await post('tasks', { title: `Запланированное домашнее дело · ${i}`, planOn: day(i), placement });
+for (let i = 1; i <= 4; i++) await post('tasks', { title: `Идея без даты · ${i}`, placement });
+// Только изолированная вымышленная база: возраст фикстуры задаём при отключённом guard.
+await database.admin.query('ALTER TABLE tasks DISABLE TRIGGER USER');
+try {
+  await database.admin.query(
+    "INSERT INTO tasks(space_id,space_kind,audience,author_id,assignee_id,household_id,title,created_at) VALUES($1,'household','household',$2,$2,$1,'Давняя идея без даты',$3::timestamptz)",
+    [houseId, adult.id, `${day(-24)}T12:00:00+05:00`],
+  );
+} finally {
+  await database.admin.query('ALTER TABLE tasks ENABLE TRIGGER USER');
+}
 const meter = await post(`objects/${objects[0].id}/meters`, {
   title: 'Холодная вода',
   data: { resource: 'cold_water', serialNumber: 'DEMO-001' },
@@ -203,4 +236,4 @@ async function close() {
 }
 process.on('SIGINT', () => void close());
 process.on('SIGTERM', () => void close());
-console.log('D44 demo ready: http://localhost:5350; credentials are in .demo/credentials.txt');
+console.log('D49 demo ready: http://localhost:5350; credentials are in .demo/credentials.txt');

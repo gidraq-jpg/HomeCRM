@@ -124,11 +124,20 @@ test('три агрегированные ленты, главное, крайн
   await expect.poll(async () => (await current(api, main.id)).isMain).toBe(false);
   await page.goto('#/today/plan');
   await expect(page.getByRole('heading', { level: 1, name: 'План', exact: true })).toHaveCount(1);
-  await page.locator('.plan-undated summary').click();
+  await page.getByRole('button', { name: 'Без даты · 52', exact: true }).click();
   await expect(page.getByRole('list', { name: 'Дела без даты' }).getByRole('link')).toHaveCount(52);
+  await page
+    .getByRole('dialog', { name: 'Без даты', exact: true })
+    .getByRole('button', { name: 'Закрыть', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Показать следующие дни' }).click();
   await expect(page.getByRole('link', { name: /План позже, срок прошёл/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Без даты · 52', exact: true }).click();
   await expect(page.getByRole('list', { name: 'Дела без даты' }).getByRole('link')).toHaveCount(52);
+  await page
+    .getByRole('dialog', { name: 'Без даты', exact: true })
+    .getByRole('button', { name: 'Закрыть', exact: true })
+    .click();
   await check(page, info, 'plan');
   await page.goto('#/today/all');
   await withTaskFilters(page, (sheet) =>

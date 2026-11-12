@@ -35,7 +35,7 @@ import { OperationNotice } from './operation.tsx';
 import { RecordPicker } from './options.tsx';
 import { PlanFeed } from './PlanFeed.tsx';
 import { PlanRows } from './PlanRows.tsx';
-import { uniqueTasks, useTaskList, useToday } from './queries.ts';
+import { uniqueTasks, usePlan, useTaskList, useToday } from './queries.ts';
 import { queuedStatus } from './queued-status.ts';
 import { STATUS_LABELS } from './TaskForm.tsx';
 import { TaskRows } from './TaskRows.tsx';
@@ -167,6 +167,8 @@ function TodayFeed({ house }: { house: string | null }) {
   const client = useQueryClient();
   const query = useToday(house);
   const settings = useSettings();
+  const plan = usePlan(house);
+  const undatedCount = plan.data?.pages[0]?.undated.length ?? 0;
   const loadingFeed = query.isPending || settings.isPending;
   const count = query.data && !query.error ? query.data.tasks.length : undefined;
   const greeting = useTodayGreeting(query.data, query.error, house);
@@ -284,6 +286,14 @@ function TodayFeed({ house }: { house: string | null }) {
           {!loadingFeed && query.data ? (
             <>
               <ReadingsWindowsFromRows rows={rows} />
+              {undatedCount > 0 && new Date(`${query.data.today}T12:00:00Z`).getUTCDay() === 0 ? (
+                <Link
+                  className="plan-review record-card"
+                  to={`/today/plan?undated=1${house ? `&householdId=${house}` : ''}`}
+                >
+                  Разобрать дела без даты: {undatedCount}
+                </Link>
+              ) : null}
               <Section title="Сегодня и просроченные">
                 <TaskRows
                   label="Дела на сегодня"

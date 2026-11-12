@@ -18,6 +18,7 @@ test.beforeEach(async ({ page }) => {
 async function check(page: Page, name: string) {
   await expectNoHorizontalScroll(page);
   await expectTouchTargets(page);
+
   await expectAccessible(page, name);
   if (process.platform === 'linux') {
     const directory = resolve(import.meta.dirname, '../../test-results/screens/TASK-5');
@@ -122,21 +123,21 @@ for (const textScale of [1, 2]) {
     await expect(
       page
         .locator('.plan-day')
-        .filter({ has: page.getByRole('heading', { name: 'Завтра', exact: true }) })
+        .filter({ has: page.getByRole('heading', { name: /^Завтра,/ }) })
         .getByRole('link', { name: 'Полить растения', exact: true }),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Отменить', exact: true }).click();
     await expect(
       page
         .locator('.plan-day')
-        .filter({ has: page.getByRole('heading', { name: 'Сегодня', exact: true }) })
+        .filter({ has: page.getByRole('heading', { name: /^Сегодня,/ }) })
         .getByRole('link', { name: 'Полить растения', exact: true }),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Перенести: Проверить фильтр', exact: true }).click();
     await page.getByRole('button', { name: 'Только этот раз', exact: true }).click();
     await page.getByRole('button', { name: 'Завтра', exact: true }).click();
     await expect(page.getByText(/^Перенесено на/)).toBeVisible();
-    await page.locator('.plan-undated summary').click();
+    await page.getByRole('button', { name: /^Без даты ·/ }).click();
     await page.getByRole('button', { name: 'Назначить день: Прочитать инструкцию' }).click();
     await expect(page.getByRole('dialog', { name: 'Назначить день', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Без даты', exact: true })).toHaveCount(0);
@@ -162,7 +163,7 @@ for (const textScale of [1, 2]) {
         path: resolve(directory, `plan-sticky-${textScale * 100}-${width}.png`),
       });
     }
-    // Настоящее колесо прокрутки включает IntersectionObserver, а не только запасную кнопку.
+    // Настоящее колесо прокрутки включает подгрузку, а не только запасную кнопку.
     await page.mouse.wheel(0, 10000);
     await expect(page.getByRole('link', { name: 'Проверить запас', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Показать следующие дни' }).click();
@@ -275,7 +276,7 @@ test('TASK-5: пустой план, вкладки с плюсом, досту�
 }, info) => {
   await signInAs(page, family, 'adult');
   await plan(page);
-  await expect(page.getByText('На две недели вперёд дел нет', { exact: true })).toBeVisible();
+  await expect(page.locator('.plan-empty-days').first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Добавить дело', exact: true })).toBeVisible();
   await check(page, `empty-${info.project.use.viewport?.width}`);
   await page.evaluate(() => {
@@ -346,7 +347,7 @@ test('TASK-12: обычный перенос и Назначить день со
   await expect(
     page.getByText('Сохранено на устройстве. Отправим при появлении сети.'),
   ).toBeVisible();
-  await page.locator('.plan-undated summary').click();
+  await page.getByRole('button', { name: /^Без даты ·/ }).click();
   await page.getByRole('button', { name: 'Назначить день: Вымышленное дело без даты' }).click();
   await page.getByRole('button', { name: 'Завтра', exact: true }).click();
   await expect

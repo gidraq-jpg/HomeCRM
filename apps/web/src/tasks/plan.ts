@@ -6,14 +6,23 @@ export function isOverdue(card: TaskCard, today: string): boolean {
 }
 
 export function planDay(date: string, today?: string) {
-  if (date === today) return 'Сегодня';
-  if (today && date === shiftTaskDate(today, 1)) return 'Завтра';
-  return new Intl.DateTimeFormat('ru-RU', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  }).format(new Date(`${date}T12:00:00Z`));
+  const relative =
+    date === today
+      ? 'Сегодня'
+      : today && date === shiftTaskDate(today, 1)
+        ? 'Завтра'
+        : today && date === shiftTaskDate(today, -1)
+          ? 'Вчера'
+          : '';
+  return (
+    (relative ? `${relative}, ` : '') +
+    new Intl.DateTimeFormat('ru-RU', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+    }).format(new Date(`${date}T12:00:00Z`))
+  );
 }
 export function emptyDays(from: string, to: string) {
   const format = (date: string, month: boolean) =>

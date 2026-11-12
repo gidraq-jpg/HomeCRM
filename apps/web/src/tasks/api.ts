@@ -6,6 +6,7 @@ import {
   type TaskOverduePolicy,
   type TaskRepeatRule,
   TimeZone,
+  taskPlanSchema,
 } from '@homecrm/shared';
 import { z } from 'zod';
 import { ApiError, type ApiMethod, apiRequest } from '../auth/api.ts';
@@ -56,15 +57,7 @@ export const Today = z.object({
   recalculating: z.boolean(),
 });
 export type Today = z.infer<typeof Today>;
-export const Plan = z.object({
-  householdId: z.string().nullable(),
-  timeZone: TimeZone,
-  today: CalendarDate,
-  from: z.string(),
-  days: z.array(z.object({ date: z.string(), tasks: z.array(FeedTaskCard) })),
-  undated: z.array(FeedTaskCard),
-  nextCursor: z.string().nullable(),
-});
+export const Plan = taskPlanSchema(FeedTaskCard);
 
 const Failure = z.object({
   code: z.string().optional(),

@@ -34,7 +34,10 @@ export function taskFeeds(route: DataRoute) {
         today = localDate(now, zone),
         from = q.cursor ?? today,
         to = shiftTaskDate(from, q.days);
-      if (view === 'plan' && (from < today || from > shiftTaskDate(today, 3650)))
+      if (
+        view === 'plan' &&
+        (from < shiftTaskDate(today, -365) || from > shiftTaskDate(today, 3650))
+      )
         throw new Failure(400, 'INVALID_CURSOR');
       // С собранной статистикой стоимость 1000 дел под вложенным RLS выше порога JIT: компиляция
       // (~130 мс) дороже самого запроса. Только в этой транзакции, как в радаре и аналитике.
@@ -56,7 +59,7 @@ export function taskFeeds(route: DataRoute) {
         })
         .from(tasks)
         .where(
-          sql`deleted_at IS NULL AND (${q.scope}='all' OR space_kind::text=${q.scope}) AND (${q.householdId ?? null}::uuid IS NULL OR household_id=${q.householdId ?? null}::uuid) AND ${view === 'today' ? sql`((status IN ('open','waiting') AND (is_main OR plan_on<=coalesce((SELECT (${now.toISOString()}::timestamptz AT TIME ZONE coalesce(s.time_zone,'UTC'))::date FROM spaces s WHERE s.id=tasks.household_id),(${now.toISOString()}::timestamptz AT TIME ZONE ${zone})::date) OR due_on<coalesce((SELECT (${now.toISOString()}::timestamptz AT TIME ZONE coalesce(s.time_zone,'UTC'))::date FROM spaces s WHERE s.id=tasks.household_id),(${now.toISOString()}::timestamptz AT TIME ZONE ${zone})::date))) OR (status='done' AND done_at>=(${today}::date::timestamp AT TIME ZONE ${zone})))` : sql`status IN ('open','waiting') AND (repeat_rule IS NULL OR repeat_next_event_id IS NULL) AND (plan_on IS NULL OR (plan_on>=${from}::date AND plan_on<${to}::date))`}`,
+          sql`deleted_at IS NULL AND (${q.scope}='all' OR space_kind::text=${q.scope}) AND (${q.householdId ?? null}::uuid IS NULL OR household_id=${q.householdId ?? null}::uuid) AND ${view === 'today' ? sql`((status IN ('open','waiting') AND (is_main OR plan_on<=coalesce((SELECT (${now.toISOString()}::timestamptz AT TIME ZONE coalesce(s.time_zone,'UTC'))::date FROM spaces s WHERE s.id=tasks.household_id),(${now.toISOString()}::timestamptz AT TIME ZONE ${zone})::date) OR due_on<coalesce((SELECT (${now.toISOString()}::timestamptz AT TIME ZONE coalesce(s.time_zone,'UTC'))::date FROM spaces s WHERE s.id=tasks.household_id),(${now.toISOString()}::timestamptz AT TIME ZONE ${zone})::date))) OR (status='done' AND done_at>=(${today}::date::timestamp AT TIME ZONE ${zone})))` : sql`((status IN ('open','waiting') AND (repeat_rule IS NULL OR repeat_next_event_id IS NULL) AND (plan_on IS NULL OR (plan_on>=${from}::date AND plan_on<${to}::date))) OR (status='done' AND done_at>=(${from}::date::timestamp AT TIME ZONE ${zone}) AND done_at<(${to}::date::timestamp AT TIME ZONE ${zone})))`}`,
         )
         .orderBy(tasks.planOn, tasks.planTime, tasks.id);
       const cards = (await summaries(tx, rows)).map((card, index) => ({
@@ -71,9 +74,21 @@ export function taskFeeds(route: DataRoute) {
           from,
           days: Array.from({ length: q.days }, (_, i) => {
             const date = shiftTaskDate(from, i);
-            return { date, tasks: cards.filter((t) => t.planOn === date) };
+            return {
+              date,
+              tasks: cards.filter(
+                (t) =>
+                  (t.status === 'done' && t.doneAt
+                    ? localDate(new Date(t.doneAt), zone)
+                    : t.planOn) === date,
+              ),
+            };
           }),
-          undated: cards.filter((t) => t.planOn === null),
+          undated: cards.filter((t) => t.planOn === null && ['open', 'waiting'].includes(t.status)),
+          prevCursor:
+            from <= shiftTaskDate(today, -365)
+              ? null
+              : [shiftTaskDate(from, -q.days), shiftTaskDate(today, -365)].sort().at(-1),
           nextCursor: to,
         };
       const radar = await readRadar(tx, '0001-01-01', shiftTaskDate(today, 1));

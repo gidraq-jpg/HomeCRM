@@ -78,3 +78,41 @@ it('TASK-4/5/6: 1000 дел, ленты и радар p95 <300 мс; число 
     expect(p95).toBeLessThanOrEqual(300);
   }
 }, 120000);
+
+it('TASK-5: история 1000 выполненных дел, p95 ≤300 мс', async () => {
+  const historyWorld = await createWorld();
+  try {
+    const historyAdult = historyWorld.device();
+    await historyAdult.signIn(historyWorld.boris.username, historyWorld.boris.password);
+    await historyWorld.database.admin.query(
+      "UPDATE spaces SET time_zone='Asia/Yekaterinburg' WHERE id=$1",
+      [historyWorld.houseId],
+    );
+    const today = localDate(new Date(), 'Asia/Yekaterinburg');
+    await historyWorld.database.admin.query(
+      `INSERT INTO tasks(space_id,space_kind,author_id,assignee_id,title,household_id,status,done_at) SELECT $1,'personal',$2,$2,'Вымышленная история '||i,$3,'done',($4::date::timestamp AT TIME ZONE 'Asia/Yekaterinburg')-((i%14)||' days')::interval FROM generate_series(1,1000) i`,
+      [historyWorld.boris.personalSpaceId, historyWorld.boris.id, historyWorld.houseId, today],
+    );
+    await historyWorld.database.admin.query('VACUUM (ANALYZE) tasks');
+    const cursor = new Date(Date.parse(`${today}T12:00:00Z`) - 14 * 86400000)
+      .toISOString()
+      .slice(0, 10);
+    const url = `/api/tasks/plan?cursor=${cursor}&days=15`;
+    for (let i = 0; i < 5; i++) await historyAdult.get(url);
+    const times: number[] = [];
+    for (let i = 0; i < 40; i++) {
+      const start = performance.now();
+      const r = await historyAdult.get(url);
+      times.push(performance.now() - start);
+      expect(r.status).toBe(200);
+      expect(
+        r.json<{ days: { tasks: unknown[] }[] }>().days.flatMap((d) => d.tasks).length,
+      ).toBeGreaterThanOrEqual(1000);
+    }
+    const p95 = percentile(times, 0.95);
+    console.info(`Task diary history: p95=${p95.toFixed(1)} ms`);
+    expect(p95).toBeLessThanOrEqual(300);
+  } finally {
+    await historyWorld.close();
+  }
+}, 120000);

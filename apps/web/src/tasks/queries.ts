@@ -68,6 +68,7 @@ export function usePlan(householdId: string | null) {
     queryFn: ({ signal, pageParam }) =>
       fetchPlan(listScopeOf(scope), householdId, pageParam, signal),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
+    getPreviousPageParam: (first) => first.prevCursor ?? undefined,
   });
 }
 export function useRefreshTasks() {
