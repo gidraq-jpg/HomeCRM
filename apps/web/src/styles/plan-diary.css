@@ -26,15 +26,18 @@
 .plan-week__days button {
   display: flex;
   flex-direction: column;
+  position: relative;
   align-items: center;
   justify-content: center;
   min-width: 44px;
   min-height: 48px;
+  padding: 2px 0 7px;
   border: 0;
   border-radius: 12px;
   background: transparent;
   color: var(--text);
   font: inherit;
+  white-space: nowrap;
 }
 .plan-week__days button > span:first-child {
   font-size: 14px;
@@ -59,8 +62,16 @@
     transition: none;
   }
 }
-.plan-week__dot {
-  font-weight: 700;
+/* Точка занимает зарезервированный отступ под датой при любом размере текста. */
+.plan-week__days button[data-has-tasks]::after {
+  position: absolute;
+  inset-block-end: 3px;
+  inset-inline-start: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
 }
 [data-plan-from] {
   scroll-margin-top: calc(var(--task-header-height, 88px) + 168px);
