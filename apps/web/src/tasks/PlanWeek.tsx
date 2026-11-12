@@ -142,6 +142,7 @@ export function PlanWeek({
               disabled={busy || date < minimum}
               aria-current={date === today ? 'date' : undefined}
               aria-pressed={date === selectedDay}
+              data-has-tasks={count ? '' : undefined}
               aria-label={
                 count === undefined
                   ? `${full}, дела не загружены`
@@ -150,15 +151,7 @@ export function PlanWeek({
               onClick={() => void choose(date)}
             >
               <span>{['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'][i]}</span>
-              <span>
-                {Number(date.slice(-2))}
-                {count !== undefined && count > 0 ? (
-                  <span className="plan-week__dot" aria-hidden>
-                    {' '}
-                    ·
-                  </span>
-                ) : null}
-              </span>
+              <span>{Number(date.slice(-2))}</span>
             </button>
           );
         })}

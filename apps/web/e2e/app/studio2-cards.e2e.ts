@@ -74,6 +74,7 @@ test('UI-6: карточки, списки и формы Studio 2', async ({ pag
     }, percent);
     for (const [name, route] of screens) {
       await page.goto(`#${route}`);
+      await expect(page).toHaveURL((url) => url.hash.slice(1) === route);
       await expect(page.locator('h1')).toBeVisible();
       await expect(page.getByText(/^Загружаем/)).toHaveCount(0);
       // Заглушки имеют доступное имя, но не текст: данные должны прийти до проверки контраста.
@@ -124,6 +125,9 @@ test('UI-6: карточки, списки и формы Studio 2', async ({ pag
           .locator('.ui6-panel form')
           .getByRole('button', { name: 'Отмена', exact: true })
           .click();
+        await expect(page.locator('.ui6-panel form')).toHaveCount(0);
+        // Закрытие локальной формы асинхронно снимает её шаг истории.
+        await expect.poll(() => page.evaluate(() => history.state?.motionSheet ?? null)).toBeNull();
       }
     }
   }

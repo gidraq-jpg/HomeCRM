@@ -6,6 +6,7 @@ import {
   expectAccessible,
   expectNoHorizontalScroll,
   expectTouchTargets,
+  settle,
 } from '../support/helpers.ts';
 import { homeDate, setHomeZone } from './deadlines-support.ts';
 import { apiAs, seedObject } from './notes-support.ts';
@@ -165,22 +166,51 @@ for (const textScale of [1, 2]) {
         path: resolve(directory, `plan-sticky-${textScale * 100}-${width}.png`),
       });
     }
+    const week = page.getByRole('navigation', { name: 'Неделя плана' });
+    const weekHeight = () => week.evaluate((element) => element.getBoundingClientRect().height);
+    const height = await weekHeight();
     // Настоящее колесо прокрутки включает подгрузку, а не только запасную кнопку.
     await page.mouse.wheel(0, 10000);
     await expect(page.getByRole('link', { name: 'Проверить запас', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Показать следующие дни' }).click();
     await expect(page.getByText('Загружаем…', { exact: true })).toHaveCount(0);
-    await page
-      .getByRole('link', { name: 'Разобрать кладовку', exact: true })
-      .scrollIntoViewIfNeeded();
-    const y = await page.evaluate(() => window.scrollY);
-    await page.getByRole('link', { name: 'Разобрать кладовку', exact: true }).click();
+    const taskLink = page.getByRole('link', { name: 'Разобрать кладовку', exact: true });
+    await taskLink.scrollIntoViewIfNeeded();
+    await settle(page);
+    await expect.poll(weekHeight).toBe(height);
+    const position = await taskLink.evaluate((element) => {
+      const { x, y, width, height } = element.getBoundingClientRect();
+      const clickX = x + width / 2;
+      const clickY = y + height / 2;
+      return {
+        clickX,
+        clickY,
+        scrollY: window.scrollY,
+        top: y,
+        clickable: element.contains(document.elementFromPoint(clickX, clickY)),
+      };
+    });
+    expect(position.clickable).toBe(true);
+    // Нажимаем в видимой точке без дополнительной прокрутки locator.click().
+    await page.mouse.click(position.clickX, position.clickY);
     await expect(
       page.getByRole('heading', { level: 1, name: 'Разобрать кладовку', exact: true }),
     ).toBeVisible();
     await page.goBack();
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(y - 3);
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(y + 3);
+    await expect(taskLink).toBeVisible();
+    await settle(page);
+    await expect
+      .poll(() =>
+        taskLink.evaluate(
+          (element, before) =>
+            Math.max(
+              Math.abs(window.scrollY - before.scrollY),
+              Math.abs(element.getBoundingClientRect().top - before.top),
+            ),
+          position,
+        ),
+      )
+      .toBeLessThan(3);
     await page.evaluate(() => {
       document.documentElement.style.fontSize = '200%';
       window.scrollTo(0, 400);
