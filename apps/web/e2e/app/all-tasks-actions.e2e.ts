@@ -49,7 +49,7 @@ test('TASK-6/12: все дела — выполнение, возврат, пе�
     .click();
   await expect(page.getByText('Дело выполнено', { exact: true })).toBeVisible();
   const completed = page
-    .locator('[data-feed-active="true"] .plan-row')
+    .locator('[data-feed-active="true"] .plan-row:not([inert] *)')
     .filter({ hasText: 'Покрасить стены' });
   await expect(completed).toHaveClass(/plan-row--closed/);
   await expect(
@@ -57,9 +57,10 @@ test('TASK-6/12: все дела — выполнение, возврат, пе�
   ).toBeVisible();
   await expect(completed.locator('.plan-circle--done')).toBeVisible();
   await expect(completed.getByText('Просрочено', { exact: true })).toHaveCount(0);
-  await expect(
-    page.getByRole('list', { name: 'Просрочено', exact: true }).locator('.plan-row'),
-  ).toHaveCount(1);
+  await expect(page.getByRole('list', { name: 'Просрочено', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('list', { name: 'Завершённые', exact: true })).toContainText(
+    'Покрасить стены',
+  );
   await expect(
     page.locator('[data-feed-heading-active="true"] .feed-heading__summary'),
   ).toContainText('2 открытых');

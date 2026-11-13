@@ -1,4 +1,4 @@
-import { Drop, FileText, Lightning, Plus } from '@phosphor-icons/react';
+import { CaretDown, Drop, FileText, Lightning, Plus } from '@phosphor-icons/react';
 import { DocumentRows } from '../documents/DocumentsScreen.tsx';
 import { useObjectDocuments } from '../documents/queries.ts';
 import { readingText } from '../meters/ObjectMeters.tsx';
@@ -70,7 +70,10 @@ export function ObjectSummaryLists({ card }: { card: ObjectCard }) {
         </Section>
       ) : null}
       <details className="approved-card-fold" open={documents.error ? true : undefined}>
-        <summary>Документы</summary>
+        <summary className="object-disclosure">
+          Документы
+          <CaretDown size={16} aria-hidden />
+        </summary>
         <Section title="Документы">
           {documents.isPending ? (
             <p className="muted">Загружаем документы…</p>
@@ -86,7 +89,10 @@ export function ObjectSummaryLists({ card }: { card: ObjectCard }) {
         </Section>
       </details>
       <details className="approved-card-fold" open={tasks.error ? true : undefined}>
-        <summary>Дела</summary>
+        <summary className="object-disclosure">
+          Дела
+          <CaretDown size={16} aria-hidden />
+        </summary>
         <Section title="Дела">
           {tasks.error ? <QueryNotice query={tasks} /> : null}
           {/* Загрузка и пустой ответ занимают одинаковую строку: факты ниже не прыгают. */}
@@ -101,7 +107,10 @@ export function ObjectSummaryLists({ card }: { card: ObjectCard }) {
         </Section>
       </details>
       <details className="approved-card-fold">
-        <summary>Файлы</summary>
+        <summary className="object-disclosure">
+          Файлы
+          <CaretDown size={16} aria-hidden />
+        </summary>
         <Section
           title="Файлы"
           aside={

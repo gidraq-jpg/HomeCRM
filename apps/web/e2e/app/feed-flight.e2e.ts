@@ -171,23 +171,42 @@ for (const width of [412, 1440])
       await expect(demo.locator('[data-feed-ready="true"]')).toHaveCount(4);
       await observeFlight(demo);
       for (let feed = 0; feed < 3; feed++) {
-        await demo.goto(`${family.baseURL}#${routes[feed]}`);
+        const route = `${family.baseURL}#${routes[feed]}`;
+        await demo.goto(route);
+        await expect(demo).toHaveURL(route);
+        const pane = demo.locator(`[data-feed-pane="${feed}"][data-feed-active="true"]`);
         await settle(demo);
         for (const method of methods) {
           const title = `Вымышленный улёт ${feed} ${method}`;
-          const row = demo
+          const row = pane
             .locator('.swipe-task:not([data-motion-ghost])')
             .filter({ has: demo.getByRole('group', { name: `Дело: ${title}`, exact: true }) });
           await expect(row).toBeVisible();
           // Короткие строки помещаются под плавающее меню: ставим строку в середину экрана.
-          await row.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+          await row.evaluate((element) =>
+            element.scrollIntoView({ block: 'center', behavior: 'instant' }),
+          );
           await settle(demo);
+          await expect(demo).toHaveURL(route);
           await demo.evaluate(() => {
             (window as unknown as { flight: Observation }).flight = { samples: [], duration: 0 };
           });
-          if (method === 'check')
-            await row.getByRole('button', { name: /^(Выполнить$|Отметить сделанным:)/ }).click();
-          else {
+          if (method === 'check') {
+            const button = row.getByRole('button', { name: /^(Выполнить$|Отметить сделанным:)/ });
+            await expect(button).toBeEnabled();
+            await button.evaluate((element) =>
+              (element as HTMLElement).focus({ preventScroll: true }),
+            );
+            const point = await button.evaluate((element) => {
+              const rect = element.getBoundingClientRect();
+              const x = rect.x + rect.width / 2;
+              const y = rect.y + rect.height / 2;
+              return { x, y, hittable: element.contains(document.elementFromPoint(x, y)) };
+            });
+            expect(point.hittable, `${feed}: кнопка выполнения видна над нижним меню`).toBe(true);
+            await demo.mouse.click(point.x, point.y);
+            await expect(demo).toHaveURL(route);
+          } else {
             await swipeRow(demo, row, method === 'trash' ? -80 : 80);
             await row
               .getByRole('button', {

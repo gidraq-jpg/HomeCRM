@@ -143,13 +143,18 @@ test('три агрегированные ленты, главное, крайн
   await withTaskFilters(page, (sheet) =>
     sheet.getByRole('button', { name: 'Без даты', exact: true }).click(),
   );
-  await expect(
-    page.getByRole('list', { name: 'Без даты', exact: true }).getByRole('link'),
-  ).toHaveCount(50);
+  const loaded = page
+    .getByRole('list', { name: /^(Без даты|Просрочено|Завершённые)$/ })
+    .getByRole('link');
+  await expect(loaded).toHaveCount(50);
   await page.getByRole('button', { name: 'Показать ещё дела' }).click();
+  await expect(loaded).toHaveCount(53);
   await expect(
     page.getByRole('list', { name: 'Без даты', exact: true }).getByRole('link'),
-  ).toHaveCount(53);
+  ).toHaveCount(51);
+  await expect(
+    page.getByRole('list', { name: 'Просрочено', exact: true }).getByRole('link'),
+  ).toHaveCount(1);
   await check(page, info, 'all');
   await withTaskFilters(page, (sheet) =>
     sheet
@@ -158,7 +163,7 @@ test('три агрегированные ленты, главное, крайн
       .then(() => undefined),
   );
   await expect(
-    page.getByRole('list', { name: 'Без даты', exact: true }).getByRole('link'),
+    page.getByRole('list', { name: 'Завершённые', exact: true }).getByRole('link'),
   ).toHaveCount(1);
   expect((await current(api, completed.id)).status).toBe('done');
   expect((await current(api, overdue.id)).planOn).toBeNull();

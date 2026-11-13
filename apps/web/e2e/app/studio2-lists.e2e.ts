@@ -80,7 +80,7 @@ for (const percent of [100, 200]) {
     await page.getByRole('button', { name: /^Фильтры/ }).click();
     await expect(page.getByRole('dialog', { name: 'Фильтры дел' })).toBeVisible();
     await page.getByRole('button', { name: 'Готово', exact: true }).click();
-    await page.getByRole('link', { name: '1 просрочено', exact: true }).click();
+    await page.getByRole('link', { name: 'Просрочено · 1', exact: true }).click();
     await expect(
       page.getByRole('link', { name: 'Полить вымышленные цветы', exact: true }),
     ).toHaveCount(0);

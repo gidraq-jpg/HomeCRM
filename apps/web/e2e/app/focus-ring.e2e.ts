@@ -137,7 +137,7 @@ test('D36: касание и свайп не рисуют кольцо, клав
   await expectAccessible(page, 'D36-tab');
 });
 
-test('D36: дата и приветствие «Сегодня» — в общей шапке, высота шапок равна', async ({
+test('D50: дата и приветствие «Сегодня» в компактной шапке, все четыре вкладки помещаются', async ({
   page,
   family,
 }, info) => {
@@ -146,11 +146,11 @@ test('D36: дата и приветствие «Сегодня» — в обще
   await expect(page.locator('[data-feed-ready="true"]')).toHaveCount(4);
   const today = homeDate(0) as DateOnly;
   const heading = page.locator(ACTIVE_HEADING);
-  await expect(heading.locator('.page-heading__eyebrow')).toHaveText(
+  await expect(page.locator('.topbar__date')).toHaveText(
     `${weekdayName(today)}, ${formatLongDate(today)}`,
   );
   await expect(heading.locator('.feed-heading__greeting')).toHaveText(/^Добрый день, .+/);
-  await expect(heading.locator('.feed-heading__summary')).toContainText('Сегодня:');
+  await expect(heading.locator('.feed-heading__summary')).toContainText('Сегодня ·');
   // Внизу ленты — только показатели и подсказки.
   const overview = page.locator('.feed-overview');
   await expect(overview.getByRole('navigation', { name: 'Показатели на сегодня' })).toBeVisible();
@@ -163,20 +163,21 @@ test('D36: дата и приветствие «Сегодня» — в обще
     await page.evaluate((size) => {
       document.documentElement.style.fontSize = size;
     }, scale);
-    const heights: number[] = [];
-    const tabs: number[] = [];
     for (const label of ['План', 'Все дела', 'Покупки', 'Сегодня']) {
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.locator('.today-tabs').getByRole('link', { name: label, exact: true }).tap();
       await settle(page);
-      await expect(heading.locator('.feed-heading__summary')).toContainText(`${label}:`);
-      heights.push((await page.locator('.feed-heading').boundingBox())?.height ?? 0);
-      tabs.push((await page.locator('.today-tabs').boundingBox())?.y ?? 0);
+      await expect(heading.locator('.feed-heading__summary')).toContainText(
+        label === 'Сегодня' ? 'Сегодня ·' : label + ':',
+      );
+      const nav = page.locator('.today-tabs nav');
+      await expect(nav.getByRole('link')).toHaveCount(4);
+      expect(await nav.evaluate((element) => element.scrollWidth)).toBe(
+        await nav.evaluate((element) => element.clientWidth),
+      );
       if (label !== 'Сегодня')
         await expect(heading.locator('.feed-heading__greeting')).toHaveCount(0);
     }
-    for (const value of heights) expect(Math.abs(value - (heights[0] ?? 0))).toBeLessThanOrEqual(1);
-    for (const value of tabs) expect(Math.abs(value - (tabs[0] ?? 0))).toBeLessThanOrEqual(1);
     await expectNoHorizontalScroll(page);
     if (scale === '200%') await shot(page, info, 'today-heading-200');
   }

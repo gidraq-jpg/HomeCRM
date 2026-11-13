@@ -67,7 +67,7 @@ test('Тёмные шапки и кнопки действий: контраст
           await expect(page.locator('[data-feed-ready="true"]')).toHaveCount(4);
           await expect(
             page.locator('[data-feed-heading-active="true"] .feed-heading__summary'),
-          ).toContainText(`${heading}:`);
+          ).toContainText(heading === 'Сегодня' ? 'Сегодня ·' : `${heading}:`);
         }
         // Проверяем и подзапросы карточки: её h1 приходит раньше связей и файлов.
         await expect(page.getByRole('status', { name: /^Загружаем/ })).toHaveCount(0);
@@ -80,7 +80,7 @@ test('Тёмные шапки и кнопки действий: контраст
         });
         try {
           const geometry = await page
-            .locator('button:not(.fab), a.icon-button')
+            .locator('button:not(.fab, .today-main .focus__actions .btn), a.icon-button')
             .evaluateAll((nodes) =>
               nodes
                 .filter((node) => node.getBoundingClientRect().width > 0)
@@ -110,18 +110,12 @@ test('Тёмные шапки и кнопки действий: контраст
             expect(header.background).toBe('rgb(27, 26, 24)');
             expect(header.foreground).toBe('rgb(238, 233, 223)');
           }
-          // После D48 строка «просрочено» под вкладками есть только при просроченных делах.
-          if (
-            name === 'tasks' &&
-            (await page.locator('.feed-all-summary .studio-list-hero .text-button').count())
-          ) {
-            const body = page.locator('.feed-all-summary .studio-list-hero');
-            await expect(body).toHaveCSS('background-color', 'rgb(248, 245, 239)');
-            await expect(body).toHaveCSS('color', 'rgb(34, 32, 28)');
-            await expect(body.locator('.text-button').first()).toHaveCSS(
-              'color',
-              'rgb(138, 58, 33)',
-            );
+          const overdue = page.locator(
+            '[data-feed-active="true"] .all-tasks-overdue .today-overdue',
+          );
+          if (name === 'tasks' && (await overdue.count())) {
+            await expect(overdue).toHaveCSS('background-color', 'rgb(246, 220, 220)');
+            await expect(overdue).toHaveCSS('color', 'rgb(140, 29, 43)');
           }
           await expectNoHorizontalScroll(page);
           await expectTouchTargets(page);
@@ -135,7 +129,9 @@ test('Тёмные шапки и кнопки действий: контраст
             );
           expect(overflow, 'подписи аудитории остаются внутри своих целей').toEqual([]);
           const boundaries = await page
-            .locator('.tab-indicator, .studio-segments > button[aria-pressed="true"]')
+            .locator(
+              '.tab-indicator:not(.today-tabs .tab-indicator), .studio-segments > button[aria-pressed="true"]',
+            )
             .evaluateAll((nodes) => {
               const luminance = (color: string) => {
                 const rgb = (color.match(/[\d.]+/g) ?? []).slice(0, 3).map((value) => {
@@ -164,6 +160,11 @@ test('Тёмные шапки и кнопки действий: контраст
         }
         if (name === 'today') {
           const tabs = page.getByRole('navigation', { name: 'Ленты дел' });
+          await expect(tabs.locator('.tab-indicator')).toHaveCSS('border-top-width', '0px');
+          await expect(tabs.locator('.tab-indicator')).toHaveCSS(
+            'background-color',
+            'rgb(248, 245, 239)',
+          );
           const active = await tabs.locator('[aria-current="page"]').boundingBox();
           const indicator = await tabs.locator('.tab-indicator').boundingBox();
           expect(indicator?.height).toBeCloseTo(active?.height ?? 0, 0);

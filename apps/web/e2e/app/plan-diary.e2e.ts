@@ -5,6 +5,7 @@ import {
   expectAccessible,
   expectNoHorizontalScroll,
   expectTouchTargets,
+  settle,
 } from '../support/helpers.ts';
 import { homeDate, setHomeZone } from './deadlines-support.ts';
 import { apiAs } from './notes-support.ts';
@@ -89,38 +90,22 @@ test('TASK-5: ежедневник, история, неделя, без дат�
   expect(todayColors.background).not.toBe('rgba(0, 0, 0, 0)');
   expect(todayColors.background).not.toBe(todayColors.color);
   await shot('today');
-  const browseWeek = async (name: 'Следующая неделя' | 'Предыдущая неделя') => {
-    const button = page.getByRole('button', { name, exact: true });
-    await expect(button).toBeEnabled();
-    const box = await button.boundingBox();
-    if (!box) throw new Error('Week arrow missing');
-    // Координатное касание не делает предварительный scrollIntoView Playwright.
-    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
-  };
-  const beforeWeek = await page.evaluate(() => scrollY);
-  await browseWeek('Следующая неделя');
-  await browseWeek('Следующая неделя');
-  expect(await page.evaluate(() => scrollY)).toBe(beforeWeek);
-  await expect(
-    page.getByRole('link', { name: 'Дело в конце будущей недели', exact: true }),
-  ).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^(Предыдущая|Следующая) неделя$/ })).toHaveCount(
+    0,
+  );
   const full = (date: string) =>
     new Intl.DateTimeFormat('ru-RU', { dateStyle: 'full', timeZone: 'UTC' }).format(
       new Date(`${date}T12:00:00Z`),
     );
-  await page
-    .getByRole('button', { name: `${full(futureSunday)}, дела не загружены`, exact: true })
-    .click();
   await expect(
     page.getByRole('link', { name: 'Дело в конце будущей недели', exact: true }),
-  ).toHaveCount(1);
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Показать следующие дни', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: `${full(futureSunday)}, 1 дело`, exact: true }),
-  ).toBeVisible();
-  await browseWeek('Предыдущая неделя');
-  await browseWeek('Предыдущая неделя');
-  await page.getByRole('button', { name: `${full(homeDate(0))}, 8 дел`, exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Следующая неделя', exact: true })).toBeEnabled();
+    page.getByRole('link', { name: 'Дело в конце будущей недели', exact: true }),
+  ).toBeAttached();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(todayButton).toBeVisible();
   expect(pastRequests).toEqual([]);
   await expect
     .poll(() =>
@@ -157,39 +142,38 @@ test('TASK-5: ежедневник, история, неделя, без дат�
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(selection).toHaveCSS('transition-duration', '0s');
   await shot('selection');
-  const beforePastWeek = await page.evaluate(() => scrollY);
-  await browseWeek('Предыдущая неделя');
-  expect(pastRequests).toEqual([]);
-  expect(await page.evaluate(() => scrollY)).toBe(beforePastWeek);
-  const pastMonday = homeDate(-weekOffset - 7);
-  await page
-    .getByRole('button', { name: `${full(pastMonday)}, дела не загружены`, exact: true })
-    .focus();
-  await page.keyboard.press('Enter');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await settle(page);
+  const anchor = await page.evaluate(() => {
+    const bottom = document.querySelector('.plan-week')?.getBoundingClientRect().bottom ?? 0;
+    const node = [...document.querySelectorAll<HTMLElement>('[data-plan-from]')].find(
+      (element) => element.getBoundingClientRect().bottom > bottom,
+    );
+    return { date: node?.dataset.planFrom ?? '', top: node?.getBoundingClientRect().top ?? -1000 };
+  });
+  expect(anchor.date).not.toBe('');
+  const previousDays = page.getByRole('button', { name: 'Показать предыдущие дни', exact: true });
+  await previousDays.click();
   await expect(
     page.getByRole('link', { name: 'Выполненное вчера · выполнено', exact: true }),
   ).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Следующая неделя', exact: true })).toBeEnabled();
   expect(pastRequests.length).toBeGreaterThan(0);
-  await page.evaluate(() => window.scrollTo(0, 0));
-  const anchorTop = () =>
-    page.evaluate(
-      (date) =>
-        [...document.querySelectorAll<HTMLElement>('[data-plan-from]')]
-          .find(
-            (el) =>
-              (el.dataset.planFrom ?? '') <= date &&
-              (el.dataset.planUntil ?? el.dataset.planFrom ?? '') >= date,
-          )
-          ?.getBoundingClientRect().top ?? -1000,
-      homeDate(-14),
-    );
-  const beforePrepend = await anchorTop();
-  await page.getByRole('button', { name: 'Показать предыдущие дни', exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(({ date, top }) => {
+        const node = [...document.querySelectorAll<HTMLElement>('[data-plan-from]')].find(
+          (el) =>
+            (el.dataset.planFrom ?? '') <= date &&
+            (el.dataset.planUntil ?? el.dataset.planFrom ?? '') >= date,
+        );
+        return node ? Math.abs(node.getBoundingClientRect().top - top) : Infinity;
+      }, anchor),
+    )
+    .toBeLessThan(3);
+  await previousDays.click();
   await expect(page.getByRole('link', { name: 'Давнее открытое дело', exact: true })).toHaveCount(
     1,
   );
-  await expect.poll(async () => Math.abs((await anchorTop()) - beforePrepend)).toBeLessThan(3);
   await page.getByRole('button', { name: 'Показать предыдущие дни', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Ещё более давнее дело', exact: true })).toHaveCount(
     1,

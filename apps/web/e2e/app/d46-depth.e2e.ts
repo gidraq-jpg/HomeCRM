@@ -103,16 +103,16 @@ async function shadows(page: Page) {
       raised: probeShadow('var(--shadow-raised)'),
       float: probeShadow('var(--shadow-float)'),
       groups: of(
-        '.studio-panel .row-list, .ui6-service-page .ui6-panel > .section, .approved-card-fold, .approved-card-facts',
+        '.studio-panel .row-list:not(.today-main .row-list), .ui6-service-page .ui6-panel > .section, .approved-card-fold, .approved-card-facts',
       ),
-      focus: of('.studio-panel .task-focus'),
-      rows: of('.row, .task-row, .studio-panel li'),
+      focus: of('.today-main .swipe-task'),
+      rows: of('.row, .task-row, .studio-panel li:not(.today-main .swipe-task, .tab-indicator)'),
       nav: of('.bottom-nav'),
       // Тень в покое: ближе её размера нет предка, который режет, и нет подложки другого
       // цвета: тень ложится только на фон страницы. Край экрана режет .main — это норма.
       spoiled: [
         ...document.querySelectorAll<HTMLElement>(
-          '.studio-panel .row-list, .plan-rows, .studio-panel .task-focus, .shopping-page .task-list, .ui6-service-page .ui6-panel > .section, .approved-card-fold, .approved-card-facts',
+          '.studio-panel .row-list:not(.today-main .row-list), .plan-rows, .today-main .swipe-task, .shopping-page .task-list, .ui6-service-page .ui6-panel > .section, .approved-card-fold, .approved-card-facts',
         ),
       ]
         // Соседние ленты карусели в покое прозрачны и инертны: их тени не видны.
@@ -171,9 +171,16 @@ test('D46: полосы, шапки без создания и мягкие те
     data: { resource: 'cold_water', serialNumber: 'TEST-D46' },
     initial: { occurredOn: '2026-07-20', values: ['124.600'] },
   });
-  for (const title of ['Полить цветы на балконе', 'Проверить счётчики воды']) {
-    expect((await api.post('tasks', { title, planOn: homeDate(0) })).status).toBe(201);
-  }
+  const mainTask = await api.post('tasks', {
+    title: 'Полить цветы на балконе',
+    planOn: homeDate(0),
+  });
+  expect(mainTask.status).toBe(201);
+  const mainTaskId = (mainTask.body as { id: string }).id;
+  expect((await api.post(`tasks/${mainTaskId}/main`, { selected: true })).status).toBe(200);
+  expect(
+    (await api.post('tasks', { title: 'Проверить счётчики воды', planOn: homeDate(0) })).status,
+  ).toBe(201);
   await seedPerson(api, { title: 'Ольга Солнечная', placement: { spaceId: family.houseId } });
   const contract = await seedDocument(api, {
     title: 'Договор аренды',
@@ -224,7 +231,7 @@ test('D46: полосы, шапки без создания и мягкие те
         expect(value.raised).not.toBe('none');
         expect(value.float).not.toBe('none');
         for (const group of value.groups) expect(group, `${label}: группа`).toBe(value.raised);
-        for (const focus of value.focus) expect(focus, `${label}: главное дело`).toBe(value.float);
+        for (const focus of value.focus) expect(focus, `${label}: главное дело`).toBe(value.raised);
         for (const row of value.rows) expect(row, `${label}: строка`).toBe('none');
         expect(value.spoiled, `${label}: тень обрезана или на подложке`).toEqual([]);
         if (width < 960) for (const nav of value.nav) expect(nav).toBe(value.float);
@@ -282,7 +289,8 @@ test('D46: полосы, шапки без создания и мягкие те
           );
           const list = row?.parentElement ?? document.querySelector(selector);
           const items = list ? [...list.children] : [];
-          return [items[0], items.at(-1)].flatMap((item, at) =>
+          const edges = [...new Set([items[0], items.at(-1)])];
+          return edges.flatMap((item, at) =>
             [...(item?.querySelectorAll('a[href], button') ?? [])]
               .filter((node) => node.getBoundingClientRect().width > 0)
               .map((node, index) => {
@@ -294,9 +302,11 @@ test('D46: полосы, шапки без создания и мягкие те
         { selector: group, text },
       );
       expect(targets.length, `${name}: строки найдены`).toBeGreaterThan(0);
-      for (const id of targets) {
+      const [first, ...remaining] = targets;
+      if (first === undefined) throw new Error(`${name}: нет целей фокуса`);
+      for (const id of [first, ...remaining]) {
         await page.keyboard.press('Shift');
-        await page.locator(`[data-d46-focus="${id}"]`).focus();
+        await page.locator(`[data-d46-focus="${id}"]`).focus({ timeout: 5000 });
         const problem = await page.evaluate((key) => {
           const node = document.querySelector<HTMLElement>(`[data-d46-focus="${key}"]`);
           if (!node?.matches(':focus-visible')) return `${key}: нет :focus-visible`;
@@ -355,7 +365,7 @@ test('D46: полосы, шапки без создания и мягкие те
         }
       }
       await page.keyboard.press('Shift');
-      await page.locator('[data-d46-focus="0-0"]').focus();
+      await page.locator(`[data-d46-focus="${first}"]`).focus({ timeout: 5000 });
       await page.screenshot({ path: resolve(SHOTS, `focus-${name}-360.png`) });
     }
     expect(cut, 'рамка фокуса обрезана').toEqual([]);

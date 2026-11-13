@@ -32,7 +32,9 @@ export function TaskFeedCarousel() {
       return old?.count === summary.count &&
         old?.detail === summary.detail &&
         old?.ready === summary.ready &&
-        old?.house === summary.house
+        old?.house === summary.house &&
+        old?.greeting === summary.greeting &&
+        old?.eyebrow === summary.eyebrow
         ? current
         : { ...current, [index]: summary };
     });
@@ -69,14 +71,16 @@ export function TaskFeedCarousel() {
                     data-feed-heading-active={current}
                     aria-hidden={!current || undefined}
                   >
-                    <p className="page-heading__eyebrow">
-                      {own?.eyebrow ?? 'Дела дома и ваши личные'}
-                    </p>
+                    {index !== 0 ? (
+                      <p className="page-heading__eyebrow">
+                        {own?.eyebrow ?? 'Дела дома и ваши личные'}
+                      </p>
+                    ) : null}
                     {own?.greeting ? (
                       <p className="feed-heading__greeting">{own.greeting}</p>
                     ) : null}
                     <p className="feed-heading__summary">
-                      {label}:{' '}
+                      {index === 0 ? 'Сегодня · ' : `${label}: `}
                       {own?.count !== undefined ? (
                         <>
                           <RollingNumber value={own.count} />{' '}

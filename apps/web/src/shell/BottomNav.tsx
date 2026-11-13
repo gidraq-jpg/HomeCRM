@@ -41,7 +41,7 @@ export function BottomNav({ sections }: { sections: readonly ShellSection[] }) {
               to={to}
               onClick={(event) => choose(event, to, sectionActive(to, pathname, search, state))}
               className="bottom-nav__link"
-              aria-label={isStudio() && label === 'Документы' ? label : undefined}
+              aria-label={label}
               aria-current={sectionActive(to, pathname, search, state) ? 'page' : undefined}
             >
               <span className="section-icon">
@@ -51,9 +51,7 @@ export function BottomNav({ sections }: { sections: readonly ShellSection[] }) {
                   aria-hidden
                 />
               </span>
-              <span className="bottom-nav__label">
-                {isStudio() && label === 'Документы' ? 'Док.' : label}
-              </span>
+              <span className="bottom-nav__label">{label}</span>
             </Link>
           </li>
         ))}

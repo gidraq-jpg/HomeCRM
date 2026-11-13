@@ -16,8 +16,8 @@ import { seedProperty } from './property-support.ts';
 import { signInAs } from './support.ts';
 
 // D48 (UI-12): плотные экраны, одна плавающая «+» и мгновенный возврат в раздел.
-// Снимки лежат в test-results/d48.
-const SHOTS = resolve(import.meta.dirname, '../../test-results/d48');
+// Снимки лежат в test-results/d50.
+const SHOTS = resolve(import.meta.dirname, '../../test-results/d50');
 
 const SCREENS = [
   { name: 'today', route: '/today', add: 'Добавить' },
@@ -35,8 +35,17 @@ async function expectFabClear(page: Page) {
   const viewport = page.viewportSize();
   expect(box?.width).toBe(56);
   expect(box?.height).toBe(56);
-  // Над нижним меню и у правого края.
-  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(nav?.y ?? 0);
+  expect(box && nav && viewport).toBeTruthy();
+  if (!box || !nav || !viewport) return;
+  expect(box.y).toBe(nav.y);
+  expect(nav.height).toBe(56);
+  expect(box.x - (nav.x + nav.width)).toBe(8);
+  expect(viewport.height - (box.y + box.height)).toBe(16);
+  await expect(page.locator('.bottom-nav__label:visible')).toHaveCount(1);
+  const labels = await page
+    .locator('.bottom-nav__link')
+    .evaluateAll((links) => links.map((link) => link.getAttribute('aria-label')));
+  expect(labels).toContain('Документы');
   expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport?.width ?? 0);
   expect(box?.x ?? 0).toBeGreaterThan((viewport?.width ?? 0) / 2);
   // Внизу страницы последняя строка и стрелка «›» не закрыты кнопкой.

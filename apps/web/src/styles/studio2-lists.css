@@ -388,18 +388,6 @@ html[data-design="studio"] .feed-heading .page-heading__eyebrow {
 .feed-carousel__track {
   position: relative;
 }
-html[data-design="studio"] .feed-all-summary .studio-list-hero h1 {
-  display: none;
-}
-html[data-design="studio"] .feed-all-summary .studio-list-hero {
-  padding: 0;
-}
-html[data-design="studio"] .feed-all-summary .studio-list-summary {
-  font-size: 1rem;
-}
-html[data-design="studio"] .feed-all-summary .text-button {
-  color: var(--accent-strong);
-}
 html[data-design="studio"] .feed-overview .today-hero {
   padding: 8px 0 16px;
   background: var(--paper);

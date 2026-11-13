@@ -1,3 +1,4 @@
+import { Clock } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -35,6 +36,7 @@ import { OperationNotice } from './operation.tsx';
 import { RecordPicker } from './options.tsx';
 import { PlanFeed } from './PlanFeed.tsx';
 import { PlanRows } from './PlanRows.tsx';
+import { overdueDays } from './plan.ts';
 import { uniqueTasks, usePlan, useTaskList, useToday } from './queries.ts';
 import { queuedStatus } from './queued-status.ts';
 import { STATUS_LABELS } from './TaskForm.tsx';
@@ -115,7 +117,7 @@ function TasksPage({
             }))}
           />
         ) : null}
-        {pane && view === 'all' ? <div className="feed-all-summary">{hero}</div> : null}
+        {pane && view === 'all' ? hero : null}
         {children}
         {view === 'today' ? actions : null}
       </div>
@@ -181,9 +183,12 @@ function TodayFeed({ house }: { house: string | null }) {
         : plural(count, ['дело', 'дела', 'дел']),
     !loadingFeed,
     undefined,
-    { eyebrow: greeting.date, greeting: `Добрый день, ${greeting.name}` },
+    { greeting: `Добрый день, ${greeting.name}` },
   );
   const showMain = settings.data?.todayMainEnabled === true;
+  const otherTasks =
+    query.data?.tasks.filter((task) => !showMain || task.id !== query.data?.main?.id) ?? [];
+  const taskRadar = query.error || query.data?.recalculating ? [] : (query.data?.radar ?? []);
   const actions = useFeedActions<TaskCard>((card) => {
     const moved = FeedTaskCard.strip().parse({ object: null, ...card });
     client.setQueryData<Today>(['tasks', me.id, house, 'today', scope], (data) => {
@@ -248,25 +253,26 @@ function TodayFeed({ house }: { house: string | null }) {
             </Notice>
           ) : null}
           {!loadingFeed && query.data && showMain ? (
-            <Section title="Главное на сегодня" eyebrow>
+            <div className="today-main">
               {query.data.main ? (
                 <TaskRows
                   label="Главное дело"
                   tasks={[query.data.main]}
-                  radar={query.error || query.data.recalculating ? [] : query.data.radar}
+                  radar={taskRadar}
+                  today={query.data.today}
                   focus
                   move={actions.startMove}
                   pending={operation.pending}
                 />
               ) : (
-                <div className="focus task-focus">
-                  <h3 className="focus__title">Что сегодня важнее всего?</h3>
-                  <p className="focus__meta">
+                <div className="today-main__empty">
+                  <h2 className="today-main__label">Что сегодня важнее всего?</h2>
+                  <p>
                     Одно дело, которому вы хотите уделить внимание. Выберите его в карточке дела.
                   </p>
-                  <div className="focus__actions">
+                  <div>
                     <Link
-                      className="btn btn--primary"
+                      className="text-button"
                       to={
                         query.data.tasks.length
                           ? `/today/all${houseQuery}`
@@ -278,9 +284,9 @@ function TodayFeed({ house }: { house: string | null }) {
                   </div>
                 </div>
               )}
-            </Section>
+            </div>
           ) : null}
-          <InboxLink />
+          {!query.data ? <InboxLink /> : null}
           <FirstRunCard />
           {!moving ? <OperationNotice operation={operation} /> : null}
           {!loadingFeed && query.data ? (
@@ -294,17 +300,19 @@ function TodayFeed({ house }: { house: string | null }) {
                   Разобрать дела без даты: {undatedCount}
                 </Link>
               ) : null}
-              <Section title="Сегодня и просроченные">
-                <TaskRows
-                  label="Дела на сегодня"
-                  tasks={query.data.tasks.filter(
-                    (task) => !showMain || task.id !== query.data.main?.id,
-                  )}
-                  move={actions.startMove}
-                  pending={operation.pending}
-                  today={query.data.today}
-                />
-              </Section>
+              <div className="today-extra">
+                <Section title={`Ещё на сегодня · ${otherTasks.length}`} aside={<InboxLink />}>
+                  <TaskRows
+                    label="Дела на сегодня"
+                    tasks={otherTasks}
+                    radar={taskRadar}
+                    todayStyle
+                    move={actions.startMove}
+                    pending={operation.pending}
+                    today={query.data.today}
+                  />
+                </Section>
+              </div>
               <p data-motion-target="done" className="task-counts">
                 Осталось <RollingNumber value={query.data.tasks.length} /> · Выполнено{' '}
                 <RollingNumber value={query.data.completed.length} />
@@ -314,6 +322,7 @@ function TodayFeed({ house }: { house: string | null }) {
                   <summary>Выполнено сегодня ({query.data.completed.length})</summary>
                   <TaskRows
                     label="Выполненные дела"
+                    todayStyle
                     tasks={query.data.completed}
                     today={query.data.today}
                   />
@@ -386,29 +395,27 @@ function AllFeed({ house }: { house: string | null }) {
   const tasks = uniqueTasks(query.data?.pages.flat() ?? [])
     .map((card) => queuedStatus(card, ownQueued))
     .filter((task) => !house || !task.householdId || task.householdId === house);
-  const active = tasks.filter((task) => ['open', 'waiting'].includes(task.status));
-  const overdue = active.filter((task) => task.planOn && today && task.planOn < today);
+  const isActive = (task: TaskCard) => task.status === 'open' || task.status === 'waiting';
+  const active = tasks.filter(isActive);
+  const overdue = active.filter((task) => overdueDays(task, today) !== null);
+  const overdueIds = new Set(overdue.map((task) => task.id));
   const selected = overdueOnly
-    ? tasks.filter(
-        (task) =>
-          task.planOn && today && task.planOn < today && ['open', 'waiting'].includes(task.status),
-      )
+    ? overdue
     : openOnly
       ? active
       : tasks.filter(
           (task) =>
             selectedStatus ||
-            ['open', 'waiting'].includes(task.status) ||
+            isActive(task) ||
             (timeZone && todayIn(timeZone, new Date(task.updatedAt)) >= today),
         );
+  const upcoming = selected.filter((task) => isActive(task) && !overdueIds.has(task.id));
   const groups = [
-    { title: 'Просрочено', tasks: selected.filter((task) => task.planOn && task.planOn < today) },
-    {
-      title: 'Эта неделя',
-      tasks: selected.filter((task) => task.planOn && task.planOn >= today && task.planOn <= end),
-    },
-    { title: 'Позже', tasks: selected.filter((task) => task.planOn && task.planOn > end) },
-    { title: 'Без даты', tasks: selected.filter((task) => !task.planOn) },
+    { title: 'Просрочено', tasks: overdue },
+    { title: 'Эта неделя', tasks: upcoming.filter((task) => task.planOn && task.planOn <= end) },
+    { title: 'Позже', tasks: upcoming.filter((task) => task.planOn && task.planOn > end) },
+    { title: 'Без даты', tasks: upcoming.filter((task) => !task.planOn) },
+    { title: 'Завершённые', tasks: selected.filter((task) => !isActive(task)) },
   ];
   const actions = useFeedActions<TaskCard>((card) => {
     client.setQueriesData<{ pages: TaskCard[][]; pageParams: unknown[] }>(
@@ -427,6 +434,7 @@ function AllFeed({ house }: { house: string | null }) {
   const { operation, moving } = actions;
   const activeFilters =
     Number(!!filters.filter) + Number(!!selectedStatus) + Number(!!filters.objectId);
+  const hasFilters = activeFilters > 0 || overdueOnly;
   const unfiltered = !filters.filter && !selectedStatus && !filters.objectId;
   const summary = query.data && !query.error && !query.hasNextPage && unfiltered;
   // Число открытых дел называет только шапка (D48); под вкладками остаётся лишь «просрочено».
@@ -455,33 +463,35 @@ function AllFeed({ house }: { house: string | null }) {
       move={timeZone ? actions.startMove : undefined}
     />
   );
+  const overdueLink =
+    summary && overdue.length > 0 && !overdueOnly ? (
+      <Link className="all-tasks-overdue" to={listHref('overdue')}>
+        <span className="today-overdue">
+          <Clock size={14} aria-hidden />
+          Просрочено · {overdue.length}
+        </span>
+      </Link>
+    ) : null;
   return (
     <TasksPage
       view="all"
       house={house}
       hero={
-        <div className="studio-list-hero">
-          <h1>Все дела</h1>
-          {summary && overdue.length ? (
-            <p className="studio-list-summary">
-              <Link
-                className="text-button"
-                to={listHref('overdue')}
-                onClick={() => {
-                  setFilters({});
-                }}
-              >
-                {overdue.length} просрочено
-              </Link>
-            </p>
-          ) : null}
-        </div>
+        pane ? (
+          overdueLink
+        ) : (
+          <div className="studio-list-hero">
+            <h1>Все дела</h1>
+            {overdueLink}
+          </div>
+        )
       }
     >
       <div className="compact-filters task-filters">
         <FilterButton count={activeFilters} onClick={() => setObjectOpen(true)} />
         <div className="compact-filters__summary">
-          {activeFilters === 0 ? <span className="muted">Все</span> : null}
+          {!hasFilters ? <span className="muted">Все</span> : null}
+          {overdueOnly ? <FilterTag label="Просроченные" onRemove={clearList} /> : null}
           {filters.filter ? (
             <FilterTag
               label={FILTER_LABELS[filters.filter]}

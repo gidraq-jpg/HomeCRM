@@ -1,4 +1,4 @@
-import { ChartBar } from '@phosphor-icons/react';
+import { CaretDown, ChartBar } from '@phosphor-icons/react';
 import { Notice } from '../auth/components.tsx';
 import { formatRub } from '../ui/format.ts';
 import { Section } from '../ui/Page.tsx';
@@ -136,7 +136,10 @@ function Tables({
   const last = months[months.length - 1];
   return (
     <details className="analytics-tables">
-      <summary>Таблицы с точными значениями</summary>
+      <summary className="object-disclosure">
+        Таблицы с точными значениями
+        <CaretDown size={16} aria-hidden />
+      </summary>
 
       <table className="data-table">
         <caption>Начислено и оплачено по месяцам</caption>

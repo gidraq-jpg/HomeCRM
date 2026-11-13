@@ -151,11 +151,15 @@ test('Studio 2: полная лента, пространство, частич�
   const focus = await page.locator('.task-focus').boundingBox();
   const dock = await page.locator('.bottom-nav').boundingBox();
   expect((focus?.y ?? 0) + (focus?.height ?? 0)).toBeLessThan(dock?.y ?? 0);
-  const inbox = page.getByRole('link', { name: 'Записать во входящие', exact: true });
-  await expect(inbox).toHaveAttribute('href', '#/more/inbox/new');
+  const inbox = page.getByRole('link', { name: /^Входящие/ });
+  await expect(inbox).toHaveAttribute('href', '#/more/inbox');
   expect((await inbox.boundingBox())?.y).toBeGreaterThanOrEqual(
     (focus?.y ?? 0) + (focus?.height ?? 0),
   );
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'Добавить' });
+  await expect(menu.getByRole('button', { name: 'Записать во входящие' })).toBeVisible();
+  await menu.getByRole('button', { name: 'Закрыть' }).click();
   await check(page, info, 'today-full');
   await setScope(page, 'Личное');
   await expect(metrics.getByRole('link', { name: '1 дело сегодня', exact: true })).toBeVisible();
@@ -179,6 +183,18 @@ test('Studio 2: полная лента, пространство, частич�
   await expect(metrics.getByRole('link', { name: /объектов: Нет данных/ })).toContainText('—');
   await expect(metrics.getByRole('link', { name: '1 дело сегодня', exact: true })).toBeVisible();
   await check(page, info, 'today-error');
+  await context.route('**/api/tasks/today?**', (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: '{"code":"TEST_FAILURE"}',
+    }),
+  );
+  await page.reload();
+  await expect(page.getByRole('link', { name: /^Входящие/ })).toHaveAttribute(
+    'href',
+    '#/more/inbox',
+  );
   await page.evaluate(() => {
     document.documentElement.style.fontSize = '200%';
   });

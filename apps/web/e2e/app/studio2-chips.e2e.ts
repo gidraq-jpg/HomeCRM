@@ -154,7 +154,7 @@ for (const zoom of [100, 200]) {
     await mainLinks;
     await settle(page);
     await expect(page.locator('.task-focus .focus__title')).toHaveText(first.title);
-    await expect(page.locator('.task-focus .focus__access')).not.toContainText(first.title);
+    await expect(page.locator('.task-focus .focus__meta')).not.toContainText(first.title);
     await page.getByRole('button', { name: 'Добавить', exact: true }).click();
     const add = page.getByRole('dialog', { name: 'Добавить', exact: true });
     await expect(add.getByRole('button', { name: /^Дело/ })).toContainText('Одной строкой');

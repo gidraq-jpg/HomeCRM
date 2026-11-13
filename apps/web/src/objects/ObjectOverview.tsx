@@ -1,4 +1,10 @@
-import { ArrowCounterClockwise, Gauge, PencilSimple, Trash } from '@phosphor-icons/react';
+import {
+  ArrowCounterClockwise,
+  CaretDown,
+  Gauge,
+  PencilSimple,
+  Trash,
+} from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Notice, useAction } from '../auth/components.tsx';
 import { formatDay, formatMoment } from '../auth/dates.ts';
@@ -196,7 +202,10 @@ export function ObjectOverview() {
       {!trashed ? <ObjectSummaryLists card={card} /> : null}
       {!trashed ? (
         <details className="approved-card-fold">
-          <summary>Люди и организации</summary>
+          <summary className="object-disclosure">
+            Люди и организации
+            <CaretDown size={16} aria-hidden />
+          </summary>
           <PeopleBlock card={card} />
         </details>
       ) : null}
@@ -206,7 +215,10 @@ export function ObjectOverview() {
         open={detailsOpen}
         onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
       >
-        <summary>Об объекте и свои поля</summary>
+        <summary className="object-disclosure">
+          Об объекте и свои поля
+          <CaretDown size={16} aria-hidden />
+        </summary>
         <dl className="facts">
           <div className="facts__item">
             <dt>Тип</dt>
@@ -272,7 +284,10 @@ export function ObjectOverview() {
 
       {!trashed && card.objectType === 'property' ? (
         <details className="object-details approved-card-fold">
-          <summary>Аналитика объекта</summary>
+          <summary className="object-disclosure">
+            Аналитика объекта
+            <CaretDown size={16} aria-hidden />
+          </summary>
           <ObjectAnalytics objectId={card.id} />
         </details>
       ) : null}

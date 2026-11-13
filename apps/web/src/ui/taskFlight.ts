@@ -91,8 +91,8 @@ function picture(source: HTMLElement, box: DOMRect) {
   return copy;
 }
 
-/** Вызывать только после подтверждённой мутации; ошибка API не рисует успех. */
-export function flyTask(id: string, kind: 'done' | 'trash') {
+/** Снимок нужен до обновления очереди: строка может сразу перейти в другую группу. */
+export function prepareTaskFlight(id: string, kind: 'done' | 'trash') {
   if (reducedMotion() || document.documentElement.dataset.design !== 'studio') return;
   const row = [
     ...document.querySelectorAll<HTMLElement>('.swipe-task:not([data-motion-ghost])'),
@@ -164,8 +164,11 @@ export function flyTask(id: string, kind: 'done' | 'trash') {
       () => window.removeEventListener('popstate', cancel),
     );
   };
-  play(false);
-  // Обратная копия подтверждает успешную отмену независимо от коммита React.
-  // Раскрытие настоящей строки остаётся у MotionList, данные не ждут рисунка.
-  return () => play(true);
+  const route = location.hash;
+  return () => {
+    if (location.hash !== route || !target.isConnected) return;
+    play(false);
+    // Обратная копия подтверждает успешную отмену независимо от коммита React.
+    return () => play(true);
+  };
 }

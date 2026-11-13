@@ -1,8 +1,13 @@
-import { MagnifyingGlass, UserCircle, X } from '@phosphor-icons/react';
+import { CaretDown, MagnifyingGlass, UserCircle, X } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
+import { Avatar } from '../household/components.tsx';
+import { useHousehold } from '../household/HouseholdContext.tsx';
+import { useMyProfile } from '../household/queries.ts';
+import { useToday } from '../tasks/queries.ts';
+import { useTodayGreeting } from '../tasks/TodayHero.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { Link, useNavigate } from './motion.tsx';
@@ -12,18 +17,41 @@ import { isStudio } from './studio.ts';
 
 export const SEARCH_PATH = '/search';
 
+function TodayDate() {
+  const { me, householdId } = useHousehold();
+  const [params] = useSearchParams();
+  const requested = params.get('householdId');
+  const house = me.roles.some((role) => role.householdId === requested) ? requested : householdId;
+  const query = useToday(house);
+  const { date } = useTodayGreeting(query.data, query.error, house);
+  return <span className="topbar__date">{date}</span>;
+}
+
+function TodayAvatar() {
+  const { me } = useHousehold();
+  const profile = useMyProfile();
+  return (
+    <Avatar
+      name={profile.data?.displayName || me.displayName}
+      photoFileId={profile.data?.photoFileId}
+    />
+  );
+}
+
 /** Шапка: переключатель «Всё · Общее · Личное» и поиск — на каждом экране (PRD, раздел 14). */
 export function TopBar({ scopeVisible = true }: { scopeVisible?: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   const inSearch = location.pathname === SEARCH_PATH;
   const studio = isStudio();
+  const today = studio && location.pathname === '/today';
   const { scope } = useScope();
   const [choosing, setChoosing] = useState(false);
 
   return (
-    <header className="topbar">
-      {studio ? (
+    <header className={today ? 'topbar topbar--today' : 'topbar'}>
+      {today ? <TodayDate /> : null}
+      {studio && !today ? (
         <Link className="topbar__brand" to="/today" aria-label="HomeCRM: сегодня">
           <StudioBrand />
         </Link>
@@ -37,7 +65,7 @@ export function TopBar({ scopeVisible = true }: { scopeVisible?: boolean }) {
             aria-label={`Пространство: ${SCOPE_LABELS[scope]}`}
             onClick={() => setChoosing(true)}
           >
-            {SCOPE_LABELS[scope]} <span aria-hidden>▾</span>
+            {SCOPE_LABELS[scope]} <CaretDown size={14} aria-hidden />
           </button>
           <Sheet
             open={choosing}
@@ -77,7 +105,7 @@ export function TopBar({ scopeVisible = true }: { scopeVisible?: boolean }) {
       )}
       {studio ? (
         <Link className="icon-button topbar__profile" to="/more/profile" aria-label="Обо мне">
-          <UserCircle size={28} aria-hidden />
+          {today ? <TodayAvatar /> : <UserCircle size={28} aria-hidden />}
         </Link>
       ) : null}
     </header>
