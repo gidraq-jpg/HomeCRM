@@ -495,15 +495,26 @@ export async function cancelIntent(id: string) {
 }
 export async function retryIntent(id: string) {
   const active = await ticket();
-  await assertIdentity(active);
-  const row = await offlineDB.outbox.get(id);
-  if (!row || row.owner !== active.owner) throw new LocalFailure('ACCOUNT_CHANGED');
-  // Повтор всегда сохраняет уже отправленный payload и ключ.
-  await offlineDB.outbox.update(id, {
-    state: row.attempted ? 'unknown' : 'pending',
-    nextAttempt: 0,
-    code: undefined,
-  });
+  const retried = await offlineDB.transaction(
+    'rw',
+    offlineDB.identity,
+    offlineDB.outbox,
+    async () => {
+      await assertIdentity(active);
+      const row = await offlineDB.outbox.get(id);
+      if (!row || row.owner !== active.owner) throw new LocalFailure('ACCOUNT_CHANGED');
+      if (row.state === 'confirmed' || row.state === 'sending') return false;
+      // Повтор всегда сохраняет уже отправленное тело и ключ.
+      await offlineDB.outbox.update(id, {
+        state: row.attempted ? 'unknown' : 'pending',
+        nextAttempt: 0,
+        code: undefined,
+        httpStatus: undefined,
+      });
+      return true;
+    },
+  );
+  if (!retried) return;
   changed();
   await synchronize();
 }
@@ -715,7 +726,12 @@ export async function synchronize(): Promise<void> {
             });
             continue;
           }
-          if (response.status >= 500) throw new Error('NETWORK');
+          // При явном сбое захвата оставляем фото и исходный запрос для ручного повтора.
+          if (
+            response.status >= 500 &&
+            !(row.operation === 'inbox_create' && response.status === 500)
+          )
+            throw new Error('NETWORK');
           await offlineDB.outbox.update(row.id, {
             state: response.status === 409 ? 'conflict' : 'error',
             httpStatus: response.status,
