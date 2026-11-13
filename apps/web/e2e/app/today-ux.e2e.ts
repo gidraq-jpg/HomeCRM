@@ -204,6 +204,14 @@ test('D20a 1,4,5,8: личное главное дело, устройства, 
 
 test('D20a 2: свайп по четырём вкладкам, границы и исключения', async ({ page, family }, info) => {
   await signInAs(page, family, 'adult');
+  await setHomeZone(family);
+  const api = await apiAs(family, 'adult');
+  for (let index = 1; index <= 12; index++) {
+    expect(
+      (await api.post('tasks', { title: `Дело для прокрутки ${index}`, planOn: homeDate(0) }))
+        .status,
+    ).toBe(201);
+  }
   const paths = ['/today', '/today/plan', '/today/all', '/more/shopping'];
   await swipe(page, false);
   await expect(page).toHaveURL(/#\/today$/);
@@ -251,7 +259,12 @@ test('D20a 2: свайп по четырём вкладкам, границы и
     });
   await horizontal.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await horizontal.detach();
-  await expect.poll(() => strip.evaluate((element) => element.scrollLeft)).toBeGreaterThan(10);
+  expect(
+    await strip.evaluate((element) => ({
+      overflow: element.scrollWidth - element.clientWidth,
+      scroll: element.scrollLeft,
+    })),
+  ).toEqual({ overflow: 0, scroll: 0 });
   await expect(page).toHaveURL(/#\/today$/);
   await page.evaluate(() => {
     document.documentElement.style.fontSize = '100%';
@@ -263,16 +276,22 @@ test('D20a 2: свайп по четырём вкладкам, границы и
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   // Вертикальный жест по-прежнему прокручивает ленту.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await settle(page);
   await page.evaluate(() => window.scrollTo(0, 0));
+  const origin = await page.locator('.today-extra').evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return { x: box.left + box.width / 2, y: box.top + 10 };
+  });
   const session = await page.context().newCDPSession(page);
   await session.send('Input.dispatchTouchEvent', {
     type: 'touchStart',
-    touchPoints: [{ x: 180, y: 550 }],
+    touchPoints: [origin],
   });
   for (let step = 1; step <= 8; step++)
     await session.send('Input.dispatchTouchEvent', {
       type: 'touchMove',
-      touchPoints: [{ x: 180, y: 550 - step * 40 }],
+      touchPoints: [{ x: origin.x, y: origin.y - step * 24 }],
     });
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await session.detach();
@@ -378,11 +397,15 @@ test('D20a 3: CLS при медленной загрузке Сегодня ≤ 
   await expect(page.locator('.today-hints')).toHaveAttribute('aria-busy', 'true');
   await expect(page.locator('.today-hints__skeleton')).toBeVisible();
   const before = await page.locator('.today-tabs').boundingBox();
+  const fab = page.locator('.chrome .fab');
+  const beforeFab = await fab.boundingBox();
   await expect(page.locator('.today-metric__skeleton')).toHaveCount(0);
   await expect(page.locator('.today-hints[aria-busy="true"]')).toHaveCount(0);
   await expect(page.locator('.today-feed-skeleton')).toHaveCount(0);
   const after = await page.locator('.today-tabs').boundingBox();
   expect(Math.abs((after?.y ?? 0) - (before?.y ?? 0))).toBeLessThan(2);
+  expect(beforeFab).not.toBeNull();
+  expect(await fab.boundingBox()).toEqual(beforeFab);
   const cls = await page.evaluate(() => (window as unknown as { todayCLS: number }).todayCLS);
   process.stdout.write(`D20a CLS ${page.viewportSize()?.width}: ${cls.toFixed(4)}\n`);
   expect(cls).toBeLessThanOrEqual(0.1);

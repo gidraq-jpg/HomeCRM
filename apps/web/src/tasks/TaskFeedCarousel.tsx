@@ -41,7 +41,6 @@ export function TaskFeedCarousel() {
   }, []);
   const active = Math.max(0, paths.indexOf(pathname));
   const summary = summaries[active];
-  const today = active === 0;
   const tabHouse = summary?.house ?? house;
   useLayoutEffect(() => {
     const carousel = root.current;
@@ -55,13 +54,7 @@ export function TaskFeedCarousel() {
     <>
       <Page
         title={labels[active] ?? 'Сегодня'}
-        className={
-          today
-            ? 'feed-page feed-page--today'
-            : active === 1
-              ? 'feed-page feed-page--plan'
-              : 'feed-page'
-        }
+        className="feed-page"
         heading={
           <div className="feed-heading">
             <h1 className="visually-hidden">{labels[active]}</h1>

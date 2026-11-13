@@ -11,7 +11,7 @@ import { changed, LocalFailure, LocalSaved } from '../offline/identity.ts';
 import { useNavigate } from '../shell/motion.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
-import { flyTask } from '../ui/taskFlight.ts';
+import { prepareTaskFlight } from '../ui/taskFlight.ts';
 import { useOperationKey } from '../ui/useOperationKey.ts';
 import { fetchTask, mutateTask, TaskError, type TimedTask } from './api.ts';
 import { taskError } from './errors.ts';
@@ -60,6 +60,13 @@ export function useTaskOperation(
     setError(null);
     const { idempotencyKey: _key, ...fields } = request.body;
     const signature = JSON.stringify({ path: request.path, body: fields });
+    const completion = /^tasks\/([^/]+)\/status$/.exec(request.path);
+    const trash = /^tasks\/([^/]+)\/trash$/.exec(request.path);
+    const playFlight = trash?.[1]
+      ? prepareTaskFlight(trash[1], 'trash')
+      : completion?.[1] && request.body.status === 'done'
+        ? prepareTaskFlight(completion[1], 'done')
+        : undefined;
     let body = request.body;
     try {
       if (unresolved.current && unresolved.current.signature !== signature)
@@ -109,7 +116,7 @@ export function useTaskOperation(
           result.deletedAt ||
           (request.path.endsWith('/status') && result.status === 'done')
         ) {
-          const reverse = flyTask(result.id, result.deletedAt ? 'trash' : 'done');
+          const reverse = playFlight?.();
           flight.current = reverse ? { id: result.id, reverse } : null;
         }
       }

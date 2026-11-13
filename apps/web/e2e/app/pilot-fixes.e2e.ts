@@ -58,9 +58,9 @@ test('D19a.1–3/13: повтор возвращается отменой без
     .getByRole('button', { name: 'Отметить сделанным: Протереть стол D19', exact: true })
     .click();
   const row = page
-    .locator('[data-feed-active="true"] .plan-row')
-    .filter({ hasText: 'Протереть стол D19' })
-    .first();
+    .getByRole('list', { name: 'Завершённые', exact: true })
+    .locator('.plan-row')
+    .filter({ hasText: 'Протереть стол D19' });
   await expect(row).toHaveClass(/plan-row--closed/);
   await expect(page.getByRole('button', { name: 'Отменить', exact: true })).toBeVisible();
   const completed = (await api.get(`tasks/${id}`)).body as { nextTaskId: string };

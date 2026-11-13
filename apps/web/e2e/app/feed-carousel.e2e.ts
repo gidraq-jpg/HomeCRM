@@ -44,10 +44,7 @@ export async function touchSwipe(
 }
 
 test.use({ video: 'on' });
-test('D32: выполненное дело без даты остаётся в счётчике видимой группы', async ({
-  page,
-  family,
-}) => {
+test('D50: выполненное дело без даты переходит в группу завершённых', async ({ page, family }) => {
   const api = await apiAs(family, 'adult');
   await api.post('tasks', { title: 'Вымышленное дело без даты' });
   await signInAs(page, family, 'adult');
@@ -60,9 +57,12 @@ test('D32: выполненное дело без даты остаётся в �
   await settle(page);
   const group = page
     .locator('.section')
-    .filter({ has: page.getByRole('heading', { name: 'Без даты', exact: true }) });
+    .filter({ has: page.getByRole('heading', { name: 'Завершённые', exact: true }) });
   await expect(group.locator('.section__head .muted')).toHaveText('1');
-  await expect(row).toBeVisible();
+  await expect(
+    group.getByRole('group', { name: 'Дело: Вымышленное дело без даты', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Без даты', exact: true })).toHaveCount(0);
 });
 test('D32: запись карусели 412 px с касанием', async ({ page, family, browser }, info) => {
   test.skip(info.project.name !== 'w412', 'Запись мобильной раскладки — один раз');

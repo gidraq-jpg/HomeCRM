@@ -30,9 +30,11 @@ export function LinkTabs({ label, items }: { label: string; items: readonly Link
       }
       const indicator = list.querySelector<HTMLElement>('.tab-indicator');
       if (!active || !indicator) return;
-      indicator.style.width = `${active.offsetWidth}px`;
-      indicator.style.height = `${active.offsetHeight}px`;
-      indicator.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
+      const link = active.getBoundingClientRect();
+      const bounds = list.getBoundingClientRect();
+      indicator.style.width = `${link.width}px`;
+      indicator.style.height = `${link.height}px`;
+      indicator.style.transform = `translate(${link.left - bounds.left - list.clientLeft}px, ${link.top - bounds.top - list.clientTop}px)`;
     };
     measure();
     const observer = new ResizeObserver(measure);

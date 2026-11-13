@@ -67,7 +67,7 @@ test('Спокойный интерфейс: поверхности, текст 
           await expect(page.locator('[data-feed-ready="true"]')).toHaveCount(4);
           await expect(
             page.locator('[data-feed-heading-active="true"] .feed-heading__summary'),
-          ).toContainText(`${heading}:`);
+          ).toContainText(heading === 'Сегодня' ? 'Сегодня ·' : `${heading}:`);
         }
         // Проверяем и подзапросы карточки: её h1 приходит раньше связей и файлов.
         await expect(page.getByRole('status', { name: /^Загружаем/ })).toHaveCount(0);
@@ -91,7 +91,9 @@ test('Спокойный интерфейс: поверхности, текст 
             );
           expect(overflow, 'подписи аудитории остаются внутри своих целей').toEqual([]);
           const boundaries = await page
-            .locator('.tab-indicator, .studio-segments > button[aria-pressed="true"]')
+            .locator(
+              '.tab-indicator:not(.today-tabs .tab-indicator), .studio-segments > button[aria-pressed="true"]',
+            )
             .evaluateAll((nodes) => {
               const luminance = (color: string) => {
                 const rgb = (color.match(/[\d.]+/g) ?? []).slice(0, 3).map((value) => {
@@ -120,6 +122,11 @@ test('Спокойный интерфейс: поверхности, текст 
         }
         if (name === 'today') {
           const tabs = page.getByRole('navigation', { name: 'Ленты дел' });
+          await expect(tabs.locator('.tab-indicator')).toHaveCSS('border-top-width', '0px');
+          await expect(tabs.locator('.tab-indicator')).toHaveCSS(
+            'background-color',
+            'rgb(248, 245, 239)',
+          );
           const active = await tabs.locator('[aria-current="page"]').boundingBox();
           const indicator = await tabs.locator('.tab-indicator').boundingBox();
           expect(indicator?.height).toBeCloseTo(active?.height ?? 0, 0);

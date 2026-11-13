@@ -27,34 +27,27 @@ html[data-design="studio"] .studio-list-panel > .section:first-child {
   margin-top: 0;
 }
 
-/* «Сегодня»: шапка по содержимому, без пустой высоты. */
+/* Общая геометрия шапки и вкладок: соседняя лента уже стоит на своей высоте при свайпе. */
 html[data-design="studio"] .feed-heading {
   min-height: 0;
-  padding-block: 8px 12px;
+  padding: 4px 20px;
 }
 html[data-design="studio"] .feed-heading__summary {
   min-height: 0;
 }
 html[data-design="studio"] .feed-panel {
-  padding-top: 8px;
+  padding-top: 4px;
   padding-bottom: var(--list-bottom-clearance, calc(var(--fab-size) + 56px));
 }
 
-/* Компактная шапка недельной ленты «План». */
-html[data-design="studio"] .feed-page--plan .feed-heading {
-  padding-block: 2px 4px;
-}
-html[data-design="studio"] .feed-page--plan .feed-panel {
-  padding-top: 4px;
-}
-html[data-design="studio"] .feed-page--plan .today-tabs {
+html[data-design="studio"] .feed-panel .today-tabs {
   margin-bottom: 2px;
   padding-block: 2px;
 }
-html[data-design="studio"] .feed-page--plan .plan-day__title {
+html[data-design="studio"] [data-feed-pane="1"] .plan-day__title {
   margin-top: 8px;
 }
-html[data-design="studio"] .feed-page--plan .plan-empty-days {
+html[data-design="studio"] [data-feed-pane="1"] .plan-empty-days {
   margin-block: 8px;
 }
 
@@ -282,20 +275,22 @@ html[data-design="studio"] .topbar--today .avatar {
   height: 32px;
 }
 
-html[data-design="studio"] .feed-page--today .feed-heading {
-  padding: 4px 20px 20px;
-}
-
-html[data-design="studio"] .feed-page--today .feed-heading__greeting {
+html[data-design="studio"] .feed-heading .feed-heading__greeting {
   font-size: 1.75rem;
   font-weight: 300;
   line-height: 1.15;
 }
 
-html[data-design="studio"] .feed-page--today .feed-heading__summary {
+html[data-design="studio"] .feed-heading__variant:first-child .feed-heading__summary {
   margin-top: 4px;
   font-size: 0.9375rem;
   color: var(--on-dark);
+}
+
+/* Заглушка сохраняет место основной части «Сегодня» до появления данных. */
+html[data-design="studio"] .feed-carousel .today-feed-skeleton {
+  min-height: 25rem;
+  margin-top: 0;
 }
 
 /* D50: четыре одинаковые цели и существующий подвижный индикатор. */

@@ -1007,7 +1007,7 @@ test('SHOP: два дома, личный список, настоящее по�
   });
   await signInAs(page, family, 'adult');
   await page.goto('#/more/shopping');
-  await page.getByLabel('Дом', { exact: true }).selectOption(second);
+  await page.getByRole('combobox', { name: 'Дом', exact: true }).selectOption(second);
   await expect(page.getByRole('link', { name: 'Дом два яблоки' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Дом один яблоки' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Личные яблоки' })).toBeVisible();
