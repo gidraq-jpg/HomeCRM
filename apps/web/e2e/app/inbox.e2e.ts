@@ -265,6 +265,79 @@ test('INBOX-1: офлайн-захват → очередь → отправка
   await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible({ timeout: 20000 });
 });
 
+for (const mode of ['online', 'offline', 'retry'] as const) {
+  test(`INBOX-1: фото с камеры · ${mode}`, async ({ page, family, context }, info) => {
+    await signInAs(page, family, 'adult');
+    await openCapture(page);
+    const name = 'Учебное фото.jpg';
+    const photo = await readFile(
+      new URL('../../../server/src/ai/eval/samples/meters/1.jpg', import.meta.url),
+    );
+    const sent: string[] = [];
+    let fail = mode === 'retry';
+    await page.route('**/api/inbox', async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.continue();
+        return;
+      }
+      sent.push(route.request().postData() ?? '');
+      if (fail) await route.fulfill({ status: 500, json: { code: 'INTERNAL_ERROR' } });
+      else await route.continue();
+    });
+    if (mode !== 'online') await context.setOffline(true);
+    await page.getByLabel('Камера', { exact: true }).setInputFiles({
+      name,
+      mimeType: 'image/jpeg',
+      buffer: photo,
+    });
+    await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
+    if (mode !== 'online') {
+      await expect(page.getByText('Ждут отправки: 1', { exact: true })).toBeVisible();
+      expect(sent).toHaveLength(0);
+      expect((await family.database.admin.query('SELECT id FROM inbox_items')).rowCount).toBe(0);
+      if (mode === 'offline') await checkApp(page, info, 'inbox-photo-offline-queued');
+      await context.setOffline(false);
+    }
+    if (mode === 'retry') {
+      const failed = page.getByRole('list', { name: 'Неотправленные входящие' });
+      await expect(failed.getByText(name, { exact: true })).toBeVisible();
+      await expect(
+        failed.getByText('Не удалось отправить. Сохранено на устройстве.'),
+      ).toBeVisible();
+      await checkApp(page, info, 'inbox-photo-error');
+      expect(sent).toHaveLength(1);
+      fail = false;
+      await failed.getByRole('button', { name: 'Повторить', exact: true }).click();
+      await expect(failed).toHaveCount(0);
+    }
+    const link = page.getByRole('link', { name: 'Страница 1', exact: true });
+    await expect(link).toBeVisible();
+    const downloaded = await link.evaluate(async (element: HTMLAnchorElement) => {
+      const response = await fetch(element.href);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      return {
+        status: response.status,
+        mime: response.headers.get('content-type'),
+        signature: Array.from(bytes.slice(0, 3)),
+      };
+    });
+    expect(downloaded).toEqual({ status: 200, mime: 'image/jpeg', signature: [255, 216, 255] });
+    expect(sent).toHaveLength(mode === 'retry' ? 2 : 1);
+    if (mode === 'retry') expect(sent[1]).toBe(sent[0]);
+    const payload = JSON.parse(sent[0] ?? '{}');
+    expect(payload).toMatchObject({
+      id: payload.idempotencyKey,
+      offline: true,
+      source: 'photo',
+      files: [{ name, base64: photo.toString('base64') }],
+    });
+    const { rows } = await family.database.admin.query('SELECT id FROM inbox_items');
+    expect(rows).toEqual([{ id: payload.id }]);
+    expect((await family.database.admin.query('SELECT id FROM inbox_files')).rowCount).toBe(1);
+    await checkApp(page, info, `inbox-photo-${mode}`);
+  });
+}
+
 for (const mixed of [false, true])
   test(`AI-5: ${mixed ? 'покупка и заметка — фото у заметки' : 'покупка — предупреждение и удаление фото'}`, async ({
     page,

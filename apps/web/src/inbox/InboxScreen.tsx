@@ -1,5 +1,5 @@
 import { INBOX_MAX_BYTES, InboxCapture } from '@homecrm/shared';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLocation } from 'react-router';
 import { useAiStatus } from '../ai/AiCapture.tsx';
 import { ChatDrafts } from '../ai/ChatDrafts.tsx';
@@ -7,10 +7,10 @@ import { useAiConsent } from '../ai/consent.tsx';
 import { Notice, useAction } from '../auth/components.tsx';
 import { fileUrl } from '../files/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { localMessage, offlineEvents } from '../offline/identity.ts';
+import { localMessage } from '../offline/identity.ts';
 import { useQueue } from '../offline/OfflinePanel.tsx';
-import { enqueue, synchronize } from '../offline/queue.ts';
-import { offlineDB, uuid } from '../offline/store.ts';
+import { enqueue, retryIntent, synchronize } from '../offline/queue.ts';
+import { uuid } from '../offline/store.ts';
 import { Link } from '../shell/motion.tsx';
 import { ContentMotion } from '../ui/ContentMotion.tsx';
 import { countWord } from '../ui/format.ts';
@@ -20,6 +20,8 @@ import { StudioPage } from '../ui/StudioPage.tsx';
 import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';
 import { inboxAction, KIND_LABELS, STATUS_LABELS, useInbox } from './api.ts';
 import './inbox.css';
+
+const LocalInboxLabel = InboxCapture.pick({ text: true, files: true });
 
 export function InboxLink() {
   const data = useInbox();
@@ -49,7 +51,7 @@ export function InboxScreen({
   capture?: boolean;
   trash?: boolean;
 }) {
-  const { me, householdId } = useHousehold();
+  const { householdId } = useHousehold();
   const location = useLocation();
   const attachmentMessage = (location.state as { attachmentMessage?: string } | null)
     ?.attachmentMessage;
@@ -58,7 +60,23 @@ export function InboxScreen({
   const [files, setFiles] = useState<File[]>([]);
   const [voice, setVoice] = useState(false);
   const [message, setMessage] = useState('');
-  const [queued, setQueued] = useState(0);
+  const { rows } = useQueue();
+  const pending = trash
+    ? []
+    : rows.filter(
+        (row) =>
+          row.operation === 'inbox_create' &&
+          row.state !== 'confirmed' &&
+          !query.data?.some((entry) => entry.id === row.body.id),
+      );
+  const failed = pending.filter(
+    (row) =>
+      row.state === 'error' ||
+      row.state === 'conflict' ||
+      (row.state === 'unknown' && row.code !== undefined),
+  );
+  const queued = pending.length - failed.length;
+  const retry = useAction();
   const [inputKey, setInputKey] = useState(0);
   const [problem, setProblem] = useState('');
   const state = useAction();
@@ -70,19 +88,6 @@ export function InboxScreen({
     setVoice(true);
     return undefined;
   });
-  useEffect(() => {
-    const refresh = () => {
-      void offlineDB.outbox
-        .where('owner')
-        .equals(me.id)
-        .filter((row) => row.operation === 'inbox_create' && row.state !== 'confirmed')
-        .count()
-        .then(setQueued);
-    };
-    refresh();
-    offlineEvents.addEventListener('queue', refresh);
-    return () => offlineEvents.removeEventListener('queue', refresh);
-  }, [me.id]);
   async function save() {
     await state.run(async () => {
       setProblem('');
@@ -129,7 +134,7 @@ export function InboxScreen({
       setFiles([]);
       setVoice(false);
       setInputKey((key) => key + 1);
-      setMessage('Сохранено на устройстве. Отправится при появлении сети.');
+      setMessage('Сохранено на устройстве.');
       void synchronize().then(() => query.refetch());
     });
   }
@@ -239,6 +244,32 @@ export function InboxScreen({
           </Link>
         </p>
       ) : null}
+      {failed.length ? (
+        <ul className="inbox-list" aria-label="Неотправленные входящие">
+          {failed.map((row) => {
+            const draft = LocalInboxLabel.safeParse({
+              text: row.body.text,
+              files: row.body.files,
+            });
+            const label = draft.success ? draft.data.text || draft.data.files[0]?.name : undefined;
+            return (
+              <li key={row.id}>
+                <p className="inbox-text">{label || 'Входящее'}</p>
+                <p role="status">Не удалось отправить. Сохранено на устройстве.</p>
+                <button
+                  className="btn btn--secondary"
+                  type="button"
+                  disabled={retry.disabled}
+                  onClick={() => void retry.run(() => retryIntent(row.id))}
+                >
+                  Повторить
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      {retry.error ? <Notice error>Не удалось запустить повторную отправку.</Notice> : null}
       {query.isError ? (
         <Notice>
           Не удалось загрузить список. Сохранённое без сети доступно в очереди изменений.
@@ -248,7 +279,7 @@ export function InboxScreen({
         pending={query.isPending}
         version={(query.data ?? []).map((row) => row.id).join(',')}
       >
-        {query.data?.length === 0 ? (
+        {query.data?.length === 0 && pending.length === 0 ? (
           <p className="inbox-empty">
             Здесь пока пусто. Сохраните мысль, фото или документ и разберите, когда удобно.
           </p>

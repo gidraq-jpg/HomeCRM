@@ -183,7 +183,8 @@ export async function inboxRoutes(
     });
     if (known) return receipt(known);
     const decoded = input.files.map((file) => {
-      if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(file.base64))
+      // Повтор группы по четыре символа переполняет стек RegExp на больших фото.
+      if (file.base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(file.base64))
         throw new Failure(400, 'INVALID_INPUT');
       return { ...file, bytes: Buffer.from(file.base64, 'base64') };
     });

@@ -148,13 +148,16 @@ export type DataRoute = (
 export function dataRoutes(app: FastifyInstance, module: AuthModule): DataRoute {
   const currentAccount = createAccountReader(module);
   app.setErrorHandler((error, request, reply) => {
-    if (error instanceof Failure)
+    if (error instanceof Failure) {
+      if (error.status >= 500)
+        request.log.error({ failureCode: error.code }, 'Objects request failed');
       return reply.code(error.status).send({
         code: error.code,
         ...error.details,
         ...(error.code === 'ASSIGNEE_NOT_VISIBLE' ? { requiresAudienceExpansion: true } : {}),
         ...(error.publicMessage ? { message: error.publicMessage } : {}),
       });
+    }
     const status =
       typeof error === 'object' && error !== null && 'statusCode' in error
         ? error.statusCode
@@ -176,8 +179,12 @@ export function dataRoutes(app: FastifyInstance, module: AuthModule): DataRoute 
     if (code === '42501') return reply.code(403).send({ code: 'ACCESS_DENIED' });
     if (['23503', '23505', '23514', '40P01', '40001'].includes(code ?? ''))
       return reply.code(409).send({ code: 'CONFLICT' });
+    const errorClass = error instanceof Error ? error.constructor.name : 'UnknownError';
     request.log.error(
-      { databaseCode: /^[A-Z0-9]{5}$/.test(code ?? '') ? code : undefined },
+      {
+        errorClass: /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(errorClass) ? errorClass : 'UnknownError',
+        databaseCode: /^[A-Z0-9]{5}$/.test(code ?? '') ? code : undefined,
+      },
       'Objects request failed',
     );
     return reply.code(500).send({ code: 'INTERNAL_ERROR' });
