@@ -1,11 +1,11 @@
 /* TASK-2, SHOP-4: кнопка микрофона и состояние записи. */
 .icon-button.voice-button {
   flex: 0 0 var(--tap, 44px);
-  background: var(--soft, #dcd6c9);
-  color: var(--ink, #272725);
+  background: var(--soft);
+  color: var(--ink);
 }
 .icon-button.voice-button--on {
-  background: var(--fill-accent, #a84d30);
+  background: var(--fill-accent);
   color: var(--on-accent);
 }
 .icon-button.voice-button[disabled] {
@@ -15,7 +15,7 @@
 .voice-line {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
 }
 .voice-line > .textarea,
@@ -26,7 +26,7 @@
 .voice-status {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   overflow-wrap: anywhere;
 }
@@ -34,13 +34,13 @@
   flex: none;
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   /* Без бесконечной анимации: состояние записи видно по значку, тексту и точке. */
-  background: var(--danger, #9b332b);
+  background: var(--danger);
 }
 .voice-drafts {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -48,14 +48,14 @@
 .voice-draft {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 6rem) var(--tap, 44px);
-  gap: 8px;
+  gap: var(--space-2);
   align-items: end;
 }
 .voice-draft label {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
-  font-size: 0.8125rem;
+  font-size: var(--font-sm);
 }
 .voice-draft .input {
   width: 100%;
@@ -64,11 +64,11 @@
 .voice-draft__duplicate {
   grid-column: 1 / -1;
   margin: 0;
-  color: var(--warning, #9a5b18);
-  font-size: 0.875rem;
+  color: var(--warning);
+  font-size: var(--font-sm);
 }
 .voice-drafts-actions {
   display: grid;
-  gap: 8px;
-  margin-top: 16px;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
 }

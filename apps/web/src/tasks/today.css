@@ -13,7 +13,7 @@ html[data-design="studio"] .today-hero .today-hints {
 html[data-design="studio"] .today-metric__skeleton {
   color: transparent;
   background: var(--hdr-line-2);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 html[data-design="studio"] .today-hints .today-hints__skeleton {
   width: 12rem;
@@ -22,8 +22,8 @@ html[data-design="studio"] .today-hints .today-hints__skeleton {
 }
 .today-feed-skeleton {
   min-height: 300px;
-  margin-top: 18px;
-  border-radius: 20px;
+  margin-top: var(--space-4);
+  border-radius: var(--radius-xl);
   background: var(--surface);
 }
 html[data-design="studio"] .object-facts .task-reschedule {
@@ -45,20 +45,20 @@ html[data-design="studio"] .today-page > .page-heading {
   margin: 0;
 }
 html[data-design="studio"] .today-hero {
-  padding: 22px var(--gutter) 24px;
+  padding: var(--space-5) var(--gutter) var(--space-5);
   color: var(--on-dark);
   background: var(--charcoal);
 }
 html[data-design="studio"] .today-hero .today-hero__date {
-  margin-bottom: 22px;
+  margin-bottom: var(--space-5);
   color: var(--muted-on-dark);
-  font-size: 0.6875rem;
+  font-size: var(--font-xs);
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 html[data-design="studio"] .today-hero__greeting {
-  font-size: 2.75rem;
+  font-size: var(--font-display);
   font-weight: 300;
   line-height: 1.06;
   letter-spacing: -0.04em;
@@ -70,36 +70,36 @@ html[data-design="studio"] .today-hero__greeting > span {
 html[data-design="studio"] .today-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 26px;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
 }
 html[data-design="studio"] .today-metric {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
   min-height: 64px;
-  padding: 4px 12px 4px 0;
+  padding: var(--space-1) var(--space-3) var(--space-1) 0;
   color: var(--on-dark);
   text-decoration: none;
   overflow-wrap: anywhere;
 }
 html[data-design="studio"] .today-metric + .today-metric {
   border-left: 1px solid var(--hdr-line-2);
-  padding-left: 16px;
+  padding-left: var(--space-4);
 }
 html[data-design="studio"] .today-metric__value {
   color: var(--accent-on-dark);
-  font-size: 1.875rem;
-  font-weight: 300;
+  font-size: var(--font-display);
+  font-weight: var(--weight-number);
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
 html[data-design="studio"] .today-metric__label,
 html[data-design="studio"] .today-metric__status {
   color: var(--muted-on-dark);
-  font-size: 0.75rem;
+  font-size: var(--font-xs);
   line-height: 1.4;
 }
 html[data-design="studio"] .today-metric:hover .today-metric__label {
@@ -111,9 +111,14 @@ html[data-design="studio"] .today-page .today-hero {
 }
 html[data-design="studio"] .today-panel {
   position: relative;
-  padding: 26px var(--gutter)
-    calc(var(--nav-height) + var(--fab-size) + 56px + env(safe-area-inset-bottom));
-  scroll-margin-top: 100px;
+  padding: var(--space-5) var(--gutter)
+    calc(
+      var(--nav-height) +
+      var(--fab-size) +
+      calc(var(--space-6) + var(--space-5)) +
+      env(safe-area-inset-bottom)
+    );
+  scroll-margin-top: calc(var(--space-6) * 3 + var(--space-1));
 }
 html[data-design="studio"] .today-panel::before {
   content: "";
@@ -122,17 +127,17 @@ html[data-design="studio"] .today-panel::before {
   left: calc(50% - 16px);
   width: 32px;
   height: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--line);
 }
 html[data-design="studio"] .today-panel > .scope-switch {
   max-width: none;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 html[data-design="studio"] .today-panel .task-focus {
   border: 0;
-  border-radius: 20px;
-  padding: 18px;
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
   background: var(--surface);
 }
 html[data-design="studio"] .today-panel .section__title--eyebrow {
@@ -146,13 +151,13 @@ html[data-design="studio"] .today-panel .section__title--eyebrow {
 }
 @media (min-width: 960px) {
   html[data-design="studio"] .today-hero {
-    padding-top: 30px;
+    padding-top: var(--space-6);
   }
   html[data-design="studio"] .today-hero__greeting {
-    font-size: 3.5rem;
+    font-size: var(--font-display);
   }
   html[data-design="studio"] .today-panel {
-    padding-bottom: calc(var(--fab-size) + 56px);
+    padding-bottom: calc(var(--fab-size) + calc(var(--space-6) + var(--space-5)));
   }
 }
 
@@ -170,13 +175,17 @@ html[data-design="studio"] .today-tabs {
   top: var(--task-header-height, 88px);
   z-index: 9;
   background: var(--paper);
-  padding-block: 6px;
+  padding-block: var(--space-2);
 }
 html[data-design="studio"] .plan-page > .page-heading {
   margin: 0;
 }
 html[data-design="studio"] .plan-page {
-  padding-bottom: calc(var(--nav-height) + 40px + env(safe-area-inset-bottom));
+  padding-bottom: calc(
+    var(--nav-height) +
+    calc(var(--space-6) + var(--space-2)) +
+    env(safe-area-inset-bottom)
+  );
 }
 .plan-day__title {
   margin: var(--space-5) 0 var(--space-2);
@@ -190,7 +199,7 @@ html[data-design="studio"] .plan-page {
   margin: 0;
   padding: 0;
   background: var(--surface);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
 }
 .plan-row {
@@ -241,20 +250,20 @@ html[data-design="studio"] .plan-page {
   flex: none;
   width: var(--tap);
   height: var(--tap);
-  margin-inline: -10px;
+  margin-inline: calc(-1 * var(--space-2));
 }
 .plan-row .icon-button {
   flex: none;
 }
 .plan-row__move {
-  margin-inline-end: -10px;
+  margin-inline-end: calc(-1 * var(--space-2));
 }
 .plan-circle {
   display: block;
   width: 24px;
   height: 24px;
   border: 1.6px solid var(--border);
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
 }
 .plan-circle--waiting {
   border-style: dashed;
@@ -271,15 +280,15 @@ html[data-design="studio"] .plan-page {
   color: var(--muted);
 }
 .plan-empty-days {
-  margin: 18px 4px;
-  font-size: 0.8125rem;
+  margin: var(--space-4) var(--space-1);
+  font-size: var(--font-sm);
 }
 .plan-undated {
-  margin-top: 20px;
+  margin-top: var(--space-4);
 }
 .plan-undated summary {
   min-height: 44px;
-  padding-block: 12px;
+  padding-block: var(--space-3);
   cursor: pointer;
 }
 .plan-sentinel {
@@ -287,7 +296,7 @@ html[data-design="studio"] .plan-page {
 }
 .plan-move-options {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .plan-move-options .btn {
   white-space: normal;

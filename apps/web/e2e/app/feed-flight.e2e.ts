@@ -221,7 +221,7 @@ for (const width of [412, 1440])
                 demo.evaluate(() => (window as unknown as { flight: Observation }).flight.duration),
               { message: `${feed}: ${method} запускает улёт` },
             )
-            .toBe(560);
+            .toBe(360);
           await expect(demo.locator('[data-motion-flight]')).toHaveCount(0);
           if (feed === 0 && method !== 'trash')
             await expect
@@ -234,11 +234,11 @@ for (const width of [412, 1440])
           const flight = await demo.evaluate(
             () => (window as unknown as { flight: Observation }).flight,
           );
-          expect(flight.duration).toBe(560);
+          expect(flight.duration).toBe(360);
           if (feed === 0 && method !== 'trash') expect(flight.sourceHeight).toBeGreaterThan(0);
-          expect(flight.middle).toMatchObject({ time: 280, opacity: 1, visible: true });
+          expect(flight.middle).toMatchObject({ time: 180, opacity: 1, visible: true });
           const last = flight.endpoint;
-          expect(last?.time).toBeGreaterThan(480);
+          expect(last?.time).toBeGreaterThan(359);
           expect(
             last &&
               flight.target &&

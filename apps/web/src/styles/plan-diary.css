@@ -3,24 +3,25 @@
   top: calc(var(--task-header-height, 88px) + 56px);
   z-index: 8;
   background: var(--paper);
-  padding-block: 0 2px;
+  padding-block: 0 var(--space-1);
 }
 .plan-week__heading {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 32px;
-  font-size: 0.875rem;
+  font-size: var(--font-sm);
 }
 .plan-week__heading > span {
   flex: 1;
 }
 .plan-week__heading .text-button {
-  font-size: 14px;
+  font-size: var(--font-sm);
   white-space: nowrap;
 }
 .plan-week__days {
   position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
@@ -30,46 +31,45 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: var(--tap);
   min-height: var(--tap);
-  padding: 0 0 7px;
+  padding: 0 0 var(--space-2);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--text);
+  color: var(--ink);
   font: inherit;
   line-height: 1.15;
   white-space: nowrap;
 }
 .plan-week__days button > span:first-child {
-  font-size: 0.6875rem;
+  font-size: var(--font-xs);
 }
 .plan-week__number {
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
   font-variant-numeric: proportional-nums;
+}
+.plan-week__days button[aria-pressed="true"] {
+  color: var(--chip-fg);
 }
 .plan-week__days button[aria-current] {
   background: var(--accent);
   color: var(--on-accent);
-  font-weight: 700;
+  font-weight: var(--weight-number, 600);
 }
 .plan-week__selection {
   position: absolute;
   inset: 0 auto 0 0;
   width: calc(100% / 7);
-  border: 2px solid var(--accent-strong);
-  border-radius: 12px;
+  background: var(--chip-bg);
+  border-radius: var(--radius-md);
   pointer-events: none;
-  z-index: 1;
+  z-index: -1;
   transition: transform var(--motion-fast) var(--ease-out);
 }
 html[data-design="studio"] .plan-week__days button:focus-visible {
   outline-offset: -2px;
-}
-.plan-week__days:has(button[aria-pressed="true"]:focus-visible:not([data-touch-focus]))
-  .plan-week__selection {
-  visibility: hidden;
 }
 @media (prefers-reduced-motion: reduce) {
   .plan-week__selection {
@@ -83,12 +83,12 @@ html[data-design="studio"] .plan-week__days button:focus-visible {
   inset-inline-start: calc(50% - 2px);
   width: 4px;
   height: 4px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: currentColor;
   content: "";
 }
 [data-plan-from] {
-  scroll-margin-top: calc(var(--task-header-height, 88px) + 168px);
+  scroll-margin-top: var(--plan-top-inset, 256px);
 }
 
 .plan-diary-days {
@@ -98,12 +98,13 @@ html[data-design="studio"] .plan-week__days button:focus-visible {
 .plan-review {
   display: block;
   min-height: 44px;
-  padding: 16px;
-  margin-block: 16px;
+  padding: var(--space-4);
+  margin-block: var(--space-4);
 }
 
 .plan-diary-days :is(a, button) {
-  scroll-margin-block: calc(var(--plan-top-inset, 260px) + 16px) 140px;
+  scroll-margin-block: calc(var(--plan-top-inset, 256px) + var(--space-4))
+    var(--list-bottom-clearance, 140px);
 }
 
 /* Последний день тоже можно поднять под прилипшую неделю. */

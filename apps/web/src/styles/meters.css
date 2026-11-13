@@ -9,15 +9,15 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
+  gap: var(--space-2) var(--space-2);
 }
 
 .meter-card > .facts {
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 
 .meter-card > .btn-row {
-  margin-top: 14px;
+  margin-top: var(--space-3);
 }
 
 .meter-form {
@@ -25,41 +25,41 @@
 }
 
 .meter-form .btn-row {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .meter-form__digits {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .meter-form__initial {
-  margin-top: 22px;
+  margin-top: var(--space-5);
 }
 
 .meter-form__heading {
-  margin-top: 22px;
-  font-size: 1.0625rem;
+  margin-top: var(--space-5);
+  font-size: var(--font-title);
   font-weight: var(--weight-strong, 700);
 }
 
 /* Заменённые и снятые — в свёрнутой группе */
 .meter-archive {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .meter-archive > summary {
   display: flex;
   align-items: center;
   min-height: var(--tap);
-  color: var(--green);
+  color: var(--action-ink);
   font-weight: var(--weight-medium, 650);
   cursor: pointer;
 }
 
 .meter-archive[open] > summary {
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
 
 /* Экран «Показания» */
@@ -69,26 +69,25 @@
 }
 
 .reading-date {
-  margin-top: 14px;
+  margin-top: var(--space-3);
 }
 
 .reading__zone {
-  margin-top: 10px;
+  margin-top: var(--space-2);
 }
 
 .reading__choice {
   display: grid;
-  gap: 8px;
-  margin-top: 10px;
-  padding: 12px;
-  border: 1px solid var(--warning);
-  border-radius: 12px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
   background: var(--warning-soft);
 }
 
 .reading__choice-text {
   color: var(--ink);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
   font-weight: var(--weight-medium, 600);
 }
 
@@ -100,18 +99,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .reading__photo-chip {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding-left: 12px;
-  border-radius: 999px;
+  gap: var(--space-1);
+  padding-left: var(--space-3);
+  border-radius: var(--radius-pill);
   background: var(--soft);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
 }
 
 .reading__photos > .field__error {
@@ -120,19 +119,19 @@
 
 /* Передача */
 .transfer-saved {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .transfer-card {
   display: grid;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .transfer-card__number {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: var(--space-1) var(--space-2);
   color: var(--muted);
 }
 
@@ -153,8 +152,8 @@
 
 .transfer-list__item {
   display: grid;
-  gap: 4px;
-  padding: 10px 0;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -163,14 +162,14 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 4px 10px;
+  gap: var(--space-1) var(--space-2);
 }
 
 .transfer-list__value {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   overflow-wrap: anywhere;
 }
 
@@ -178,5 +177,5 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
+  gap: var(--space-2) var(--space-2);
 }

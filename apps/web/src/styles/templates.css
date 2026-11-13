@@ -6,57 +6,57 @@
 
 .template-group {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
-  margin: 18px 0 0;
+  margin: var(--space-4) 0 0;
   padding: 0;
   border: 0;
 }
 
 .template-group__legend {
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
   padding: 0;
-  font-size: 1.0625rem;
+  font-size: var(--font-title);
   font-weight: var(--weight-strong, 700);
   line-height: 1.35;
 }
 
 .template-group__hint {
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
 }
 
 .template-meter__reading {
-  margin: 0 0 8px 40px;
+  margin: 0 0 var(--space-2) calc(var(--space-6) + var(--space-2));
 }
 
 .template-meter__reading .field__label {
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 }
 
 .template-form > .btn-row {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .template-group .choice {
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 /* Мастер первого запуска */
 .start-steps ol {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  margin-bottom: 16px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
 }
 
 .start-steps__item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--font-xs);
   line-height: 1.25;
   text-align: center;
   overflow-wrap: normal;
@@ -72,22 +72,22 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--soft);
   font-weight: var(--weight-strong, 700);
 }
 
 .start-steps__item--current .start-steps__number {
-  border-color: var(--fill);
   background: var(--fill);
   color: var(--on-accent);
 }
 
 .start-step > .btn-row,
 .start-step > form > .btn-row {
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 
 .start-invite {
-  margin-bottom: 14px;
+  margin-bottom: var(--space-3);
 }

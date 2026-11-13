@@ -1,16 +1,16 @@
 .inbox-capture {
   display: grid;
-  gap: var(--space-4, 16px);
-  margin-block: 24px;
+  gap: var(--space-4, var(--space-4));
+  margin-block: var(--space-5);
   max-width: 44rem;
 }
 .inbox-list {
   list-style: none;
   padding: 0;
-  margin-block: 24px;
+  margin-block: var(--space-5);
 }
 .inbox-list > li {
-  padding-block: 24px;
+  padding-block: var(--space-5);
   border-bottom: 1px solid var(--border);
 }
 .inbox-text {
@@ -21,18 +21,18 @@
   font-weight: 600;
 }
 .inbox-empty {
-  margin-block: 32px;
+  margin-block: var(--space-6);
   max-width: 48ch;
 }
 .inbox-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+  gap: var(--space-3);
 }
 .inbox-fields > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 4px;
+  gap: var(--space-1);
 }
 .inbox-fields dd {
   margin: 0;
@@ -41,7 +41,7 @@
 .inbox-attach {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 44px;
   cursor: pointer;
 }
@@ -49,5 +49,5 @@
   width: 44px;
   height: 44px;
   flex-shrink: 0;
-  accent-color: var(--green);
+  accent-color: var(--action-ink);
 }

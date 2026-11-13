@@ -6,14 +6,14 @@
 
 .deadline-item {
   display: grid;
-  gap: 4px;
-  padding: 12px 0;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line);
 }
 
 .deadline-item__kind {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: var(--font-sm);
   font-weight: var(--weight-medium, 650);
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -29,19 +29,19 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
-  font-size: 0.9375rem;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--font-body);
 }
 
 .deadline-item__warn {
-  font-size: 0.875rem;
+  font-size: var(--font-sm);
 }
 
 .deadline-item__tools {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .deadline-item__tools .btn {
@@ -49,11 +49,11 @@
 }
 
 .deadline-item--editing {
-  padding-bottom: 16px;
+  padding-bottom: var(--space-4);
 }
 
 .deadline-add {
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }
 
 /* Форма срока */
@@ -62,15 +62,15 @@
 }
 
 .deadline-form > .field:first-child {
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .deadline-form .btn-row {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .deadline-warnings {
-  margin: 16px 0 0;
+  margin: var(--space-4) 0 0;
   padding: 0;
   border: 0;
   min-width: 0;
@@ -81,13 +81,13 @@
 }
 
 .deadline-warnings__custom {
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }
 
 .deadline-warnings__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 /* Радар */
@@ -96,21 +96,21 @@
 }
 
 .radar-view {
-  margin-top: 4px;
-  margin-bottom: 8px;
+  margin-top: var(--space-1);
+  margin-bottom: var(--space-2);
 }
 
 .radar-note {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .house-zone__save {
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 
 /* Коммунальные сроки в радаре (UTIL-13): объект первым, действия под пунктом, цели от 44 px */
 .radar-utility {
-  padding-bottom: 12px;
+  padding-bottom: var(--space-3);
 }
 
 .radar-utility .row {
@@ -119,8 +119,8 @@
 
 .radar-actions {
   display: grid;
-  gap: 8px;
-  padding-left: 52px;
+  gap: var(--space-2);
+  padding-left: calc(var(--tap) + var(--space-2));
 }
 
 .radar-actions__open {
@@ -130,7 +130,7 @@
 
 .radar-hint {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
 }
 
 .radar-hint a {
@@ -143,41 +143,41 @@
 /* Карточка «Открыто окно показаний» на «Сегодня» (UTIL-7) */
 .window-card {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .window-card__head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 10px;
+  gap: var(--space-1) var(--space-2);
 }
 
 .window-card__title {
-  font-size: 1.375rem;
+  font-size: var(--font-heading);
   font-weight: var(--weight-strong, 700);
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .window-card__until {
-  font-size: 1rem;
+  font-size: var(--font-body);
   font-weight: var(--weight-medium, 650);
 }
 
 .window-card__note {
   color: var(--muted);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
 }
 
 .window-card__empty {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .sheet__label {
-  margin: 12px 0 4px;
+  margin: var(--space-3) 0 var(--space-1);
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--font-sm);
   font-weight: var(--weight-medium, 650);
 }

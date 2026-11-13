@@ -49,7 +49,7 @@ html[data-motion-feed] {
   inset: 0;
 }
 .task-counts {
-  margin-block: 16px;
+  margin-block: var(--space-4);
   color: var(--muted);
 }
 [data-motion-flight] {
@@ -98,12 +98,12 @@ html[data-motion-feed] {
 html:not([data-motion-feed])::view-transition-new(screen),
 html:not([data-motion-feed])::view-transition-old(screen) {
   background: var(--paper);
-  border-radius: 32px 32px 0 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 html[data-motion-direction="forward"]:not([data-motion-feed])::view-transition-new(screen),
 html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(screen) {
   z-index: 1;
-  box-shadow: -16px 0 32px rgb(0 0 0 / 24%);
+  box-shadow: var(--motion-edge-shadow);
 }
 
 .list-skeleton {
@@ -112,27 +112,27 @@ html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(
 .list-skeleton__row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   min-height: 64px;
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
 }
 .list-skeleton__icon {
   width: 40px;
   height: 40px;
   flex: 0 0 auto;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--soft);
 }
 .list-skeleton__text {
   flex: 1;
   display: grid;
-  gap: 10px;
+  gap: var(--space-2);
 }
 .list-skeleton__text span {
   display: block;
   height: 12px;
   width: 78%;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--soft);
 }
 .list-skeleton__text span + span {
@@ -140,7 +140,7 @@ html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(
 }
 .sheet:not(.sheet--full) .sheet__header {
   position: relative;
-  padding-top: 24px;
+  padding-top: var(--space-5);
   touch-action: none;
 }
 .sheet:not(.sheet--full) .sheet__header::before {
@@ -150,7 +150,7 @@ html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(
   left: calc(50% - 18px);
   width: 36px;
   height: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--border);
 }
 .sheet[data-dragging],
@@ -160,8 +160,7 @@ html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(
 .sheet:not(.sheet--full)[data-dragging] {
   transition: none;
 }
-html[data-design="studio"] .row:active,
-html[data-design="studio"] .plan-row:active {
+html[data-design="studio"] :is(.row, .plan-row, .task-row, .shopping-row):active {
   background-color: var(--soft);
 }
 .topbar a:active {
@@ -217,17 +216,17 @@ html[data-design="studio"] .swipe-task__surface[data-dragging="true"] {
   width: 104px;
   min-height: 44px;
   border: 0;
-  padding: 8px;
+  padding: var(--space-2);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--font-sm);
 }
 .swipe-task__action--done {
   background: var(--success);
-  color: white;
+  color: var(--on-accent);
 }
 .swipe-task__action--trash {
   background: var(--danger);
-  color: white;
+  color: var(--on-accent);
   margin-left: auto;
 }
 .swipe-task__action[hidden] {
@@ -243,16 +242,16 @@ html[data-design="studio"] .swipe-task__surface[data-dragging="true"] {
 }
 /* Палец за порогом действия: фон темнеет, подпись говорит, что случится при отпускании. */
 .swipe-task[data-swipe-armed] {
-  box-shadow: inset 0 0 0 100vmax rgb(0 0 0 / 0.2);
+  box-shadow: inset 0 0 0 100vmax var(--swipe-armed-overlay);
 }
 .swipe-task[data-swipe-armed]::before {
   position: absolute;
   inset-block: 0;
   display: flex;
   align-items: center;
-  padding-inline: 16px;
-  color: white;
-  font-size: 0.8125rem;
+  padding-inline: var(--space-4);
+  color: var(--on-accent);
+  font-size: var(--font-sm);
   font-weight: 600;
 }
 .swipe-task[data-swipe-armed="done"]::before {
@@ -267,7 +266,7 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
   opacity: 1;
 }
 [data-motion-completed="true"] .plan-circle {
-  color: white;
+  color: var(--on-accent);
   background: var(--success);
   border-color: var(--success);
 }
@@ -343,10 +342,10 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     --feed-distance: 30%;
   }
   html[data-motion-feed]::view-transition-old(screen) {
-    animation: motion-feed-out var(--motion-base) var(--ease-out) both;
+    animation: motion-feed-out var(--motion-feed) var(--ease-out) both;
   }
   html[data-motion-feed]::view-transition-new(screen) {
-    animation: motion-feed-in var(--motion-base) var(--ease-out) both;
+    animation: motion-feed-in var(--motion-feed) var(--ease-out) both;
   }
   .swipe-task__surface {
     transition: transform var(--motion-base) var(--ease-out);
@@ -361,10 +360,10 @@ html[data-design="studio"] [data-motion-completed="true"] .task-completion-circl
     animation: motion-under-out var(--motion-screen) var(--ease-out) both;
   }
   html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-new(screen) {
-    animation: motion-under-in var(--motion-screen) var(--ease-out) both;
+    animation: motion-under-in var(--motion-close) var(--ease-out) both;
   }
   html[data-motion-direction="back"]:not([data-motion-feed])::view-transition-old(screen) {
-    animation: motion-side-out var(--motion-screen) var(--ease-out) both;
+    animation: motion-side-out var(--motion-close) var(--ease-out) both;
   }
   .sheet:not(.sheet--full) {
     transition: transform var(--motion-sheet) var(--ease-sheet);
@@ -432,7 +431,7 @@ html[data-design="studio"] .section-indicator:not([hidden]) {
   top: 0;
   left: 0;
   z-index: -1;
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
   background: var(--nav-active-bg);
   pointer-events: none;
 }
@@ -512,7 +511,7 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
     animation: motion-form-in var(--motion-sheet) var(--ease-out) both;
   }
   html[data-motion-direction][data-motion-form="back"]::view-transition-old(screen) {
-    animation: motion-form-out var(--motion-sheet) var(--ease-out) both;
+    animation: motion-form-out var(--motion-close) var(--ease-out) both;
   }
 }
 
@@ -537,8 +536,8 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
 }
 
 .motion-check {
-  padding: 16px;
-  margin-bottom: var(--chrome-clearance, 100px);
+  padding: var(--space-4);
+  margin-bottom: var(--chrome-clearance, calc(var(--space-6) * 3 + var(--space-1)));
 }
 .motion-check summary,
 .motion-check label {
@@ -547,7 +546,7 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
 .motion-check label {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .motion-check input {
@@ -618,7 +617,7 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
   top: 0;
   z-index: -1;
   background: var(--soft);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   pointer-events: none;
   transition:
     transform var(--motion-base) var(--ease-out),
@@ -655,14 +654,9 @@ html[data-design="studio"] :is(.bottom-nav__link, .side-nav__link)[aria-current=
 }
 html[data-design="studio"] .tab-indicator {
   display: block;
-  background: var(--fill-accent);
-  border-radius: 0;
+  background: var(--tabs-on-bg);
+  border-radius: var(--radius-md);
 }
-html[data-design="studio"] .tabs .tabs__link[aria-current="page"] {
-  background: transparent;
-  border-color: transparent;
-}
-
 html[data-design="studio"] .today-metric {
   min-inline-size: 44px;
 }

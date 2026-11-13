@@ -10,7 +10,7 @@ html[data-design="studio"] .studio-list-page {
   background: var(--charcoal);
 }
 html[data-design="studio"] .studio-list-page > .back-link {
-  margin: 0 20px;
+  margin: 0 var(--space-4);
   color: var(--muted-on-dark);
 }
 html[data-design="studio"] .studio-list-page > .page-heading {
@@ -18,10 +18,10 @@ html[data-design="studio"] .studio-list-page > .page-heading {
   color: var(--on-dark);
 }
 html[data-design="studio"] .studio-list-hero {
-  padding: 12px 20px 20px;
+  padding: var(--space-3) var(--space-4) var(--space-4);
 }
 html[data-design="studio"] .studio-list-hero h1 {
-  font-size: 1.75rem;
+  font-size: var(--font-display);
   font-weight: 300;
   line-height: 1.2;
 }
@@ -29,8 +29,8 @@ html[data-design="studio"] .studio-list-count {
   color: var(--muted-on-dark);
 }
 html[data-design="studio"] .studio-list-summary {
-  margin-top: 12px;
-  font-size: 1.25rem;
+  margin-top: var(--space-3);
+  font-size: var(--font-heading);
   font-weight: 300;
   line-height: 1.45;
 }
@@ -45,7 +45,8 @@ html[data-design="studio"] .studio-list-summary .text-button {
 html[data-design="studio"] .studio-list-panel {
   position: relative;
   min-height: 60vh;
-  padding: 24px 16px calc(var(--nav-height) + 40px + env(safe-area-inset-bottom));
+  padding: var(--space-5) var(--space-4)
+    calc(var(--nav-height) + calc(var(--space-6) + var(--space-2)) + env(safe-area-inset-bottom));
 }
 html[data-design="studio"] .today-tabs .tabs {
   overflow-x: auto;
@@ -67,40 +68,39 @@ html[data-design="studio"] .today-tabs .tabs__link {
 }
 html[data-design="studio"] .studio-filters {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   max-width: 100%;
   overflow-x: auto;
   scrollbar-width: none;
-  padding-block: 4px;
-  margin-block: 8px;
+  padding-block: var(--space-1);
+  margin-block: var(--space-2);
   border: 0;
   padding-inline: 0;
   min-width: 0;
-  mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - var(--gutter)), transparent);
 }
 html[data-design="studio"] .studio-filter {
   flex: none;
   min-height: 44px;
-  padding: 8px 14px;
-  border: 1px solid var(--border);
-  border-radius: 99px;
-  background: transparent;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
   color: inherit;
-  font-size: 0.84375rem;
+  font-size: var(--font-sm);
   white-space: nowrap;
 }
 html[data-design="studio"] .studio-filter[aria-pressed="true"] {
-  background: var(--pressed-bg);
-  border-color: var(--pressed-bg);
-  color: var(--pressed-fg);
+  background: var(--chip-bg);
+  color: var(--chip-fg);
 }
 html[data-design="studio"] .studio-list-options > summary,
 html[data-design="studio"] .studio-radar-fold > summary,
 html[data-design="studio"] .shopping-bought > summary {
   min-height: 44px;
-  padding-block: 12px;
+  padding-block: var(--space-3);
   cursor: pointer;
-  font-size: 0.8125rem;
+  font-size: var(--font-sm);
   overflow-wrap: anywhere;
 }
 html[data-design="studio"] .shopping-bought {
@@ -117,29 +117,29 @@ html[data-design="studio"] .shopping-bought > .task-list {
 }
 html[data-design="studio"] .studio-radar-fold {
   border-top: 1px solid var(--line);
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 html[data-design="studio"] .studio-segments {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-1);
   width: fit-content;
   max-width: 100%;
-  padding: 3px;
-  border-radius: 24px;
+  padding: var(--space-1);
+  border-radius: var(--radius-xl);
   background: var(--hdr-pill-2);
-  margin-block: 12px;
+  margin-block: var(--space-3);
   border: 0;
   min-width: 0;
 }
 html[data-design="studio"] .studio-segments > button {
   min-height: 44px;
-  padding: 8px 14px;
+  padding: var(--space-2) var(--space-3);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
   background: transparent;
   color: var(--muted-on-dark);
-  font-size: 0.84375rem;
+  font-size: var(--font-sm);
 }
 html[data-design="studio"] .studio-segments > button[aria-pressed="true"] {
   background: var(--hseg-on-bg);
@@ -157,12 +157,12 @@ html[data-design="studio"] .studio-radar-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  padding: 6px;
+  padding: var(--space-2);
 }
 html[data-design="studio"] .studio-radar-row__record {
   flex: 1 1 240px;
   min-width: 0;
-  padding: 6px;
+  padding: var(--space-2);
 }
 html[data-design="studio"] .studio-radar-row :is(.row__title, .row__meta) {
   overflow-wrap: normal;
@@ -173,13 +173,13 @@ html[data-design="studio"] .studio-radar-row__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-1);
   margin-left: auto;
   max-width: 100%;
 }
 html[data-design="studio"] .studio-radar-access {
   display: inline-flex;
-  margin-inline-start: 6px;
+  margin-inline-start: var(--space-2);
   vertical-align: middle;
 }
 html[data-design="studio"] .studio-radar-row__actions .radar-actions {
@@ -188,12 +188,12 @@ html[data-design="studio"] .studio-radar-row__actions .radar-actions {
 html[data-design="studio"] .studio-radar-row__actions .btn {
   width: auto;
   min-height: 44px;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--paper);
   color: var(--ink);
-  font-size: 0.84375rem;
+  font-size: var(--font-sm);
   overflow-wrap: anywhere;
   white-space: normal;
 }
@@ -208,7 +208,7 @@ html[data-design="studio"] .shopping-page .task-list {
   overflow: hidden;
   border: 0;
   background: var(--surface);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
 }
 html[data-design="studio"] .shopping-page .task-row {
   display: grid;
@@ -226,7 +226,7 @@ html[data-design="studio"] .shopping-page .check-toggle,
 html[data-design="studio"] .shopping-page .shopping-row__spacer {
   width: var(--tap);
   height: var(--tap);
-  margin: 0 -10px;
+  margin: 0 calc(-1 * var(--space-2));
 }
 html[data-design="studio"] .shopping-page .check-toggle {
   /* Зона нажатия 44 px заходит в поля строки, квадрат 24 px стоит на 16 px. */
@@ -235,7 +235,7 @@ html[data-design="studio"] .shopping-page .check-toggle {
 html[data-design="studio"] .shopping-page .check-toggle__circle {
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 html[data-design="studio"] .shopping-page .task-row__body {
   display: flex;
@@ -268,7 +268,7 @@ html[data-design="studio"] .shopping-quantity {
   justify-content: center;
   min-width: var(--tap);
   min-height: var(--tap);
-  margin-inline-end: -10px;
+  margin-inline-end: calc(-1 * var(--space-2));
   padding: 0 var(--space-2);
   border: 0;
   background: transparent;
@@ -287,7 +287,7 @@ html[data-design="studio"] .shopping-quantity--button[aria-expanded="true"] {
 html[data-design="studio"] .shopping-page .shopping-steps {
   grid-column: 2 / -1;
   justify-self: end;
-  margin-inline-end: -10px;
+  margin-inline-end: calc(-1 * var(--space-2));
 }
 html[data-design="studio"] .shopping-page .shopping-quick__line > .input {
   width: 100%;
@@ -298,7 +298,7 @@ html[data-design="studio"] .notes-pinned {
   margin: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--space-2);
 }
 html[data-design="studio"] .notes-pinned__item {
   min-width: 0;
@@ -306,29 +306,29 @@ html[data-design="studio"] .notes-pinned__item {
 html[data-design="studio"] .notes-pinned__card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 120px;
   height: 100%;
-  padding: 14px;
+  padding: var(--space-3);
   background: var(--surface);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   text-decoration: none;
   color: var(--ink);
   overflow-wrap: anywhere;
 }
 html[data-design="studio"] .notes-pinned__title {
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
   font-weight: 500;
 }
 html[data-design="studio"] .notes-pinned__meta {
   margin-top: auto;
-  font-size: 0.75rem;
+  font-size: var(--font-xs);
   color: var(--muted);
 }
 @media (min-width: 960px) {
   html[data-design="studio"] .studio-list-hero,
   html[data-design="studio"] .studio-list-panel {
-    padding-inline: 32px;
+    padding-inline: var(--space-6);
   }
 }
 
@@ -345,14 +345,14 @@ html[data-design="studio"] .feed-page > .page-heading {
   flex-direction: column;
   justify-content: center;
   min-height: 112px;
-  padding: 16px var(--gutter);
+  padding: var(--space-4) var(--gutter);
   color: var(--on-dark);
 }
 html[data-design="studio"] .feed-heading .page-heading__eyebrow {
   color: var(--muted-on-dark);
 }
 .feed-heading__summary {
-  font-size: 1.125rem;
+  font-size: var(--font-title);
   line-height: 1.5;
   min-height: 3em;
 }
@@ -371,15 +371,16 @@ html[data-design="studio"] .feed-heading .page-heading__eyebrow {
   visibility: hidden;
 }
 .feed-heading__greeting {
-  margin: 2px 0 0;
-  font-size: 1.375rem;
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-heading);
   font-weight: 300;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
 .feed-panel {
   min-width: 0;
-  padding: 16px var(--gutter) calc(var(--nav-height) + 56px + env(safe-area-inset-bottom));
+  padding: var(--space-4) var(--gutter)
+    calc(var(--nav-height) + calc(var(--space-6) + var(--space-5)) + env(safe-area-inset-bottom));
 }
 .feed-carousel {
   overflow: clip;
@@ -389,13 +390,13 @@ html[data-design="studio"] .feed-heading .page-heading__eyebrow {
   position: relative;
 }
 html[data-design="studio"] .feed-overview .today-hero {
-  padding: 8px 0 16px;
+  padding: var(--space-2) 0 var(--space-4);
   background: var(--paper);
   color: var(--ink);
 }
 html[data-design="studio"] .feed-overview .today-hero__greeting {
   min-block-size: 0;
-  font-size: 1rem;
+  font-size: var(--font-body);
   line-height: 1.5;
   letter-spacing: normal;
 }
@@ -433,9 +434,9 @@ html[data-design="studio"] .feed-carousel .studio-list-panel {
 }
 @media (min-width: 960px) {
   .feed-heading {
-    padding-inline: 32px;
+    padding-inline: var(--space-6);
   }
   .feed-panel {
-    padding-inline: 32px;
+    padding-inline: var(--space-6);
   }
 }

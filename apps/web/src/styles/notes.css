@@ -3,9 +3,9 @@
 /* Текст заметки в Markdown. Заголовок самой заметки — h1, поэтому заголовки текста начинаются с h2. */
 .markdown {
   display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
-  font-size: 1.0625rem;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  font-size: var(--font-title);
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
@@ -15,30 +15,30 @@
 .markdown h4,
 .markdown h5,
 .markdown h6 {
-  margin-top: 6px;
+  margin-top: var(--space-2);
   font-weight: var(--weight-strong, 700);
   line-height: 1.3;
 }
 
 .markdown h2 {
-  font-size: 1.3125rem;
+  font-size: var(--font-heading);
 }
 
 .markdown h3 {
-  font-size: 1.1875rem;
+  font-size: var(--font-title);
 }
 
 .markdown h4,
 .markdown h5,
 .markdown h6 {
-  font-size: 1.0625rem;
+  font-size: var(--font-title);
 }
 
 .markdown ul,
 .markdown ol {
   display: grid;
-  gap: 4px;
-  padding-left: 24px;
+  gap: var(--space-1);
+  padding-left: var(--space-5);
 }
 
 .markdown ul {
@@ -50,22 +50,22 @@
 }
 
 .markdown blockquote {
-  padding-left: 14px;
+  padding-left: var(--space-3);
   border-left: 3px solid var(--border);
   color: var(--muted);
 }
 
 .markdown code {
-  padding: 1px 5px;
-  border-radius: 6px;
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-sm);
   background: var(--soft);
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  font-size: 0.9375em;
+  font-size: var(--font-body);
 }
 
 .markdown pre {
-  padding: 12px;
-  border-radius: 10px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
   background: var(--soft);
   white-space: pre-wrap;
 }
@@ -86,8 +86,8 @@
   display: inline-block;
   min-width: var(--tap);
   min-height: var(--tap);
-  margin: -11px -2px;
-  padding: 11px 2px;
+  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-1));
+  padding: var(--space-3) var(--space-1);
   text-align: center;
 }
 
@@ -97,7 +97,7 @@
 }
 
 .note-form .btn-row {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .note-form__body {
@@ -106,7 +106,7 @@
 
 .checklist-edit {
   min-width: 0;
-  margin: 18px 0 0;
+  margin: var(--space-4) 0 0;
   padding: 0;
   border: 0;
 }
@@ -117,21 +117,21 @@
 
 .checklist-edit__list {
   display: grid;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .checklist-edit__item {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
-  padding-bottom: 10px;
+  gap: var(--space-1) var(--space-2);
+  padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--line);
 }
 
 .checklist-edit__item .check-toggle {
-  margin-left: -8px;
+  margin-left: calc(-1 * var(--space-2));
 }
 
 .checklist-edit__title {
@@ -143,7 +143,7 @@
   display: flex;
   flex: 1 0 100%;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .icon-button[disabled] {
@@ -156,9 +156,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 52px;
-  margin-top: 8px;
+  margin-top: var(--space-2);
   cursor: pointer;
 }
 
@@ -179,7 +179,7 @@
   width: 26px;
   height: 26px;
   border: 1.5px solid var(--muted);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--on-accent);
 }
@@ -190,7 +190,7 @@
 }
 
 .check-line input:focus-visible + .check-line__box {
-  outline: 3px solid var(--green);
+  outline: 3px solid var(--action-ink);
   outline-offset: 3px;
 }
 
@@ -201,16 +201,16 @@
 
 /* Подпись доступа в карточке */
 .access-card__note {
-  margin-top: 10px;
+  margin-top: var(--space-2);
 }
 
 .note-meta-pin {
-  margin-left: 4px;
+  margin-left: var(--space-1);
 }
 
 /* Корзина */
 .trash-lead {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .trash-list {
@@ -219,11 +219,11 @@
 
 .trash-item {
   display: grid;
-  gap: 8px;
-  padding-bottom: 14px;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--line);
 }
 
 .trash-item__note {
-  padding-left: 52px;
+  padding-left: calc(var(--tap) + var(--space-2));
 }

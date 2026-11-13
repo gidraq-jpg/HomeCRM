@@ -252,7 +252,7 @@ for (const reduce of [false, true])
         expect(
           JSON.parse((await page.locator('html').getAttribute('data-observed-feed')) ?? '{}')
             .options.duration,
-        ).toBe(450);
+        ).toBe(350);
       await swipe(page, page.locator('.plan-day__title').first(), -120);
       await expect(page).toHaveURL(/#\/today\/all$/);
       await settle(page);
