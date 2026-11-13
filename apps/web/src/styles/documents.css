@@ -1,7 +1,7 @@
 /* Документы (DOC-1…7): список, карточка, форма, версии. Цели нажатия — не меньше 44 px (--tap). */
 
 .document-filters {
-  margin-bottom: 18px;
+  margin-bottom: var(--space-4);
 }
 
 .document-filters .chip-group {
@@ -9,7 +9,7 @@
 }
 
 .row__state {
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .document-form {
@@ -17,11 +17,11 @@
 }
 
 .document-form .btn-row {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .document-form .check-line {
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 
 /* Серия и номер: скрыты до нажатия «Показать» */
@@ -30,7 +30,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px 8px;
+  gap: var(--space-2) var(--space-2);
   min-width: 0;
 }
 
@@ -57,8 +57,8 @@
 
 .version {
   display: grid;
-  gap: 4px;
-  padding: 12px 0;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -66,12 +66,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 10px;
+  gap: var(--space-1) var(--space-2);
 }
 
 .version__meta {
   color: var(--muted);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
   overflow-wrap: anywhere;
 }
 
@@ -81,5 +81,5 @@
 
 /* Блок «Кто видит» после кнопок действий не прилипает к ним */
 .btn-row + .section {
-  margin-top: 22px;
+  margin-top: var(--space-5);
 }

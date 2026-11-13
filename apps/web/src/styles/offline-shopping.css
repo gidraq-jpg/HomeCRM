@@ -5,7 +5,7 @@
 }
 .shopping-quick__line {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .shopping-quick__line .input {
   min-width: 0;
@@ -15,7 +15,7 @@
   flex: 0 0 44px;
 }
 .shopping-bought {
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }
 .shopping-bought summary {
   min-height: 44px;
@@ -30,10 +30,10 @@
   overflow-wrap: anywhere;
 }
 .offline-status {
-  padding: 8px 16px;
-  font-size: 0.875rem;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-sm);
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
   align-items: center;
 }
@@ -43,12 +43,12 @@
   align-items: center;
 }
 .offline-queue-item {
-  padding: 16px 0;
+  padding: var(--space-4) 0;
   border-bottom: 1px solid var(--border);
   overflow-wrap: anywhere;
 }
 .offline-queue-item .btn-row {
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }
 
 .shopping-row-link {

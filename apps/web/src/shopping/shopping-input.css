@@ -18,5 +18,5 @@
   flex: none;
 }
 .shopping-quick {
-  scroll-margin-top: calc(var(--task-header-height, 88px) + 72px);
+  scroll-margin-top: calc(var(--task-header-height, 88px) + var(--space-6) * 2 + var(--space-2));
 }

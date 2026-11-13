@@ -5,18 +5,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 12px;
+  gap: var(--space-2) var(--space-3);
 }
 
 .row__status {
   display: inline-flex;
-  margin-left: 8px;
+  margin-left: var(--space-2);
   vertical-align: middle;
 }
 
 /* Форма недвижимости */
 .property-fields {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .property-fields > .field:first-of-type {
@@ -24,7 +24,7 @@
 }
 
 .property-fields__owners {
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 
 /* Телефоны организации */
@@ -34,8 +34,8 @@
 
 .phone-item {
   display: grid;
-  gap: 8px;
-  padding: 12px 0;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -43,25 +43,25 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 10px;
+  gap: var(--space-1) var(--space-2);
 }
 
 .phone-item__number {
-  font-size: 1.125rem;
+  font-size: var(--font-title);
   font-weight: var(--weight-medium, 650);
   overflow-wrap: anywhere;
 }
 
 .phone-item__label {
   color: var(--muted);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
   overflow-wrap: anywhere;
 }
 
 .phone-item__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .phone-item__actions .btn {
@@ -72,14 +72,14 @@
 .phone-edit__item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--tap);
-  gap: 4px 8px;
-  padding-bottom: 10px;
+  gap: var(--space-1) var(--space-2);
+  padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--line);
 }
 
 .phone-edit__fields {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .phone-edit__item > .icon-button {
@@ -101,11 +101,11 @@
 }
 
 .account-card > .facts {
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 
 .account-card > .btn-row {
-  margin-top: 14px;
+  margin-top: var(--space-3);
 }
 
 .account-card .facts dd svg {
@@ -117,21 +117,21 @@
 }
 
 .account-form .btn-row {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .account-form__services {
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 
 .account-form__new {
-  margin-top: 10px;
+  margin-top: var(--space-2);
 }
 
 .account-form__days {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .account-form__days .field {
@@ -142,9 +142,9 @@
 .role-suggestions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
-  margin: 10px 0 0;
+  margin: var(--space-2) 0 0;
   padding: 0;
   border: 0;
 }
@@ -155,11 +155,11 @@
   justify-content: center;
   min-width: var(--tap);
   min-height: var(--tap);
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--ink);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
   font-weight: 500;
 }

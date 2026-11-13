@@ -329,7 +329,7 @@ for (const reduce of [false, true]) {
                   (animation.effect as KeyframeEffect).getKeyframes().some((frame) => frame.height),
                 );
                 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-                if (reduce ? !collapse : collapse?.effect?.getTiming().delay === 560) {
+                if (reduce ? !collapse : collapse?.effect?.getTiming().delay === 360) {
                   document.documentElement.dataset.completionCollapse = 'true';
                   observer.disconnect();
                 }

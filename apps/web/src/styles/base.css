@@ -14,7 +14,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
-  font-size: 1rem;
+  font-size: var(--font-body);
   line-height: 1.45;
   overflow-wrap: break-word;
 }
@@ -51,11 +51,11 @@ button {
 }
 
 a {
-  color: var(--green);
+  color: var(--action-ink);
 }
 
 :focus-visible {
-  outline: 3px solid var(--green);
+  outline: 3px solid var(--action-ink);
   outline-offset: 2px;
 }
 

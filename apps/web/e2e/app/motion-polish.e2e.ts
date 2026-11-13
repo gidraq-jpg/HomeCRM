@@ -178,7 +178,7 @@ for (const reduce of [false, true])
       expect(motion.header).toBe('none');
       if (!reduce) {
         expect(motion.shadow).not.toBe('none');
-        expect(motion.radius).toBe('32px');
+        expect(motion.radius).toBe('20px');
       }
       await check(page, info, `card-${reduce}`);
       await page.getByRole('button', { name: 'Править дело', exact: true }).click();
@@ -252,7 +252,7 @@ for (const reduce of [false, true])
         expect(
           JSON.parse((await page.locator('html').getAttribute('data-observed-feed')) ?? '{}')
             .options.duration,
-        ).toBe(450);
+        ).toBe(350);
       await swipe(page, page.locator('.plan-day__title').first(), -120);
       await expect(page).toHaveURL(/#\/today\/all$/);
       await settle(page);

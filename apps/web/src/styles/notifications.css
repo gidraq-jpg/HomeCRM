@@ -1,18 +1,18 @@
 /* Уведомления: карточка на «Сегодня», экран «Уведомления», журнал доставки. Цели нажатия — не меньше 44 px. */
 
 .push-card {
-  margin: 18px 0;
+  margin: var(--space-4) 0;
 }
 
 .notif-form + .section {
-  margin-top: 28px;
+  margin-top: var(--space-6);
 }
 
 .push-card__head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .push-card__icon {
@@ -21,29 +21,29 @@
   place-items: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--soft);
-  color: var(--green);
+  color: var(--action-ink);
 }
 
 .push-card .btn-row {
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 .notif-help {
   display: grid;
-  gap: 8px;
-  margin: 10px 0 14px;
-  padding: 12px 14px;
-  border-radius: 10px;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-md);
   background: var(--soft);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
 }
 
 .notif-help ol {
   display: grid;
-  gap: 6px;
-  padding-left: 22px;
+  gap: var(--space-2);
+  padding-left: var(--space-5);
   list-style: decimal;
 }
 
@@ -54,20 +54,20 @@
 .notif-form > .btn,
 .notif-form > .auth-notice,
 .notif-form > .field__error {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .notif-time {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .check-hint {
   display: block;
-  margin-top: 2px;
+  margin-top: var(--space-1);
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--font-sm);
   font-weight: 400;
   line-height: 1.4;
 }
@@ -82,15 +82,15 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px 12px;
-  padding: 12px 0;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line);
 }
 
 .device__body {
   display: grid;
   flex: 1 1 200px;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: 0;
   justify-items: start;
   overflow-wrap: anywhere;
@@ -98,14 +98,14 @@
 
 .device__body p {
   color: var(--muted);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
 }
 
 .log-item {
   display: grid;
   justify-items: start;
-  gap: 3px;
-  padding: 12px 0;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line);
   overflow-wrap: anywhere;
 }
@@ -113,9 +113,9 @@
 .log-item__kind,
 .log-item__device {
   color: var(--muted);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
 }
 
 .log-list {
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }

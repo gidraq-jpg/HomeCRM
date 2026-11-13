@@ -67,7 +67,7 @@ for (const reduce of [false, true])
           'data-d44-paused',
           'true',
         );
-        const duration = reduce ? 160 : kind === 'form' ? 300 : 330;
+        const duration = reduce ? 160 : { form: 300, side: 330, back: 220 }[kind];
         const values = [];
         for (const [label, at] of [
           ['start', 0],

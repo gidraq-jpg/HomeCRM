@@ -3,26 +3,26 @@
 .avatar--large {
   width: 64px;
   height: 64px;
-  border-radius: 18px;
-  font-size: 1.5rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-heading);
 }
 
 .member-head {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .member-head__text {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
   justify-items: start;
 }
 
 .member-head__name {
-  font-size: 1.125rem;
+  font-size: var(--font-title);
   font-weight: var(--weight-medium, 650);
   overflow-wrap: anywhere;
 }
@@ -30,7 +30,7 @@
 /* Выбор роли: плашки на всю ширину, у каждой пояснение. */
 .choice-group {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -38,9 +38,9 @@
 }
 
 .choice-group__legend {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   padding: 0;
-  font-size: 0.875rem;
+  font-size: var(--font-sm);
   font-weight: var(--weight-medium, 600);
 }
 
@@ -61,11 +61,11 @@
 
 .choice__body {
   display: grid;
-  gap: 2px;
+  gap: var(--space-1);
   min-height: 56px;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
   background: var(--surface);
 }
 
@@ -75,36 +75,35 @@
 
 .choice__hint {
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--font-sm);
   line-height: 1.4;
 }
 
 .choice input:checked + .choice__body {
-  border-color: var(--green);
-  background: var(--soft);
-  box-shadow: inset 0 0 0 1px var(--green);
+  background: var(--chip-bg, var(--soft));
+  color: var(--chip-fg, var(--ink));
 }
 
 .choice input:focus-visible + .choice__body {
-  outline: 3px solid var(--green);
+  outline: 3px solid var(--action-ink);
   outline-offset: 2px;
 }
 
 .invite-form,
 .profile-form {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .invite-form > .btn,
 .invite-form > .auth-notice {
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }
 
 .admin-actions {
   display: grid;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .admin-actions .muted svg {
@@ -114,42 +113,41 @@
 /* Выданная ссылка: сервер показывает её один раз */
 .issued-link {
   display: grid;
-  gap: 10px;
-  margin: 12px 0;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
 }
 
 .issued-link__text {
   margin: 0;
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  font-size: 0.9375rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-body);
 }
 
 .visibility-list {
   display: grid;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
 .visibility-list li {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   justify-items: start;
 }
 
 .visibility-list p {
   color: var(--muted);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
 }
 
 .sheet__lead {
-  margin-top: 8px;
+  margin-top: var(--space-2);
   font-weight: var(--weight-medium, 650);
 }
 
 .more-note {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .add-note {
-  margin-top: 14px;
+  margin-top: var(--space-3);
 }

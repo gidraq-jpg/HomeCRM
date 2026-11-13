@@ -6,42 +6,42 @@
 }
 .task-form .field,
 .task-repeat .field {
-  margin-block: 16px;
+  margin-block: var(--space-4);
 }
 .task-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 .task-repeat,
 .task-checklist {
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 12px;
-  margin-block: 20px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-block: var(--space-4);
   min-width: 0;
 }
 .task-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .task-chip {
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   max-width: 100%;
 }
 .task-weekday,
 .task-check-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 44px;
 }
 .task-weekday {
-  padding-inline: 8px;
+  padding-inline: var(--space-2);
 }
 .task-weekday input,
 .task-check-row input {
@@ -56,8 +56,8 @@
   padding: 0;
 }
 .task-edit-list > li {
-  margin-block: 16px;
-  padding-block: 12px;
+  margin-block: var(--space-4);
+  padding-block: var(--space-3);
   border-bottom: 1px solid var(--line);
 }
 .task-description {
@@ -66,26 +66,26 @@
 }
 .task-completed summary {
   min-height: 44px;
-  padding-block: 12px;
+  padding-block: var(--space-3);
   cursor: pointer;
 }
 .task-link-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
-  margin-block: 12px;
+  margin-block: var(--space-3);
 }
 .task-history > li {
   border-bottom: 1px solid var(--line);
-  padding-block: 8px;
+  padding-block: var(--space-2);
 }
 .task-responsible {
-  margin-block: 16px;
+  margin-block: var(--space-4);
 }
 .list-action + .section,
 .btn-row + .section {
-  margin-top: 22px;
+  margin-top: var(--space-5);
 }
 .task-form input[type="date"],
 .task-form input[type="time"] {
@@ -95,13 +95,13 @@
 .task-actions {
   display: grid;
   justify-items: start;
-  gap: 8px;
-  margin-block: 16px 22px;
+  gap: var(--space-2);
+  margin-block: var(--space-4) var(--space-5);
 }
 .task-actions__help {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
+  gap: var(--space-1) var(--space-4);
 }
 .task-actions__help .text-button {
   min-width: 0;
@@ -112,7 +112,7 @@
 }
 .task-quickline .task-form__fields {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
   justify-items: start;
 }
 .task-quickline .field {
@@ -120,7 +120,7 @@
   margin: 0;
 }
 .task-quickline__hint {
-  font-size: 0.875rem;
+  font-size: var(--font-sm);
 }
 .task-quickline__title {
   overflow-wrap: anywhere;
@@ -132,7 +132,7 @@
   min-width: 0;
   overflow-wrap: anywhere;
   text-align: left;
-  padding-inline: 8px;
+  padding-inline: var(--space-2);
 }
 .task-focus .focus__title {
   overflow-wrap: anywhere;
@@ -144,13 +144,13 @@
   flex-basis: 140px;
 }
 .task-completed {
-  margin-bottom: 22px;
+  margin-bottom: var(--space-5);
 }
 
 .task-filters {
   display: grid;
-  gap: 12px;
-  margin-block: 16px 22px;
+  gap: var(--space-3);
+  margin-block: var(--space-4) var(--space-5);
 }
 .task-filters .field {
   margin: 0;

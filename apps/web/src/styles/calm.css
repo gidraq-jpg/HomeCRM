@@ -1,9 +1,8 @@
 /* UI-1…8: локальный эксперимент «Спокойный интерфейс».
    Палитра Studio и движение остаются общими; меняется композиция поверхностей. */
 :root[data-design="studio"] {
-  --studio-group-radius: 16px;
-  --studio-field-radius: 12px;
-  --gutter: 20px;
+  --studio-group-radius: var(--radius-lg);
+  --studio-field-radius: var(--radius-md);
   --nav-height: 76px;
   scrollbar-color: var(--border) var(--paper);
   caret-color: var(--accent);
@@ -15,12 +14,12 @@ html[data-design="studio"] ::selection {
 }
 
 html[data-design="studio"] .topbar {
-  padding: calc(6px + env(safe-area-inset-top)) 16px 6px;
-  gap: 2px;
+  padding: calc(var(--space-2) + env(safe-area-inset-top)) var(--space-4) var(--space-2);
+  gap: var(--space-1);
 }
 
 html[data-design="studio"] .scope-button {
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 html[data-design="studio"] .app .main,
@@ -57,29 +56,29 @@ html[data-design="studio"] .app .studio-list-page {
 
 html[data-design="studio"] .feed-heading {
   min-height: 104px;
-  padding-block: 16px;
+  padding-block: var(--space-4);
 }
 
 html[data-design="studio"] .feed-heading__summary {
   min-height: 1.5em;
-  font-size: 1rem;
+  font-size: var(--font-body);
   color: var(--muted-on-dark);
 }
 
 html[data-design="studio"]
   :is(.page-heading h1, .studio-list-hero h1, .object-hero h1, .feed-heading__greeting) {
-  font-size: 1.625rem;
+  font-size: var(--font-display);
   font-weight: 500;
   line-height: 1.25;
   letter-spacing: -0.025em;
 }
 
 html[data-design="studio"] .feed-heading__greeting {
-  font-size: 1.375rem;
+  font-size: var(--font-heading);
 }
 
 html[data-design="studio"] :is(.studio-list-hero, .object-hero) {
-  padding: 16px var(--gutter) 20px;
+  padding: var(--space-4) var(--gutter) var(--space-4);
 }
 
 html[data-design="studio"]
@@ -119,44 +118,38 @@ html[data-design="studio"] .object-access-trigger {
 }
 
 html[data-design="studio"] .studio-list-summary {
-  margin-top: 8px;
-  font-size: 1rem;
+  margin-top: var(--space-2);
+  font-size: var(--font-body);
   font-weight: 400;
 }
 
 html[data-design="studio"] :is(.feed-panel, .studio-list-panel, .object-panel, .today-panel) {
-  padding-top: 16px;
+  padding-top: var(--space-4);
 }
 
 /* Один движущийся выбранный сегмент вместо линии и второй подсветки. */
 html[data-design="studio"] .tabs__list,
 html[data-design="studio"] .today-tabs .tabs__list,
 html[data-design="studio"] .object-panel .tabs__list {
-  gap: 4px;
-  padding: 4px;
+  gap: var(--space-1);
+  padding: var(--space-1);
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--soft);
 }
 
 html[data-design="studio"] .tabs .tabs__link {
   min-height: 44px;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border: 0;
-  border-radius: 12px;
-  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
   color: var(--ink);
 }
 
 html[data-design="studio"] .studio-list-page > .back-link,
 html[data-design="studio"] .ui7-fullscreen-form .ui7-form-heading > .back-link {
   color: var(--accent-on-dark);
-}
-
-html[data-design="studio"] .tab-indicator {
-  border: 1px solid var(--tabs-on-border);
-  border-radius: 12px;
-  background: var(--tabs-on-bg);
 }
 
 html[data-design="studio"] .tabs .tabs__link[aria-current="page"] {
@@ -169,7 +162,7 @@ html[data-design="studio"] .fab {
   height: var(--fab-size);
   min-width: 44px;
   min-height: 44px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: var(--fill-accent);
   color: var(--on-accent);
   box-shadow: var(--shadow-float);
@@ -177,7 +170,7 @@ html[data-design="studio"] .fab {
 
 /* Только действия: аватары, статусы и круги выбора сохраняют свою семантику. */
 html[data-design="studio"] :is(.icon-button, .chip-button, .chip__label) {
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 html[data-design="studio"]
@@ -190,7 +183,7 @@ html[data-design="studio"]
     .studio-segments,
     .studio-segments > button
   ) {
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 html[data-design="studio"] .studio-segments {
@@ -198,22 +191,20 @@ html[data-design="studio"] .studio-segments {
 }
 
 html[data-design="studio"] .studio-segments > button {
-  border: 1px solid transparent;
   color: var(--ink);
 }
 
 html[data-design="studio"] .studio-segments > button[aria-pressed="true"] {
-  border-color: var(--border);
-  background: var(--surface);
-  color: var(--ink);
+  background: var(--seg-on-bg);
+  color: var(--seg-on-fg);
 }
 
 html[data-design="studio"]
   :is(.row-list, .window-card, .notes-pinned__card, .shopping-page .task-list, .task-focus) {
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  border: 0;
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: none;
+  box-shadow: var(--shadow-raised);
 }
 
 html[data-design="studio"] .row-list > li + li {
@@ -221,15 +212,15 @@ html[data-design="studio"] .row-list > li + li {
 }
 
 html[data-design="studio"] .feed-panel .task-focus {
-  padding: 16px;
+  padding: var(--space-4);
 }
 
 html[data-design="studio"] .row {
-  padding: 14px 12px;
+  padding: var(--space-3) var(--space-3);
 }
 
 html[data-design="studio"] .row__title {
-  font-size: 1rem;
+  font-size: var(--font-body);
   font-weight: 500;
   line-height: 1.4;
 }
@@ -246,16 +237,16 @@ html[data-design="studio"] :is(.section__title, .studio-list-panel .section__tit
 }
 
 html[data-design="studio"] .bottom-nav {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
 }
 
 html[data-design="studio"] .bottom-nav__link,
 html[data-design="studio"] .section-indicator:not([hidden]) {
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 html[data-design="studio"] .sheet:not(.sheet--full) {
-  border-radius: 16px 16px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 /* При увеличении текста аудитории перестраиваются целыми целями нажатия. */
@@ -274,7 +265,7 @@ html[data-design="studio"] .visibility__options {
 
 @media (min-width: 960px) {
   html[data-design="studio"] :is(.studio-list-hero, .object-hero) {
-    padding-inline: 32px;
+    padding-inline: var(--space-6);
   }
 }
 
@@ -283,10 +274,10 @@ html[data-design="studio"] .visibility__options {
     --gutter: 12px;
   }
   html[data-design="studio"] .topbar {
-    padding-inline: 8px;
+    padding-inline: var(--space-2);
   }
   html[data-design="studio"] .studio-brand {
-    font-size: 1rem;
+    font-size: var(--font-body);
   }
   html[data-design="studio"] .notes-pinned {
     grid-template-columns: minmax(0, 1fr);
@@ -294,12 +285,12 @@ html[data-design="studio"] .visibility__options {
 }
 :root[data-design="studio"] .compact-filters {
   display: grid;
-  gap: 12px;
-  margin-block: 16px;
+  gap: var(--space-3);
+  margin-block: var(--space-4);
 }
 :root[data-design="studio"] .compact-filters__search {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 :root[data-design="studio"] .compact-filters__search > .input {
@@ -314,7 +305,7 @@ html[data-design="studio"] .visibility__options {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: var(--space-1) var(--space-2);
 }
 :root[data-design="studio"] .compact-filters__summary:empty {
   display: none;
@@ -322,14 +313,14 @@ html[data-design="studio"] .visibility__options {
 :root[data-design="studio"] .compact-filters__tag {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 44px;
   max-width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--ink);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--chip-bg);
+  color: var(--chip-fg);
   font: inherit;
   text-align: left;
   overflow-wrap: anywhere;
@@ -339,10 +330,10 @@ html[data-design="studio"] .visibility__options {
 }
 :root[data-design="studio"] .compact-filters__form {
   display: grid;
-  gap: 20px;
+  gap: var(--space-4);
 }
 :root[data-design="studio"] .people-tabs {
-  margin-block: 16px;
+  margin-block: var(--space-4);
 }
 
 /* Принятые карточки: структура ограничена объектом и делом. */
@@ -352,10 +343,10 @@ html[data-design="studio"] .approved-object-card .row__meta {
 html[data-design="studio"] :is(.approved-record-card, .approved-object-card) .object-hero__type {
   text-transform: none;
   letter-spacing: normal;
-  margin: 8px 0 0;
+  margin: var(--space-2) 0 0;
 }
 html[data-design="studio"] :is(.approved-record-card, .approved-object-card) .object-hero {
-  padding-block: 12px 16px;
+  padding-block: var(--space-3) var(--space-4);
 }
 html[data-design="studio"] .approved-object-card .tabs__list {
   flex-wrap: wrap;
@@ -364,18 +355,18 @@ html[data-design="studio"] .approved-object-card .tabs {
   overflow: visible;
 }
 html[data-design="studio"] .approved-card-facts {
-  margin: 0 0 20px;
-  border-radius: 16px;
+  margin: 0 0 var(--space-4);
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  padding: 0 16px;
+  padding: 0 var(--space-4);
 }
 html[data-design="studio"] .approved-card-facts > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
+  gap: var(--space-3);
   align-items: center;
   min-height: 56px;
-  padding-block: 8px;
+  padding-block: var(--space-2);
 }
 html[data-design="studio"] .approved-card-facts > div + div {
   border-top: 1px solid var(--line);
@@ -388,33 +379,33 @@ html[data-design="studio"] .approved-card-facts dd {
   overflow-wrap: anywhere;
 }
 html[data-design="studio"] .approved-card-fold {
-  margin-block: 12px;
+  margin-block: var(--space-3);
   background: var(--surface);
-  border-radius: 16px;
-  padding: 0 16px;
+  border-radius: var(--radius-lg);
+  padding: 0 var(--space-4);
 }
 html[data-design="studio"] .approved-card-fold > summary {
   min-height: 52px;
-  padding-block: 14px;
+  padding-block: var(--space-3);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 html[data-design="studio"] .approved-card-fold > :not(summary) {
-  padding-bottom: 16px;
+  padding-bottom: var(--space-4);
 }
 html[data-design="studio"] .approved-card-fold .section {
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 html[data-design="studio"] .approved-card-fold .section__head {
   margin-top: 0;
 }
 html[data-design="studio"] .approved-record-card .task-description {
-  margin-block: 20px;
+  margin-block: var(--space-4);
 }
 html[data-design="studio"] .approved-record-card .task-list {
   background: var(--surface);
-  border-radius: 16px;
-  padding-inline: 16px;
+  border-radius: var(--radius-lg);
+  padding-inline: var(--space-4);
 }
 
 /* D46, часть Б. Тёмная шапка вплотную к верхней панели: у страниц с тёмным заголовком
@@ -437,8 +428,8 @@ html[data-design="studio"]
 /* D46, UI-3: карточки на общем RecordPage — тип обычным регистром после названия,
    факты короткой метой, а не блоком полей. */
 html[data-design="studio"] .ui6-record-page .object-hero__type {
-  margin: 8px 0 0;
-  font-size: 0.875rem;
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-sm);
   letter-spacing: normal;
   text-transform: none;
 }
@@ -446,20 +437,20 @@ html[data-design="studio"] .ui6-record-page .object-hero .object-facts {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 16px;
-  margin-top: 4px;
+  gap: 0 var(--space-4);
+  margin-top: var(--space-1);
 }
 html[data-design="studio"] .ui6-record-page .object-hero .object-facts > div {
   display: flex;
   flex: 0 1 auto;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 4px;
+  gap: 0 var(--space-1);
   min-width: 0;
   min-height: 28px;
 }
 html[data-design="studio"] .ui6-record-page .object-hero .object-facts dt {
-  font-size: 0.875rem;
+  font-size: var(--font-sm);
 }
 html[data-design="studio"] .ui6-record-page .object-hero .object-facts dt::after {
   content: ":";
@@ -467,7 +458,7 @@ html[data-design="studio"] .ui6-record-page .object-hero .object-facts dt::after
 html[data-design="studio"] .ui6-record-page .object-hero .object-facts dd {
   margin: 0;
   color: var(--on-dark);
-  font-size: 0.875rem;
+  font-size: var(--font-sm);
   font-weight: 400;
 }
 

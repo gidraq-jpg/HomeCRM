@@ -5,12 +5,12 @@
 }
 
 .object-form .btn-row {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .field-edit {
   min-width: 0;
-  margin: 18px 0 0;
+  margin: var(--space-4) 0 0;
   padding: 0;
   border: 0;
 }
@@ -21,15 +21,15 @@
 
 .field-edit__list {
   display: grid;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .field-edit__item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 44px;
-  gap: 8px;
-  padding-bottom: 10px;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--line);
 }
 
@@ -61,20 +61,20 @@
 
 /* «Свои поля» отделены от строк карточки, в том числе от «Изменён» */
 .facts + .section {
-  margin-top: 22px;
+  margin-top: var(--space-5);
 }
 
 /* Лента */
 .timeline {
   display: grid;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   border-top: 1px solid var(--line);
 }
 
 .timeline__item {
   display: grid;
-  gap: 6px;
-  padding: 12px 0;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -82,9 +82,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 10px;
+  gap: var(--space-1) var(--space-2);
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--font-sm);
 }
 
 .timeline__date {
@@ -99,25 +99,25 @@
 
 .timeline__auto {
   color: var(--muted);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
   overflow-wrap: anywhere;
 }
 
 .timeline__facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
-  font-size: 0.9375rem;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--font-body);
 }
 
 .timeline__tools {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .timeline__item--editing {
-  padding-bottom: 16px;
+  padding-bottom: var(--space-4);
 }
 
 .event-form .field:first-child {
@@ -125,7 +125,7 @@
 }
 
 .event-form .btn-row {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 /* Связи */
@@ -135,21 +135,21 @@
 
 .link-item {
   display: grid;
-  gap: 8px;
-  padding-bottom: 12px;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--line);
 }
 
 .link-item__role {
-  padding-left: 52px;
+  padding-left: calc(var(--tap) + var(--space-2));
   color: var(--muted);
-  font-size: 0.9375rem;
+  font-size: var(--font-body);
   overflow-wrap: anywhere;
 }
 
 .link-item .btn {
   justify-self: start;
-  margin-left: 52px;
+  margin-left: calc(var(--tap) + var(--space-2));
 }
 
 .picker-list {
@@ -159,5 +159,5 @@
   border-top: 1px solid var(--line);
 }
 .timeline__facts .text-button {
-  padding: 0 2px;
+  padding: 0 var(--space-1);
 }

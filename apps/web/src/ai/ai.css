@@ -6,17 +6,17 @@
 }
 .ai-drafts {
   display: grid;
-  gap: 24px;
+  gap: var(--space-5);
   border: 0;
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-4);
   padding: 0;
   min-width: 0;
 }
 .ai-draft {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
   border-bottom: 1px solid var(--line);
-  padding-bottom: 24px;
+  padding-bottom: var(--space-5);
   min-width: 0;
 }
 .ai-draft h3 {
@@ -38,7 +38,7 @@
 
 .compact-draft {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
   min-width: 0;
 }
@@ -54,8 +54,8 @@
   overflow: hidden;
 }
 .compact-draft__text p {
-  margin: 4px 0;
-  font-size: 13px;
+  margin: var(--space-1) 0;
+  font-size: var(--font-sm);
 }
 .compact-draft__select {
   min-width: 44px;
@@ -64,10 +64,10 @@
   place-items: center;
 }
 .compact-draft__review {
-  color: var(--danger, #a22);
+  color: var(--danger);
 }
 .compact-draft > .btn {
-  padding-inline: 8px;
+  padding-inline: var(--space-2);
   min-height: 44px;
 }
 
@@ -87,12 +87,12 @@
   width: 20px;
   height: 20px;
   border: 1px solid currentColor;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   pointer-events: none;
 }
 .compact-draft__select input:checked + .compact-draft__check {
   background: var(--ink);
-  box-shadow: inset 0 0 0 4px var(--paper, #f8f5ef);
+  box-shadow: inset 0 0 0 4px var(--paper);
 }
 .compact-draft__select input:focus-visible + .compact-draft__check {
   outline: 2px solid currentColor;
@@ -104,5 +104,5 @@
   overflow: hidden;
 }
 .ai-drafts .ai-draft {
-  padding-bottom: 16px;
+  padding-bottom: var(--space-4);
 }

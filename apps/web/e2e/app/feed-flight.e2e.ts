@@ -57,7 +57,10 @@ async function observeFlight(page: Page) {
     Element.prototype.animate = function (frames, options) {
       const animation = original.call(this, frames, options);
       if (this.hasAttribute('data-motion-flight')) {
-        state.flight = { samples: [], duration: Number(animation.effect?.getTiming().duration) };
+        const effect = animation.effect;
+        if (!effect) throw new Error('У полёта нет эффекта анимации');
+        const timing = effect.getTiming();
+        state.flight = { samples: [], duration: Number(timing.duration) };
         // Конечную геометрию измеряем до первого paint: загруженный runner может пропустить rAF в конце.
         animation.pause();
         animation.currentTime = state.flight.duration / 2;
@@ -78,7 +81,10 @@ async function observeFlight(page: Page) {
             middle.top < innerHeight &&
             getComputedStyle(this).visibility !== 'hidden',
         };
-        animation.currentTime = state.flight.duration - 0.001;
+        // На границе длительности браузер уже может снять эффект. Удерживаем
+        // последний кадр только на время измерения, затем возвращаем исходный fill.
+        effect.updateTiming({ fill: 'forwards' });
+        animation.currentTime = state.flight.duration;
         const end = this.getBoundingClientRect();
         state.flight.endpoint = {
           time: Number(animation.currentTime),
@@ -89,6 +95,7 @@ async function observeFlight(page: Page) {
           height: end.height,
         };
         animation.currentTime = 0;
+        effect.updateTiming({ fill: timing.fill });
         animation.play();
         pulseTarget = undefined;
         const record = () => {
@@ -221,7 +228,7 @@ for (const width of [412, 1440])
                 demo.evaluate(() => (window as unknown as { flight: Observation }).flight.duration),
               { message: `${feed}: ${method} запускает улёт` },
             )
-            .toBe(560);
+            .toBe(360);
           await expect(demo.locator('[data-motion-flight]')).toHaveCount(0);
           if (feed === 0 && method !== 'trash')
             await expect
@@ -234,11 +241,11 @@ for (const width of [412, 1440])
           const flight = await demo.evaluate(
             () => (window as unknown as { flight: Observation }).flight,
           );
-          expect(flight.duration).toBe(560);
+          expect(flight.duration).toBe(360);
           if (feed === 0 && method !== 'trash') expect(flight.sourceHeight).toBeGreaterThan(0);
-          expect(flight.middle).toMatchObject({ time: 280, opacity: 1, visible: true });
+          expect(flight.middle).toMatchObject({ time: 180, opacity: 1, visible: true });
           const last = flight.endpoint;
-          expect(last?.time).toBeGreaterThan(480);
+          expect(last?.time).toBe(360);
           expect(
             last &&
               flight.target &&
@@ -246,6 +253,7 @@ for (const width of [412, 1440])
               last.x + last.width <= flight.target.x + flight.target.width + 1 &&
               last.y >= flight.target.y - 1 &&
               last.y + last.height <= flight.target.y + flight.target.height + 1,
+            `${feed}/${method}: ${JSON.stringify({ last, target: flight.target })}`,
           ).toBe(true);
           expect(
             last &&
