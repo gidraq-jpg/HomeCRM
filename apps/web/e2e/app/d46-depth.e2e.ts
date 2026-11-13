@@ -289,7 +289,8 @@ test('D46: полосы, шапки без создания и мягкие те
           );
           const list = row?.parentElement ?? document.querySelector(selector);
           const items = list ? [...list.children] : [];
-          return [items[0], items.at(-1)].flatMap((item, at) =>
+          const edges = [...new Set([items[0], items.at(-1)])];
+          return edges.flatMap((item, at) =>
             [...(item?.querySelectorAll('a[href], button') ?? [])]
               .filter((node) => node.getBoundingClientRect().width > 0)
               .map((node, index) => {
@@ -301,9 +302,11 @@ test('D46: полосы, шапки без создания и мягкие те
         { selector: group, text },
       );
       expect(targets.length, `${name}: строки найдены`).toBeGreaterThan(0);
-      for (const id of targets) {
+      const [first, ...remaining] = targets;
+      if (first === undefined) throw new Error(`${name}: нет целей фокуса`);
+      for (const id of [first, ...remaining]) {
         await page.keyboard.press('Shift');
-        await page.locator(`[data-d46-focus="${id}"]`).focus();
+        await page.locator(`[data-d46-focus="${id}"]`).focus({ timeout: 5000 });
         const problem = await page.evaluate((key) => {
           const node = document.querySelector<HTMLElement>(`[data-d46-focus="${key}"]`);
           if (!node?.matches(':focus-visible')) return `${key}: нет :focus-visible`;
@@ -362,7 +365,7 @@ test('D46: полосы, шапки без создания и мягкие те
         }
       }
       await page.keyboard.press('Shift');
-      await page.locator('[data-d46-focus="0-0"]').focus();
+      await page.locator(`[data-d46-focus="${first}"]`).focus({ timeout: 5000 });
       await page.screenshot({ path: resolve(SHOTS, `focus-${name}-360.png`) });
     }
     expect(cut, 'рамка фокуса обрезана').toEqual([]);
