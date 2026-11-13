@@ -178,7 +178,7 @@ for (const reduce of [false, true])
       expect(motion.header).toBe('none');
       if (!reduce) {
         expect(motion.shadow).not.toBe('none');
-        expect(motion.radius).toBe('32px');
+        expect(motion.radius).toBe('20px');
       }
       await check(page, info, `card-${reduce}`);
       await page.getByRole('button', { name: 'Править дело', exact: true }).click();

@@ -86,7 +86,7 @@ html[data-design="studio"] .studio-filter {
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--surface);
-  color: inherit;
+  color: var(--ink);
   font-size: var(--font-sm);
   white-space: nowrap;
 }
