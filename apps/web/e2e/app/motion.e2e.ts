@@ -375,16 +375,18 @@ for (const reduce of [false, true]) {
       await page.goto('#/today/all');
       const task = row(page, 'Вымышленное общее дело');
       await expect(task).toBeVisible();
+      await settle(page);
       await drag(page, task.locator('a').first(), -160);
       await expect(task).not.toHaveAttribute('data-swipe-open', 'trash');
       await expect(task.getByRole('button', { name: 'В корзину' })).toHaveCount(0);
       await check(page, info, `child-${reduce}`);
-      // Новая вкладка получает сессию взрослого через обычную форму входа.
+      // Взрослый входит через обычную форму. Жест начинаем после смены ленты.
       await page.context().clearCookies();
       await page.goto('#/today');
       await signInAs(page, family, 'adult');
       await page.goto('#/today/all');
       await expect(task).toBeVisible();
+      await settle(page);
       await drag(page, task.locator('a').first(), -160);
       await expect(page.getByText('Дело в корзине', { exact: true })).toBeVisible();
       await expect(
