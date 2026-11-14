@@ -19,6 +19,7 @@ import { RollingNumber } from '../ui/RollingNumber.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';
 import { inboxAction, KIND_LABELS, STATUS_LABELS, useInbox } from './api.ts';
+import { InboxIdentity } from './InboxIdentity.tsx';
 import './inbox.css';
 
 const LocalInboxLabel = InboxCapture.pick({ text: true, files: true });
@@ -56,6 +57,8 @@ export function InboxScreen({
   const attachmentMessage = (location.state as { attachmentMessage?: string } | null)
     ?.attachmentMessage;
   const query = useInbox(trash, true);
+  const firstIdentity = query.data?.find((row) => row.status === 'identity')?.id;
+  const focusQuestion = capture || location.pathname === '/more/inbox';
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [voice, setVoice] = useState(false);
@@ -302,6 +305,13 @@ export function InboxScreen({
                 {row.status !== 'identity' ? (
                   <p className="inbox-text">{row.text || row.files[0]?.name || 'Входящее'}</p>
                 ) : null}
+                {!trash && row.status === 'identity' ? (
+                  <InboxIdentity
+                    row={row}
+                    refresh={query.refetch}
+                    focus={focusQuestion && row.id === firstIdentity}
+                  />
+                ) : null}
                 {row.draft ? <p>{KIND_LABELS[row.draft.classification.kind]}</p> : null}
                 <div className="btn-row">
                   {trash ? (
@@ -319,7 +329,7 @@ export function InboxScreen({
                     </button>
                   ) : (
                     <Link className="btn btn--secondary" to={`/more/inbox/${row.id}`}>
-                      {row.status === 'identity' ? 'Заполнить вручную' : 'Открыть'}
+                      Открыть
                     </Link>
                   )}
                   {row.files.map((file, i) => (

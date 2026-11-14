@@ -4,6 +4,7 @@ import { DocumentDraft, MeterData } from '@homecrm/shared';
 import sharp from 'sharp';
 import { z } from 'zod';
 import { type InboxContext, parseInbox } from '../../inbox/parse.ts';
+import { Failure } from '../../objects/support.ts';
 import { document } from '../prompts/document.ts';
 import { inbox } from '../prompts/inbox.ts';
 import type { createProviders } from '../providers.ts';
@@ -163,14 +164,13 @@ export async function evaluateInbox(
       text = '';
     }
     if (fake && sample.kind === 'identity') text = 'Учебный паспорт';
+    const identity = sample.kind === 'identity';
+    if (identity) result.identity.total++;
     let correct = true;
     try {
       const draft = await parseInbox(providers.extractor, text, images, ctx);
-      if (sample.kind === 'identity') {
-        result.identity.total++;
-        if (draft === null) result.identity.correct++;
-        else correct = false;
-      } else {
+      if (identity) correct = false;
+      else {
         for (const kind of sample.extraKinds ?? []) {
           result.mixed.total++;
           if (fake || draft?.additional.some((entry) => entry.classification.kind === kind))
@@ -197,6 +197,16 @@ export async function evaluateInbox(
         }
       }
     } catch (error) {
+      if (
+        identity &&
+        error instanceof Failure &&
+        error.status === 422 &&
+        error.code === 'AI_PRIVATE_DOCUMENT'
+      ) {
+        result.identity.correct++;
+        result.samples++;
+        continue;
+      }
       result.failed++;
       correct = false;
       if (

@@ -11,40 +11,44 @@ it('AI-4: из вымышленного PDF личности не извлека
     await readFile(new URL('../ai/eval/samples/pdf/identity.pdf', import.meta.url)),
   );
   const extract = vi.fn(async (input: ExtractRequest) => fakeDraft(input));
-  expect(
-    await parseInbox({ extract, health: async () => true }, pdf.text, pdf.images, context),
-  ).toBeNull();
+  await expect(
+    parseInbox({ extract, health: async () => true }, pdf.text, pdf.images, context),
+  ).rejects.toMatchObject({ status: 422, code: 'AI_PRIVATE_DOCUMENT' });
   expect(extract.mock.calls.map(([input]) => input.kind)).toEqual(['identity']);
 });
-it.each(['yes', 'unsure'] as const)(
-  'AI-4: %s останавливает все извлечения и не сохраняет ответ',
-  async (identity) => {
-    const extract = vi.fn(async () => ({ identity }));
-    const result = await parseInbox(
-      { extract, health: async () => true },
-      'Учебный документ',
-      [Buffer.from('page-1'), Buffer.from('page-2')],
-      context,
-    );
-    expect(result).toBeNull();
-    expect(extract).toHaveBeenCalledTimes(1);
-    expect(extract.mock.calls[0]).toBeDefined();
-  },
-);
+it.each(['no', 'unsure'] as const)('AI-4: %s разрешает разбор всех страниц', async (identity) => {
+  const extract = vi.fn(async (input: ExtractRequest) =>
+    input.kind === 'identity' ? { identity } : fakeDraft(input),
+  );
+  const result = await parseInbox(
+    { extract, health: async () => true },
+    'Учебный договор',
+    [Buffer.from('page-1'), Buffer.from('page-2')],
+    context,
+  );
+  expect(result.classification.kind).toBe('document');
+  expect(extract.mock.calls.map(([input]) => input.kind)).toEqual([
+    'identity',
+    'identity',
+    'identity',
+    'inbox',
+    'document',
+  ]);
+});
 it('AI-4: личность на последней странице запрещает извлечение со всех страниц', async () => {
   const kinds: string[] = [];
   const extract = vi.fn(async (input: ExtractRequest) => {
     kinds.push(input.kind);
-    return { identity: kinds.length === 3 ? ('unsure' as const) : ('no' as const) };
+    return { identity: kinds.length === 3 ? ('yes' as const) : ('no' as const) };
   });
-  expect(
-    await parseInbox(
+  await expect(
+    parseInbox(
       { extract, health: async () => true },
       'Учебный договор',
       [Buffer.from('a'), Buffer.from('b')],
       context,
     ),
-  ).toBeNull();
+  ).rejects.toMatchObject({ status: 422, code: 'AI_PRIVATE_DOCUMENT' });
   expect(kinds).toEqual(['identity', 'identity', 'identity']);
 });
 it('INBOX-3: неизвестные UUID не проходят в черновик, все шаги делят один срок', async () => {

@@ -4,6 +4,7 @@ import { ApiError } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
 import { aiError, useAiStatus } from './AiCapture.tsx';
 import { useAiConsent } from './consent.tsx';
+import { IdentityConfirmation } from './IdentityConfirmation.tsx';
 
 export function PhotoCapture<T>({
   house,
@@ -11,12 +12,14 @@ export function PhotoCapture<T>({
   schema,
   label,
   onResult,
+  onManual,
 }: {
   house: string | null;
   path: string;
   schema: z.ZodType<T>;
   label: string;
   onResult: (draft: T, file: File) => void;
+  onManual: (file: File) => void;
 }) {
   const status = useAiStatus(house);
   const consent = useAiConsent(house, status.data?.provider);
@@ -24,21 +27,28 @@ export function PhotoCapture<T>({
   const busy = useRef(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
-  async function extract(file: File) {
+  const [confirmation, setConfirmation] = useState<{ file: File; path: string; house: string }>();
+  const question =
+    confirmation?.path === path && confirmation.house === house ? confirmation : undefined;
+  async function extract(file: File, identityConfirmed = false) {
     if (busy.current || !house) return;
     busy.current = true;
     setPending(true);
+    setConfirmation(undefined);
     setError('');
     try {
       if (file.size > 10 * 1024 * 1024) throw new ApiError(413, 'AI_IMAGE_TOO_LARGE');
       const form = new FormData();
       form.set('file', file);
-      const response = await fetch(`/api/ai/${path}&spaceId=${house}&consent=true`, {
-        method: 'POST',
-        body: form,
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
+      const response = await fetch(
+        `/api/ai/${path}&spaceId=${house}&consent=true${identityConfirmed ? '&identityConfirmed=true' : ''}`,
+        {
+          method: 'POST',
+          body: form,
+          credentials: 'same-origin',
+          cache: 'no-store',
+        },
+      );
       const body: unknown = await response.json();
       if (!response.ok)
         throw new ApiError(
@@ -49,12 +59,18 @@ export function PhotoCapture<T>({
       if (!draft.success) throw new ApiError(502, 'AI_INVALID_RESPONSE');
       onResult(draft.data, file);
     } catch (failure) {
+      if (
+        failure instanceof ApiError &&
+        failure.status === 422 &&
+        failure.code === 'AI_PRIVATE_DOCUMENT'
+      ) {
+        setConfirmation({ file, path, house });
+        return;
+      }
       setError(
         failure instanceof ApiError && failure.code === 'AI_IMAGE_TOO_LARGE'
           ? 'Фото должно быть не больше 10 МБ.'
-          : failure instanceof ApiError && failure.code === 'AI_PRIVATE_DOCUMENT'
-            ? 'Документ личности — заполните вручную.'
-            : aiError(failure),
+          : aiError(failure),
       );
     } finally {
       busy.current = false;
@@ -80,12 +96,21 @@ export function PhotoCapture<T>({
       <button
         type="button"
         className="btn btn--secondary"
-        disabled={pending}
+        disabled={pending || !!question}
         onClick={() => input.current?.click()}
       >
         {pending ? 'Разбираем…' : label}
       </button>
       {error ? <Notice error>{error} Поля формы сохранены.</Notice> : null}
+      {question ? (
+        <IdentityConfirmation
+          onRecognize={() => void extract(question.file, true)}
+          onManual={() => {
+            setConfirmation(undefined);
+            onManual(question.file);
+          }}
+        />
+      ) : null}
       {consent.dialog}
     </div>
   );

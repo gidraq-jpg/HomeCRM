@@ -19,7 +19,7 @@ import { useAiStatus } from '../ai/AiCapture.tsx';
 import { CompactDraft } from '../ai/CompactDraft.tsx';
 import { needsReview } from '../ai/compact.ts';
 import { useAiConsent } from '../ai/consent.tsx';
-import { apiRequest } from '../auth/api.ts';
+import { ApiError, apiRequest } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import {
   defaultDocumentVisibility,
@@ -54,6 +54,7 @@ import {
   STATUS_LABELS,
   useInbox,
 } from './api.ts';
+import { InboxIdentity } from './InboxIdentity.tsx';
 import { InboxScreen } from './InboxScreen.tsx';
 import { InboxUtilities } from './InboxUtilities.tsx';
 import { parseCapturedInbox } from './parse.ts';
@@ -518,8 +519,14 @@ function InboxItemReview({
             consent.ask(
               () =>
                 void action.run(async () => {
-                  await parseCapturedInbox(row.id, `v4:${status.data?.provider}`);
-                  await client.invalidateQueries({ queryKey: ['inbox', me.id] });
+                  try {
+                    await parseCapturedInbox(row.id, `v4:${status.data?.provider}`);
+                  } catch (error) {
+                    if (!(error instanceof ApiError && error.code === 'AI_PRIVATE_DOCUMENT'))
+                      throw error;
+                  } finally {
+                    await client.invalidateQueries({ queryKey: ['inbox', me.id] });
+                  }
                 }),
             )
           }
@@ -577,10 +584,10 @@ function InboxItemReview({
           {row.status !== 'identity' ? (
             <p className="inbox-text">{row.text}</p>
           ) : (
-            <p>
-              Поля не извлекались. Откройте обычную форму и заполните вручную; страницы приложатся
-              после сохранения.
-            </p>
+            <InboxIdentity
+              row={row}
+              refresh={() => client.invalidateQueries({ queryKey: ['inbox', me.id] })}
+            />
           )}
           {draft ? (
             <>
@@ -786,9 +793,9 @@ function InboxItemReview({
                   : `Сохранить все (${selected.length})`}
               </button>
             ) : null}
-            {!draft ? (
+            {!draft && row.status !== 'identity' ? (
               <Link className="btn btn--secondary" to={`/more/inbox/${row.id}/edit/${kind}`}>
-                {row.status === 'identity' ? 'Заполнить вручную' : 'Изменить'}
+                Изменить
               </Link>
             ) : null}
             <button
