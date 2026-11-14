@@ -15,6 +15,7 @@ import {
   ticket,
 } from '../offline/identity.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
+import { hideBootSplash } from '../shell/bootSplash.ts';
 import { useNavigate } from '../shell/motion.tsx';
 import { ApiError, action, api, appURL, consumeLink, Me } from './api.ts';
 import { AuthPage, ErrorNotice, Notice, OfflineBanner, useAction } from './components.tsx';
@@ -144,6 +145,9 @@ export function AuthRoot() {
     offlineEvents.addEventListener('identity', update);
     return () => offlineEvents.removeEventListener('identity', update);
   }, [client, query.refetch]);
+  useEffect(() => {
+    if (!query.isPending) hideBootSplash();
+  }, [query.isPending]);
   // Сессии точно нет (проверка завершена): уведомление в это время запоминает свой маршрут до входа.
   const takePendingRoute = usePendingRoute(query.isSuccess && query.data === null);
   useEffect(() => {
