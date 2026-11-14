@@ -176,6 +176,7 @@ for (const width of [412, 1440])
     try {
       await demo.goto(`${family.baseURL}#/today/all`);
       await expect(demo.locator('[data-feed-ready="true"]')).toHaveCount(4);
+      await expect(demo.locator('#boot-splash')).toHaveCount(0);
       await observeFlight(demo);
       for (let feed = 0; feed < 3; feed++) {
         const route = `${family.baseURL}#${routes[feed]}`;
