@@ -90,7 +90,8 @@ async function fakeExtract(input: ExtractRequest) {
       return new Map(entries);
     })();
     const sample = (await fakePdfImages).get(hash(await preparePhoto(input.image.bytes)));
-    if (sample === 'identity-scan') return { identity: 'yes' as const };
+    if (sample === 'identity-scan' && input.kind === 'identity')
+      return { identity: 'yes' as const };
     if (sample === 'receipt-scan')
       return fakeDraft({ ...input, text: `${input.text ?? ''}\nУчебная квитанция ЖКХ` });
   }
@@ -487,13 +488,14 @@ export function createProviders(
   return {
     speech,
     extractor,
-    async photo(input: ExtractRequest) {
+    async photo(input: ExtractRequest, identityConfirmed = false) {
       const deadline = Date.now() + Math.min(timeout.total ?? 120000, 120000);
-      const check = IdentityCheck.parse(
-        await extractor.extract({ ...input, kind: 'identity', deadline }),
-      );
-      if (check.identity !== 'no')
-        throw new Failure(422, 'AI_PRIVATE_DOCUMENT', 'Документ личности — заполните вручную.');
+      if (!identityConfirmed) {
+        const check = IdentityCheck.parse(
+          await extractor.extract({ ...input, kind: 'identity', deadline }),
+        );
+        if (check.identity === 'yes') throw new Failure(422, 'AI_PRIVATE_DOCUMENT');
+      }
       return extractor.extract({ ...input, deadline });
     },
     close: async () => {

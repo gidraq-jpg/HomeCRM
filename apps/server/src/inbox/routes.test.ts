@@ -47,7 +47,9 @@ it.each([
       );
     const before = await usage();
     expect((await adult.post('/api/inbox', input)).status).toBe(201);
-    expect((await adult.post(`/api/inbox/${input.id}/parse`, {})).status).toBe(200);
+    const parsed = await adult.post(`/api/inbox/${input.id}/parse`, {});
+    expect(parsed.status).toBe(status === 'identity' ? 422 : 200);
+    if (status === 'identity') expect(parsed.json().code).toBe('AI_PRIVATE_DOCUMENT');
     const row = (
       await world.database.admin.query(
         'SELECT status,draft,error_code FROM inbox_items WHERE id=$1',
@@ -75,6 +77,22 @@ it.each([
       bytes.toString('base64').slice(0, 100),
     ])
       expect(log).not.toContain(secret);
+    if (name === 'identity-scan') {
+      const path = `/api/inbox/${input.id}/parse`;
+      expect((await adult.post(path, { identityConfirmed: 'true' })).status).toBe(400);
+      expect((await adult.post(path, { identityConfirmed: true })).status).toBe(200);
+      expect((await adult.post(path, { identityConfirmed: true })).status).toBe(200);
+      expect(await usage()).toBe(before + 2);
+      const ready = await world.database.admin.query(
+        'SELECT status,draft FROM inbox_items WHERE id=$1',
+        [input.id],
+      );
+      expect(ready.rows[0]).toMatchObject({ status: 'ready', draft: expect.any(Object) });
+      const id = randomUUID();
+      const next = { ...input, id, idempotencyKey: id };
+      expect((await adult.post('/api/inbox', next)).status).toBe(201);
+      expect((await adult.post(`/api/inbox/${next.id}/parse`, {})).status).toBe(422);
+    }
     if (status === 'error') {
       const note = await adult.post('/api/notes', {
         title: 'Учебный ручной ввод после ошибки PDF',
@@ -501,7 +519,7 @@ it('INBOX-2, AI-3/4: без включения ждёт; личность — п
   await world.database.admin.query('UPDATE spaces SET ai_enabled=true WHERE id=$1', [
     world.houseId,
   ]);
-  expect((await adult.post(`/api/inbox/${input.id}/parse`, {})).status).toBe(200);
+  expect((await adult.post(`/api/inbox/${input.id}/parse`, {})).status).toBe(422);
   expect(
     (
       await world.database.admin.query('SELECT status,draft FROM inbox_items WHERE id=$1', [

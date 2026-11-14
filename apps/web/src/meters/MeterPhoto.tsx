@@ -39,6 +39,7 @@ export function MeterPhoto({ meter, ctx }: { meter: MeterListItem; ctx: Readings
         path={`meter-photo?meterId=${meter.id}`}
         schema={MeterPhotoDraft}
         label="С фото"
+        onManual={(file) => attach(file, retain.current)}
         onResult={(result, file) => {
           const current = latest.current;
           const draft = current.drafts[meter.id] ?? emptyDraft(meter.data.zones.length);

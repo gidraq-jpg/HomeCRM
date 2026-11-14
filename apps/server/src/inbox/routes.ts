@@ -75,7 +75,13 @@ export async function inboxRoutes(
     const account = await currentAccount(request, reply);
     if (!account) return reply;
     const { id } = parse(Id, request.params);
-    const input = parse(z.strictObject({ consent: z.string().max(200).optional() }), request.body);
+    const input = parse(
+      z.strictObject({
+        consent: z.string().max(200).optional(),
+        identityConfirmed: z.literal(true).optional(),
+      }),
+      request.body,
+    );
     await options.appDb.withAccount(account.id, async (tx) => {
       const row = await item(tx, account, id);
       if (row.deletedAt || row.resolvedAt) missing();
@@ -94,7 +100,15 @@ export async function inboxRoutes(
     if (active >= 2) throw new Failure(429, 'AI_BUSY');
     active++;
     try {
-      await processInbox(options.appDb, options.files, options.ai, id, account.id, app.log);
+      await processInbox(
+        options.appDb,
+        options.files,
+        options.ai,
+        id,
+        account.id,
+        input.identityConfirmed === true,
+        app.log,
+      );
       return { ok: true };
     } finally {
       active--;
