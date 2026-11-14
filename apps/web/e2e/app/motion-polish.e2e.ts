@@ -228,6 +228,7 @@ for (const reduce of [false, true])
       await observe(page);
       // Жест начинает движение только после готовности соседней ленты.
       await expect(page.locator('[data-feed-pane="1"]')).toHaveAttribute('data-feed-ready', 'true');
+      await expect(page.locator('#boot-splash')).toHaveCount(0);
       await settle(page);
       const content = page.locator('.feed-carousel__track');
       const dock = await page.locator('.chrome').boundingBox();
