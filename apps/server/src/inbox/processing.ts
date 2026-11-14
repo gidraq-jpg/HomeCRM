@@ -29,6 +29,7 @@ export async function processInbox(
   config: AiConfig,
   id: string,
   author: string,
+  identityConfirmed: boolean,
   log?: Pick<FastifyBaseLogger, 'info'>,
 ) {
   const deadline = Date.now() + 120000;
@@ -46,7 +47,7 @@ export async function processInbox(
       !row ||
       row.deletedAt ||
       row.resolvedAt ||
-      row.status !== 'new' ||
+      row.status !== (identityConfirmed ? 'identity' : 'new') ||
       !row.houseId ||
       row.consent !== `v4:${aiProvider(config)}`
     )
@@ -179,15 +180,16 @@ export async function processInbox(
       images,
       claimed.context,
       deadline,
+      identityConfirmed,
     );
     await db.withAccount(author, async (tx) => {
       await tx
         .update(inboxItems)
         .set({
-          status: draft ? 'ready' : 'identity',
+          status: 'ready',
           draft,
           errorCode:
-            draft && (partialPages.length || textTruncated)
+            partialPages.length || textTruncated
               ? `AI_PDF_PARTIAL${partialPages.map((pages) => `_${pages}`).join('')}${textTruncated ? '_TEXT' : ''}`
               : null,
         })
@@ -202,10 +204,15 @@ export async function processInbox(
     });
   } catch (error) {
     const code = error instanceof Failure ? error.code : 'AI_UNAVAILABLE';
+    const identity = code === 'AI_PRIVATE_DOCUMENT';
     await db.withAccount(author, async (tx) => {
       await tx
         .update(inboxItems)
-        .set({ status: 'error', errorCode: code, draft: null })
+        .set({
+          status: identity ? 'identity' : 'error',
+          errorCode: identity ? null : code,
+          draft: null,
+        })
         .where(
           and(
             eq(inboxItems.id, id),
@@ -215,7 +222,7 @@ export async function processInbox(
           ),
         );
     });
-    if (code === 'AI_BUSY' || code === 'AI_QUOTA') throw error;
+    if (identity || code === 'AI_BUSY' || code === 'AI_QUOTA') throw error;
   } finally {
     await providers.close();
   }

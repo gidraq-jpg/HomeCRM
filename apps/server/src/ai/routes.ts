@@ -34,6 +34,10 @@ import type { AiConfig } from './config.ts';
 import { createProviders, preparePhoto, validateAudio } from './providers.ts';
 
 const House = z.strictObject({ spaceId: z.uuid() });
+const PhotoQuery = House.extend({
+  consent: z.literal('true'),
+  identityConfirmed: z.literal('true').optional(),
+});
 export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai: AiConfig }) {
   const { ai } = options;
   const providers = createProviders(ai);
@@ -146,7 +150,7 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
   app.post('/api/ai/receipt-photo', async (request, reply) => {
     const account = await accountReader(request, reply);
     if (!account) return reply;
-    const { spaceId } = parse(House.extend({ consent: z.literal('true') }), request.query);
+    const { spaceId, identityConfirmed } = parse(PhotoQuery, request.query);
     const { row } = await house(account.id, spaceId);
     if (!row.aiEnabled) throw new Failure(403, 'AI_DISABLED');
     if (ai.AI_EXTRACT_PROVIDER === 'disabled') throw new Failure(503, 'AI_UNAVAILABLE');
@@ -161,16 +165,22 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
     let code = 'OK';
     try {
       return ReceiptPhotoDraft.parse(
-        await providers.photo({
-          kind: 'receipt',
-          image: { bytes, classification: 'ordinary' },
-          context: {
-            objects: [],
-            members: [],
-            timeZone: row.timeZone ?? options.homeTimeZone,
-            accounts: accounts.map((account) => ({ id: account.id, number: account.data.number })),
+        await providers.photo(
+          {
+            kind: 'receipt',
+            image: { bytes, classification: 'ordinary' },
+            context: {
+              objects: [],
+              members: [],
+              timeZone: row.timeZone ?? options.homeTimeZone,
+              accounts: accounts.map((account) => ({
+                id: account.id,
+                number: account.data.number,
+              })),
+            },
           },
-        }),
+          identityConfirmed === 'true',
+        ),
       );
     } catch (error) {
       code = error instanceof Failure ? error.code : 'AI_UNAVAILABLE';
@@ -191,10 +201,7 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
   app.post('/api/ai/meter-photo', async (request, reply) => {
     const account = await accountReader(request, reply);
     if (!account) return reply;
-    const body = parse(
-      House.extend({ meterId: z.uuid(), consent: z.literal('true') }),
-      request.query,
-    );
+    const body = parse(PhotoQuery.extend({ meterId: z.uuid() }), request.query);
     const { row } = await house(account.id, body.spaceId);
     if (!row.aiEnabled) throw new Failure(403, 'AI_DISABLED');
     if (ai.AI_EXTRACT_PROVIDER === 'disabled') throw new Failure(503, 'AI_UNAVAILABLE');
@@ -235,16 +242,19 @@ export async function aiRoutes(app: FastifyInstance, options: AuthModule & { ai:
     let code = 'OK';
     try {
       return MeterPhotoDraft.parse(
-        await providers.photo({
-          kind: 'meter',
-          image: { bytes, classification: 'ordinary' },
-          context: {
-            objects: [],
-            members: [],
-            timeZone: row.timeZone ?? options.homeTimeZone,
-            meter,
+        await providers.photo(
+          {
+            kind: 'meter',
+            image: { bytes, classification: 'ordinary' },
+            context: {
+              objects: [],
+              members: [],
+              timeZone: row.timeZone ?? options.homeTimeZone,
+              meter,
+            },
           },
-        }),
+          body.identityConfirmed === 'true',
+        ),
       );
     } catch (error) {
       code = error instanceof Failure ? error.code : 'AI_UNAVAILABLE';

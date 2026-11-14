@@ -195,35 +195,52 @@ test('INBOX-4: Изменить открывает обычную форму, и
     (await family.database.admin.query('SELECT title FROM tasks')).rows.map((r) => r.title),
   ).toContain('Учебная исправленная задача');
 });
-test('AI-4: фото документа личности → пустая ручная форма → файл документа', async ({
-  page,
-  family,
-}, info) => {
-  await enable(family);
-  await signInAs(page, family, 'adult');
-  await openCapture(page);
-  const bytes = await identityPage();
-  await page
-    .getByLabel('Галерея или файл — можно несколько страниц')
-    .setInputFiles({ name: 'Учебный документ.png', mimeType: 'image/png', buffer: bytes });
-  await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
-  await page.getByRole('button', { name: 'Согласен, разобрать', exact: true }).click();
-  await expect(
-    page.getByText('Документ личности — заполните вручную', { exact: true }),
-  ).toBeVisible({ timeout: 20000 });
-  await page.getByRole('link', { name: 'Заполнить вручную', exact: true }).click();
-  await page.getByRole('link', { name: 'Заполнить вручную', exact: true }).click();
-  await expect(page.getByLabel('Название', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel('Номер', { exact: true })).toHaveValue('');
-  await checkApp(page, info, 'inbox-identity-manual');
-  await page.getByLabel('Название', { exact: true }).fill('Учебный документ вручную');
-  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
-  expect((await family.database.admin.query('SELECT draft FROM inbox_items')).rows).toEqual([
-    { draft: null },
-  ]);
-  expect((await family.database.admin.query('SELECT id FROM document_files')).rowCount).toBe(1);
-});
+for (const recognize of [true, false]) {
+  test(`D51 AI-4: фото документа личности → ${recognize ? 'черновик по подтверждению' : 'ручной ввод с вложением'}`, async ({
+    page,
+    family,
+  }, info) => {
+    await enable(family);
+    await signInAs(page, family, 'adult');
+    await openCapture(page);
+    const bytes = await identityPage();
+    await page
+      .getByLabel('Галерея или файл — можно несколько страниц')
+      .setInputFiles({ name: 'Учебный документ.png', mimeType: 'image/png', buffer: bytes });
+    const blocked = page.waitForResponse(
+      (response) => /\/api\/inbox\/[^/]+\/parse$/.test(response.url()) && response.status() === 422,
+    );
+    await page.getByRole('button', { name: 'Во входящие', exact: true }).click();
+    await page.getByRole('button', { name: 'Согласен, разобрать', exact: true }).click();
+    expect(await (await blocked).json()).toMatchObject({ code: 'AI_PRIVATE_DOCUMENT' });
+    const question = page.getByText('Похоже на документ личности. Распознать всё равно?', {
+      exact: true,
+    });
+    await expect(question).toBeFocused({ timeout: 20000 });
+    await checkApp(page, info, `d51-identity-question-${recognize ? 'confirm' : 'manual'}`);
+    await page
+      .getByRole('button', { name: recognize ? 'Распознать' : 'Заполню вручную', exact: true })
+      .click();
+    if (recognize) {
+      await expect(page.getByText('Черновик готов', { exact: true })).toBeVisible();
+      await page.getByRole('link', { name: 'Открыть', exact: true }).click();
+      await expect(page.getByRole('link', { name: 'Страница 1', exact: true })).toBeVisible();
+      await checkApp(page, info, 'd51-identity-draft');
+      expect((await family.database.admin.query('SELECT id FROM inbox_files')).rowCount).toBe(1);
+    } else {
+      await expect(page.getByLabel('Название', { exact: true })).toHaveValue('');
+      await expect(page.getByLabel('Номер', { exact: true })).toHaveValue('');
+      await checkApp(page, info, 'd51-identity-manual');
+      await page.getByLabel('Название', { exact: true }).fill('Учебный документ вручную');
+      await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+      await expect(page.getByText('Здесь пока пусто.', { exact: false })).toBeVisible();
+      expect((await family.database.admin.query('SELECT draft FROM inbox_items')).rows).toEqual([
+        { draft: null },
+      ]);
+      expect((await family.database.admin.query('SELECT id FROM document_files')).rowCount).toBe(1);
+    }
+  });
+}
 test('INBOX-3: карточка нового объекта → обычная форма → привязка', async ({
   page,
   family,

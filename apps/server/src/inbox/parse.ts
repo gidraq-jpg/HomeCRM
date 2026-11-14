@@ -20,14 +20,15 @@ export async function parseInbox(
   images: Buffer[],
   context: InboxContext,
   deadline = Date.now() + 120000,
-): Promise<InboxDraft | null> {
+  identityConfirmed = false,
+): Promise<InboxDraft> {
   const base = { context, deadline };
   const sources: Pick<ExtractRequest, 'text' | 'image'>[] = [
     ...(text.trim() ? [{ text }] : []),
     ...images.map((bytes) => ({ image: { bytes, classification: 'ordinary' as const } })),
   ];
   if (!sources.length) throw new Failure(422, 'AI_INVALID_RESPONSE');
-  for (const source of sources) {
+  for (const source of identityConfirmed ? [] : sources) {
     const check = IdentityCheck.parse(
       await extractor.extract({
         ...base,
@@ -36,7 +37,7 @@ export async function parseInbox(
         context: { objects: [], members: [], timeZone: context.timeZone },
       }),
     );
-    if (check.identity !== 'no') return null;
+    if (check.identity === 'yes') throw new Failure(422, 'AI_PRIVATE_DOCUMENT');
   }
   const input: Omit<ExtractRequest, 'kind'> = {
     ...base,

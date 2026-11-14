@@ -73,7 +73,7 @@ export function ChargeForm({
   );
   const [errors, setErrors] = useState<ChargeErrors | null>(null);
   const [nextKey, setNextKey] = useState(1);
-  const [candidates, setCandidates] = useState<ReceiptAccount[]>([]);
+  const [candidates, setCandidates] = useState<ReceiptAccount[] | null>(null);
   const [targetId, setTargetId] = useState(account.id);
   const [photo, setPhoto] = useState<File | null>(null);
   const [keepPhoto, setKeepPhoto] = useState(false);
@@ -84,7 +84,7 @@ export function ChargeForm({
   const [supplier, setSupplier] = useState<string | null>(null);
   const uploaded = useRef<{ file: File; objectId: string; id: string } | null>(null);
   const saving = useRef(false);
-  const target = candidates.find((item) => item.id === targetId);
+  const target = candidates?.find((item) => item.id === targetId);
   const targetObjectId = target?.objectId ?? card.id;
   const targetCard = useObjectCard(targetObjectId !== card.id ? targetObjectId : undefined);
   const receiptCard = targetObjectId === card.id ? card : targetCard.data;
@@ -193,10 +193,15 @@ export function ChargeForm({
     <form className="charge-form" onSubmit={submit} aria-busy={state.pending} noValidate>
       <ReceiptCapture
         onDraft={fromReceipt}
+        onManual={(file) => {
+          setPhoto(file);
+          setKeepPhoto(false);
+          uploaded.current = null;
+        }}
         disabled={preparing || state.disabled}
         onPending={setReadingReceipt}
       />
-      {photo ? (
+      {photo && candidates ? (
         <>
           {supplier ? <p>Поставщик из квитанции: {supplier}</p> : null}
           <label className="field">
@@ -223,10 +228,12 @@ export function ChargeForm({
               Сохранится для объекта «{target.objectTitle}», счёт «{target.title}».
             </p>
           ) : null}
-          <CheckLine checked={keepPhoto} onChange={setKeepPhoto}>
-            Приложить фото квитанции
-          </CheckLine>
         </>
+      ) : null}
+      {photo ? (
+        <CheckLine checked={keepPhoto} onChange={setKeepPhoto}>
+          Приложить фото квитанции
+        </CheckLine>
       ) : null}
       <div className="field">
         <label className="field__label" htmlFor={id('period')}>

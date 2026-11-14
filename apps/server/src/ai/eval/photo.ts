@@ -112,7 +112,7 @@ export async function evaluateIdentity(
           context: { objects: [], members: [], timeZone: 'UTC' },
         }),
       );
-      if (fake || draft.identity !== 'no') correct++;
+      if (draft.identity === 'yes') correct++;
     } catch {
       failed++;
     }

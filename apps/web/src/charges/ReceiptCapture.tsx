@@ -7,6 +7,7 @@ import {
 import { useRef, useState } from 'react';
 import { aiError, useAiStatus } from '../ai/AiCapture.tsx';
 import { useAiConsent } from '../ai/consent.tsx';
+import { IdentityConfirmation } from '../ai/IdentityConfirmation.tsx';
 import { ApiError, apiRequest } from '../auth/api.ts';
 import { Notice } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
@@ -14,10 +15,12 @@ import { readReceiptQr } from './qr.ts';
 
 export function ReceiptCapture({
   onDraft,
+  onManual,
   disabled = false,
   onPending,
 }: {
   onDraft: (draft: ReceiptPhotoDraft, file: File, accounts: ReceiptAccount[]) => void;
+  onManual: (file: File) => void;
   disabled?: boolean;
   onPending?: (pending: boolean) => void;
 }) {
@@ -29,24 +32,34 @@ export function ReceiptCapture({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [source, setSource] = useState('');
+  const [confirmation, setConfirmation] = useState<{
+    file: File;
+    accounts: ReceiptAccount[];
+    house: string;
+  }>();
+  const question = confirmation?.house === householdId ? confirmation : undefined;
   function progress(value: boolean) {
     setPending(value);
     onPending?.(value);
   }
-  async function ai(file: File, accounts: ReceiptAccount[]) {
+  async function ai(file: File, accounts: ReceiptAccount[], identityConfirmed = false) {
     if (!householdId || busy.current) return;
     busy.current = true;
     progress(true);
+    setConfirmation(undefined);
     setError('');
     try {
       const form = new FormData();
       form.set('file', file);
-      const response = await fetch(`/api/ai/receipt-photo?spaceId=${householdId}&consent=true`, {
-        method: 'POST',
-        body: form,
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
+      const response = await fetch(
+        `/api/ai/receipt-photo?spaceId=${householdId}&consent=true${identityConfirmed ? '&identityConfirmed=true' : ''}`,
+        {
+          method: 'POST',
+          body: form,
+          credentials: 'same-origin',
+          cache: 'no-store',
+        },
+      );
       const json = await response.json();
       if (!response.ok)
         throw new ApiError(response.status, typeof json?.code === 'string' ? json.code : '');
@@ -54,11 +67,13 @@ export function ReceiptCapture({
       onDraft(draft, file, accounts);
       setSource('Черновик ИИ — проверьте поля.');
     } catch (failure) {
-      setError(
-        failure instanceof ApiError && failure.code === 'AI_PRIVATE_DOCUMENT'
-          ? 'Документ личности — заполните вручную.'
-          : aiError(failure),
-      );
+      if (
+        failure instanceof ApiError &&
+        failure.status === 422 &&
+        failure.code === 'AI_PRIVATE_DOCUMENT'
+      ) {
+        setConfirmation({ file, accounts, house: householdId });
+      } else setError(aiError(failure));
     } finally {
       busy.current = false;
       progress(false);
@@ -133,13 +148,23 @@ export function ReceiptCapture({
       <button
         type="button"
         className="btn btn--secondary"
-        disabled={pending || disabled}
+        disabled={pending || disabled || !!question}
         onClick={() => input.current?.click()}
       >
         {pending ? 'Читаем квитанцию…' : 'Заполнить по квитанции'}
       </button>
       {source ? <p role="status">{source}</p> : null}
       {error ? <Notice error>{error}</Notice> : null}
+      {question ? (
+        <IdentityConfirmation
+          disabled={disabled}
+          onRecognize={() => void ai(question.file, question.accounts, true)}
+          onManual={() => {
+            setConfirmation(undefined);
+            onManual(question.file);
+          }}
+        />
+      ) : null}
       {consent.dialog}
     </div>
   );

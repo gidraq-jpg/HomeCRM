@@ -44,7 +44,7 @@ export async function evaluatePdfs(providers: ReturnType<typeof createProviders>
         context,
       );
       if (name.startsWith('identity')) {
-        score('identity', draft === null);
+        score('identity', false);
       } else if (name === 'contract') {
         score('document.kind', draft?.classification.kind === 'document');
         const document = DocumentDraft.parse(draft?.fields);
@@ -67,6 +67,13 @@ export async function evaluatePdfs(providers: ReturnType<typeof createProviders>
       }
     } catch (error) {
       if (
+        name.startsWith('identity') &&
+        error instanceof Failure &&
+        error.status === 422 &&
+        error.code === 'AI_PRIVATE_DOCUMENT'
+      )
+        score('identity', true);
+      else if (
         (name === 'encrypted' && error instanceof Failure && error.code === 'AI_PDF_ENCRYPTED') ||
         (name === 'broken' && error instanceof Failure && error.code === 'AI_PDF_BROKEN')
       )
