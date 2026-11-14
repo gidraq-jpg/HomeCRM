@@ -85,6 +85,7 @@ test('D32: запись карусели 412 px с касанием', async ({ p
   try {
     await demo.goto(`${family.baseURL}#/today`);
     await expect(demo.locator('[data-feed-ready="true"]')).toHaveCount(4);
+    await expect(demo.locator('#boot-splash')).toHaveCount(0);
     for (let index = 1; index < 4; index++) {
       await touchSwipe(demo, demo.locator('.feed-heading'), -150);
       await expect(demo.locator('.feed-carousel')).toHaveAttribute(
