@@ -39,7 +39,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:encoding
-      - run: node --test scripts/select-checks.test.ts
+      - run: node --test scripts/select-checks.test.ts scripts/check-architecture.test.ts
       - name: Выбрать проверки по изменённым путям
         id: changes
         env:

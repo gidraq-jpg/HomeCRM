@@ -29,8 +29,21 @@ import {
 import type { FastifyInstance } from 'fastify';
 import type { z } from 'zod';
 import type { Account } from '../auth/account.ts';
-import type { AuthModule } from '../auth/routes.ts';
+import type { AuthModule } from '../auth/module.ts';
 import { copyFiles, fileSummary, filesOf } from '../files/service.ts';
+import { getObject, type ObjectRow, summary } from '../records/objects.ts';
+import {
+  columnsOf,
+  dataRoutes,
+  deny,
+  Failure,
+  factsOf,
+  parse,
+  placementFrom,
+  placementOf,
+  requireWrite,
+  version,
+} from '../records/support.ts';
 import { copyMeters } from '../utilities/copy.ts';
 import { accountSummary, peopleOf, validateProperty } from '../utilities/service.ts';
 import { exportLinks, registerLinks } from './links.ts';
@@ -45,66 +58,8 @@ import {
   Preview,
   Share,
 } from './schemas.ts';
-import {
-  columnsOf,
-  dataRoutes,
-  deny,
-  Failure,
-  factsOf,
-  missing,
-  parse,
-  placementFrom,
-  placementOf,
-  requireWrite,
-  version,
-} from './support.ts';
 import { copyEvents, exportEvents, registerTimeline } from './timeline.ts';
 
-export type ObjectRow = typeof objects.$inferSelect;
-export function summary(record: ObjectRow) {
-  const {
-    id,
-    title,
-    objectType,
-    typeData,
-    spaceId,
-    spaceKind,
-    audience,
-    authorId,
-    assigneeId,
-    createdAt,
-    updatedAt,
-    deletedAt,
-  } = record;
-  return {
-    id,
-    title,
-    objectType,
-    typeData,
-    spaceId,
-    spaceKind,
-    audience,
-    authorId,
-    assigneeId,
-    createdAt,
-    updatedAt,
-    deletedAt,
-  };
-}
-export async function getObject(
-  tx: Transaction,
-  account: Account,
-  id: string,
-  lock = false,
-): Promise<ObjectRow> {
-  const query = tx.select().from(objects).where(eq(objects.id, id));
-  const [visible] = await query;
-  if (!visible || !canView(account.viewer, placementOf(visible))) missing();
-  const [record] = lock ? await query.for('update') : [visible];
-  if (!record) deny();
-  if (!canView(account.viewer, placementOf(record))) missing();
-  return record;
-}
 async function fieldsOf(tx: Transaction, account: Account, id: string) {
   return (
     await tx

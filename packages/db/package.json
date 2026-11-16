@@ -5,7 +5,10 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./testing": "./src/testing/index.ts"
+    "./testing": "./src/testing/index.ts",
+    "./migrate": "./src/migrate.ts",
+    "./bootstrap": "./src/bootstrap.ts",
+    "./testing/postgres": "./src/testing/postgres.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate",

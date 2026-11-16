@@ -17,10 +17,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import type { AuthModule } from '../auth/module.ts';
 import { loadViewer } from '../auth/provision.ts';
-import type { AuthModule } from '../auth/routes.ts';
-import { chatHouse, hash, idle } from '../oauth/routes.ts';
-import { Failure, placementOf } from '../objects/support.ts';
+import { chatHouse, hash, idle } from '../oauth/grants.ts';
+import { Failure, placementOf } from '../records/support.ts';
 
 export async function mcpRoutes(app: FastifyInstance, module: AuthModule) {
   app.setErrorHandler((_err, _req, reply) => reply.code(503).send({ error: 'MCP_UNAVAILABLE' }));

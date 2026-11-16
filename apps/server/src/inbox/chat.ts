@@ -22,8 +22,8 @@ import {
 } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import type { AuthModule } from '../auth/module.ts';
 import { loadViewer } from '../auth/provision.ts';
-import type { AuthModule } from '../auth/routes.ts';
 import {
   columnsOf,
   dataRoutes,
@@ -31,7 +31,7 @@ import {
   Failure,
   placementFrom,
   readReference,
-} from '../objects/support.ts';
+} from '../records/support.ts';
 import { createReading, getMeter } from '../utilities/meters.ts';
 
 export async function chatInboxRoutes(app: FastifyInstance, module: AuthModule) {

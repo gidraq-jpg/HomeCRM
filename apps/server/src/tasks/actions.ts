@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { deadlines, eq, objects, sql, tasks } from '@homecrm/db';
 import { canRestore, canTrash, canWriteDeadline } from '@homecrm/shared';
 import { z } from 'zod';
-import { readRadar } from '../deadlines/routes.ts';
-import { getObject } from '../objects/routes.ts';
+import { readRadar } from '../deadlines/radar.ts';
+import { getObject } from '../records/objects.ts';
 import {
   type DataRoute,
   deny,
@@ -12,10 +12,10 @@ import {
   parse,
   placementOf,
   requireWrite,
-} from '../objects/support.ts';
+} from '../records/support.ts';
 import { publicRecord } from '../utilities/service.ts';
 import { type RadarTaskSource, radarTaskTitle } from './radar-title.ts';
-import { getTask, summaries, summary } from './routes.ts';
+import { getTask, summaries, summary } from './records.ts';
 export function taskActions(route: DataRoute) {
   route('POST', '/api/objects/:id/assignee', 200, async (tx, account, request) => {
     const { id } = parse(z.strictObject({ id: z.uuid() }), request.params),

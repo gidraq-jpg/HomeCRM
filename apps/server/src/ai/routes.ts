@@ -28,8 +28,8 @@ import type { FastifyInstance } from 'fastify';
 import { parseBuffer } from 'music-metadata';
 import { z } from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
-import type { AuthModule } from '../auth/routes.ts';
-import { Failure, factsOf, parse } from '../objects/support.ts';
+import type { AuthModule } from '../auth/module.ts';
+import { Failure, factsOf, parse } from '../records/support.ts';
 import type { AiConfig } from './config.ts';
 import { createProviders, preparePhoto, validateAudio } from './providers.ts';
 

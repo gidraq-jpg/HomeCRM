@@ -24,7 +24,7 @@ import {
   placementFrom,
   placementOf,
   type Row,
-} from '../objects/support.ts';
+} from '../records/support.ts';
 
 export async function defaultHousePlacement(
   tx: Transaction,

@@ -7,8 +7,8 @@ import {
   type TaskFields,
 } from '@homecrm/shared';
 import type { Account } from '../auth/account.ts';
-import { columnsOf, deny, Failure, factsOf } from '../objects/support.ts';
-import type { Task } from './routes.ts';
+import { columnsOf, deny, Failure, factsOf } from '../records/support.ts';
+import type { Task } from './records.ts';
 export function repeatTemplate(data: TaskFields, assigneeId?: string) {
   return {
     planOn: data.planOn,

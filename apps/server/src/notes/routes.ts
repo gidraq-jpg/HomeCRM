@@ -33,9 +33,9 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
-import { pgError } from '../auth/provision.ts';
-import type { AuthModule } from '../auth/routes.ts';
+import type { AuthModule } from '../auth/module.ts';
 import { copyFiles } from '../files/service.ts';
+import { plainErrorHandler } from '../records/errors.ts';
 import {
   beginOperation,
   exactVersion,
@@ -43,9 +43,9 @@ import {
   finishReceipt,
   operationOwner,
   receiptOf,
-} from '../idempotency.ts';
-import { Failure } from '../objects/support.ts';
-import { offlineSnapshot } from '../offline/snapshot.ts';
+} from '../records/idempotency.ts';
+import { offlineSnapshot } from '../records/snapshot.ts';
+import { Failure } from '../records/support.ts';
 import { card, itemsOf, type Note, placementOf, summary } from './cards.ts';
 import {
   AudienceChange,
@@ -153,24 +153,7 @@ async function replaceItems(
 
 export async function notesRoutes(app: FastifyInstance, module: AuthModule) {
   const currentAccount = createAccountReader(module);
-  // Текст Drizzle содержит параметры запроса: в журнал отправляются только классификация и SQLSTATE.
-  app.setErrorHandler((error, request, reply) => {
-    if (error instanceof Failure) return reply.code(error.status).send({ code: error.code });
-    const status =
-      typeof error === 'object' && error !== null && 'statusCode' in error
-        ? error.statusCode
-        : undefined;
-    if (status === 400 || status === 413) return reply.code(status).send({ code: 'INVALID_INPUT' });
-    const { code } = pgError(error);
-    if (code === '42501') return reply.code(403).send({ code: 'ACCESS_DENIED' });
-    if (['23503', '23505', '23514', '40P01', '40001'].includes(code ?? ''))
-      return reply.code(409).send({ code: 'CONFLICT' });
-    request.log.error(
-      { databaseCode: /^[A-Z0-9]{5}$/.test(code ?? '') ? code : undefined },
-      'Notes request failed',
-    );
-    return reply.code(500).send({ code: 'INTERNAL_ERROR' });
-  });
+  plainErrorHandler(app, 'Notes');
 
   app.get('/api/notes', async (request, reply) => {
     const account = await currentAccount(request, reply);

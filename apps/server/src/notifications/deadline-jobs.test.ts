@@ -1,7 +1,7 @@
 import type { Pool } from '@homecrm/db';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { refreshDeadlines } from './engine.ts';
-import { startDeadlineJobs } from './jobs.ts';
+import { refreshDeadlines } from '../deadlines/engine.ts';
+import { startDeadlineJobs } from './deadline-jobs.ts';
 
 const mocks = vi.hoisted(() => ({
   boss: {
@@ -23,7 +23,7 @@ vi.mock('pg-boss', () => ({
     }
   },
 }));
-vi.mock('./engine.ts', () => ({
+vi.mock('../deadlines/engine.ts', () => ({
   enqueueDeadlineWarnings: vi.fn(),
   initializeHouseTimeZones: vi.fn(),
   refreshDeadlines: vi.fn(),

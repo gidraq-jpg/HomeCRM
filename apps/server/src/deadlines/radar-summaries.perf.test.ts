@@ -5,7 +5,7 @@ import type { Device } from '../testing/device.ts';
 import { percentile } from '../testing/perf.ts';
 import { baselineRadar } from '../testing/radar-baseline.ts';
 import { createWorld, type World } from '../testing/world.ts';
-import { readRadar } from './routes.ts';
+import { readRadar } from './radar.ts';
 
 let world: World, adult: Device;
 beforeAll(async () => {

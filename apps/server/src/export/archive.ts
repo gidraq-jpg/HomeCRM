@@ -17,7 +17,7 @@ import type { z } from 'zod';
 import type { Account } from '../auth/account.ts';
 import { safeFilename } from '../files/media.ts';
 import type { FileServices } from '../files/service.ts';
-import { Failure, factsOf, readReference, typeForTable } from '../objects/support.ts';
+import { Failure, factsOf, readReference, typeForTable } from '../records/support.ts';
 
 type Data = Record<string, unknown>;
 export const EXPORT_PAGE_SIZE = 100;

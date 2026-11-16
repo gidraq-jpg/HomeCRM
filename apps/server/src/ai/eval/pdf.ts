@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { DocumentDraft, ReceiptPhotoDraft } from '@homecrm/shared';
 import { parseInbox } from '../../inbox/parse.ts';
-import { Failure } from '../../objects/support.ts';
+import { Failure } from '../../records/support.ts';
 import { readPdf } from '../pdf.ts';
 import type { createProviders } from '../providers.ts';
 

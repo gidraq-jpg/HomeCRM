@@ -1,6 +1,6 @@
 import { ContactBirthday, PersonData } from '@homecrm/shared';
 import { z } from 'zod';
-import { Failure } from '../objects/support.ts';
+import { Failure } from '../records/support.ts';
 
 export const MAX_VCARD_BYTES = 512 * 1024;
 export const VCardFile = z.strictObject({

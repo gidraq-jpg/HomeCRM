@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { and, apiOperations, eq, sql, type Transaction } from '@homecrm/db';
 import { OperationReceipt } from '@homecrm/shared';
-import { Failure } from './objects/support.ts';
+import { Failure } from './support.ts';
 
 export function operationOwner(
   accountId: string,

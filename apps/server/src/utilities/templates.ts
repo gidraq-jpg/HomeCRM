@@ -31,7 +31,7 @@ import {
   Failure,
   parse,
   placementFrom,
-} from '../objects/support.ts';
+} from '../records/support.ts';
 import { createReading } from './meters.ts';
 import { defaultHousePlacement, provider, validateProperty } from './service.ts';
 

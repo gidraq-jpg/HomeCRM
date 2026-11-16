@@ -7,7 +7,7 @@ import {
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { createAccountReader } from '../auth/account.ts';
-import type { AuthModule } from '../auth/routes.ts';
+import type { AuthModule } from '../auth/module.ts';
 
 /** Контракт для R0.7b. Адреса и ключи устройств не возвращаются даже в списке своих устройств. */
 export const notificationRoutes: FastifyPluginAsync<AuthModule & { publicKey?: string }> = async (

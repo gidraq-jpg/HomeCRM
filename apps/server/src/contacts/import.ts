@@ -4,8 +4,8 @@ import { canCreate, OrganizationData, PersonData } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
-import type { AuthModule } from '../auth/routes.ts';
-import { beginOperation, fingerprint, finishOperation } from '../idempotency.ts';
+import type { AuthModule } from '../auth/module.ts';
+import { beginOperation, fingerprint, finishOperation } from '../records/idempotency.ts';
 import {
   columnsOf,
   dataRoutes,
@@ -16,8 +16,8 @@ import {
   placementOf,
   requireWrite,
   version,
-} from '../objects/support.ts';
-import { getContact } from './routes.ts';
+} from '../records/support.ts';
+import { getContact } from './records.ts';
 import { MAX_VCARD_BYTES, mergePerson, normalizePhone, parseVCard, VCardFile } from './vcard.ts';
 
 const Placement = z.strictObject({

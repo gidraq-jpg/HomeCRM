@@ -1,10 +1,14 @@
 import { createWorkerDatabase, type Pool } from '@homecrm/db';
 import { PgBoss } from 'pg-boss';
 import { z } from 'zod';
-import { dispatchNotifications } from '../notifications/dispatcher.ts';
-import { scheduleSummaries } from '../notifications/summaries.ts';
-import type { PushSender } from '../notifications/transport.ts';
-import { enqueueDeadlineWarnings, initializeHouseTimeZones, refreshDeadlines } from './engine.ts';
+import {
+  enqueueDeadlineWarnings,
+  initializeHouseTimeZones,
+  refreshDeadlines,
+} from '../deadlines/engine.ts';
+import { dispatchNotifications } from './dispatcher.ts';
+import { scheduleSummaries } from './summaries.ts';
+import type { PushSender } from './transport.ts';
 
 export const DEADLINE_QUEUE = 'deadline-engine';
 export async function startDeadlineJobs(

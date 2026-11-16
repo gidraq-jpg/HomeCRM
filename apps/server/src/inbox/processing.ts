@@ -20,7 +20,7 @@ import { aiProvider } from '../ai/config.ts';
 import { readPdf } from '../ai/pdf.ts';
 import { createProviders } from '../ai/providers.ts';
 import { type FileServices, filesOf } from '../files/service.ts';
-import { Failure } from '../objects/support.ts';
+import { Failure } from '../records/support.ts';
 import { type InboxContext, parseInbox } from './parse.ts';
 
 export async function processInbox(

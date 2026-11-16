@@ -3,9 +3,9 @@ import { mustUseSecondFactor, type Viewer } from '@homecrm/shared';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { isPlaceholderEmail } from './identity.ts';
+import type { AuthModule } from './module.ts';
 import { loadViewer } from './provision.ts';
 import { checkRequestSource } from './request-source.ts';
-import type { AuthModule } from './routes.ts';
 /** Вошедший участник глазами маршрутов данных. */
 export interface Account {
   id: string;
