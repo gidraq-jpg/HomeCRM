@@ -35,7 +35,7 @@ import { z } from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
 import { pgError } from '../auth/provision.ts';
 import type { AuthModule } from '../auth/routes.ts';
-import { copyFiles, fileSummary, filesOf } from '../files/service.ts';
+import { copyFiles } from '../files/service.ts';
 import {
   beginOperation,
   exactVersion,
@@ -46,6 +46,7 @@ import {
 } from '../idempotency.ts';
 import { Failure } from '../objects/support.ts';
 import { offlineSnapshot } from '../offline/snapshot.ts';
+import { card, itemsOf, type Note, placementOf, summary } from './cards.ts';
 import {
   AudienceChange,
   Confirm,
@@ -57,8 +58,6 @@ import {
   ShareNote,
 } from './schemas.ts';
 
-type Note = typeof notes.$inferSelect;
-type Item = typeof noteItems.$inferSelect;
 function denied(): never {
   throw new Failure(403, 'ACCESS_DENIED');
 }
@@ -66,13 +65,6 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throw new Failure(400, 'INVALID_INPUT');
   return result.data;
-}
-export function placementOf(
-  record: Pick<Note, 'spaceId' | 'spaceKind' | 'audience' | 'assigneeId'>,
-): Placement {
-  return record.spaceKind === 'personal'
-    ? { kind: 'personal', spaceId: record.spaceId, ownerId: record.assigneeId ?? '' }
-    : { kind: 'household', spaceId: record.spaceId, audience: record.audience ?? 'household' };
 }
 const factsOf = (record: Note): RecordFacts => ({
   type: 'note',
@@ -86,59 +78,6 @@ const columnsOf = (placement: Placement) => ({
   spaceKind: placement.kind,
   audience: placement.kind === 'household' ? placement.audience : null,
 });
-function summary(record: Note) {
-  const {
-    id,
-    title,
-    pinned,
-    spaceId,
-    spaceKind,
-    audience,
-    authorId,
-    assigneeId,
-    createdAt,
-    updatedAt,
-    deletedAt,
-  } = record;
-  return {
-    id,
-    title,
-    pinned,
-    spaceId,
-    spaceKind,
-    audience,
-    authorId,
-    assigneeId,
-    createdAt,
-    updatedAt,
-    deletedAt,
-  };
-}
-async function itemsOf(tx: Transaction, id: string): Promise<Item[]> {
-  return tx
-    .select()
-    .from(noteItems)
-    .where(eq(noteItems.parentId, id))
-    .orderBy(noteItems.position, noteItems.id);
-}
-async function card(tx: Transaction, record: Note, includeDeleted = false) {
-  return {
-    ...summary(record),
-    files: (await filesOf(tx, 'note', record.id))
-      .filter((file) => includeDeleted || record.deletedAt !== null || file.deletedAt === null)
-      .map(fileSummary),
-    body: record.body,
-    checklist: (await itemsOf(tx, record.id))
-      .filter((item) => includeDeleted || record.deletedAt !== null || item.deletedAt === null)
-      .map(({ id, title, done, position, deletedAt }) => ({
-        id,
-        title,
-        done,
-        position,
-        deletedAt,
-      })),
-  };
-}
 async function personal(tx: Transaction, account: Account): Promise<Placement> {
   const [space] = await tx
     .select({ id: spaces.id, kind: spaces.kind, ownerAccountId: spaces.ownerAccountId })
@@ -210,21 +149,6 @@ async function replaceItems(
   for (const item of old)
     if (item.deletedAt === null && !incoming.some((next) => next.id === item.id))
       await tx.update(noteItems).set({ deletedAt: sql`now()` }).where(eq(noteItems.id, item.id));
-}
-
-/** Полный состав заметки в экспорте: своё личное и общее администрируемых домов (PRD 7.3.13). */
-export async function exportNotes(tx: Transaction, account: Account) {
-  const visible = await tx.select().from(notes);
-  return Promise.all(
-    visible
-      .filter(
-        (record) =>
-          canView(account.viewer, placementOf(record)) &&
-          (record.spaceKind === 'personal' ||
-            account.viewer.memberships.get(record.spaceId) === 'admin'),
-      )
-      .map((record) => card(tx, record, true)),
-  );
 }
 
 export async function notesRoutes(app: FastifyInstance, module: AuthModule) {

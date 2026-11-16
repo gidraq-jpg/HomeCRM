@@ -61,6 +61,10 @@ export function canExportHouseSql(spaceId = 'space_id'): string {
 export function canExportPersonalSql(ownerId = 'owner_account_id'): string {
   return `${ownerId} = ${ME}`;
 }
+/** Двойник canExportDeadline: срок дня рождения из профиля принадлежит этому участнику. */
+export function canExportDeadlineSql(): string {
+  return `CASE WHEN space_kind = 'personal' THEN ${canExportPersonalSql('coalesce(profile_account_id, assignee_id)')} ELSE ${canExportHouseSql()} END`;
+}
 
 /** canView: личное видит только владелец; «Вся семья» — участники дома; «Взрослые» — взрослые. */
 export function canViewSql(): string {

@@ -77,6 +77,20 @@ export function canExportPersonal(viewer: Viewer, ownerId: string): boolean {
   return viewer.accountId === ownerId;
 }
 
+/**
+ * DATA-2: срок попадает в выгрузку участника по тем же правилам, что и остальные данные:
+ * личный — только владельцу, общий — только администратору дома. Срок дня рождения из профиля
+ * принадлежит этому участнику: чужой день рождения виден в «Радаре», но в выгрузку не идёт.
+ */
+export function canExportDeadline(
+  viewer: Viewer,
+  deadline: { placement: Placement; profileAccountId?: string | null },
+): boolean {
+  return deadline.placement.kind === 'personal'
+    ? canExportPersonal(viewer, deadline.profileAccountId ?? deadline.placement.ownerId)
+    : canExportHouse(viewer, deadline.placement.spaceId);
+}
+
 /** История личных выгрузок закрыта от семьи; историю общего видят действующие администраторы. */
 export function canViewExportEvent(
   viewer: Viewer,

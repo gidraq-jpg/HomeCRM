@@ -1,9 +1,7 @@
-import { type Database, deadlines, eq, notificationSettings, spaces } from '@homecrm/db';
-import { NotificationSettings } from '@homecrm/shared';
+import type { Database } from '@homecrm/db';
 import { type FastifyInstance, fastify } from 'fastify';
 import { type AiConfig, loadAiConfig } from './ai/config.ts';
 import { aiRoutes } from './ai/routes.ts';
-import { createAccountReader } from './auth/account.ts';
 import { type AuthModule, authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
 import { contactImportRoutes } from './contacts/import.ts';
@@ -123,58 +121,20 @@ export function buildApp(
     void app.register(oauthRoutes, auth);
     void app.register(mcpRoutes, auth);
     void app.register(chatInboxRoutes, auth);
-    // Дополняем контракты существующих маршрутов без изменений модуля входа.
-    app.addHook('preSerialization', async (request, reply, payload) => {
-      if (reply.statusCode !== 200 || !payload || typeof payload !== 'object') return payload;
-      if (request.routeOptions.url === '/api/me') {
-        const me = payload as {
-          id: string;
-          roles: { householdId: string; role: string }[];
-          timeZone: string;
-        };
-        if (!me.id || !Array.isArray(me.roles)) return payload;
-        if (dependencies.worker)
-          await initializeHouseTimeZones(dependencies.worker, auth.homeTimeZone);
-        const houses = await auth.appDb.withAccount(me.id, (tx) =>
-          tx
-            .select({ householdId: spaces.id, timeZone: spaces.timeZone })
-            .from(spaces)
-            .where(eq(spaces.kind, 'household'))
-            .orderBy(spaces.createdAt, spaces.id),
-        );
-        return {
-          ...me,
-          timeZone: houses[0]?.timeZone ?? auth.homeTimeZone,
-          households: houses,
-        };
-      }
-      if (request.routeOptions.url === '/api/export') {
-        const account = await createAccountReader(auth)(request, reply);
-        if (!account) return payload;
-        const rules = await auth.appDb.withAccount(account.id, (tx) => tx.select().from(deadlines));
-        const [settings] = await auth.appDb.withAccount(account.id, (tx) =>
-          tx.select().from(notificationSettings),
-        );
-        return {
-          ...payload,
-          notificationSettings: NotificationSettings.strip().parse(settings ?? {}),
-          deadlines: rules.filter(
-            (rule) =>
-              (rule.spaceKind === 'personal' &&
-                (!rule.profileAccountId || rule.profileAccountId === account.id)) ||
-              account.viewer.memberships.get(rule.spaceId) === 'admin',
-          ),
-        };
-      }
-      return payload;
-    });
-    void app.register(aiRoutes, { ...auth, ai: dependencies.ai ?? loadAiConfig() });
+    const ai = dependencies.ai ?? loadAiConfig();
+    const { worker } = dependencies;
+    void app.register(aiRoutes, { ...auth, ai });
     void app.register(inboxRoutes, {
       ...auth,
-      ai: dependencies.ai ?? loadAiConfig(),
+      ai,
       ...(dependencies.files ? { files: dependencies.files } : {}),
     });
-    void app.register(authRoutes, auth);
+    void app.register(authRoutes, {
+      ...auth,
+      ...(worker
+        ? { ensureHouseTimeZones: () => initializeHouseTimeZones(worker, auth.homeTimeZone) }
+        : {}),
+    });
     void app.register(exportRoutes, {
       ...auth,
       ...(dependencies.files ? { files: dependencies.files } : {}),
