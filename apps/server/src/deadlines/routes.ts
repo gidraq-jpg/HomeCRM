@@ -29,7 +29,7 @@ import { z } from 'zod';
 import { createAccountReader } from '../auth/account.ts';
 import { pgError } from '../auth/provision.ts';
 import type { AuthModule } from '../auth/routes.ts';
-import { placementOf } from '../notes/routes.ts';
+import { placementOf } from '../notes/cards.ts';
 import { Failure } from '../objects/support.ts';
 import { offlineSnapshot } from '../offline/snapshot.ts';
 import { safeCents } from '../utilities/analytics.ts';

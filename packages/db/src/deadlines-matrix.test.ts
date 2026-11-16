@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  canExportDeadline,
   canRestore,
   canView,
   canViewDeadline,
@@ -8,6 +9,7 @@ import {
   type RecordFacts,
 } from '@homecrm/shared';
 import { afterAll, beforeAll, expect, inject, it } from 'vitest';
+import { canExportDeadlineSql } from './access-sql.ts';
 import { createAppDatabase } from './client.ts';
 import { deadlines, eq, sql } from './index.ts';
 import { createTestDatabase, type TestDatabase } from './testing/database.ts';
@@ -86,6 +88,28 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await db?.drop();
+});
+it('матрица DATA-2: выгрузка сроков — canExportDeadline и его двойник в SQL дают один ответ', async () => {
+  let checks = 0;
+  let exported = 0;
+  for (const person of family.people)
+    await createAppDatabase(db.app).withAccount(person.id, async (tx) => {
+      const rows = await tx.execute<{ id: string }>(
+        sql`SELECT id FROM deadlines WHERE ${sql.raw(canExportDeadlineSql())}`,
+      );
+      const ids = new Set(rows.rows.map(({ id }) => id));
+      for (const example of examples) {
+        const expected =
+          canView(person.viewer, example.facts.placement) &&
+          canExportDeadline(person.viewer, { placement: example.facts.placement });
+        expect(ids.has(example.id)).toBe(expected);
+        if (expected) exported++;
+        checks++;
+      }
+    });
+  expect(checks).toBe(family.people.length * examples.length);
+  expect(exported).toBeGreaterThan(0);
+  expect(exported).toBeLessThan(checks);
 });
 it('матрица: чтение правил, наступлений и счётчиков совпадает с эталоном для всех участников и мест', async () => {
   let checks = 0;

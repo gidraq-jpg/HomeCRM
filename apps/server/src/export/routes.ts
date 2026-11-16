@@ -14,14 +14,25 @@ import { clearFailures, reserveAttempt } from '../auth/attempts.ts';
 import { pgError } from '../auth/provision.ts';
 import { reserveSessionRequest } from '../auth/rate-limit.ts';
 import type { AuthModule } from '../auth/routes.ts';
+import { createPasswordConfirmation } from '../auth/step-up.ts';
 import type { FileServices } from '../files/service.ts';
 import { buildArchive } from './archive.ts';
+import { exportSnapshot } from './snapshot.ts';
 
 export async function exportRoutes(
   app: FastifyInstance,
   module: AuthModule & { files?: FileServices },
 ) {
   const currentAccount = createAccountReader(module);
+  const confirmPassword = createPasswordConfirmation(module);
+  /** Выгрузка своих данных одним ответом; чувствительное действие — нужен пароль (AUTH-7). */
+  app.post('/api/export', async (request, reply) => {
+    const account = await currentAccount(request, reply);
+    if (account === null) return reply;
+    const body = (request.body ?? {}) as { password?: unknown };
+    if (!(await confirmPassword(request, reply, account, body.password))) return reply;
+    return module.appDb.withAccount(account.id, (tx) => exportSnapshot(tx, account));
+  });
   app.get('/api/export/history', async (request, reply) => {
     const account = await currentAccount(request, reply);
     if (!account) return reply;

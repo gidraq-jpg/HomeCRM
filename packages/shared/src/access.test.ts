@@ -4,6 +4,7 @@ import {
   canBeAssignee,
   canCreate,
   canExclude,
+  canExportDeadline,
   canInvite,
   canLeave,
   canResetPassword,
@@ -317,5 +318,35 @@ describe('пространства и состав дома', () => {
     expect(canLeave(outsider, HOUSE, [admin.accountId])).toBe(false);
     expect(canLeave(admin, HOUSE, [admin.accountId])).toBe(false);
     expect(canLeave(admin, HOUSE, [admin.accountId, 'admin-2'])).toBe(true);
+  });
+});
+
+describe('canExportDeadline (DATA-2)', () => {
+  const house: Placement = { kind: 'household', spaceId: HOUSE, audience: 'household' };
+  it('личный срок выгружает только владелец', () => {
+    for (const viewer of everyone)
+      for (const owner of everyone)
+        expect(
+          canExportDeadline(viewer, {
+            placement: { kind: 'personal', spaceId: 'p', ownerId: owner.accountId },
+          }),
+        ).toBe(viewer === owner);
+  });
+  it('общий срок выгружает только администратор дома, при любой аудитории', () => {
+    for (const audience of AUDIENCES)
+      for (const viewer of everyone)
+        expect(canExportDeadline(viewer, { placement: { ...house, audience } })).toBe(
+          viewer === admin,
+        );
+  });
+  it('день рождения из профиля выгружает только сам участник, даже из чужого личного места', () => {
+    for (const viewer of everyone)
+      for (const profile of everyone)
+        expect(
+          canExportDeadline(viewer, {
+            placement: { kind: 'personal', spaceId: 'p', ownerId: admin.accountId },
+            profileAccountId: profile.accountId,
+          }),
+        ).toBe(viewer === profile);
   });
 });

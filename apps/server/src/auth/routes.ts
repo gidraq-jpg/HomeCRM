@@ -3,7 +3,6 @@
 // а запросы к данным идут через withAccount (роль homecrm_app), то есть под RLS (ADR-0004).
 import {
   type AppDatabase,
-  accounts,
   and,
   chatCodes,
   chatGrants,
@@ -19,18 +18,16 @@ import {
   sessions,
   spaces,
   sql,
+  type Transaction,
 } from '@homecrm/db';
 import { canInvite, ROLES } from '@homecrm/shared';
-import { exportNotes } from '../notes/routes.ts';
-import { type Account, createAccountReader } from './account.ts';
+import { createAccountReader } from './account.ts';
 
 export type { Account } from './account.ts';
 
-import { isAPIError } from 'better-auth/api';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import * as z from 'zod';
-import { clearFailures, reserveAttempt } from './attempts.ts';
 import { type Auth, type AuthOptions, createAuth } from './auth.ts';
 import { newInvitationToken } from './identity.ts';
 import { CLIENT_IP_HEADER } from './plugin.ts';
@@ -72,7 +69,21 @@ function fail(reply: FastifyReply, status: number, code: string, message: string
   return null;
 }
 
-export async function authRoutes(app: FastifyInstance, module: AuthModule): Promise<void> {
+/** Дома участника и их часовые пояса — в порядке создания; первый дом задаёт пояс клиента. */
+const housesOf = (tx: Transaction) =>
+  tx
+    .select({ householdId: spaces.id, timeZone: spaces.timeZone })
+    .from(spaces)
+    .where(eq(spaces.kind, 'household'))
+    .orderBy(spaces.createdAt, spaces.id);
+
+export async function authRoutes(
+  app: FastifyInstance,
+  module: AuthModule & {
+    /** Проставляет пояс домам, у которых его ещё нет; вызывается только при таком доме. */
+    ensureHouseTimeZones?: () => Promise<void>;
+  },
+): Promise<void> {
   const { auth, db, appDb } = module;
 
   // ---- Мост к Better Auth: /api/auth/* целиком обслуживает библиотека ----------------------
@@ -202,48 +213,13 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
 
   // ---- Маршруты данных: нужен вошедший участник ---------------------------------------------
 
-  /** Повторный ввод пароля перед чувствительным действием (AUTH-7); неверные пароли копятся в блокировку. */
-  async function confirmPassword(
-    request: FastifyRequest,
-    reply: FastifyReply,
-    account: Account,
-    password: unknown,
-  ): Promise<boolean> {
-    if (typeof password !== 'string' || password.length === 0) {
-      fail(reply, 400, 'PASSWORD_REQUIRED', 'Enter your password to continue');
-      return false;
-    }
-    // Попытка занимается до проверки пароля (attempts.ts): параллельные запросы не обгонят счётчик.
-    const reservation = await reserveAttempt(db, { accountId: account.id });
-    if (!reservation.allowed) {
-      const seconds = Math.max(
-        1,
-        Math.ceil((reservation.lockedUntil.getTime() - Date.now()) / 1000),
-      );
-      void reply.header('retry-after', String(seconds));
-      fail(reply, 429, 'ACCOUNT_TEMPORARILY_LOCKED', 'Too many attempts, try later');
-      return false;
-    }
-    try {
-      await auth.api.verifyPassword({
-        headers: fromNodeHeaders(request.headers),
-        body: { password },
-      });
-    } catch (error) {
-      if (!isAPIError(error)) throw error;
-      fail(reply, 403, 'INVALID_PASSWORD', 'Wrong password');
-      return false;
-    }
-    await clearFailures(db, { accountId: account.id });
-    return true;
-  }
-
   app.get('/api/me', async (request, reply) => {
     const account = await currentAccount(request, reply, { allowSecondFactorPending: true });
     if (account === null) return reply;
-    const { notices, profile, personalSpace, settings } = await appDb.withAccount(
+    const { first, notices, profile, personalSpace, settings } = await appDb.withAccount(
       account.id,
       async (tx) => ({
+        first: await housesOf(tx),
         personalSpace: (
           await tx
             .select({ id: spaces.id })
@@ -266,6 +242,12 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
         )[0],
       }),
     );
+    // Дом, созданный после запуска сервера, ещё без часового пояса: проставляем один раз и читаем заново.
+    let houses = first;
+    if (module.ensureHouseTimeZones && first.some((house) => house.timeZone === null)) {
+      await module.ensureHouseTimeZones();
+      houses = await appDb.withAccount(account.id, housesOf);
+    }
     const completedAt = notices[0]?.completedAt ?? null;
     return {
       id: account.id,
@@ -277,7 +259,7 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
       twoFactorEnabled: account.twoFactorEnabled,
       secondFactorRequired: account.secondFactorPending,
       roles: [...account.viewer.memberships].map(([householdId, role]) => ({ householdId, role })),
-      timeZone: module.homeTimeZone,
+      timeZone: houses[0]?.timeZone ?? module.homeTimeZone,
       // Ребёнок видит, что пароль сбрасывали, пока не подтвердит, что прочитал (AUTH-5);
       // первые 7 дней подтвердить нельзя никому, в том числе вошедшему по ссылке администратору.
       passwordReset: completedAt
@@ -289,6 +271,7 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
             ).toISOString(),
           }
         : null,
+      households: houses,
     };
   });
 
@@ -396,28 +379,5 @@ export async function authRoutes(app: FastifyInstance, module: AuthModule): Prom
     );
     if ((revoked.rowCount ?? 0) !== 1) return fail(reply, 404, 'NOT_FOUND', 'Invitation not found');
     return { revoked: true };
-  });
-
-  /** Пример чувствительного действия: выгрузка своих данных; нужен пароль (AUTH-7). */
-  app.post('/api/export', async (request, reply) => {
-    const account = await currentAccount(request, reply);
-    if (account === null) return reply;
-    const body = (request.body ?? {}) as { password?: unknown };
-    if (!(await confirmPassword(request, reply, account, body.password))) return reply;
-    const [profile, mine, familyProfile] = await appDb.withAccount(account.id, (tx) =>
-      Promise.all([
-        tx
-          .select({ displayName: accounts.displayName, username: accounts.username })
-          .from(accounts)
-          .where(eq(accounts.id, account.id)),
-        exportNotes(tx, account),
-        tx.select().from(memberProfiles).where(eq(memberProfiles.accountId, account.id)),
-      ]),
-    );
-    return {
-      exportedAt: new Date().toISOString(),
-      profile: profile[0] ? { ...profile[0], ...familyProfile[0] } : null,
-      notes: mine,
-    };
   });
 }

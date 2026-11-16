@@ -359,6 +359,13 @@ it('DEAD-2: явный срок заменяет день счёта; отмен
     reason: 'Вымышленная ошибка',
   });
   expect(cancelled.status, cancelled.text).toBe(200);
+  // Повторы считаются от даты создания правила и его опорной даты, а их ставят настоящие часы.
+  // Возвращаем обе к дате расчёта: иначе после 15 ноября 2026 первым днём счёта станет 15 декабря.
+  // Триггеры запрещают править коммунальные сроки напрямую, поэтому на одну команду они отключены.
+  expect(objectId).toMatch(/^[0-9a-f-]{36}$/);
+  await world.database.admin.query(
+    `BEGIN; SET LOCAL session_replication_role=replica; UPDATE deadlines SET created_at='2026-10-08T04:00:00Z', rule=CASE WHEN rule ? 'anchor' THEN jsonb_set(rule,'{anchor}','"2026-10-08"') ELSE rule END, needs_refresh=true WHERE object_id='${objectId}'; COMMIT`,
+  );
   const after = await radar(objectId);
   expect(after.some((i) => i.chargeId === row.id)).toBe(false);
   expect(after.some((i) => i.date === '2026-11-15' && i.chargeId === null)).toBe(true);
