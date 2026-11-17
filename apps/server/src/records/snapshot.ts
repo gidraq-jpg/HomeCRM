@@ -1,6 +1,6 @@
 import type { Transaction } from '@homecrm/db';
 import { OfflineSnapshot } from '@homecrm/shared';
-import { recordVersions } from '../idempotency.ts';
+import { recordVersions } from './idempotency.ts';
 
 export const SNAPSHOT_TABLES: Record<string, string | null> = {
   '/api/tasks': 'tasks',

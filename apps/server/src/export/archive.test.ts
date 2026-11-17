@@ -16,7 +16,7 @@ import { initializeHouseTimeZones, refreshDeadlines } from '../deadlines/engine.
 import { FileCipher } from '../files/crypto.ts';
 import { DirectoryStorage } from '../files/storage.ts';
 import { scheduleSummaries } from '../notifications/summaries.ts';
-import * as references from '../objects/support.ts';
+import * as references from '../records/support.ts';
 import { BASE_URL, type Device } from '../testing/device.ts';
 import { enrollTotp, signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type Person, type World } from '../testing/world.ts';

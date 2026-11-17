@@ -6,7 +6,7 @@ import {
 } from '@homecrm/db';
 import { buildApp } from './app.ts';
 import { scheduleCleanup } from './auth/cleanup.ts';
-import { createAuthModule } from './auth/routes.ts';
+import { createAuthModule } from './auth/module.ts';
 import {
   configurationErrorMessage,
   loadAuthConfig,

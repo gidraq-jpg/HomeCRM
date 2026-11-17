@@ -39,8 +39,8 @@ import {
   finishReceipt,
   operationOwner,
   receiptOf,
-} from '../idempotency.ts';
-import { getObject } from '../objects/routes.ts';
+} from '../records/idempotency.ts';
+import { getObject } from '../records/objects.ts';
 import {
   columnsOf,
   type DataRoute,
@@ -52,7 +52,7 @@ import {
   placementOf,
   requireWrite,
   version,
-} from '../objects/support.ts';
+} from '../records/support.ts';
 import { publicRecord } from './service.ts';
 
 const Id = z.strictObject({ id: z.uuid() });

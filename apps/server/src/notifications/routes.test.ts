@@ -10,10 +10,10 @@ import {
   initializeHouseTimeZones,
   refreshDeadlines,
 } from '../deadlines/engine.ts';
-import { startDeadlineJobs } from '../deadlines/jobs.ts';
 import type { Device } from '../testing/device.ts';
 import { signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type World } from '../testing/world.ts';
+import { startDeadlineJobs } from './deadline-jobs.ts';
 import { dispatchNotifications } from './dispatcher.ts';
 import type { PushSender } from './transport.ts';
 

@@ -1,9 +1,9 @@
 import { getTableColumns, sql, tasks } from '@homecrm/db';
 import { localDate, shiftTaskDate, TaskFeedObject, TimeZone } from '@homecrm/shared';
 import { z } from 'zod';
-import { readRadar } from '../deadlines/routes.ts';
-import { type DataRoute, Failure, parse } from '../objects/support.ts';
-import { summaries } from './routes.ts';
+import { readRadar } from '../deadlines/radar.ts';
+import { type DataRoute, Failure, parse } from '../records/support.ts';
+import { summaries } from './records.ts';
 
 const Query = z.strictObject({
   householdId: z.uuid().optional(),

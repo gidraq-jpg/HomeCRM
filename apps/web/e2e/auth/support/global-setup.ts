@@ -1,5 +1,5 @@
 import { createPool, createRoles } from '@homecrm/db';
-import { startPostgres } from '../../../../../packages/db/src/testing/postgres.ts';
+import { startPostgres } from '@homecrm/db/testing/postgres';
 
 export default async function setup() {
   const postgres = await startPostgres('web-e2e');

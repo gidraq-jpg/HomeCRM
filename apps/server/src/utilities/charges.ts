@@ -19,8 +19,8 @@ import {
 } from '@homecrm/shared';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
-import { beginOperation, fingerprint, finishOperation } from '../idempotency.ts';
-import { getObject } from '../objects/routes.ts';
+import { beginOperation, fingerprint, finishOperation } from '../records/idempotency.ts';
+import { getObject } from '../records/objects.ts';
 import {
   columnsOf,
   type DataRoute,
@@ -30,7 +30,7 @@ import {
   parse,
   placementOf,
   requireWrite,
-} from '../objects/support.ts';
+} from '../records/support.ts';
 import { publicRecord } from './service.ts';
 
 const Id = z.strictObject({ id: z.uuid() });

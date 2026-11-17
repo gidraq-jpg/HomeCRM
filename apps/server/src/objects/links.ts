@@ -2,8 +2,6 @@ import { eq, recordLinks, sql, type Transaction } from '@homecrm/db';
 import { canViewLink, canWriteLink } from '@homecrm/shared';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
-import { referenceRows } from './references.ts';
-import { Confirm, CreateLink, Id, PatchLink, Reference } from './schemas.ts';
 import {
   type DataRoute,
   deny,
@@ -13,7 +11,9 @@ import {
   readReference,
   tableForType as tableFor,
   typeForTable as typeFor,
-} from './support.ts';
+} from '../records/support.ts';
+import { referenceRows } from './references.ts';
+import { Confirm, CreateLink, Id, PatchLink, Reference } from './schemas.ts';
 
 type Link = typeof recordLinks.$inferSelect;
 async function endpoints(tx: Transaction, account: Account, link: Link) {

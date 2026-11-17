@@ -13,7 +13,7 @@
     "check": "pnpm check:encoding && pnpm lint && pnpm typecheck && pnpm test",
     "check:changed": "pnpm check:encoding && pnpm lint && pnpm typecheck && pnpm test:changed",
     "check:encoding": "node scripts/check-encoding.ts",
-    "lint": "biome check .",
+    "lint": "biome check . && node scripts/check-architecture.ts",
     "format": "biome check --write .",
     "typecheck": "tsc -p tsconfig.json && pnpm -r --parallel typecheck",
     "test": "vitest run --project=!perf",

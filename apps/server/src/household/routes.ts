@@ -24,11 +24,12 @@ import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyInstance } from 'fastify';
 import * as z from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
+import type { AuthModule } from '../auth/module.ts';
 import { loadViewer, pgError } from '../auth/provision.ts';
-import type { AuthModule } from '../auth/routes.ts';
 import { visibleProfileFile } from '../files/export.ts';
 import { setProfilePhoto } from '../files/service.ts';
-import { Failure } from '../objects/support.ts';
+import { plainErrorHandler } from '../records/errors.ts';
+import { Failure } from '../records/support.ts';
 
 const House = z.strictObject({ householdId: z.uuid() });
 const Member = House.extend({ accountId: z.uuid() });
@@ -52,23 +53,7 @@ export async function householdRoutes(
   options: AuthModule & { worker?: Database },
 ) {
   const currentAccount = createAccountReader(options);
-  app.setErrorHandler((error, request, reply) => {
-    if (error instanceof Failure) return reply.code(error.status).send({ code: error.code });
-    const status =
-      typeof error === 'object' && error !== null && 'statusCode' in error
-        ? error.statusCode
-        : undefined;
-    if (status === 400 || status === 413) return reply.code(status).send({ code: 'INVALID_INPUT' });
-    const { code } = pgError(error);
-    if (code === '42501') return reply.code(403).send({ code: 'ACCESS_DENIED' });
-    if (['23503', '23505', '23514', '40P01', '40001'].includes(code ?? ''))
-      return reply.code(409).send({ code: 'CONFLICT' });
-    request.log.error(
-      { databaseCode: /^[A-Z0-9]{5}$/.test(code ?? '') ? code : undefined },
-      'Household request failed',
-    );
-    return reply.code(500).send({ code: 'INTERNAL_ERROR' });
-  });
+  plainErrorHandler(app, 'Household');
   async function members(tx: Transaction, account: Account, householdId: string) {
     if (!account.viewer.memberships.has(householdId)) throw new Failure(404, 'HOUSEHOLD_NOT_FOUND');
     const rows = await tx

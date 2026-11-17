@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { FileCipher } from '../files/crypto.ts';
 import { DirectoryStorage } from '../files/storage.ts';
-import * as idempotency from '../idempotency.ts';
+import * as idempotency from '../records/idempotency.ts';
 import { BASE_URL, type Device } from '../testing/device.ts';
 import { signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type World } from '../testing/world.ts';

@@ -8,7 +8,7 @@ import {
   type MeterData,
 } from '@homecrm/shared';
 import type { Extractor, ExtractRequest } from '../ai/providers.ts';
-import { Failure } from '../objects/support.ts';
+import { Failure } from '../records/support.ts';
 
 export type InboxContext = ExtractRequest['context'] & {
   meterData?: ReadonlyMap<string, MeterData & { previous: string[] | null }>;

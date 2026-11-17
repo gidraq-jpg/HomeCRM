@@ -29,9 +29,9 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
-import type { AuthModule } from '../auth/routes.ts';
+import type { AuthModule } from '../auth/module.ts';
 import { fileSummary, filesOf } from '../files/service.ts';
-import { getObject } from '../objects/routes.ts';
+import { getObject } from '../records/objects.ts';
 import {
   columnsOf,
   dataRoutes,
@@ -44,7 +44,7 @@ import {
   placementOf,
   requireWrite,
   version,
-} from '../objects/support.ts';
+} from '../records/support.ts';
 import { publicRecord } from '../utilities/service.ts';
 
 const Id = z.strictObject({ id: z.uuid() });

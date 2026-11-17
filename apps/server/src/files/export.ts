@@ -1,7 +1,7 @@
 import { eq, memberProfiles, profileFiles, spaceMembers, sql, type Transaction } from '@homecrm/db';
 import { canViewFile, canViewProfileFile } from '@homecrm/shared';
 import type { Account } from '../auth/account.ts';
-import { factsOf, readReference } from '../objects/support.ts';
+import { factsOf, readReference } from '../records/support.ts';
 import { safeFilename } from './media.ts';
 import { type FileServices, fileSummary, fileTable } from './service.ts';
 

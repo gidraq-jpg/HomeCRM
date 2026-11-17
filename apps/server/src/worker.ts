@@ -1,9 +1,9 @@
 import { createPool } from '@homecrm/db';
 import { TimeZone } from '@homecrm/shared';
 import { z } from 'zod';
-import { startDeadlineJobs } from './deadlines/jobs.ts';
 import { reportWorkerError } from './deadlines/logging.ts';
 import { startInboxJobs } from './inbox/jobs.ts';
+import { startDeadlineJobs } from './notifications/deadline-jobs.ts';
 import { createPushSender, VapidConfig } from './notifications/transport.ts';
 
 const Environment = z.object({

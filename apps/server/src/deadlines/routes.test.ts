@@ -1,10 +1,10 @@
 import { createWorkerDatabase, sql } from '@homecrm/db';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
+import { startDeadlineJobs } from '../notifications/deadline-jobs.ts';
 import type { Device } from '../testing/device.ts';
 import { signedInAdmin } from '../testing/flows.ts';
 import { createWorld, type World } from '../testing/world.ts';
 import { enqueueDeadlineWarnings, initializeHouseTimeZones, refreshDeadlines } from './engine.ts';
-import { startDeadlineJobs } from './jobs.ts';
 
 let world: World, adult: Device, admin: Device, child: Device;
 const now = new Date('2026-10-07T04:00:00Z');

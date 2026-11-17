@@ -24,7 +24,7 @@ import { z } from 'zod';
 import type { AiConfig } from '../ai/config.ts';
 import { aiProvider } from '../ai/config.ts';
 import { type Account, createAccountReader } from '../auth/account.ts';
-import type { AuthModule } from '../auth/routes.ts';
+import type { AuthModule } from '../auth/module.ts';
 import { prepareFile, safeFilename } from '../files/media.ts';
 import {
   discardAfterCommit,
@@ -34,8 +34,8 @@ import {
   insertPreparedFile,
   prepareUpload,
 } from '../files/service.ts';
-import { fingerprint } from '../idempotency.ts';
 import { CreateObject } from '../objects/schemas.ts';
+import { fingerprint } from '../records/idempotency.ts';
 import {
   columnsOf,
   dataRoutes,
@@ -47,7 +47,7 @@ import {
   placementFrom,
   readReference,
   requireWrite,
-} from '../objects/support.ts';
+} from '../records/support.ts';
 import { validateProperty } from '../utilities/service.ts';
 import { processInbox } from './processing.ts';
 

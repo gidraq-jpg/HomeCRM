@@ -1,7 +1,7 @@
 import { and, eq, isNull, meterReadings, meters, recordLinks, type Transaction } from '@homecrm/db';
 import { canView } from '@homecrm/shared';
 import type { Account } from '../auth/account.ts';
-import { columnsOf, deny, placementOf, type Row } from '../objects/support.ts';
+import { columnsOf, deny, placementOf, type Row } from '../records/support.ts';
 
 /** Копия получает новые id и автора; ссылки указывают только на скопированное дерево. */
 export async function copyMeters(

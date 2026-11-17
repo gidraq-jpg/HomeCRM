@@ -2,8 +2,8 @@ import { searchAccessKeys, setSearchQuery } from '@homecrm/db';
 import { canView } from '@homecrm/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { AuthModule } from '../auth/routes.ts';
-import { dataRoutes, parse } from '../objects/support.ts';
+import type { AuthModule } from '../auth/module.ts';
+import { dataRoutes, parse } from '../records/support.ts';
 import { searchRowsQuery } from './query.ts';
 import { searchSnippet } from './snippet.ts';
 

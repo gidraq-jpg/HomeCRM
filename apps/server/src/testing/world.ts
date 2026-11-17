@@ -15,8 +15,8 @@ import { inject } from 'vitest';
 import type { AiConfig } from '../ai/config.ts';
 import { buildApp } from '../app.ts';
 import type { Mailer } from '../auth/auth.ts';
+import { type AuthModule, createAuthModule } from '../auth/module.ts';
 import { createHousehold, provisionAccount } from '../auth/provision.ts';
-import { type AuthModule, createAuthModule } from '../auth/routes.ts';
 import type { FileServices } from '../files/service.ts';
 import { BASE_URL, Device } from './device.ts';
 

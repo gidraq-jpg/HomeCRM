@@ -4,7 +4,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Account } from './account.ts';
 import { clearFailures, reserveAttempt } from './attempts.ts';
-import type { AuthModule } from './routes.ts';
+import type { AuthModule } from './module.ts';
 
 function fail(reply: FastifyReply, status: number, code: string, message: string): false {
   void reply.code(status).send({ code, message });

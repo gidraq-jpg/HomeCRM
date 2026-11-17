@@ -11,7 +11,7 @@ import {
 import sharp from 'sharp';
 import { ProxyAgent, type RequestInit as ProxyRequestInit, fetch as proxyFetch } from 'undici';
 import { z } from 'zod';
-import { Failure } from '../objects/support.ts';
+import { Failure } from '../records/support.ts';
 import type { AiConfig } from './config.ts';
 import { normalizeResponse, ResponseSchemas, requestContext } from './drafts.ts';
 import { common } from './prompts/common.ts';
