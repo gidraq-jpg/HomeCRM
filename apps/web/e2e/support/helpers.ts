@@ -132,7 +132,10 @@ interface CheckOptions {
   shot?: 'page' | 'viewport';
 }
 
-/** Ждёт конца анимаций: пока панель выезжает и проявляется, цвета смешаны и контраст не тот. */
+/**
+ * Ждёт конца анимаций и закрепления позиции экрана: пока панель выезжает и проявляется,
+ * цвета смешаны и контраст не тот, а прокрутка теста откатывается.
+ */
 export async function settle(page: Page): Promise<void> {
   await expect(page.locator('html')).not.toHaveAttribute('data-motion-pending', 'true');
   await expect(page.locator('html')).not.toHaveAttribute(
@@ -151,7 +154,12 @@ export async function settle(page: Page): Promise<void> {
             animation.playState === 'running' &&
             animation.effect?.getTiming().iterations !== Infinity,
         );
-      if (!animations.length) break;
+      if (!animations.length) {
+        // После анимаций приложение ещё три кадра закрепляет позицию экрана и откатывает
+        // чужую прокрутку (useNavigationPosition): жест или scrollIntoView теста ждут её конца.
+        if (document.documentElement.dataset.scrollRestoring !== 'true') break;
+        continue;
+      }
       // Удаление инертной копии может заменить finished у CSS-анимации.
       // Кадр позволяет заново проверить playState, не зависая на старом Promise.
       await Promise.race([
