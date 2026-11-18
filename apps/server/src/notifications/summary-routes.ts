@@ -3,10 +3,10 @@ import { localDate, SummaryMetadata, SummaryResponse, shiftTaskDate } from '@hom
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAccountReader } from '../auth/account.ts';
+import type { AuthModule } from '../auth/module.ts';
 import { pgError } from '../auth/provision.ts';
-import type { AuthModule } from '../auth/routes.ts';
-import { readRadar } from '../deadlines/routes.ts';
-import { Failure } from '../objects/support.ts';
+import { readRadar } from '../deadlines/radar.ts';
+import { Failure } from '../records/support.ts';
 
 export async function summaryRoutes(app: FastifyInstance, options: AuthModule) {
   app.setErrorHandler((error, _request, reply) => {

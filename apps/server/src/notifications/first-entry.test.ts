@@ -1,8 +1,8 @@
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MIGRATIONS_DIR, runMigrations } from '@homecrm/db/migrate';
 import { afterAll, expect, it } from 'vitest';
-import { MIGRATIONS_DIR, runMigrations } from '../../../../packages/db/src/migrate.ts';
 import { createWorld, type World } from '../testing/world.ts';
 
 let world: World, folder: string;

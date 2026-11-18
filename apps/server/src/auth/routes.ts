@@ -2,11 +2,9 @@
 // Маршруты данных работают от имени участника: сессию проверяет библиотека (роль homecrm_auth),
 // а запросы к данным идут через withAccount (роль homecrm_app), то есть под RLS (ADR-0004).
 import {
-  type AppDatabase,
   and,
   chatCodes,
   chatGrants,
-  type Database,
   desc,
   eq,
   invitations,
@@ -28,41 +26,13 @@ export type { Account } from './account.ts';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import * as z from 'zod';
-import { type Auth, type AuthOptions, createAuth } from './auth.ts';
 import { newInvitationToken } from './identity.ts';
+import type { AuthModule } from './module.ts';
+import { RESET_NOTICE_LOCK_DAYS } from './module.ts';
 import { CLIENT_IP_HEADER } from './plugin.ts';
 import { pgError } from './provision.ts';
 import { reserveSessionRequest } from './rate-limit.ts';
 import { checkRequestSource } from './request-source.ts';
-
-export interface AuthModule {
-  auth: Auth;
-  /** Служба входа: роль homecrm_auth. */
-  db: Database;
-  /** Приложение: роль homecrm_app. */
-  appDb: AppDatabase;
-  baseURL: string;
-  /** Откуда принимаются изменяющие запросы с cookie. */
-  origins: ReadonlySet<string>;
-  /** Часовой пояс дома (IANA): клиент показывает даты в нём. */
-  homeTimeZone: string;
-}
-
-/** Сколько дней после сброса отметку не может закрыть никто (AUTH-5, решение владельца 6 октября). */
-export const RESET_NOTICE_LOCK_DAYS = 7;
-const DEFAULT_HOME_TIME_ZONE = 'Asia/Yekaterinburg';
-
-export function createAuthModule(options: AuthOptions): AuthModule {
-  const origin = new URL(options.baseURL).origin;
-  return {
-    auth: createAuth(options),
-    db: options.db,
-    appDb: options.appDb,
-    baseURL: origin,
-    origins: new Set([origin, ...(options.trustedOrigins ?? [])]),
-    homeTimeZone: options.homeTimeZone ?? DEFAULT_HOME_TIME_ZONE,
-  };
-}
 
 function fail(reply: FastifyReply, status: number, code: string, message: string): null {
   void reply.code(status).send({ code, message });

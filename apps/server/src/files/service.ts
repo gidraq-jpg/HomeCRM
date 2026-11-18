@@ -13,7 +13,7 @@ import {
   taskFiles,
 } from '@homecrm/db';
 import type { Account } from '../auth/account.ts';
-import { columnsOf, deny, placementOf, type Row } from '../objects/support.ts';
+import { columnsOf, deny, placementOf, type Row } from '../records/support.ts';
 import type { FileCipher } from './crypto.ts';
 import type { FileStorage } from './storage.ts';
 

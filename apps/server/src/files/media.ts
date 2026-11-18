@@ -1,7 +1,7 @@
 import { fileTypeFromBuffer } from 'file-type';
 import decode from 'heic-decode';
 import sharp, { type Sharp } from 'sharp';
-import { Failure } from '../objects/support.ts';
+import { Failure } from '../records/support.ts';
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_PIXELS = 40_000_000;

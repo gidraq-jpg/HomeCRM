@@ -1,6 +1,6 @@
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { Failure } from '../objects/support.ts';
+import { Failure } from '../records/support.ts';
 import { PDF_MAX_BYTES, PDF_TIMEOUT_MS, PdfReply } from './pdf-protocol.ts';
 
 /** Недоверенные байты не разбираются в процессе HTTP-сервера. */

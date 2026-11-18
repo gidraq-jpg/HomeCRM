@@ -2,9 +2,11 @@ import type { Database } from '@homecrm/db';
 import { type FastifyInstance, fastify } from 'fastify';
 import { type AiConfig, loadAiConfig } from './ai/config.ts';
 import { aiRoutes } from './ai/routes.ts';
-import { type AuthModule, authRoutes } from './auth/routes.ts';
+import type { AuthModule } from './auth/module.ts';
+import { authRoutes } from './auth/routes.ts';
 import type { Config } from './config.ts';
 import { contactImportRoutes } from './contacts/import.ts';
+import { contactsRoutes } from './contacts/routes.ts';
 import { initializeHouseTimeZones } from './deadlines/engine.ts';
 import { deadlinesRoutes } from './deadlines/routes.ts';
 import { documentRoutes } from './documents/routes.ts';
@@ -152,6 +154,7 @@ export function buildApp(
     void app.register(notesRoutes, auth);
     void app.register(objectsRoutes, auth);
     void app.register(utilityRoutes, auth);
+    void app.register(contactsRoutes, auth);
     void app.register(searchRoutes, auth);
     void app.register(shoppingRoutes, auth);
     void app.register(householdRoutes, {

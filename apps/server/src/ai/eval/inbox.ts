@@ -4,7 +4,7 @@ import { DocumentDraft, MeterData } from '@homecrm/shared';
 import sharp from 'sharp';
 import { z } from 'zod';
 import { type InboxContext, parseInbox } from '../../inbox/parse.ts';
-import { Failure } from '../../objects/support.ts';
+import { Failure } from '../../records/support.ts';
 import { document } from '../prompts/document.ts';
 import { inbox } from '../prompts/inbox.ts';
 import type { createProviders } from '../providers.ts';

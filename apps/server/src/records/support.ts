@@ -16,9 +16,9 @@ import {
 import type { FastifyInstance, FastifyRequest, HTTPMethods } from 'fastify';
 import type { z } from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
+import type { AuthModule } from '../auth/module.ts';
 import { pgError } from '../auth/provision.ts';
-import type { AuthModule } from '../auth/routes.ts';
-import { offlineSnapshot, SNAPSHOT_TABLES } from '../offline/snapshot.ts';
+import { offlineSnapshot, SNAPSHOT_TABLES } from './snapshot.ts';
 
 export class Failure extends Error {
   status: number;

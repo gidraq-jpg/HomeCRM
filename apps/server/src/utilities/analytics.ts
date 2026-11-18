@@ -9,8 +9,8 @@ import {
   localDate,
 } from '@homecrm/shared';
 import { z } from 'zod';
-import { getObject } from '../objects/routes.ts';
-import { type DataRoute, Failure, parse, placementOf } from '../objects/support.ts';
+import { getObject } from '../records/objects.ts';
+import { type DataRoute, Failure, parse, placementOf } from '../records/support.ts';
 
 export function safeCents(value: string | bigint): number {
   const cents = BigInt(value);

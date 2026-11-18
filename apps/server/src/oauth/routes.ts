@@ -1,15 +1,14 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { and, chatClients, chatCodes, chatEvents, chatGrants, desc, eq, spaces } from '@homecrm/db';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAccountReader } from '../auth/account.ts';
+import type { AuthModule } from '../auth/module.ts';
 import { reserveSessionRequest } from '../auth/rate-limit.ts';
-import type { AuthModule } from '../auth/routes.ts';
-import { Failure } from '../objects/support.ts';
+import { Failure } from '../records/support.ts';
+import { chatHouse, hash, idle } from './grants.ts';
 
-export const hash = (s: string) => createHash('sha256').update(s).digest('base64url');
 const secret = () => randomBytes(32).toString('base64url');
-export const idle = (date: Date) => date.getTime() < Date.now() - 90 * 86400000;
 const Redirect = z
   .url()
   .max(2000)
@@ -33,17 +32,6 @@ export const Authorization = z.object({
   resource: z.string().max(2000).optional(),
   scope: z.literal('chat').optional(),
 });
-export async function chatHouse(module: AuthModule, accountId: string, houseId: string) {
-  return module.appDb.withAccount(accountId, async (tx) => {
-    const [house] = await tx
-      .select()
-      .from(spaces)
-      .where(and(eq(spaces.id, houseId), eq(spaces.kind, 'household')));
-    if (!house?.chatEnabled)
-      throw new Failure(403, 'CHAT_DISABLED', 'ИИ через чат выключен администратором дома.');
-    return house;
-  });
-}
 export async function oauthRoutes(app: FastifyInstance, module: AuthModule) {
   const current = createAccountReader(module),
     resource = `${module.baseURL}/mcp`;

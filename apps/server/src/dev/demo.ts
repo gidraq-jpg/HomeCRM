@@ -9,12 +9,12 @@ import { createAppDatabase, createAuthDatabase, createWorkerDatabase } from '@ho
 
 const pg = createRequire(new URL('../../../../packages/db/package.json', import.meta.url))('pg');
 
+import { createRoles } from '@homecrm/db/bootstrap';
 import { createTestDatabase } from '@homecrm/db/testing';
-import { createRoles } from '../../../../packages/db/src/bootstrap.ts';
 import { aiProvider, loadAiConfig } from '../ai/config.ts';
 import { buildApp } from '../app.ts';
+import { createAuthModule } from '../auth/module.ts';
 import { createHousehold, provisionAccount } from '../auth/provision.ts';
-import { createAuthModule } from '../auth/routes.ts';
 import { FileCipher } from '../files/crypto.ts';
 import { DirectoryStorage } from '../files/storage.ts';
 

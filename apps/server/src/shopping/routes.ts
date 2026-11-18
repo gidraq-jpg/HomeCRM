@@ -22,8 +22,8 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
-import type { AuthModule } from '../auth/routes.ts';
-import { beginOperation, fingerprint, finishReceipt, receiptOf } from '../idempotency.ts';
+import type { AuthModule } from '../auth/module.ts';
+import { beginOperation, fingerprint, finishReceipt, receiptOf } from '../records/idempotency.ts';
 import {
   columnsOf,
   dataRoutes,
@@ -38,7 +38,7 @@ import {
   requireWrite,
   tableForType,
   version,
-} from '../objects/support.ts';
+} from '../records/support.ts';
 import { publicRecord } from '../utilities/service.ts';
 
 const Id = z.strictObject({ id: z.uuid() });

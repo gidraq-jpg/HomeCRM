@@ -8,17 +8,7 @@ import {
 } from '@homecrm/shared';
 import { z } from 'zod';
 import type { Account } from '../auth/account.ts';
-import { referenceRows } from './references.ts';
-import { getObject, type ObjectRow } from './routes.ts';
-import {
-  Confirm,
-  CreateEvent,
-  EventId,
-  Id,
-  ListTimeline,
-  PatchEvent,
-  TimelineCursor,
-} from './schemas.ts';
+import { getObject, type ObjectRow } from '../records/objects.ts';
 import {
   columnsOf,
   type DataRoute,
@@ -33,7 +23,17 @@ import {
   tableForType as tableFor,
   typeForTable as typeFor,
   version,
-} from './support.ts';
+} from '../records/support.ts';
+import { referenceRows } from './references.ts';
+import {
+  Confirm,
+  CreateEvent,
+  EventId,
+  Id,
+  ListTimeline,
+  PatchEvent,
+  TimelineCursor,
+} from './schemas.ts';
 
 type Event = typeof objectEvents.$inferSelect;
 async function summary(tx: Transaction, account: Account, event: Event) {

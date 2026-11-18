@@ -9,10 +9,10 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAccountReader } from '../auth/account.ts';
-import type { AuthModule } from '../auth/routes.ts';
-import { beginOperation, fingerprint, finishOperation } from '../idempotency.ts';
-import { Failure } from '../objects/support.ts';
-import { readRadar } from './routes.ts';
+import type { AuthModule } from '../auth/module.ts';
+import { beginOperation, fingerprint, finishOperation } from '../records/idempotency.ts';
+import { Failure } from '../records/support.ts';
+import { readRadar } from './radar.ts';
 
 export async function radarActionRoutes(app: FastifyInstance, options: AuthModule) {
   const current = createAccountReader(options);

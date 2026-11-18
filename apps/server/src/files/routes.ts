@@ -15,7 +15,7 @@ import { canRestore, canTrash, canViewFile, canWrite, canWriteProfileFile } from
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type Account, createAccountReader } from '../auth/account.ts';
-import type { AuthModule } from '../auth/routes.ts';
+import type { AuthModule } from '../auth/module.ts';
 import {
   beginOperation,
   exactVersion,
@@ -24,7 +24,7 @@ import {
   operationOwner,
   receiptOf,
   recordVersions,
-} from '../idempotency.ts';
+} from '../records/idempotency.ts';
 import {
   dataRoutes,
   deny,
@@ -34,7 +34,7 @@ import {
   parse,
   readReference,
   version,
-} from '../objects/support.ts';
+} from '../records/support.ts';
 import { visibleProfilePhoto } from './export.ts';
 import { MAX_FILE_BYTES, prepareFile, safeFilename } from './media.ts';
 import {
