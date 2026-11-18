@@ -5,6 +5,7 @@ import {
   refreshDeadlines,
 } from '../../../server/src/deadlines/engine.ts';
 import type { Family } from '../auth/support/family.ts';
+import { settle } from '../support/helpers.ts';
 import type { Api } from './notes-support.ts';
 import { expect } from './support.ts';
 
@@ -74,6 +75,9 @@ export async function openRadar(page: Page) {
   // приложения. Не reload сразу после смены hash: он перезагружает ту запись истории, которую
   // браузер уже зафиксировал, и в CI открывал прежний адрес #/more вместо радара (D34).
   // Загрузка явного адреса с about:blank от истории вкладки не зависит.
+  // Закрытая перед этим форма ещё возвращает браузер по истории: без ожидания этот возврат
+  // прерывал загрузку about:blank (net::ERR_ABORTED).
+  await settle(page);
   const url = new URL(page.url());
   url.hash = '/more/radar';
   await page.goto('about:blank');

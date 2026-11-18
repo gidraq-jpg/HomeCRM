@@ -24,6 +24,14 @@ const sheets: Entry[] = [];
 const owners = new WeakMap<object, Entry>();
 let next = 0;
 let closedParent: ParentEntry | undefined;
+// Отметка на <html>, пока браузер возвращается по истории после закрытия листа: загрузка
+// другого адреса в этот момент прерывается, поэтому сквозные тесты ждут её снятия.
+function markClosing(parent: ParentEntry | undefined) {
+  closedParent = parent;
+  if (typeof document === 'undefined') return;
+  if (parent) document.documentElement.dataset.sheetHistory = 'closing';
+  else delete document.documentElement.dataset.sheetHistory;
+}
 export function registerSheet(close: () => void, owner: object) {
   let entry = owners.get(owner);
   if (!entry || !sheets.includes(entry)) {
@@ -53,7 +61,7 @@ export function registerSheet(close: () => void, owner: object) {
       if (index >= 0) sheets.splice(index, 1);
       owners.delete(owner);
       if (history.state?.motionSheet === current.id && currentHref() === current.parent.href) {
-        closedParent = current.parent;
+        markClosing(current.parent);
         history.back();
       }
     });
@@ -61,7 +69,7 @@ export function registerSheet(close: () => void, owner: object) {
 }
 export function consumeSheetBack(event: PopStateEvent) {
   const pendingClose = closedParent;
-  closedParent = undefined;
+  markClosing(undefined);
   if (pendingClose && matchesParent(pendingClose, event.state)) {
     event.stopImmediatePropagation();
     return true;

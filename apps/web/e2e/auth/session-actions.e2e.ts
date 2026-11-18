@@ -1,5 +1,5 @@
 import { expect, test } from './support/fixtures.ts';
-import { checkAuth, expectSignedIn, signIn } from './support/helpers.ts';
+import { checkAuth, expectSignedIn, signIn, trackApi } from './support/helpers.ts';
 
 test('отзыв текущей сессии возвращает на вход', async ({ page, family }) => {
   await signIn(page, family, 'child');
@@ -11,6 +11,7 @@ test('отзыв текущей сессии возвращает на вход'
 
 test('взрослый выключает TOTP с повторным вводом пароля', async ({ page, family }) => {
   const enrollment = await family.enroll('adult');
+  const apiIdle = trackApi(page);
   await signIn(page, family, 'adult');
   await page.getByRole('button', { name: 'Использовать резервный код' }).click();
   await page.getByLabel('Резервный код', { exact: true }).fill(enrollment.backupCodes[0] ?? '');
@@ -21,6 +22,9 @@ test('взрослый выключает TOTP с повторным вводо�
   await page
     .getByLabel('Подтвердите пароль', { exact: true })
     .fill(family.person('adult').password);
+  // Выключение меняет сессию. Фоновая подгрузка разделов стартует через 300 мс после входа и
+  // попадала на этот момент: её запрос со старой сессией получал 401 и возвращал на вход.
+  await apiIdle();
   await page.getByRole('button', { name: 'Выключить второй фактор', exact: true }).last().click();
   await expect(page.getByText('Второй фактор пока не включён.', { exact: false })).toBeVisible();
 });
