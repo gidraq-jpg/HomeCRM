@@ -3,5 +3,6 @@
  * без индикатора — шапка и меню остаются на месте, а экран появляется, как только загрузится.
  */
 export function ScreenFallback() {
-  return <div className="page" aria-busy="true" />;
+  // Не `.page`: скрытый Suspense прежний экран и запасной вид не должны выглядеть как два экрана.
+  return <div className="screen-fallback" aria-busy="true" />;
 }

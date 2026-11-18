@@ -41,10 +41,8 @@ export function useSectionPrefetch(): void {
   const client = useQueryClient();
   const { me, householdId } = useHousehold();
   const { scope } = useScope();
-  useEffect(() => {
-    const timer = setTimeout(() => void preloadSections(), 300);
-    return () => clearTimeout(timer);
-  }, []);
+  // Части сборки — сразу после первой отрисовки: они из кэша service worker и не ждут API.
+  useEffect(() => void preloadSections(), []);
   useEffect(() => {
     const timer = setTimeout(() => {
       void prefetchSections(client, { meId: me.id, householdId, scope });
