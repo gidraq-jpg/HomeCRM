@@ -23,6 +23,29 @@ export async function signIn(
   await page.getByLabel('Пароль', { exact: true }).fill(family.person(role).password);
   await page.getByRole('button', { name: 'Войти', exact: true }).click();
 }
+/**
+ * Ждёт конца фоновой подгрузки разделов после входа (prefetch.ts) и остальных начатых запросов
+ * к API. Вызывается до входа, возвращает ожидание. Нужна перед действием, которое меняет сессию:
+ * запрос со старой сессией, обработанный сервером после смены, получает 401 и стирает cookie.
+ */
+export function trackApi(page: Page): () => Promise<void> {
+  const pending = new Set<unknown>();
+  const isApi = (url: string) => new URL(url).pathname.startsWith('/api/');
+  page.on('request', (request) => {
+    if (isApi(request.url())) pending.add(request);
+  });
+  page.on('requestfinished', (request) => pending.delete(request));
+  page.on('requestfailed', (request) => pending.delete(request));
+  const prefetched = Promise.all(
+    ['/api/objects', '/api/documents', '/api/contacts'].map((path) =>
+      page.waitForResponse((response) => new URL(response.url()).pathname === path),
+    ),
+  );
+  return async () => {
+    await prefetched;
+    await expect.poll(() => pending.size, 'начатые запросы к API завершены').toBe(0);
+  };
+}
 /** `prefix` — начало имени файла скриншота: `auth` для экранов входа, `app` для рабочего приложения. */
 export async function checkAuth(page: Page, info: TestInfo, name: string, prefix = 'auth') {
   await settle(page);

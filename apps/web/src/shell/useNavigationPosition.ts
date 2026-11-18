@@ -37,6 +37,9 @@ export function useNavigationPosition() {
     let frame = 0;
     let stableFrames = 0;
     let lastHeight = 0;
+    // Пока позиция закрепляется, чужая прокрутка без жеста откатывается к цели.
+    // Отметка видна сквозным тестам: они ждут её снятия, прежде чем прокручивать сами.
+    const root = document.documentElement;
     const restore = () => {
       if (!restoring) return;
       if (Math.abs(window.scrollY - target) > 0.5)
@@ -59,10 +62,12 @@ export function useNavigationPosition() {
               frame = 0;
               restore();
             });
+          root.dataset.scrollRestoring = 'true';
           return;
         }
         restoring = false;
       }
+      delete root.dataset.scrollRestoring;
     };
     const record = () => {
       if (!restoring) positions.set(key, window.scrollY);
@@ -70,6 +75,7 @@ export function useNavigationPosition() {
     const interrupt = () => {
       restoring = false;
       cancelAnimationFrame(frame);
+      delete root.dataset.scrollRestoring;
       record();
     };
     window.scrollTo({ top: target, behavior: 'instant' });
@@ -86,6 +92,7 @@ export function useNavigationPosition() {
     window.addEventListener('keydown', interrupt);
     return () => {
       cancelAnimationFrame(frame);
+      delete root.dataset.scrollRestoring;
       observer.disconnect();
       mutations.disconnect();
       window.removeEventListener('scroll', record);
