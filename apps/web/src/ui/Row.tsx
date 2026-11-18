@@ -2,8 +2,8 @@ import { CaretRight, CheckCircle, Info, Warning, WarningOctagon } from '@phospho
 import { Children, type ReactNode, useLayoutEffect, useRef } from 'react';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import type { Visibility } from '../access/visibility.ts';
-import { Link } from '../shell/motion.tsx';
 import { ContentMotion } from './ContentMotion.tsx';
+import { Link } from './navigation.tsx';
 import { useListMotion } from './useListMotion.ts';
 
 function RowListBody({ children, label }: { children: ReactNode; label?: string }) {

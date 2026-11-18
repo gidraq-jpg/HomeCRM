@@ -9,6 +9,7 @@ import { listScopeOf } from './notes/queries.ts';
 import { objectsListOptions } from './objects/queries.ts';
 import { contactsListOptions } from './people/queries.ts';
 import { todayOptions } from './tasks/queries.ts';
+import { preloadSections } from './workspace/sections.ts';
 
 /**
  * После входа списки главных разделов подгружаются в фоне (D48, ADR-0007): первый экран не ждёт,
@@ -31,11 +32,17 @@ export function prefetchSections(
   ]);
 }
 
-/** Запускает подгрузку после первой отрисовки, не блокируя её; при смене пространства — заново. */
+/**
+ * Запускает подгрузку после первой отрисовки, не блокируя её; при смене пространства — заново.
+ * Вместе с данными в фоне загружаются части сборки остальных разделов (D53c): переход и снимок
+ * экрана для анимации не ждут сети и не показывают пустой каркас.
+ */
 export function useSectionPrefetch(): void {
   const client = useQueryClient();
   const { me, householdId } = useHousehold();
   const { scope } = useScope();
+  // Части сборки — сразу после первой отрисовки: они из кэша service worker и не ждут API.
+  useEffect(() => void preloadSections(), []);
   useEffect(() => {
     const timer = setTimeout(() => {
       void prefetchSections(client, { meId: me.id, householdId, scope });

@@ -1,45 +1,29 @@
 import { CaretDown, MagnifyingGlass, UserCircle, X } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router';
+import { type ReactNode, useState } from 'react';
+import { useLocation } from 'react-router';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
-import { Avatar } from '../household/components.tsx';
-import { useHousehold } from '../household/HouseholdContext.tsx';
-import { useMyProfile } from '../household/queries.ts';
-import { useToday } from '../tasks/queries.ts';
-import { useTodayGreeting } from '../tasks/TodayHero.tsx';
 import { EMPTY_SCOPE_EXPLANATION } from '../ui/EmptyState.tsx';
+import { Link, useNavigate } from '../ui/navigation.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
-import { Link, useNavigate } from './motion.tsx';
 import { ScopeSwitch } from './ScopeSwitch.tsx';
 import { StudioBrand } from './StudioBrand.tsx';
 import { isStudio } from './studio.ts';
 
 export const SEARCH_PATH = '/search';
 
-function TodayDate() {
-  const { me, householdId } = useHousehold();
-  const [params] = useSearchParams();
-  const requested = params.get('householdId');
-  const house = me.roles.some((role) => role.householdId === requested) ? requested : householdId;
-  const query = useToday(house);
-  const { date } = useTodayGreeting(query.data, query.error, house);
-  return <span className="topbar__date">{date}</span>;
-}
-
-function TodayAvatar() {
-  const { me } = useHousehold();
-  const profile = useMyProfile();
-  return (
-    <Avatar
-      name={profile.data?.displayName || me.displayName}
-      photoFileId={profile.data?.photoFileId}
-    />
-  );
+/** Вставки шапки «Сегодня»: дату и аватар даёт приложение, каркас не знает о делах и доме. */
+export interface TopBarSlots {
+  todayDate?: ReactNode;
+  profileAvatar?: ReactNode;
 }
 
 /** Шапка: переключатель «Всё · Общее · Личное» и поиск — на каждом экране (PRD, раздел 14). */
-export function TopBar({ scopeVisible = true }: { scopeVisible?: boolean }) {
+export function TopBar({
+  scopeVisible = true,
+  todayDate,
+  profileAvatar,
+}: { scopeVisible?: boolean } & TopBarSlots) {
   const location = useLocation();
   const navigate = useNavigate();
   const inSearch = location.pathname === SEARCH_PATH;
@@ -50,7 +34,7 @@ export function TopBar({ scopeVisible = true }: { scopeVisible?: boolean }) {
 
   return (
     <header className={today ? 'topbar topbar--today' : 'topbar'}>
-      {today ? <TodayDate /> : null}
+      {today ? todayDate : null}
       {studio && !today ? (
         <Link className="topbar__brand" to="/today" aria-label="HomeCRM: сегодня">
           <StudioBrand />
@@ -105,7 +89,7 @@ export function TopBar({ scopeVisible = true }: { scopeVisible?: boolean }) {
       )}
       {studio ? (
         <Link className="icon-button topbar__profile" to="/more/profile" aria-label="Обо мне">
-          {today ? <TodayAvatar /> : <UserCircle size={28} aria-hidden />}
+          {today && profileAvatar ? profileAvatar : <UserCircle size={28} aria-hidden />}
         </Link>
       ) : null}
     </header>

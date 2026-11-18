@@ -1,6 +1,6 @@
 import type { Visibility } from '../access/visibility.ts';
 import { newPlacement } from '../notes/abilities.ts';
-import { uuid } from '../offline/store.ts';
+import { uuid } from '../offline/uuid.ts';
 import type { ShoppingDraft } from '../voice/shopping-dictation.ts';
 import { createShopping, type ShoppingCard, shoppingAction } from './api.ts';
 import { listedNames, shoppingName } from './duplicates.ts';

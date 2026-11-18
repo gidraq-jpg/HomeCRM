@@ -1,4 +1,4 @@
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { CreateOrganization } from './CreateOrganization.tsx';

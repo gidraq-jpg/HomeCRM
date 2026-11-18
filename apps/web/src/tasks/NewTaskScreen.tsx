@@ -7,7 +7,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { newPlacement, visibilityOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { useObjectCard } from '../objects/queries.ts';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';

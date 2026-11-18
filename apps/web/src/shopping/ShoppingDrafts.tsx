@@ -3,7 +3,7 @@ import { type FormEvent, useRef, useState } from 'react';
 import type { Visibility } from '../access/visibility.ts';
 import { ErrorNotice, useAction } from '../auth/components.tsx';
 import { newPlacement } from '../notes/abilities.ts';
-import { uuid } from '../offline/store.ts';
+import { uuid } from '../offline/uuid.ts';
 import { countWord, plural } from '../ui/format.ts';
 import { Sheet } from '../ui/Sheet.tsx';
 import type { ShoppingDraft } from '../voice/shopping-dictation.ts';

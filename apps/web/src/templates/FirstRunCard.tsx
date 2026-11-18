@@ -1,7 +1,7 @@
 import { RocketLaunch } from '@phosphor-icons/react';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { Link } from '../shell/motion.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { useOnboarding } from './queries.ts';
 
 /**

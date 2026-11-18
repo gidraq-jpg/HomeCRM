@@ -107,3 +107,27 @@ test('чужой пакет — только по имени и только в 
     ],
   );
 });
+
+test('слои клиента: ui не знает о каркасе и модулях, каркас — о модулях экранов', () => {
+  assert.deepEqual(
+    check({
+      'apps/web/src/ui/Page.tsx':
+        "import { Link } from './navigation.tsx';\nimport type { Scope } from '../access/scope.ts';\nimport { uuid } from '../offline/uuid.ts';\nimport { motion } from '../shell/motion.tsx';\nexport const a = [Link, uuid, motion];\n",
+      'apps/web/src/ui/Row.tsx':
+        "import type { Task } from '../tasks/api.ts';\nexport type R = Task;\n",
+      'apps/web/src/shell/AppShell.tsx':
+        "import { Page } from '../ui/Page.tsx';\nimport { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';\nexport const s = [Page, QuickAddSheet];\n",
+      'apps/web/src/shell/AppShell.test.tsx':
+        "import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';\nexport const t = QuickAddSheet;\n",
+      'apps/web/src/App.tsx':
+        "import { AppShell } from './shell/AppShell.tsx';\nimport { TaskScreen } from './tasks/TaskScreen.tsx';\nexport const app = [AppShell, TaskScreen];\n",
+      'apps/web/src/tasks/TaskScreen.tsx':
+        "import { AppShell } from '../shell/AppShell.tsx';\nexport const TaskScreen = AppShell;\n",
+    }),
+    [
+      'apps/web/src/shell/AppShell.tsx: слой shell не должен импортировать tasks — ../tasks/QuickAddSheet.tsx',
+      'apps/web/src/ui/Page.tsx: слой ui не должен импортировать shell — ../shell/motion.tsx',
+      'apps/web/src/ui/Row.tsx: слой ui не должен импортировать tasks — ../tasks/api.ts',
+    ],
+  );
+});

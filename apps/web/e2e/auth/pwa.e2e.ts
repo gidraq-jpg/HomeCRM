@@ -151,3 +151,59 @@ test('service worker кэширует оболочку, API и токены не
   await expect(page.getByText('Без сети', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Настройки', exact: true })).toBeVisible();
 });
+
+test('после первого открытия экраны всех разделов открываются без сети (D53c)', async ({
+  page,
+  family,
+  context,
+}) => {
+  const failures: string[] = [];
+  page.on('pageerror', (error) => failures.push(`${error.name}: ${error.message}`));
+  page.on('console', (message) => {
+    // Сбой запросов к API без сети ожидаем; ошибки загрузки частей сборки и Suspense — нет.
+    if (message.type() === 'error' && message.text().startsWith('Failed to load resource')) return;
+    if (message.type() === 'error' || /suspense|lazy|dynamically imported/i.test(message.text()))
+      failures.push(`${message.type()}: ${message.text()}`);
+  });
+  await page.goto('#/sign-in');
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await signIn(page, family, 'adult');
+  await expectSignedIn(page);
+  // Части разделов лежат в предварительном кэше service worker.
+  const cached = await page.evaluate(async () => {
+    const result: string[] = [];
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      result.push(...(await cache.keys()).map((request) => new URL(request.url).pathname));
+    }
+    return result;
+  });
+  for (const section of ['tasks', 'home', 'documents', 'people', 'inbox', 'more', 'rare'])
+    expect(cached.some((path) => new RegExp(`/assets/${section}-[\\w-]+\\.js$`).test(path))).toBe(
+      true,
+    );
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByText('Без сети', { exact: true })).toBeVisible();
+  const screens: [string, string][] = [
+    ['#/today/new', 'Новое дело'],
+    ['#/home', 'Дом'],
+    ['#/documents', 'Документы'],
+    ['#/people', 'Люди'],
+    ['#/more', 'Ещё'],
+    ['#/more/notes', 'Заметки'],
+    ['#/search', 'Поиск'],
+  ];
+  for (const [path, title] of screens) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+  }
+  await page.goto('#/more/inbox');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await context.setOffline(false);
+  expect(failures).toEqual([]);
+});

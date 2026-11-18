@@ -7,7 +7,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { computedNextVerification } from '../meters/form.ts';
 import { useRefreshMeters } from '../meters/queries.ts';
 import { todayIn } from '../objects/dates.ts';
-import { Link } from '../shell/motion.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { completePayment, completeReadings, fetchMeterCard, verifyMeter } from './api.ts';

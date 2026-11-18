@@ -1,11 +1,17 @@
 import { Plus } from '@phosphor-icons/react';
 import { createContext, useContext, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router';
-import { useVoiceAdd } from '../ai/VoiceAdd.tsx';
 import { sectionAdd } from './section-add.ts';
 import { isStudio } from './studio.ts';
 
 export const AddActionContext = createContext<(() => void) | null>(null);
+
+/** Голосовое добавление: его даёт приложение, каркас знает только «включено» и «начать». */
+export interface VoiceAction {
+  enabled: boolean;
+  start: (held?: boolean) => void;
+}
+export const VoiceActionContext = createContext<VoiceAction | null>(null);
 
 /**
  * Одна плавающая «+» справа внизу над нижним меню на всех экранах (PRD, UI-12, D48). Подпись —
@@ -13,7 +19,7 @@ export const AddActionContext = createContext<(() => void) | null>(null);
  */
 export function AddAction({ className = 'fab' }: { className?: string }) {
   const add = useContext(AddActionContext);
-  const voice = useVoiceAdd();
+  const voice = useContext(VoiceActionContext);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const long = useRef(false);
   const clear = () => {

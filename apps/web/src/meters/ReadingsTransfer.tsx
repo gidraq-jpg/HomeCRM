@@ -3,11 +3,11 @@ import { describeTransmission, type Transmission } from '../accounts/labels.ts';
 import { useAccounts } from '../accounts/queries.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { ObjectError } from '../objects/components.tsx';
-import { Link, useNavigate } from '../shell/motion.tsx';
 import { CopyButton, copyText } from '../ui/CopyButton.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { type DateOnly, formatShortDate, toTelHref } from '../ui/format.ts';
 import { EXTERNAL_LINK } from '../ui/link.ts';
+import { Link, useNavigate } from '../ui/navigation.tsx';
 import { Status } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {

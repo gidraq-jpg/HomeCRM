@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import { useScope } from '../access/ScopeContext.tsx';
 import { SCOPE_LABELS } from '../access/scope.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { Link } from '../shell/motion.tsx';
 import { EMPTY_SCOPE_EXPLANATION, EmptyState } from '../ui/EmptyState.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { Page } from '../ui/Page.tsx';
 
 interface SectionPlaceholderProps {

@@ -8,9 +8,9 @@ import {
 } from '@phosphor-icons/react';
 import { AccessBadge } from '../access/AccessBadge.tsx';
 import { markdownText } from '../notes/markdown.tsx';
-import { Link } from '../shell/motion.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { countWord } from '../ui/format.ts';
+import { Link } from '../ui/navigation.tsx';
 import { Section } from '../ui/Page.tsx';
 import { RowList } from '../ui/Row.tsx';
 import type { SearchResult } from './api.ts';

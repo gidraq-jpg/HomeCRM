@@ -9,7 +9,7 @@ import { useMembers } from '../household/queries.ts';
 import { creatableVisibilities, viewerOf } from '../notes/abilities.ts';
 import { accessToast } from '../notes/toasts.ts';
 import { assigneeChoices } from '../objects/abilities.ts';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {

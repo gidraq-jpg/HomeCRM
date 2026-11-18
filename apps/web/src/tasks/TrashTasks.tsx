@@ -1,4 +1,4 @@
-import { Link } from '../shell/motion.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { Section } from '../ui/Page.tsx';
 import { uniqueTasks, useTaskList } from './queries.ts';
 import { taskPath } from './TaskRows.tsx';

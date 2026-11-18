@@ -1,7 +1,7 @@
 import { House } from '@phosphor-icons/react';
 import { useLocation } from 'react-router';
+import { Link } from '../ui/navigation.tsx';
 import { type ShellSection, sectionActive } from './BottomNav.tsx';
-import { Link } from './motion.tsx';
 import { StudioBrand } from './StudioBrand.tsx';
 import { isStudio } from './studio.ts';
 import { useSectionNav } from './useSectionNav.ts';

@@ -13,9 +13,9 @@ import { useState } from 'react';
 import { useVoiceAdd } from '../ai/VoiceAdd.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { Row, RowList } from '../ui/Row.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
-import { useNavigate } from './motion.tsx';
 
 interface AddMenuProps {
   open: boolean;

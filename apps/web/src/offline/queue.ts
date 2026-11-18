@@ -25,7 +25,8 @@ import {
   ticket,
 } from './identity.ts';
 import { exactVersion } from './snapshots.ts';
-import { type Identity, type Intent, LIMITS, offlineDB, type StoredBlob, uuid } from './store.ts';
+import { type Identity, type Intent, LIMITS, offlineDB, type StoredBlob } from './store.ts';
+import { uuid } from './uuid.ts';
 
 const definitions: { method: string; route: RegExp; operation: string; schema: z.ZodType }[] = [
   {
@@ -113,6 +114,13 @@ export async function persistIntents(intents: Intent[], blobs: StoredBlob[] = []
     storageError(error);
   }
   changed();
+  // В сети вкладка отправляет сама (все вызовы enqueue сразу зовут synchronize): иначе гонку
+  // за аренду выигрывает service worker, и разбор захвата и ответ формы остаются без вкладки.
+  if (typeof navigator !== 'undefined' && !navigator.onLine) requestBackgroundSync();
+}
+
+/** Фоновая отправка через service worker: без сети или после отправки с неизвестным исходом. */
+export function requestBackgroundSync() {
   if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
     void navigator.serviceWorker.ready
       .then((registration) => {
@@ -799,6 +807,7 @@ export async function synchronize(): Promise<void> {
           nextAttempt: Date.now() + Math.min(60000, 1000 * 2 ** Math.min(attempts, 6)),
         });
         changed();
+        requestBackgroundSync();
       }
     }
     await offlineDB.transaction('rw', offlineDB.identity, offlineDB.outbox, async () => {

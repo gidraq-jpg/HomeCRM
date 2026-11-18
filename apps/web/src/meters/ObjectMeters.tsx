@@ -14,7 +14,6 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { ObjectError } from '../objects/components.tsx';
 import { useObjectContext } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
-import { Link } from '../shell/motion.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import {
@@ -24,6 +23,7 @@ import {
   formatRelativeDays,
   formatShortDate,
 } from '../ui/format.ts';
+import { Link } from '../ui/navigation.tsx';
 import { Status } from '../ui/Row.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { createMeter, type MeterListItem, patchMeter } from './api.ts';

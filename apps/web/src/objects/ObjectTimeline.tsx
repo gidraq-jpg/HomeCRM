@@ -10,9 +10,9 @@ import { RESOURCE_UNITS, zoneLabel } from '../meters/labels.ts';
 import { useMeters } from '../meters/queries.ts';
 import { viewerOf } from '../notes/abilities.ts';
 import { KIND_LABELS } from '../people/labels.ts';
-import { Link } from '../shell/motion.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
+import { Link } from '../ui/navigation.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { type EventAbilities, eventAbilities } from './abilities.ts';
 import {

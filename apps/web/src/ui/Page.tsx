@@ -1,6 +1,6 @@
 import { CaretLeft } from '@phosphor-icons/react';
 import { type ReactNode, useEffect } from 'react';
-import { Link } from '../shell/motion.tsx';
+import { Link } from './navigation.tsx';
 
 /** Название вкладки браузера и читалок экрана меняется вместе с экраном. */
 export function usePageTitle(title: string): void {

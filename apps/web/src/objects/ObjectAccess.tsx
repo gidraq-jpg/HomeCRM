@@ -10,7 +10,7 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
 import { LosesAccess } from '../notes/NoteAccess.tsx';
 import { accessToast } from '../notes/toasts.ts';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import type { ObjectAbilities } from './abilities.ts';

@@ -8,8 +8,8 @@ import { fetchObjects } from '../objects/api.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { usePersonName } from '../objects/context.ts';
 import { todayIn } from '../objects/dates.ts';
-import { Link } from '../shell/motion.tsx';
 import { type DateOnly, formatRub, formatShortDate } from '../ui/format.ts';
+import { Link } from '../ui/navigation.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {
   createInteraction,

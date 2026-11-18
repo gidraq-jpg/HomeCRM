@@ -6,8 +6,8 @@ import { routeOf, useEnd } from '../links/ends.ts';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
 import { createLink, type RecordLink, type RecordRef } from '../objects/api.ts';
 import { useLinks, useRefreshObjects } from '../objects/queries.ts';
-import { Link } from '../shell/motion.tsx';
 import { RecordPicker } from '../tasks/options.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { Section } from '../ui/Page.tsx';
 import type { ShoppingCard } from './api.ts';
 
