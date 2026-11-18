@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from './motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { isStudio } from './studio.ts';
 
 /** Жест начинается только у края либо на шапке длинной формы, не мешая лентам. */

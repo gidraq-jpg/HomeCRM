@@ -7,7 +7,7 @@ import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { factsOf, viewerOf } from '../notes/abilities.ts';
 import { createLink, fetchLinks, type RecordLink, trashLink } from '../objects/api.ts';
-import { Link } from '../shell/motion.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import type { TaskCard } from './api.ts';

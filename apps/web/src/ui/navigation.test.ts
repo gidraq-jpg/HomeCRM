@@ -5,7 +5,7 @@ import {
   motionDirection,
   navigateHistoryWithMotion,
   navigateWithMotion,
-} from './motion.tsx';
+} from './navigation.tsx';
 
 describe('направление перехода', () => {
   it('кнопка истории снимает старый экран до navigate и ждёт popstate', async () => {

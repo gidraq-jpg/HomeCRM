@@ -1,21 +1,26 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type ComponentType,
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useLocation } from 'react-router';
-import { QuickAddSheet } from '../tasks/QuickAddSheet.tsx';
-import { TaskSwipeActions } from '../tasks/TaskSwipeActions.tsx';
+import { cancelMotionNavigation, systemHistoryMotion, useNavigate } from '../ui/navigation.tsx';
 import { loadSlowMotion, SlowMotionControl } from '../ui/SlowMotionControl.tsx';
 import { ToastRegion } from '../ui/Toast.tsx';
-import { AddAction, AddActionContext } from './AddAction.tsx';
+import { AddAction, AddActionContext, type VoiceAction, VoiceActionContext } from './AddAction.tsx';
 import { BottomNav, type ShellSection } from './BottomNav.tsx';
-import { cancelMotionNavigation, systemHistoryMotion, useNavigate } from './motion.tsx';
 import { SideNav } from './SideNav.tsx';
 import { sectionAdd } from './section-add.ts';
 import { isStudio } from './studio.ts';
-import { TopBar } from './TopBar.tsx';
+import { TopBar, type TopBarSlots } from './TopBar.tsx';
 import { useKeyboardAttribute } from './useKeyboardAttribute.ts';
 import { useMotionGestures } from './useMotionGestures.ts';
 import { useNavigationPosition } from './useNavigationPosition.ts';
 
-interface AppShellProps {
+interface AppShellProps extends TopBarSlots {
   sections: readonly ShellSection[];
   /** Нажата кнопка «+». Что именно добавлять и как — решает приложение, каркас этого не знает. */
   onAdd: () => void;
@@ -23,6 +28,13 @@ interface AppShellProps {
   overlays?: ReactNode;
   /** D2 отключает верхний экземпляр только после переноса переключателя в панель «Сегодня». */
   scopeVisible?: boolean;
+  /**
+   * Вставки модулей (D53c): каркас не импортирует дела, ИИ и дом — приложение передаёт
+   * быструю строку дела, жесты строк дел и голосовое добавление.
+   */
+  quickAdd?: (onOpenChange: (open: boolean) => void) => ReactNode;
+  mainWrapper?: ComponentType<{ children: ReactNode }>;
+  voice?: VoiceAction | null;
   children: ReactNode;
 }
 
@@ -36,6 +48,11 @@ export function AppShell({
   onAdd,
   overlays,
   scopeVisible = true,
+  quickAdd,
+  mainWrapper: MainWrapper,
+  voice = null,
+  todayDate,
+  profileAvatar,
   children,
 }: AppShellProps) {
   const { pathname, key } = useLocation();
@@ -100,25 +117,31 @@ export function AppShell({
 
   return (
     <AddActionContext.Provider value={add}>
-      <div className="app" ref={app}>
-        <SideNav sections={sections} />
-        <div className="app__content">
-          <TopBar scopeVisible={scopeVisible} />
-          <main className="main" id="main">
-            {isStudio() ? <TaskSwipeActions>{children}</TaskSwipeActions> : children}
-            {pathname === '/more/settings' ? <SlowMotionControl /> : null}
-          </main>
+      <VoiceActionContext.Provider value={voice}>
+        <div className="app" ref={app}>
+          <SideNav sections={sections} />
+          <div className="app__content">
+            <TopBar
+              scopeVisible={scopeVisible}
+              todayDate={todayDate}
+              profileAvatar={profileAvatar}
+            />
+            <main className="main" id="main">
+              {isStudio() && MainWrapper ? <MainWrapper>{children}</MainWrapper> : children}
+              {pathname === '/more/settings' ? <SlowMotionControl /> : null}
+            </main>
+          </div>
+          <div className="chrome" ref={chrome}>
+            <ToastRegion />
+            <aside className="chrome__actions" aria-label="Быстрые действия">
+              <AddAction className="fab" />
+            </aside>
+            <BottomNav sections={sections} />
+          </div>
+          {overlays}
+          {quick && quickAdd ? quickAdd(setQuick) : null}
         </div>
-        <div className="chrome" ref={chrome}>
-          <ToastRegion />
-          <aside className="chrome__actions" aria-label="Быстрые действия">
-            <AddAction className="fab" />
-          </aside>
-          <BottomNav sections={sections} />
-        </div>
-        {overlays}
-        {quick ? <QuickAddSheet open onOpenChange={setQuick} /> : null}
-      </div>
+      </VoiceActionContext.Provider>
     </AddActionContext.Provider>
   );
 }

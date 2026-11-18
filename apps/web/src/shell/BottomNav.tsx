@@ -1,6 +1,6 @@
 import type { Icon } from '@phosphor-icons/react';
 import { useLocation } from 'react-router';
-import { Link } from './motion.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { isStudio } from './studio.ts';
 import { useSectionNav } from './useSectionNav.ts';
 

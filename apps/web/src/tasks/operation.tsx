@@ -8,7 +8,7 @@ import { ME_KEY } from '../auth/session-cache.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { clearDraft } from '../offline/drafts.ts';
 import { changed, LocalFailure, LocalSaved } from '../offline/identity.ts';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { prepareTaskFlight } from '../ui/taskFlight.ts';

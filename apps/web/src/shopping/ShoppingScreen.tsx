@@ -19,9 +19,8 @@ import {
   visibilityOf,
 } from '../notes/abilities.ts';
 import { listScopeOf } from '../notes/queries.ts';
-import { uuid } from '../offline/store.ts';
+import { uuid } from '../offline/uuid.ts';
 import { AddActionContext } from '../shell/AddAction.tsx';
-import { Link, useNavigate } from '../shell/motion.tsx';
 import { FeedPage, useFeedPane, useFeedSummary } from '../tasks/feed-pane.tsx';
 import { RecordPicker } from '../tasks/options.tsx';
 import { TaskTabs } from '../tasks/TaskTabs.tsx';
@@ -31,6 +30,7 @@ import { groupBy } from '../ui/groupBy.ts';
 import { ListSkeleton } from '../ui/ListSkeleton.tsx';
 import { MotionGroups } from '../ui/MotionGroups.tsx';
 import { MotionList } from '../ui/MotionList.tsx';
+import { Link, useNavigate } from '../ui/navigation.tsx';
 import { Page, Section } from '../ui/Page.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { useOperationKey } from '../ui/useOperationKey.ts';

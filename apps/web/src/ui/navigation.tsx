@@ -11,8 +11,7 @@ import {
   useResolvedPath,
   useNavigate as useRouterNavigate,
 } from 'react-router';
-import { motionTime } from '../ui/motion.ts';
-import { consumeSheetBack, prepareSheetNavigation, registerSheet } from '../ui/sheet-history.ts';
+import { motionTime } from './motion.ts';
 import {
   type CardOrigin,
   cardOrigins,
@@ -20,6 +19,7 @@ import {
   requestPosition,
   saveCurrentPosition,
 } from './navigation-position.ts';
+import { consumeSheetBack, prepareSheetNavigation, registerSheet } from './sheet-history.ts';
 
 const formPath = (path: string) =>
   /\/(new|edit|invite|import)$/.test(path) || /^\/home\/from-template(?:\/|$)/.test(path);

@@ -1,6 +1,6 @@
 import { CaretLeft } from '@phosphor-icons/react';
-import { Link, useNavigate } from '../shell/motion.tsx';
 import { FormHeading } from './FormHeading.tsx';
+import { Link, useNavigate } from './navigation.tsx';
 import { Page } from './Page.tsx';
 
 /** Общая композиция списков, полных форм и служебных экранов; маршруты и содержимое остаются у экрана. */

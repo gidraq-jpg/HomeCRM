@@ -16,7 +16,7 @@ import {
 } from '../offline/identity.ts';
 import { InstallApp } from '../pwa/InstallApp.tsx';
 import { hideBootSplash } from '../shell/bootSplash.ts';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { ApiError, action, api, appURL, consumeLink, Me } from './api.ts';
 import { AuthPage, ErrorNotice, Notice, OfflineBanner, useAction } from './components.tsx';
 import { formatDay } from './dates.ts';

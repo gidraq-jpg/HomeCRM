@@ -8,7 +8,7 @@ import { ErrorNotice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { creatableVisibilities, newPlacement, viewerOf } from '../notes/abilities.ts';
 import { createNote } from '../notes/api.ts';
-import { uuid } from '../offline/store.ts';
+import { uuid } from '../offline/uuid.ts';
 import { createShopping } from '../shopping/api.ts';
 import { listedNames, shoppingName } from '../shopping/duplicates.ts';
 import { mutateTask } from '../tasks/api.ts';

@@ -2,10 +2,10 @@ import { CalendarBlank, DotsThreeVertical, Drop, FileText, Receipt } from '@phos
 import { useEffect, useState } from 'react';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { PROPERTY_STATUS_LABELS } from '../property/property.ts';
-import { Link } from '../shell/motion.tsx';
 import { useTaskMembers } from '../tasks/options.tsx';
 import { TakeFromRadar } from '../tasks/TakeFromRadar.tsx';
 import { formatRub } from '../ui/format.ts';
+import { Link } from '../ui/navigation.tsx';
 import { RowContent, RowList } from '../ui/Row.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { KIND_LABELS } from './labels.ts';

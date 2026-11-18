@@ -14,7 +14,7 @@ import type { ReadingsContext } from '../meters/ReadingsLayout.tsx';
 import { evaluateMeter, type ReadingDraft } from '../meters/readings.ts';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectCard } from '../objects/queries.ts';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { type InboxItem, inboxOperationKey } from './api.ts';
 
 type Complete = (target: { type: 'meter_reading' | 'utility_charge'; id: string }) => Promise<void>;

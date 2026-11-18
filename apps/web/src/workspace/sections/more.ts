@@ -1,0 +1,19 @@
+// Раздел «Ещё»: заметки, организации, сроки, дом, уведомления и настройки.
+export { ExportScreen } from '../../auth/ExportScreen.tsx';
+export { SecurityScreen } from '../../auth/SecurityScreen.tsx';
+export { RadarScreen } from '../../deadlines/RadarScreen.tsx';
+export { HouseScreen } from '../../household/HouseScreen.tsx';
+export { NewNoteScreen } from '../../notes/NewNoteScreen.tsx';
+export { NoteScreen } from '../../notes/NoteScreen.tsx';
+export { NotesScreen } from '../../notes/NotesScreen.tsx';
+export { TrashScreen } from '../../notes/TrashScreen.tsx';
+export { DeliveriesScreen } from '../../notifications/DeliveriesScreen.tsx';
+export { NotificationsScreen } from '../../notifications/NotificationsScreen.tsx';
+export { SummariesScreen } from '../../notifications/SummariesScreen.tsx';
+export { NewOrganizationScreen } from '../../organizations/NewOrganizationScreen.tsx';
+export { OrganizationScreen } from '../../organizations/OrganizationScreen.tsx';
+export { OrganizationsScreen } from '../../organizations/OrganizationsScreen.tsx';
+export { MoreScreen } from '../../screens/MoreScreen.tsx';
+export { ProfileScreen } from '../../screens/ProfileScreen.tsx';
+export { SpacesScreen } from '../../screens/SpacesScreen.tsx';
+export { ShoppingCardScreen } from '../../shopping/ShoppingScreen.tsx';

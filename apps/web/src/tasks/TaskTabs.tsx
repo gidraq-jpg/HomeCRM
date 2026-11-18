@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router';
-import { cancelMotionNavigation } from '../shell/motion.tsx';
 import { LinkTabs } from '../ui/LinkTabs.tsx';
 import {
   motionEasing,
@@ -10,6 +9,7 @@ import {
   motionTime,
   reducedMotion,
 } from '../ui/motion.ts';
+import { cancelMotionNavigation } from '../ui/navigation.tsx';
 import { rowSwipeDirection, type SwipePoint, swipeDirection } from './swipe.ts';
 import '../styles/studio2-lists.css';
 

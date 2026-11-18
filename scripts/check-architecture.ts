@@ -1,4 +1,4 @@
-// Проверка границ: пакеты, модули сервера и файлы маршрутов (ADR-0053).
+// Проверка границ: пакеты, модули сервера, файлы маршрутов (ADR-0053) и слои клиента (D53c).
 // Запуск: node scripts/check-architecture.ts — входит в pnpm lint.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
@@ -58,6 +58,22 @@ function serverModule(file: string): string {
 }
 /** Точки сборки приложения: им можно импортировать всё, в графе модулей они не участвуют. */
 const COMPOSITION = new Set(['app.ts', 'main.ts', 'worker.ts', 'dev']);
+
+const WEB = 'apps/web/src/';
+/** Папка первого уровня клиента; файлы в корне (App.tsx, main.tsx) — каждый сам по себе. */
+function webLayer(file: string): string {
+  const rest = file.slice(WEB.length);
+  return rest.includes('/') ? (rest.split('/')[0] ?? rest) : rest;
+}
+/**
+ * Нижние слои клиента и что им можно импортировать: `ui` → `access`/`offline` → `shell` →
+ * модули экранов. Остальные папки — модули экранов, им ограничений нет.
+ */
+const WEB_LAYERS: Readonly<Record<string, readonly string[]>> = {
+  ui: ['ui', 'access', 'offline'],
+  access: ['access'],
+  shell: ['shell', 'ui', 'access', 'offline'],
+};
 
 function cycles(graph: Map<string, Set<string>>): string[][] {
   // Алгоритм Тарьяна: сильно связные компоненты больше одного модуля — это циклы.
@@ -133,6 +149,15 @@ export function analyze(root: string): string[] {
       const allowed = ALLOWED[own];
       if (dependency && allowed && !allowed.includes(dependency) && !isTest(file))
         problems.push(`${file}: пакет ${own} не должен зависеть от ${dependency}`);
+
+      // 5. Слои клиента (D53c): основание не знает о каркасе, каркас — о модулях экранов.
+      if (file.startsWith(WEB) && relativeTarget?.startsWith(WEB) && !isTest(file)) {
+        const from = webLayer(file);
+        const to = webLayer(relativeTarget);
+        const allowed = WEB_LAYERS[from];
+        if (allowed && !allowed.includes(to))
+          problems.push(`${file}: слой ${from} не должен импортировать ${to} — ${target}`);
+      }
 
       if (!file.startsWith(SERVER) || relativeTarget === undefined || isTest(file)) continue;
       if (!relativeTarget.startsWith(SERVER)) continue;

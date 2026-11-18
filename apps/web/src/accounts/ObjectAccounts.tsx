@@ -12,11 +12,11 @@ import { useHousehold } from '../household/HouseholdContext.tsx';
 import { noteAbilities, viewerOf } from '../notes/abilities.ts';
 import { ObjectError } from '../objects/components.tsx';
 import { useObjectContext } from '../objects/context.ts';
-import { Link } from '../shell/motion.tsx';
 import { CopyButton } from '../ui/CopyButton.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
 import { countWord } from '../ui/format.ts';
 import { EXTERNAL_LINK } from '../ui/link.ts';
+import { Link } from '../ui/navigation.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { AccountForm, type AccountValues } from './AccountForm.tsx';
 import {

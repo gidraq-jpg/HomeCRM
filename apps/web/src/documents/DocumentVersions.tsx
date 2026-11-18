@@ -2,7 +2,7 @@ import { Notice } from '../auth/components.tsx';
 import { formatDay } from '../auth/dates.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { todayIn } from '../objects/dates.ts';
-import { Link } from '../shell/motion.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Status } from '../ui/Row.tsx';
 import type { DocumentCard } from './api.ts';

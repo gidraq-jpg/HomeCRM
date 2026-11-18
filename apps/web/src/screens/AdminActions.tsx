@@ -15,7 +15,7 @@ import { isResponsibilityPending } from '../household/errors.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { useRefresh } from '../household/queries.ts';
 import { RoleChoice } from '../household/RoleChoice.tsx';
-import { Link, useNavigate } from '../shell/motion.tsx';
+import { Link, useNavigate } from '../ui/navigation.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';

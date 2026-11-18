@@ -25,7 +25,8 @@ import {
   ticket,
 } from './identity.ts';
 import { exactVersion } from './snapshots.ts';
-import { type Identity, type Intent, LIMITS, offlineDB, type StoredBlob, uuid } from './store.ts';
+import { type Identity, type Intent, LIMITS, offlineDB, type StoredBlob } from './store.ts';
+import { uuid } from './uuid.ts';
 
 const definitions: { method: string; route: RegExp; operation: string; schema: z.ZodType }[] = [
   {

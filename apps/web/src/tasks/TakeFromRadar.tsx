@@ -1,5 +1,5 @@
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { OperationNotice, useTaskOperation } from './operation.tsx';
 export function TakeFromRadar({
   occurrenceId,

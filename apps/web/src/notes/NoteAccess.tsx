@@ -7,7 +7,7 @@ import { VisibilityPicker } from '../access/VisibilityPicker.tsx';
 import type { Visibility } from '../access/visibility.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import type { NoteAbilities } from './abilities.ts';

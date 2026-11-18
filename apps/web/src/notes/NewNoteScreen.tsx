@@ -5,7 +5,7 @@ import { useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { clearDraft } from '../offline/drafts.ts';
 import { changed, LocalSaved } from '../offline/identity.ts';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { creatableVisibilities, newPlacement, viewerOf } from './abilities.ts';

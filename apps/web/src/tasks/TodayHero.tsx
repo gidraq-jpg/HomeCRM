@@ -5,8 +5,8 @@ import { useMyProfile } from '../household/queries.ts';
 import { listScopeOf } from '../notes/queries.ts';
 import { todayIn } from '../objects/dates.ts';
 import { useObjectsList } from '../objects/queries.ts';
-import { Link } from '../shell/motion.tsx';
 import { formatLongDate, formatRub, formatShortDate, plural, weekdayName } from '../ui/format.ts';
+import { Link } from '../ui/navigation.tsx';
 import { useMonth } from '../utilities/queries.ts';
 
 import type { Today } from './api.ts';

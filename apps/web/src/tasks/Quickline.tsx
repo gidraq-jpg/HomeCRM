@@ -8,7 +8,7 @@ import { AiCapture } from '../ai/AiCapture.tsx';
 import { ApiError } from '../auth/api.ts';
 import { useHousehold } from '../household/HouseholdContext.tsx';
 import { visibilityOf } from '../notes/abilities.ts';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { Section } from '../ui/Page.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { DictationButton, DictationStatus, useDictation } from '../voice/Dictation.tsx';

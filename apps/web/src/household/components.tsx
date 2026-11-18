@@ -2,8 +2,8 @@ import { Copy } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Notice } from '../auth/components.tsx';
 import { previewUrl } from '../files/api.ts';
-import { Link } from '../shell/motion.tsx';
 import { copyText } from '../ui/CopyButton.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import {
   type HouseholdAction,

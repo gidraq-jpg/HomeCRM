@@ -1,9 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { App } from './App.tsx';
 import type { Me } from './auth/api.ts';
+import { preloadSections } from './workspace/sections.ts';
+
+// Экраны разделов — отдельные части сборки (D53c): как и приложение после запуска, тест
+// загружает их заранее, и renderToString рисует экраны, а не запасной вид Suspense.
+beforeAll(() => preloadSections());
 
 function me(role: 'admin' | 'adult' | 'child' | null): Me {
   return {

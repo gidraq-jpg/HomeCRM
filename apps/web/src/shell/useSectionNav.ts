@@ -1,7 +1,7 @@
 import { type MouseEvent, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router';
 import { motionTime } from '../ui/motion.ts';
-import { changeTabScreen, navigateWithMotion } from './motion.tsx';
+import { changeTabScreen, navigateWithMotion } from '../ui/navigation.tsx';
 import { isStudio } from './studio.ts';
 
 /** Плашка движется только вслед за явным выбором раздела. */

@@ -5,8 +5,8 @@ import { Notice } from '../auth/components.tsx';
 import { fetchDocument } from '../documents/api.ts';
 import { fetchNote } from '../notes/api.ts';
 import { fetchObject } from '../objects/api.ts';
-import { Link } from '../shell/motion.tsx';
 import { fetchTask } from '../tasks/api.ts';
+import { Link } from '../ui/navigation.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 
 /** Экраны объекта, куда ведут уведомления: показания, лицевые счета, счётчики. */

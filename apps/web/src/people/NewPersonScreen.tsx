@@ -11,7 +11,7 @@ import {
   organizationPlacement,
 } from '../organizations/abilities.ts';
 import { useOrganizationOptions } from '../organizations/queries.ts';
-import { useNavigate } from '../shell/motion.tsx';
+import { useNavigate } from '../ui/navigation.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { createPerson } from './api.ts';

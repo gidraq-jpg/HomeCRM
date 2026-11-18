@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { uuid } from '../offline/store.ts';
+import { uuid } from '../offline/uuid.ts';
 
 /** Повтор неизменённой формы использует тот же ключ. Данные живут только в памяти. */
 export function useOperationKey() {

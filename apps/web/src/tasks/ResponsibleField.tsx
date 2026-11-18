@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { ApiError, apiRequest } from '../auth/api.ts';
 import { Notice, useAction } from '../auth/components.tsx';
 import { useHousehold } from '../household/HouseholdContext.tsx';
-import { Link } from '../shell/motion.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { taskError } from './errors.ts';
 import { MemberPicker } from './options.tsx';
 /** Объект, документ и ручной срок: здесь нет протокола расширения аудитории. */

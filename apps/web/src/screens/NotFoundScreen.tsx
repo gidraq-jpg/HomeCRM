@@ -1,6 +1,6 @@
 import { MagnifyingGlass } from '@phosphor-icons/react';
-import { Link } from '../shell/motion.tsx';
 import { EmptyState } from '../ui/EmptyState.tsx';
+import { Link } from '../ui/navigation.tsx';
 import { StudioPage as Page } from '../ui/StudioPage.tsx';
 
 /** Адрес, по которому ничего нет. */

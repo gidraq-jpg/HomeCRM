@@ -36,7 +36,6 @@ import { creatableVisibilities, viewerOf } from '../notes/abilities.ts';
 import { createNote } from '../notes/api.ts';
 import { EMPTY_DRAFT, NoteForm } from '../notes/NoteForm.tsx';
 import { EMPTY_DRAFT as EMPTY_OBJECT, ObjectForm } from '../objects/ObjectForm.tsx';
-import { Link, useNavigate } from '../shell/motion.tsx';
 import { createShopping } from '../shopping/api.ts';
 import { ShoppingEditor } from '../shopping/ShoppingScreen.tsx';
 import { mutateTask } from '../tasks/api.ts';
@@ -44,6 +43,7 @@ import { createBody } from '../tasks/NewTaskScreen.tsx';
 import { RecordPicker, useTaskMembers } from '../tasks/options.tsx';
 import { TaskForm } from '../tasks/TaskForm.tsx';
 import { type DateOnly, formatFullDate, formatRub } from '../ui/format.ts';
+import { Link, useNavigate } from '../ui/navigation.tsx';
 import { Sheet } from '../ui/Sheet.tsx';
 import { StudioPage } from '../ui/StudioPage.tsx';
 import {
