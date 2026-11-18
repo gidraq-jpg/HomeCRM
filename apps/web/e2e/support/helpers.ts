@@ -142,6 +142,9 @@ export async function settle(page: Page): Promise<void> {
     'data-motion-direction',
     /^(forward|back)$/,
   );
+  // Закрытый лист ещё возвращает браузер на шаг истории назад (sheet-history.ts):
+  // загрузка другого адреса в этот момент прерывается.
+  await expect(page.locator('html')).not.toHaveAttribute('data-sheet-history', 'closing');
   await page.evaluate(async () => {
     await document.fonts.ready;
     // Presence и View Transitions могут начать рисунок в следующем кадре.
