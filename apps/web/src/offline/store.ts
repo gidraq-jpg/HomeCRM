@@ -42,6 +42,11 @@ export interface Intent {
   frozenBody?: string;
   receipt?: OperationReceipt;
   response?: unknown;
+  /**
+   * Время ответа сервера для окна отмены (D56): подтверждение мог получить другой отправитель —
+   * SW или соседняя вкладка. `confirmedAt` — часы устройства в момент ответа.
+   */
+  confirmation?: { serverDate: string | null; elapsed: number; confirmedAt: number };
   code?: string;
   httpStatus?: number;
   nextAttempt: number;

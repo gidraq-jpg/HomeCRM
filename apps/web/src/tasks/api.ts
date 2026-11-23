@@ -112,7 +112,8 @@ export async function taskRequest<T>(
           // Квитанция уже проверена очередью; строгий DTO дела проверяется отдельно.
           const { receipt: _receipt, ...dto } = value as Record<string, unknown>;
           const data = schema.parse(dto);
-          // Метка HTTP Date не сохранена: позднее подтверждение не продлевает семь секунд.
+          // Без метки HTTP Date окна отмены нет: позднее подтверждение не продлевает семь секунд.
+          // Подтверждение чужим отправителем несёт метку в записи очереди (D56).
           return {
             data,
             ...(durableTiming(value) ?? {
