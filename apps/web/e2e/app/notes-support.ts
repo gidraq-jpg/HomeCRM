@@ -155,7 +155,8 @@ export async function expectNothingStored(page: Page, secrets: readonly (string 
     if (typeof secret === 'string') stored.not.toContain(secret);
     else stored.not.toMatch(secret);
   }
-  // В кэше сервис-воркера только файлы сборки, никакого /api.
+  // В кэше сервис-воркера только файлы сборки, никакого /api. SW в сценариях по умолчанию
+  // выключен (D56), и кэш тогда пуст; сам SW с этой проверкой — pwa.e2e.ts и notifications-worker.
   expect(dump).not.toContain('/api/');
 }
 

@@ -33,7 +33,9 @@ export default defineConfig({
     colorScheme: 'light',
     // Обычные проверки поведения не ждут полного движения; UI-8 явно проверяет оба режима.
     reducedMotion: 'reduce',
-    serviceWorkers: 'allow',
+    // SW по умолчанию выключен (D56): его запросы проходят мимо page.route, и подменённые ответы
+    // API терялись. Сценарии самого SW и офлайна включают его: test.use({ serviceWorkers: 'allow' }).
+    serviceWorkers: 'block',
     permissions: ['clipboard-read', 'clipboard-write'],
   },
   projects: [

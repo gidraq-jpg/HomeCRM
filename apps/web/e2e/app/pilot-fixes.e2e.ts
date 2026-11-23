@@ -138,43 +138,46 @@ test('D19a.1–3/13: повтор возвращается отменой без
   await expect(resume).toBeEnabled();
 });
 
-test('D56: выполнение, отправленное сервис-воркером, сохраняет «Отменить» в тосте', async ({
-  page,
-  family,
-}) => {
-  const api = await apiAs(family, 'adult');
-  const created = await api.post('tasks', { title: 'Отправка через SW D56' });
-  expect(created.status).toBe(201);
-  const id = (created.body as { id: string }).id;
-  await signInAs(page, family, 'adult');
-  await page.goto('#/today/all');
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
+test.describe('отправитель — SW', () => {
+  test.use({ serviceWorkers: 'allow' });
+  test('D56: выполнение, отправленное сервис-воркером, сохраняет «Отменить» в тосте', async ({
+    page,
+    family,
+  }) => {
+    const api = await apiAs(family, 'adult');
+    const created = await api.post('tasks', { title: 'Отправка через SW D56' });
+    expect(created.status).toBe(201);
+    const id = (created.body as { id: string }).id;
+    await signInAs(page, family, 'adult');
+    await page.goto('#/today/all');
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    const complete = page.getByRole('button', {
+      name: 'Отметить сделанным: Отправка через SW D56',
+      exact: true,
+    });
+    await complete.waitFor();
+    // Пока вкладка ставит выполнение в очередь, SW снова и снова начинает свою отправку и
+    // перехватывает аренду. Тогда подтверждение получает SW, а не вкладка: окно отмены должно
+    // посчитаться по отметке времени ответа из записи очереди.
+    await Promise.all([
+      complete.click(),
+      page.evaluate(async () => {
+        const registration = await navigator.serviceWorker.ready;
+        for (let round = 0; round < 10; round++) {
+          registration.active?.postMessage({ type: 'HOMECRM_SYNC' });
+          await new Promise((done) => setTimeout(done, 15));
+        }
+      }),
+    ]);
+    const undo = page.getByRole('button', { name: 'Отменить', exact: true });
+    await expect(undo).toBeVisible();
+    await undo.click();
+    await expect
+      .poll(async () => (await api.get(`tasks/${id}`)).body)
+      .toMatchObject({ status: 'open' });
   });
-  const complete = page.getByRole('button', {
-    name: 'Отметить сделанным: Отправка через SW D56',
-    exact: true,
-  });
-  await complete.waitFor();
-  // Пока вкладка ставит выполнение в очередь, SW снова и снова начинает свою отправку и
-  // перехватывает аренду. Тогда подтверждение получает SW, а не вкладка: окно отмены должно
-  // посчитаться по отметке времени ответа из записи очереди.
-  await Promise.all([
-    complete.click(),
-    page.evaluate(async () => {
-      const registration = await navigator.serviceWorker.ready;
-      for (let round = 0; round < 10; round++) {
-        registration.active?.postMessage({ type: 'HOMECRM_SYNC' });
-        await new Promise((done) => setTimeout(done, 15));
-      }
-    }),
-  ]);
-  const undo = page.getByRole('button', { name: 'Отменить', exact: true });
-  await expect(undo).toBeVisible();
-  await undo.click();
-  await expect
-    .poll(async () => (await api.get(`tasks/${id}`)).body)
-    .toMatchObject({ status: 'open' });
 });
 
 test('D19a.1: новое событие выполнения после снимка даёт конфликт без попытки отменить его', async ({

@@ -22,6 +22,9 @@ import { apiAs, seedNote } from './notes-support.ts';
 import { seedProperty } from './property-support.ts';
 import { signInAs } from './support.ts';
 
+// Офлайн и очередь проверяются вместе с SW: он кэширует оболочку и сам отправляет очередь.
+test.use({ serviceWorkers: 'allow' });
+
 test.beforeEach(async ({ page }) => {
   page.on('pageerror', (error) =>
     process.stdout.write(`Browser failure: ${error.name} ${error.message}\n`),

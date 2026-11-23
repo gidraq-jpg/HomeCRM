@@ -12,11 +12,6 @@ import {
 import { closeRecordActions, openRecordActions } from './record-actions.ts';
 import { checkApp, expect, openSection, signInAs } from './support.ts';
 
-// Сценарии подменяют ответы API через page.route (D56). В CI запрос страницы, которой управляет
-// сервис-воркер, проходил мимо перехвата: вместо 503 приходил настоящий пустой список. Playwright
-// советует отключать SW при перехвате; PWA и очередь проверяют pwa.e2e.ts и shopping-offline.e2e.ts.
-test.use({ serviceWorkers: 'block' });
-
 // Заметки (R0.4b): NOTE-1…3, SPACE-5…7, TPL-4. Семья вымышленная: Анна — администратор,
 // Борис — взрослый, Вера — ребёнок. Заметки заводятся через API, а проверяются на экране.
 

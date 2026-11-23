@@ -23,12 +23,6 @@ import { seedAccount, seedProperty } from './property-support.ts';
 import { closeRecordActions, openRecordActions } from './record-actions.ts';
 import { signInAs } from './support.ts';
 
-// Сценарии подменяют и задерживают ответы API через page.route (D56). Сервис-воркер при старте
-// страницы запускает свою отправку очереди изменений: если выполнение дела уходит в его
-// отправку, page.route и события страницы его не видят. Playwright советует отключать SW при
-// перехвате запросов; PWA проверяет pwa.e2e.ts, отмену после отправки SW — pilot-fixes.e2e.ts.
-test.use({ serviceWorkers: 'block' });
-
 async function check(page: Page, info: TestInfo, name: string) {
   if (await page.getByRole('dialog').count())
     await expect(page.getByRole('dialog')).toHaveCSS('opacity', '1');
