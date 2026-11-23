@@ -368,16 +368,6 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
 
-  tools/access-probe:
-    dependencies:
-      web-push:
-        specifier: ^3.6.7
-        version: 3.6.7
-    devDependencies:
-      '@types/web-push':
-        specifier: ^3.6.4
-        version: 3.6.4
-
 packages:
 
   '@apideck/better-ajv-errors@0.3.7':
@@ -6698,6 +6688,7 @@ snapshots:
       '@types/pg': 8.23.1
       kysely: 0.29.6
       pg: 8.23.1
+    optional: true
 
   drizzle-orm@0.45.3(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.1):
     optionalDependencies:

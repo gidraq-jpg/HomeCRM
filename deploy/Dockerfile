@@ -15,7 +15,6 @@ COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 COPY packages/db/package.json packages/db/
 COPY packages/shared/package.json packages/shared/
-COPY tools/access-probe/package.json tools/access-probe/
 RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY tsconfig.base.json ./
 COPY apps/web apps/web
@@ -45,7 +44,6 @@ COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 COPY packages/db/package.json packages/db/
 COPY packages/shared/package.json packages/shared/
-COPY tools/access-probe/package.json tools/access-probe/
 # Только то, что нужно серверу. Сервер запускает .ts напрямую, поэтому рабочие пакеты остаются
 # на своих местах, а не копируются в node_modules (там Node не разбирает TypeScript).
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter "@homecrm/server..."

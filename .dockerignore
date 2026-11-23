@@ -4,7 +4,6 @@
 .git
 .github
 docs
-tools/access-probe/data
 *.log
 # Файлы окружения и секреты не попадают в образы: COPY . . в apps/web/e2e/Dockerfile забрал бы их из worktree
 .env

@@ -28,7 +28,7 @@ try {
   # Имитируем существующую пару этапа 0: скрипт обязан сохранить её побайтно.
   $stageZero = Join-Path $data 'secrets/vapid.env'
   New-Item -ItemType Directory -Force (Split-Path $stageZero) | Out-Null
-  & node (Join-Path $script:RepoRoot 'tools/access-probe/scripts/generate-vapid.ts') $stageZero 'mailto:fictional@homecrm.invalid' | Out-Null
+  & node (Join-Path $script:RepoRoot 'deploy/scripts/generate-vapid.ts') $stageZero 'mailto:fictional@homecrm.invalid' | Out-Null
   if ($LASTEXITCODE -ne 0) { throw 'Не удалось подготовить вымышленную пару VAPID.' }
   $stageZeroHash = (Get-FileHash $stageZero).Hash
   foreach ($environment in 'production', 'preview') {

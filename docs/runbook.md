@@ -1,6 +1,6 @@
 # Runbook HomeCRM
 
-Как готовить и обслуживать сервер: заглушка и туннели этапа 0, рабочее окружение, резервные копии, восстановление, внешний сторож. Решения и причины — [ADR-0021](adr/0021-operations-backups.md).
+Как готовить и обслуживать сервер: туннели, рабочее окружение, резервные копии, восстановление, внешний сторож. Решения и причины — [ADR-0021](adr/0021-operations-backups.md).
 
 Все команды — из корня репозитория `E:\Projects\HomeCRM` в PowerShell 7. Выпуск в рабочее окружение, изменения на VPS и в DNS выполняются только по вашей команде.
 
@@ -43,19 +43,9 @@ pwsh deploy/scripts/init-data-dir.ps1
 
 Повторный запуск ничего не перезаписывает.
 
-## 3. Заглушка для замеров
+## 3. Заглушка для замеров — удалена
 
-Заглушка и приложение занимают один порт 8300, поэтому одновременно работает что-то одно. Пока рабочее окружение не включено (раздел 7), работает заглушка.
-
-| Действие | Команда |
-|---|---|
-| Запустить | `docker compose -f deploy/compose.yaml --profile probe up -d --build` |
-| Остановить | `docker compose -f deploy/compose.yaml --profile probe down` |
-| Журнал | `docker compose -f deploy/compose.yaml logs probe` |
-| Страница проверки на этом компьютере | <http://127.0.0.1:8300/probe/> |
-| Результаты | <http://127.0.0.1:8309/>, сырые данные — <http://127.0.0.1:8309/results.json> |
-
-`down -v` удаляет и результаты замеров — только если их нужно начать заново.
+Заглушка этапа 0 (`tools/access-probe`, профиль compose `probe`) удалена в D53e: порт 8300 занимает рабочее приложение, а одновременно с ним заглушка работать не могла. Номер раздела сохранён, чтобы не сбить ссылки. Итоги замеров — [stage0/access-measurements.md](stage0/access-measurements.md), код — в истории git. Ключи VAPID создаёт `deploy/scripts/generate-vapid.ts` (его вызывают `init-data-dir.ps1` и `new-app-secrets.ps1`). Том Docker `homecrm_probe-data` с результатами замеров, если он остался, автоматически не удаляется.
 
 ## 4. Вход через VPS
 
@@ -71,12 +61,11 @@ pwsh deploy/scripts/init-data-dir.ps1
 
    Публичный ключ туннеля печатает `init-data-dir.ps1`; он лежит в `E:\HomeCRM-data\secrets\tunnel\id_ed25519.pub`. Если порты 80 или 443 заняты, например VPN, скрипт остановится и ничего не изменит.
 3. **Ответ скрипта** — адрес, порт SSH и ключ сервера — передайте агенту. Он запишет `secrets\tunnel\ru.env` (или `alt.env`) и `secrets\tunnel\known_hosts`.
-4. **Запуск туннеля.** Туннель смотрит на то, что работает на порту 8300 в сети compose:
+4. **Запуск туннеля.** Туннель смотрит на приложение (раздел 7) на порту 8300 в сети compose; другую цель задаёт переменная `TUNNEL_TARGET`:
 
-   | Что работает | Команда |
-   |---|---|
-   | Приложение (раздел 7) | `docker compose -f deploy/compose.yaml --profile tunnel-ru up -d --build` |
-   | Заглушка (раздел 3) | `$env:TUNNEL_TARGET='probe:8300'; docker compose -f deploy/compose.yaml --profile probe --profile tunnel-ru up -d --build` |
+   ```powershell
+   docker compose -f deploy/compose.yaml --profile tunnel-ru up -d --build
+   ```
 
    Для зарубежного VPS — профиль `tunnel-alt`, для сравнения через Cloudflare — `tunnel-cf`. Адрес Cloudflare появится в журнале: `docker compose -f deploy/compose.yaml logs tunnel-cf`.
 5. **Проверка:** `https://home.<домен>/health` отвечает `{"status":"ok",…}`; у приложения в ответе есть и `"database":"ok"`.
@@ -143,13 +132,13 @@ docker compose -f deploy/compose.yaml --profile app --profile ops run --rm ops n
 
 ### Первое включение
 
-Делает ведущий агент по вашей команде или вы сами. Заглушка на это время останавливается.
+Делает ведущий агент по вашей команде или вы сами.
 
 1. `pwsh deploy/scripts/init-data-dir.ps1` (раздел 2), если ещё не запускали.
 2. `pwsh deploy/scripts/new-app-secrets.ps1` — создаёт пароли, `server.env` и отдельный `worker.env`. Адрес приложения по умолчанию `https://home.gidraq.link:8443`; другой — ключом `-BaseUrl`.
 3. **Сразу сохраните вне компьютера** пароль restic и `BETTER_AUTH_SECRET` — раздел 8. Без этого окружение включать нельзя.
 4. Подключите Яндекс Диск — раздел 9. **Без него семье доступ не открывать:** DATA-3 требует копию в двух местах.
-5. Остановите заглушку: `docker compose -f deploy/compose.yaml --profile probe down`. Туннель при этом остаётся без приложения за ним — семья пока ничего не видит, и так должно быть до шага 11.
+5. Проверьте, что порт 8300 этого компьютера свободен. Туннель при этом остаётся без приложения за ним — семья пока ничего не видит, и так должно быть до шага 11.
 6. Запустите окружение: `pwsh deploy/scripts/release.ps1 -Version v0.1.0`. Скрипт собирает образ, запускает базу, миграции, приложение и расписание копий, затем проверяет `/health` (должны быть `status: ok` и `database: ok`).
 7. Выполните первую настройку (раздел 6).
 8. Сделайте первую копию сразу: `pwsh deploy/scripts/backup-now.ps1`.
