@@ -2,8 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 // Сквозные тесты рабочего приложения: настоящий сервер и PostgreSQL на каждый сценарий
 // (e2e/auth/support/family.ts), Playwright и axe на ширине 360 и 412 px, а экраны компьютера —
-// на 1280 px. Запуск — `pnpm test:e2e:auth`; прототип навигации проверяется отдельной
-// конфигурацией (playwright.prototype.config.ts, `pnpm test:e2e:prototype`).
+// на 1280 px. Запуск — `pnpm test:e2e:auth`.
 
 const DESKTOP_ONLY = '**/desktop.e2e.ts';
 const SHARD_IGNORE = process.env.HOMECRM_E2E_SHARD_MAIN === '1' ? ['**/app/studio2.e2e.ts'] : [];
@@ -18,7 +17,6 @@ const phone = {
 export default defineConfig({
   testDir: './e2e',
   testMatch: '**/*.e2e.ts',
-  testIgnore: '**/prototype/**',
   globalSetup: './e2e/auth/support/global-setup.ts',
   workers: 2,
   timeout: 45_000,
@@ -39,12 +37,12 @@ export default defineConfig({
   projects: [
     {
       name: 'w360',
-      testIgnore: ['**/prototype/**', DESKTOP_ONLY, ...SHARD_IGNORE],
+      testIgnore: [DESKTOP_ONLY, ...SHARD_IGNORE],
       use: { ...phone, viewport: { width: 360, height: 740 } },
     },
     {
       name: 'w412',
-      testIgnore: ['**/prototype/**', DESKTOP_ONLY, ...SHARD_IGNORE],
+      testIgnore: [DESKTOP_ONLY, ...SHARD_IGNORE],
       use: { ...phone, viewport: { width: 412, height: 915 } },
     },
     // Компьютер: боковое меню вместо нижнего. Только сценарии из desktop.e2e.ts.

@@ -1,5 +1,3 @@
-import { existsSync, renameSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { env } from 'node:process';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
@@ -10,80 +8,53 @@ import { VitePWA } from 'vite-plugin-pwa';
 const webPort = Number(env.WEB_PORT ?? 5173);
 const api = `http://127.0.0.1:${env.PORT ?? 8310}`;
 
-// Режим `prototype` собирает кликабельный прототип навигации (задача 0.5) отдельно от приложения:
-// своя страница prototype.html, своя папка dist-prototype, без PWA, входа и сервера.
-export default defineConfig(({ mode }) => {
-  const prototype = mode === 'prototype';
-  let outDir = '';
+export default defineConfig(() => {
   return {
     // По умолчанию — корень сайта: ссылки сервера /invite/... и /reset-password должны
-    // открываться сразу. WEB_BASE позволяет собрать оболочку для заданной подпапки;
-    // прототип по умолчанию собирается с относительными путями и открывается из любой папки.
-    base: env.WEB_BASE ?? (prototype ? './' : '/'),
+    // открываться сразу. WEB_BASE позволяет собрать оболочку для заданной подпапки.
+    base: env.WEB_BASE ?? '/',
     plugins: [
       react(),
-      ...(prototype
-        ? [
+      VitePWA({
+        strategies: 'injectManifest',
+        srcDir: 'src/pwa',
+        filename: 'sw.ts',
+        injectRegister: false,
+        includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
+        injectManifest: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,woff2}'] },
+        manifest: {
+          name: 'HomeCRM — дом и личное',
+          short_name: 'HomeCRM',
+          lang: 'ru',
+          description: 'Семейные дела, документы и дом',
+          id: './',
+          start_url: './',
+          scope: './',
+          display: 'standalone',
+          background_color: '#e9e5db',
+          theme_color: '#20201e',
+          icons: [
             {
-              // Страница прототипа называется index.html: папку можно класть на любой хостинг.
-              name: 'prototype-index-page',
-              configResolved(config: { root: string; build: { outDir: string } }) {
-                outDir = resolve(config.root, config.build.outDir);
-              },
-              closeBundle() {
-                const page = resolve(outDir, 'prototype.html');
-                if (existsSync(page)) renameSync(page, resolve(outDir, 'index.html'));
-              },
+              src: 'icon-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any maskable',
             },
-          ]
-        : [
-            VitePWA({
-              strategies: 'injectManifest',
-              srcDir: 'src/pwa',
-              filename: 'sw.ts',
-              injectRegister: false,
-              includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
-              injectManifest: { globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,woff2}'] },
-              manifest: {
-                name: 'HomeCRM — дом и личное',
-                short_name: 'HomeCRM',
-                lang: 'ru',
-                description: 'Семейные дела, документы и дом',
-                id: './',
-                start_url: './',
-                scope: './',
-                display: 'standalone',
-                background_color: '#e9e5db',
-                theme_color: '#20201e',
-                icons: [
-                  {
-                    src: 'icon-192.png',
-                    sizes: '192x192',
-                    type: 'image/png',
-                    purpose: 'any maskable',
-                  },
-                  {
-                    src: 'icon-512.png',
-                    sizes: '512x512',
-                    type: 'image/png',
-                    purpose: 'any maskable',
-                  },
-                ],
-              },
-            }),
-          ]),
+            {
+              src: 'icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable',
+            },
+          ],
+        },
+      }),
     ],
     build: {
       // Экраны разделов — отдельные части (D53c, workspace/sections.ts). В основной остаются
       // React, лента «Сегодня» и значки Phosphor: около 580 КБ (175 КБ после сжатия), поэтому
       // порог чуть выше 500 КБ по умолчанию — рост основной части снова будет замечен.
       chunkSizeWarningLimit: 600,
-      ...(prototype
-        ? {
-            outDir: 'dist-prototype',
-            rollupOptions: { input: 'prototype.html' },
-          }
-        : {}),
     },
     server: {
       host: '127.0.0.1',

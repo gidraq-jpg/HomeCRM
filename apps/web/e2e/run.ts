@@ -1,13 +1,12 @@
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
-import { E2E_PREFIX } from './support/static-server.ts';
+import { E2E_PREFIX } from './support/base-path.ts';
 
-// `node e2e/run.ts [app|auth|prototype|all|full|full-compose] [аргументы Playwright]`
-// - app (он же auth: так зовёт CI): рабочее приложение с настоящим сервером и PostgreSQL;
-// - prototype: прототип навигации на вымышленных данных (отдельная сборка);
-// - all (по умолчанию): сначала приложение, затем прототип.
-// - full: приложение, прототип и полная матрица UI-7; full-compose запускает это в Linux.
+// `node e2e/run.ts [app|auth|all|full|full-compose] [аргументы Playwright]`
+// - app, auth (так зовёт CI) и all (по умолчанию): рабочее приложение с настоящим сервером
+//   и PostgreSQL;
+// - full: приложение и полная матрица UI-7; full-compose запускает это в Linux.
 const require = createRequire(import.meta.url);
 process.env.WEB_BASE = E2E_PREFIX;
 async function runCommand(command: string, args: string[], env = process.env) {
@@ -57,7 +56,7 @@ if (process.argv[2] === 'full-compose') {
 const vite = resolve(dirname(require.resolve('vite/package.json')), 'bin/vite.js');
 const playwright = require.resolve('@playwright/test/cli');
 
-const modes = ['app', 'auth', 'prototype', 'all', 'full'];
+const modes = ['app', 'auth', 'all', 'full'];
 const first = process.argv[2] ?? '';
 const mode = modes.includes(first) ? first : 'all';
 const rest = process.argv.slice(modes.includes(first) ? 3 : 2);
@@ -68,41 +67,29 @@ const studioShard =
     ? rest.find((arg) => /^--shard=\d+\/\d+$/.test(arg))
     : undefined;
 
-if (mode !== 'prototype') {
-  await run(vite, ['build']);
-  await run(
-    playwright,
-    ['test', ...rest, ...(mode === 'full' ? ['--output=test-results/artifacts/app'] : [])],
-    studioShard ? { ...process.env, HOMECRM_E2E_SHARD_MAIN: '1' } : process.env,
-  );
-  if (studioShard?.startsWith('--shard=1/')) {
-    for (const project of ['w360', 'w412']) {
-      await run(playwright, [
-        'test',
-        ...rest.filter((arg) => arg !== studioShard),
-        'app/studio2.e2e.ts',
-        `--project=${project}`,
-        `--output=test-results/artifacts/studio2-${project}`,
-      ]);
-    }
-  }
-  if (mode === 'full') {
+await run(vite, ['build']);
+await run(
+  playwright,
+  ['test', ...rest, ...(mode === 'full' ? ['--output=test-results/artifacts/app'] : [])],
+  studioShard ? { ...process.env, HOMECRM_E2E_SHARD_MAIN: '1' } : process.env,
+);
+if (studioShard?.startsWith('--shard=1/')) {
+  for (const project of ['w360', 'w412']) {
     await run(playwright, [
       'test',
-      '-c',
-      'e2e/fullscreen-forms/playwright.config.ts',
-      ...rest,
-      '--output=test-results/artifacts/forms',
+      ...rest.filter((arg) => arg !== studioShard),
+      'app/studio2.e2e.ts',
+      `--project=${project}`,
+      `--output=test-results/artifacts/studio2-${project}`,
     ]);
   }
 }
-if (mode === 'prototype' || mode === 'all' || mode === 'full') {
-  await run(vite, ['build', '--mode', 'prototype']);
+if (mode === 'full') {
   await run(playwright, [
     'test',
     '-c',
-    'playwright.prototype.config.ts',
+    'e2e/fullscreen-forms/playwright.config.ts',
     ...rest,
-    ...(mode === 'full' ? ['--output=test-results/artifacts/prototype'] : []),
+    '--output=test-results/artifacts/forms',
   ]);
 }

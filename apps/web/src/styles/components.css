@@ -544,13 +544,6 @@
   line-height: 1.55;
 }
 
-.prototype-note {
-  margin-top: var(--space-5);
-  color: var(--muted);
-  font-size: var(--font-sm);
-  line-height: 1.5;
-}
-
 /* Studio: общие компоненты сохраняют API и состояния. */
 html[data-design="studio"] .btn {
   border-radius: var(--radius-xl);

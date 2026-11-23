@@ -1,7 +1,6 @@
 # Зависимости и сборка
 node_modules/
 dist/
-dist-prototype/
 coverage/
 .vite/
 *.tsbuildinfo
