@@ -9,7 +9,7 @@ import { expect, signInAs } from './support.ts';
 // через протокол отладки, и настоящее `notificationclick`. Показ уведомлений есть только в полном Chromium:
 // облегчённый безголовый запрет на уведомления не снимает, поэтому файл идёт на `channel: 'chromium'`.
 
-test.use({ channel: 'chromium', permissions: ['notifications'] });
+test.use({ channel: 'chromium', permissions: ['notifications'], serviceWorkers: 'allow' });
 test('сводка: настоящее событие push и notificationclick до входа открывают защищённый API после входа', async ({
   page,
   family,

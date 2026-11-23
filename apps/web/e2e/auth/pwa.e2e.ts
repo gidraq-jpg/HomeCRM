@@ -1,6 +1,9 @@
 import { expect, test } from './support/fixtures.ts';
 import { checkAuth, expectSignedIn, signIn } from './support/helpers.ts';
 
+// Установка и холодный офлайн проверяются вместе с SW.
+test.use({ serviceWorkers: 'allow' });
+
 test('manifest и значки установки; инструкция для телефона', async ({ page, family }, info) => {
   await page.goto('#/sign-in');
   await expect(page.getByRole('heading', { name: 'Войти в HomeCRM' })).toBeVisible();

@@ -157,16 +157,20 @@ for (const view of ['all', 'card'] as const) {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    page.on('response', (response) => {
-      if (response.url().endsWith(`tasks/${id}/status`) && response.status() === 200)
-        completed = true;
-    });
     page.on('request', (request) => {
       if (request.url().endsWith(`tasks/${id}/undo`)) undoRequests++;
     });
     const routeHandler = (route: import('@playwright/test').Route) => {
       const callback = (async () => {
-        if (route.request().method() === 'GET' && completed && !undoRequests) {
+        const request = route.request();
+        if (request.method() === 'POST' && request.url().endsWith(`tasks/${id}/status`)) {
+          // Флаг ставится до того, как браузер получит ответ (D56). Событие page 'response'
+          // не упорядочено с перехватом следующих запросов: refetch, вызванный этим ответом,
+          // мог пройти без задержки, и тест ждал бы задержанный запрос, которого уже не будет.
+          const response = await route.fetch();
+          if (response.status() === 200) completed = true;
+          await route.fulfill({ response });
+        } else if (request.method() === 'GET' && completed && !undoRequests) {
           const response = await route.fetch();
           refetchStarted = true;
           await gate;
@@ -197,10 +201,16 @@ for (const view of ['all', 'card'] as const) {
       // Отмена удаляет на сервере следующий экземпляр серии (2 янв.), а лента «Все дела» узнаёт
       // об этом из refetch после отмены. До него на экране две строки серии, и строгий локатор
       // кнопки ниже ловил обе (D34). Ждём, пока лента сойдётся с сервером: одна строка серии.
-      if (view === 'all')
+      // Строка 2 янв. может мелькнуть ещё раз, пока refetch после отмены не вернулся (D56), поэтому
+      // ждём и одну ссылку, и одну кнопку выполнения.
+      if (view === 'all') {
         await expect(
           page.getByRole('link', { name: 'Серия с медленным refetch', exact: true }),
         ).toHaveCount(1);
+        await expect(
+          page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }),
+        ).toHaveCount(1);
+      }
       await expect(
         page.getByRole('button', { name: /^(?:Выполнить$|Отметить сделанным:)/ }),
       ).toBeEnabled();
