@@ -18,7 +18,8 @@ import { checkApp, expect, signInAs } from './support.ts';
 // вымышленная: Борис — взрослый, Вера — ребёнок. Подписку и разрешение подменяет installFakePush;
 // push в сервис-воркере проверяется настоящим событием через протокол отладки браузера.
 
-test.use({ userAgent: ANDROID_CHROME });
+// Подписка push оформляется через регистрацию SW: без него включение уведомлений падает.
+test.use({ userAgent: ANDROID_CHROME, serviceWorkers: 'allow' });
 
 const toast = (page: Page) => page.locator('.toast-region');
 const card = (page: Page) => page.getByRole('region', { name: 'Уведомления о сроках' });
