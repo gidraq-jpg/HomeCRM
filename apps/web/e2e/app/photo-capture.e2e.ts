@@ -8,6 +8,11 @@ import { apiAs } from './notes-support.ts';
 import { seedAccount, seedProperty } from './property-support.ts';
 import { checkApp, expect, signInAs } from './support.ts';
 
+// UTIL-4 подменяет ответ разбора через page.route (D56). Playwright не гарантирует перехват
+// запросов страницы, которой управляет сервис-воркер, и советует отключать SW; PWA проверяет
+// pwa.e2e.ts, а очередь изменений — shopping-offline.e2e.ts.
+test.use({ serviceWorkers: 'block' });
+
 async function newReceiptForm(
   page: Page,
   family: Family,

@@ -23,6 +23,12 @@ import { seedAccount, seedProperty } from './property-support.ts';
 import { closeRecordActions, openRecordActions } from './record-actions.ts';
 import { signInAs } from './support.ts';
 
+// Сценарии подменяют и задерживают ответы API через page.route (D56). Сервис-воркер при старте
+// страницы запускает свою отправку очереди изменений: если выполнение дела уходит в его
+// отправку, page.route и события страницы его не видят, а окно отмены остаётся без отметки
+// времени ответа. Playwright советует отключать SW при перехвате запросов; PWA проверяет pwa.e2e.ts.
+test.use({ serviceWorkers: 'block' });
+
 async function check(page: Page, info: TestInfo, name: string) {
   if (await page.getByRole('dialog').count())
     await expect(page.getByRole('dialog')).toHaveCSS('opacity', '1');
@@ -157,16 +163,20 @@ for (const view of ['all', 'card'] as const) {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    page.on('response', (response) => {
-      if (response.url().endsWith(`tasks/${id}/status`) && response.status() === 200)
-        completed = true;
-    });
     page.on('request', (request) => {
       if (request.url().endsWith(`tasks/${id}/undo`)) undoRequests++;
     });
     const routeHandler = (route: import('@playwright/test').Route) => {
       const callback = (async () => {
-        if (route.request().method() === 'GET' && completed && !undoRequests) {
+        const request = route.request();
+        if (request.method() === 'POST' && request.url().endsWith(`tasks/${id}/status`)) {
+          // Флаг ставится до того, как браузер получит ответ (D56). Событие page 'response'
+          // не упорядочено с перехватом следующих запросов: refetch, вызванный этим ответом,
+          // мог пройти без задержки, и тест ждал бы задержанный запрос, которого уже не будет.
+          const response = await route.fetch();
+          if (response.status() === 200) completed = true;
+          await route.fulfill({ response });
+        } else if (request.method() === 'GET' && completed && !undoRequests) {
           const response = await route.fetch();
           refetchStarted = true;
           await gate;

@@ -79,11 +79,32 @@ async function object(personal = false) {
   expect(res.status, res.text).toBe(201);
   return res.json<{ id: string }>().id;
 }
+// Коммунальный источник не досылает предупреждения раньше своего created_at, а его ставит
+// настоящее время базы. Сценарии идут по фиктивным часам с 19.11.2026, поэтому источник
+// «создаётся» до их начала — иначе тесты зависят от дня запуска (D56).
+const sourcesCreatedAt = '2026-11-19T00:00:00Z';
+async function pinSourcesCreatedAt() {
+  const client = await world.database.admin.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SET LOCAL session_replication_role=replica');
+    await client.query('UPDATE deadlines SET created_at=$1 WHERE created_at>$1', [
+      sourcesCreatedAt,
+    ]);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 async function account(parent: string, data: Record<string, unknown> = {}) {
   const res = await adult.post(`/api/objects/${parent}/accounts`, {
     data: { number: 'TEST-123', readingRule, paymentRule, ...data },
   });
   expect(res.status, res.text).toBe(201);
+  await pinSourcesCreatedAt();
   return res.json<Account>();
 }
 async function meter(parent: string, accountId: string | null, data: Record<string, unknown> = {}) {
@@ -92,6 +113,7 @@ async function meter(parent: string, accountId: string | null, data: Record<stri
     data: { resource: 'cold_water', ...data },
   });
   expect(res.status, res.text).toBe(201);
+  await pinSourcesCreatedAt();
   return res.json<Meter>();
 }
 async function refresh(date = now) {
