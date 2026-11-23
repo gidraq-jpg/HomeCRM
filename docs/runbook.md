@@ -379,7 +379,7 @@ pnpm test:e2e:full
 docker compose -p homecrm-test-full -f apps/web/e2e/fullscreen-forms/compose.yaml down --volumes
 ```
 
-Снимки CI и полного прогона пишутся в `apps/web/test-results/screens/`, ошибки — в `apps/web/test-results/artifacts/` (подпапки `app`, `forms`), эти файлы не коммитятся. Эталоны `docs/screenshots/**` автоматически не меняются: отобранные Linux-снимки для PR переносятся туда отдельно. В CI каталог `apps/web/test-results` прикладывается как артефакт. Тайм-ауты и повторные попытки тестов не увеличиваются.
+Снимки CI и полного прогона пишутся в `apps/web/test-results/screens/`, ошибки — в `apps/web/test-results/artifacts/` (подпапки `app`, `forms`), эти файлы не коммитятся. Эталоны `docs/screenshots/**` автоматически не меняются. Снимки к запросу на слияние туда не переносятся: это материалы CI ([ADR-0055](adr/0055-screenshots-storage.md)); в репозитории — только утверждённые макеты и эталоны. В CI каталог `apps/web/test-results` прикладывается как артефакт. Тайм-ауты и повторные попытки тестов не увеличиваются.
 
 Три исправленных нестабильных файла можно проверить пять раз подряд в том же контейнере, без полного прогона:
 
