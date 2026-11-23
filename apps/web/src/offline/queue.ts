@@ -303,7 +303,7 @@ export async function durableMutation(
   }
   const current = await offlineDB.outbox.get(intent.id);
   if (current?.state === 'confirmed') {
-    const info = lastTiming.get(intent.id);
+    const info = lastTiming.get(intent.id) ?? foreignTiming(current.confirmation);
     if (info && current.response && typeof current.response === 'object')
       timing.set(current.response, info);
     return current.response;
@@ -611,6 +611,20 @@ const timing = new WeakMap<
   object,
   { serverDate: string | null; elapsed: number; receivedAt: number }
 >();
+/**
+ * Запись подтвердил другой отправитель (SW или соседняя вкладка, D56): своих монотонных часов
+ * его ответа у вкладки нет. Время с подтверждения добавляется к задержке ответа и только
+ * сокращает окно отмены; перевод часов назад не продлевает его (не меньше нуля).
+ */
+function foreignTiming(confirmation: Intent['confirmation']) {
+  if (!confirmation) return undefined;
+  const since = Date.now() - confirmation.confirmedAt;
+  return {
+    serverDate: confirmation.serverDate,
+    elapsed: confirmation.elapsed + (Number.isFinite(since) ? Math.max(0, since) : 0),
+    receivedAt: performance.now(),
+  };
+}
 export function durableTiming(value: unknown) {
   return value && typeof value === 'object' ? timing.get(value) : undefined;
 }
@@ -775,10 +789,20 @@ export async function synchronize(): Promise<void> {
           offlineDB.blobs,
           async () => {
             await assertIdentity(active);
+            const info = timing.get(json);
             await offlineDB.outbox.update(row.id, {
               state: 'confirmed',
               receipt: receipt.data,
               response: json,
+              ...(info
+                ? {
+                    confirmation: {
+                      serverDate: info.serverDate,
+                      elapsed: info.elapsed,
+                      confirmedAt: Date.now(),
+                    },
+                  }
+                : {}),
               code: undefined,
               ...(row.operation === 'inbox_create'
                 ? { body: { id: row.body.id }, frozenBody: undefined, inputFingerprint: undefined }

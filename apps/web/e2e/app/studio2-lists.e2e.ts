@@ -11,6 +11,9 @@ import { homeDate, openRadar, recalc, seedDeadline, setHomeZone } from './deadli
 import { apiAs, seedNote } from './notes-support.ts';
 import { signInAs } from './support.ts';
 
+// Покупки проверяются и без сети: оболочку отдаёт SW.
+test.use({ serviceWorkers: 'allow' });
+
 async function check(page: Page, info: TestInfo, name: string) {
   await expectNoHorizontalScroll(page);
   await expectTouchTargets(page);

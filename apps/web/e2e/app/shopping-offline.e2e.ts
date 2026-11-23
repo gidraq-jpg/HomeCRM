@@ -22,6 +22,9 @@ import { apiAs, seedNote } from './notes-support.ts';
 import { seedProperty } from './property-support.ts';
 import { signInAs } from './support.ts';
 
+// Офлайн и очередь проверяются вместе с SW: он кэширует оболочку и сам отправляет очередь.
+test.use({ serviceWorkers: 'allow' });
+
 test.beforeEach(async ({ page }) => {
   page.on('pageerror', (error) =>
     process.stdout.write(`Browser failure: ${error.name} ${error.message}\n`),
@@ -800,55 +803,63 @@ test('OFFLINE: изменение роли сбрасывает доступны
   expect(JSON.stringify(snapshots)).not.toContain('Текст взрослой записи');
   expect((await rows(page))[0]?.body.body).toBe('Локальный ввод взрослого');
 });
-test('OFFLINE: lease умершей вкладки восстанавливает прежний отправленный ключ', async ({
-  page,
-  family,
-  context,
-}) => {
-  test.setTimeout(120000);
-  const api = await apiAs(family, 'adult');
-  await signInAs(page, family, 'adult');
-  await shell(page);
-  let lost = false;
-  await context.route('**/api/notes', async (route) => {
-    if (route.request().method() === 'POST' && !lost) {
-      lost = true;
-      await route.fetch();
-      await route.abort('failed');
-    } else await route.continue();
-  });
-  await newNote(page, 'После аварии вкладки');
-  await expect
-    .poll(async () => (await rows(page)).some((row) => row.state === 'unknown'))
-    .toBe(true);
-  const before = (await rows(page))[0];
-  expect(before?.attempted).toBe(true);
-  if (before) await updateRow(page, before.id, { state: 'sending', nextAttempt: 0 });
-  await page.evaluate(async () => {
-    const db = await new Promise<IDBDatabase>((ok) => {
-      const request = indexedDB.open('homecrm-offline');
-      request.onsuccess = () => ok(request.result);
+// Отправитель здесь — только вкладка (D56). Запрос SW в CI проходил мимо context.route, и
+// «потерянный» ответ доходил: запись подтверждалась, не побывав в состоянии unknown.
+test.describe('отправитель — вкладка', () => {
+  test.use({ serviceWorkers: 'block' });
+  test('OFFLINE: lease умершей вкладки восстанавливает прежний отправленный ключ', async ({
+    page,
+    family,
+    context,
+  }) => {
+    test.setTimeout(120000);
+    const api = await apiAs(family, 'adult');
+    await signInAs(page, family, 'adult');
+    // Ответ теряется до unroute: плановая отправка не подтвердит запись раньше, чем тест увидит
+    // unknown. Повторы идут с тем же ключом и не создают второй заметки.
+    await context.route('**/api/notes', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fetch();
+        await route.abort('failed');
+      } else await route.continue();
     });
-    await new Promise<void>((ok) => {
-      const tx = db.transaction('leases', 'readwrite');
-      tx.objectStore('leases').put({ id: 'sender', holder: 'dead-tab', expiresAt: Date.now() - 1 });
-      tx.oncomplete = () => ok();
+    await newNote(page, 'После аварии вкладки');
+    await expect
+      .poll(async () => (await rows(page)).some((row) => row.state === 'unknown'))
+      .toBe(true);
+    const before = (await rows(page))[0];
+    expect(before?.attempted).toBe(true);
+    if (before) await updateRow(page, before.id, { state: 'sending', nextAttempt: 0 });
+    await page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((ok) => {
+        const request = indexedDB.open('homecrm-offline');
+        request.onsuccess = () => ok(request.result);
+      });
+      await new Promise<void>((ok) => {
+        const tx = db.transaction('leases', 'readwrite');
+        tx.objectStore('leases').put({
+          id: 'sender',
+          holder: 'dead-tab',
+          expiresAt: Date.now() - 1,
+        });
+        tx.oncomplete = () => ok();
+      });
+      db.close();
     });
-    db.close();
+    await context.unroute('**/api/notes');
+    await page.reload();
+    await sync(page);
+    await expect
+      .poll(async () => (await rows(page)).every((row) => row.state === 'confirmed'), {
+        timeout: 20000,
+      })
+      .toBe(true);
+    const after = (await rows(page))[0];
+    expect(after?.id).toBe(before?.id);
+    expect(after?.frozenBody).toBe(before?.frozenBody);
+    const notes = (await api.get('notes?scope=personal')).body as { title: string }[];
+    expect(notes.filter((note) => note.title === 'После аварии вкладки')).toHaveLength(1);
   });
-  await context.unroute('**/api/notes');
-  await page.reload();
-  await sync(page);
-  await expect
-    .poll(async () => (await rows(page)).every((row) => row.state === 'confirmed'), {
-      timeout: 20000,
-    })
-    .toBe(true);
-  const after = (await rows(page))[0];
-  expect(after?.id).toBe(before?.id);
-  expect(after?.frozenBody).toBe(before?.frozenBody);
-  const notes = (await api.get('notes?scope=personal')).body as { title: string }[];
-  expect(notes.filter((note) => note.title === 'После аварии вкладки')).toHaveLength(1);
 });
 test('OFFLINE: миграция Dexie1→2 сохраняет pending, Blob и исходный ключ', async ({
   family,
@@ -1591,114 +1602,119 @@ for (const phase of ['before', 'between'] as const) {
   });
 }
 
-test('B5: online create lost ACK сохраняет key с формой после reload и даёт один эффект', async ({
-  page,
-  family,
-  context,
-}) => {
-  const api = await apiAs(family, 'adult');
-  await page.clock.install();
-  await signInAs(page, family, 'adult');
-  await shell(page);
-  const sentBodies: string[] = [];
-  context.on('request', (request) => {
-    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/tasks')
-      sentBodies.push(request.postData() ?? '');
+// Отправитель — только вкладка (D56): «потерянный» POST из SW в CI проходил мимо context.route,
+// и форма получала «Дело сохранено» вместо ошибки связи.
+test.describe('B5 · отправитель — вкладка', () => {
+  test.use({ serviceWorkers: 'block' });
+  test('B5: online create lost ACK сохраняет key с формой после reload и даёт один эффект', async ({
+    page,
+    family,
+    context,
+  }) => {
+    const api = await apiAs(family, 'adult');
+    await page.clock.install();
+    await signInAs(page, family, 'adult');
+    const sentBodies: string[] = [];
+    context.on('request', (request) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/tasks')
+        sentBodies.push(request.postData() ?? '');
+    });
+    await context.route('**/api/tasks', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      await route.fetch();
+      await route.abort('failed');
+    });
+    await page.goto('#/today/new');
+    const form = page.locator('form.task-form');
+    const title = 'Дело с потерянным ответом';
+    // После загрузки формы таймеры остановлены: autosave введённого не может сработать.
+    await page.clock.pauseAt(new Date(Date.now() + 1000));
+    await page.getByLabel('Название дела').fill(title);
+    await form.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Не удалось связаться с сервером');
+    await expect(page.getByLabel('Название дела')).toHaveValue(title);
+    await expect.poll(async () => (await rows(page))[0]?.state).toBe('unknown');
+    const before = (await rows(page))[0];
+    expect(before?.frozenBody).toBeTruthy();
+    expect((before as Row & { formKey?: string })?.formKey).toBe('form:/today/new');
+    const drafts = (await rows(page, 'drafts')) as unknown as {
+      key: string;
+      data: { value?: { title?: string } };
+    }[];
+    expect(
+      drafts.find((draft) => draft.key.endsWith(':form:/today/new'))?.data.value?.title,
+    ).not.toBe(title);
+    // Reload немедленный: ключ восстанавливается из уже durable outbox, без ожидания autosave.
+    await page.reload();
+    // Bootstrap React Query использует таймеры; старый ввод до reload всё ещё не был autosaved.
+    await page.clock.resume();
+    await expect(page.getByLabel('Название дела')).toHaveValue(title);
+    await page.getByLabel('Название дела').fill('Другое тело после неизвестного COMMIT');
+    await form.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Исход отправки ещё неизвестен');
+    expect((await rows(page)).map((row) => row.id)).toEqual([before?.id]);
+    await page.getByLabel('Название дела').fill(title);
+    await context.unroute('**/api/tasks');
+    await form.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+    const after = (await rows(page))[0];
+    expect(after?.state).toBe('confirmed');
+    expect(after?.id).toBe(before?.id);
+    expect(after?.frozenBody).toBe(before?.frozenBody);
+    expect(sentBodies.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(sentBodies).size).toBe(1);
+    const tasks = (await api.get('tasks?scope=all')).body as { title: string }[];
+    expect(tasks.filter((task) => task.title === title)).toHaveLength(1);
   });
-  await context.route('**/api/tasks', async (route) => {
-    if (route.request().method() !== 'POST') return route.continue();
-    await route.fetch();
-    await route.abort('failed');
-  });
-  await page.goto('#/today/new');
-  const form = page.locator('form.task-form');
-  const title = 'Дело с потерянным ответом';
-  // После загрузки формы таймеры остановлены: autosave введённого не может сработать.
-  await page.clock.pauseAt(new Date(Date.now() + 1000));
-  await page.getByLabel('Название дела').fill(title);
-  await form.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Не удалось связаться с сервером');
-  await expect(page.getByLabel('Название дела')).toHaveValue(title);
-  await expect.poll(async () => (await rows(page))[0]?.state).toBe('unknown');
-  const before = (await rows(page))[0];
-  expect(before?.frozenBody).toBeTruthy();
-  expect((before as Row & { formKey?: string })?.formKey).toBe('form:/today/new');
-  const drafts = (await rows(page, 'drafts')) as unknown as {
-    key: string;
-    data: { value?: { title?: string } };
-  }[];
-  expect(
-    drafts.find((draft) => draft.key.endsWith(':form:/today/new'))?.data.value?.title,
-  ).not.toBe(title);
-  // Reload немедленный: ключ восстанавливается из уже durable outbox, без ожидания autosave.
-  await page.reload();
-  // Bootstrap React Query использует таймеры; старый ввод до reload всё ещё не был autosaved.
-  await page.clock.resume();
-  await expect(page.getByLabel('Название дела')).toHaveValue(title);
-  await page.getByLabel('Название дела').fill('Другое тело после неизвестного COMMIT');
-  await form.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Исход отправки ещё неизвестен');
-  expect((await rows(page)).map((row) => row.id)).toEqual([before?.id]);
-  await page.getByLabel('Название дела').fill(title);
-  await context.unroute('**/api/tasks');
-  await form.getByRole('button', { name: 'Сохранить', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
-  const after = (await rows(page))[0];
-  expect(after?.state).toBe('confirmed');
-  expect(after?.id).toBe(before?.id);
-  expect(after?.frozenBody).toBe(before?.frozenBody);
-  expect(sentBodies.length).toBeGreaterThanOrEqual(2);
-  expect(new Set(sentBodies).size).toBe(1);
-  const tasks = (await api.get('tasks?scope=all')).body as { title: string }[];
-  expect(tasks.filter((task) => task.title === title)).toHaveLength(1);
-});
 
-test('B5: плановая отправка очереди в момент «Сохранить» не уводит форму в очередь', async ({
-  page,
-  family,
-  context,
-}) => {
-  // D34: аренду отправки держала плановая отправка (интервал 15 с, online, SW). Форма считала
-  // запись отложенной и открывала «Очередь изменений», хотя исход решала эта отправка.
-  await signInAs(page, family, 'adult');
-  await shell(page);
-  const posts: string[] = [];
-  context.on('request', (request) => {
-    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/tasks')
-      posts.push(request.postData() ?? '');
+  // Плановую отправку здесь запускает событие online во вкладке. POST из SW в CI проходил мимо
+  // context.route, и форма получала «Дело сохранено» вместо ошибки связи (D56).
+  test('B5: плановая отправка очереди в момент «Сохранить» не уводит форму в очередь', async ({
+    page,
+    family,
+    context,
+  }) => {
+    // D34: аренду отправки держала плановая отправка (интервал 15 с, online, SW). Форма считала
+    // запись отложенной и открывала «Очередь изменений», хотя исход решала эта отправка.
+    await signInAs(page, family, 'adult');
+    const posts: string[] = [];
+    context.on('request', (request) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/tasks')
+        posts.push(request.postData() ?? '');
+    });
+    await context.route('**/api/tasks', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      await route.fetch();
+      await route.abort('failed');
+    });
+    await page.goto('#/today/new');
+    await page.getByLabel('Название дела').fill('Дело во время плановой отправки');
+    // Обе проверки Me у страницы отвечают позже: плановая отправка, начатая первой, берёт аренду
+    // и отправляет запись формы; отправка самой формы застаёт аренду занятой.
+    await context.route('**/api/me', async (route) => {
+      if (!route.request().serviceWorker()) await new Promise((done) => setTimeout(done, 400));
+      await route.continue();
+    });
+    await page.evaluate(() => {
+      document.addEventListener(
+        'click',
+        (event) => {
+          if (event.target instanceof Element && event.target.closest('form.task-form button'))
+            window.dispatchEvent(new Event('online'));
+        },
+        { capture: true, once: true },
+      );
+    });
+    await page
+      .locator('form.task-form')
+      .getByRole('button', { name: 'Сохранить', exact: true })
+      .click();
+    await expect(page.getByRole('alert')).toContainText('Не удалось связаться с сервером');
+    await expect(page).toHaveURL(/#\/today\/new$/);
+    await expect(page.getByLabel('Название дела')).toHaveValue('Дело во время плановой отправки');
+    expect((await rows(page)).map((row) => row.state)).toEqual(['unknown']);
+    expect(posts).toHaveLength(1);
   });
-  await context.route('**/api/tasks', async (route) => {
-    if (route.request().method() !== 'POST') return route.continue();
-    await route.fetch();
-    await route.abort('failed');
-  });
-  await page.goto('#/today/new');
-  await page.getByLabel('Название дела').fill('Дело во время плановой отправки');
-  // Обе проверки Me у страницы отвечают позже: плановая отправка, начатая первой, берёт аренду
-  // и отправляет запись формы; отправка самой формы застаёт аренду занятой.
-  await context.route('**/api/me', async (route) => {
-    if (!route.request().serviceWorker()) await new Promise((done) => setTimeout(done, 400));
-    await route.continue();
-  });
-  await page.evaluate(() => {
-    document.addEventListener(
-      'click',
-      (event) => {
-        if (event.target instanceof Element && event.target.closest('form.task-form button'))
-          window.dispatchEvent(new Event('online'));
-      },
-      { capture: true, once: true },
-    );
-  });
-  await page
-    .locator('form.task-form')
-    .getByRole('button', { name: 'Сохранить', exact: true })
-    .click();
-  await expect(page.getByRole('alert')).toContainText('Не удалось связаться с сервером');
-  await expect(page).toHaveURL(/#\/today\/new$/);
-  await expect(page.getByLabel('Название дела')).toHaveValue('Дело во время плановой отправки');
-  expect((await rows(page)).map((row) => row.state)).toEqual(['unknown']);
-  expect(posts).toHaveLength(1);
 });
 
 test('B5: внешняя роль во время await Me не теряется, поздний Me не откатывает generation', async ({

@@ -292,7 +292,9 @@ for (const mode of ['online', 'offline', 'retry'] as const) {
     );
     const sent: string[] = [];
     let fail = mode === 'retry';
-    await page.route('**/api/inbox', async (route) => {
+    // Очередь изменений может отправить захват из SW (D56): page.route такой запрос не видит,
+    // context.route перехватывает и запросы вкладки, и запросы SW.
+    await context.route('**/api/inbox', async (route) => {
       if (route.request().method() !== 'POST') {
         await route.continue();
         return;
