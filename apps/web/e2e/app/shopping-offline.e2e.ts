@@ -401,46 +401,52 @@ test('OFFLINE: task create/edit/complete, отмена неотправленн�
     .poll(async () => ((await api.get(`tasks/${online.id}`)).body as { status: string }).status)
     .toBe('open');
 });
-test('OFFLINE: COMMIT с потерянным ACK, две вкладки и immutable replay', async ({
-  page,
-  family,
-  context,
-}) => {
-  test.setTimeout(120000);
-  const api = await apiAs(family, 'adult');
-  await signInAs(page, family, 'adult');
-  await shell(page);
-  let dropped = false;
-  await context.route('**/api/notes', async (route) => {
-    if (route.request().method() === 'POST' && !dropped) {
-      dropped = true;
-      await route.fetch();
-      await route.abort('failed');
-    } else await route.continue();
+// Отправители — две вкладки (D56): POST из SW проходил мимо context.route, и «потерянный» ответ
+// доходил до страницы.
+test.describe('две вкладки без SW', () => {
+  test.use({ serviceWorkers: 'block' });
+  test('OFFLINE: COMMIT с потерянным ACK, две вкладки и immutable replay', async ({
+    page,
+    family,
+    context,
+  }) => {
+    test.setTimeout(120000);
+    const api = await apiAs(family, 'adult');
+    await signInAs(page, family, 'adult');
+    // Ответ теряется до unroute (D56): иначе повтор через 2 с подтверждал запись раньше, чем тест
+    // видел unknown. Повторы идут с тем же ключом и не создают второй заметки.
+    await context.route('**/api/notes', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fetch();
+        await route.abort('failed');
+      } else await route.continue();
+    });
+    await newNote(page, 'Потерянный ACK');
+    await expect
+      .poll(async () => (await rows(page)).some((row) => row.state === 'unknown'))
+      .toBe(true);
+    const before = (await rows(page))[0];
+    expect(before?.frozenBody).toBeTruthy();
+    const second = await context.newPage();
+    await second.goto('#/more/offline');
+    await expect(
+      second.getByRole('heading', { level: 1, name: 'Очередь изменений' }),
+    ).toBeVisible();
+    await context.unroute('**/api/notes');
+    if (before) await updateRow(page, before.id, { nextAttempt: 0 });
+    await Promise.all([sync(page), sync(second)]);
+    await expect
+      .poll(async () => (await rows(page)).every((row) => row.state === 'confirmed'), {
+        timeout: 20000,
+      })
+      .toBe(true);
+    const after = (await rows(page))[0];
+    expect(after?.id).toBe(before?.id);
+    expect(after?.frozenBody).toBe(before?.frozenBody);
+    const notes = (await api.get('notes?scope=personal')).body as { title: string }[];
+    expect(notes.filter((note) => note.title === 'Потерянный ACK')).toHaveLength(1);
+    await second.close();
   });
-  await newNote(page, 'Потерянный ACK');
-  await expect
-    .poll(async () => (await rows(page)).some((row) => row.state === 'unknown'))
-    .toBe(true);
-  const before = (await rows(page))[0];
-  expect(before?.frozenBody).toBeTruthy();
-  const second = await context.newPage();
-  await second.goto('#/more/offline');
-  await expect(second.getByRole('heading', { level: 1, name: 'Очередь изменений' })).toBeVisible();
-  await context.unroute('**/api/notes');
-  if (before) await updateRow(page, before.id, { nextAttempt: 0 });
-  await Promise.all([sync(page), sync(second)]);
-  await expect
-    .poll(async () => (await rows(page)).every((row) => row.state === 'confirmed'), {
-      timeout: 20000,
-    })
-    .toBe(true);
-  const after = (await rows(page))[0];
-  expect(after?.id).toBe(before?.id);
-  expect(after?.frozenBody).toBe(before?.frozenBody);
-  const notes = (await api.get('notes?scope=personal')).body as { title: string }[];
-  expect(notes.filter((note) => note.title === 'Потерянный ACK')).toHaveLength(1);
-  await second.close();
 });
 test('OFFLINE: 409 сохраняет ввод, независимая запись проходит и решение даёт новый ключ', async ({
   page,
