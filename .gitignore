@@ -1,7 +1,6 @@
 # Зависимости и сборка
 node_modules/
 dist/
-dist-prototype/
 coverage/
 .vite/
 *.tsbuildinfo
@@ -9,7 +8,6 @@ playwright-report/
 test-results/
 
 # Журнал заглушки при запуске без Docker
-tools/access-probe/data/
 
 # Рабочие копии исполнителей и локальные настройки Claude Code
 .claude/worktrees/

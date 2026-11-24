@@ -1,4 +1,4 @@
-/* Экраны прототипа. Остаётся то, что относится к каркасу; остальное уйдёт вместе с prototype/. */
+/* Общие части экранов: главное дело, строки дел, карточки разделов. */
 
 /* Главное дело и дела (LifeOS: .focus-section, .task-row) */
 .focus__title {
@@ -13,10 +13,6 @@
   margin-bottom: var(--space-2);
   color: var(--muted);
   font-size: var(--font-body);
-}
-
-.focus__access {
-  margin-bottom: var(--space-3);
 }
 
 .focus__actions {
@@ -106,23 +102,6 @@
   margin-right: var(--space-1);
 }
 
-.done-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  min-height: var(--tap);
-  padding: var(--space-2) 0;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: var(--font-body);
-}
-
-.done-toggle .turned {
-  transform: rotate(90deg);
-}
-
 .list-action {
   margin-top: var(--space-4);
 }
@@ -146,48 +125,11 @@
   gap: var(--space-2);
 }
 
-.window-card__deadline {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  color: var(--ink);
-  font-size: var(--font-body);
-  font-weight: var(--weight-medium, 600);
-}
-
-.window-card__deadline svg {
-  flex: none;
-  color: var(--warning);
-}
-
-.window-card__action {
-  margin-top: var(--space-3);
-}
-
 /* Дом */
-.month-link {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
 
 .property-card {
   display: grid;
   gap: var(--space-3);
-}
-
-.property-card__head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.property-card__status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
 }
 
 .property-meta {
@@ -196,10 +138,6 @@
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-4);
-}
-
-.overview__action {
-  margin-top: var(--space-3);
 }
 
 .mono {
@@ -213,14 +151,6 @@
   white-space: nowrap;
 }
 
-.amount--due {
-  color: var(--warning);
-}
-
-.facts--compact .facts__item {
-  min-height: 44px;
-}
-
 .row__status {
   display: block;
   margin-top: var(--space-1);
@@ -229,15 +159,6 @@
 .radar-action {
   color: var(--action-ink);
   font-weight: var(--weight-medium, 650);
-}
-
-.month__status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
 }
 
 /* Показания */
@@ -281,16 +202,6 @@
   color: var(--ink);
 }
 
-.reading__input-row {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.reading__input-row .input {
-  flex: 1;
-  min-width: 0;
-}
-
 .reading__photo {
   flex: none;
   min-height: 48px;
@@ -322,20 +233,6 @@
 
 .reading__save {
   margin-top: var(--space-4);
-}
-
-.transfer__list {
-  margin: var(--space-3) 0;
-  border-top: 1px solid var(--line);
-}
-
-.transfer__list li {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--line);
-  font-size: var(--font-body);
 }
 
 /* Карточки доступа и действия */

@@ -144,10 +144,6 @@
   font-weight: var(--weight-medium, 650);
 }
 
-.more-note {
-  margin-top: var(--space-4);
-}
-
 .add-note {
   margin-top: var(--space-3);
 }

@@ -1,7 +1,6 @@
 packages:
   - apps/*
   - packages/*
-  - tools/*
 
 # Защита от свежих вредоносных версий: ставим только версии старше суток.
 minimumReleaseAge: 1440

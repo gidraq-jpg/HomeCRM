@@ -85,9 +85,6 @@ html[data-design="studio"] .tabs .tabs__link {
 }
 
 /* Карточка объекта: «Недвижимость · Вся семья» одной строкой под названием. */
-html[data-design="studio"] .object-hero {
-  padding-bottom: var(--space-3);
-}
 html[data-design="studio"] .object-hero h1 {
   margin-top: var(--space-1);
 }

@@ -1,13 +1,5 @@
 /* Документы (DOC-1…7): список, карточка, форма, версии. Цели нажатия — не меньше 44 px (--tap). */
 
-.document-filters {
-  margin-bottom: var(--space-4);
-}
-
-.document-filters .chip-group {
-  margin: 0;
-}
-
 .row__state {
   margin-top: var(--space-1);
 }

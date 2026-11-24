@@ -255,20 +255,6 @@
   font-size: var(--font-body);
 }
 
-.card__line {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  font-size: var(--font-body);
-}
-
-.card--link {
-  display: block;
-  color: var(--ink);
-  text-decoration: none;
-}
-
 .card-list {
   display: grid;
   gap: var(--space-2);
@@ -544,13 +530,6 @@
   line-height: 1.55;
 }
 
-.prototype-note {
-  margin-top: var(--space-5);
-  color: var(--muted);
-  font-size: var(--font-sm);
-  line-height: 1.5;
-}
-
 /* Studio: общие компоненты сохраняют API и состояния. */
 html[data-design="studio"] .btn {
   border-radius: var(--radius-xl);
@@ -601,11 +580,6 @@ html[data-design="studio"] .card {
 html[data-design="studio"] :is(.input, .select, .textarea) {
   border-radius: var(--radius-md);
   background: var(--surface);
-}
-
-html[data-design="studio"] .row__icon {
-  background: var(--soft);
-  color: var(--muted);
 }
 
 html[data-design="studio"] .status {

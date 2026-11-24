@@ -13,7 +13,7 @@ import { createHousehold, provisionAccount } from '../../../../server/src/auth/p
 import { FileCipher } from '../../../../server/src/files/crypto.ts';
 import { DirectoryStorage } from '../../../../server/src/files/storage.ts';
 import { currentCode } from '../../../../server/src/testing/totp.ts';
-import { E2E_PREFIX } from '../../support/static-server.ts';
+import { E2E_PREFIX } from '../../support/base-path.ts';
 
 const ROOT = resolve(import.meta.dirname, '../../../dist');
 // Зашифрованные файлы сценария лежат в test-results (в git не попадает); главный ключ — случайный,

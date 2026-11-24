@@ -136,10 +136,6 @@ html[data-design="studio"] .row__icon--electricity {
   background: var(--tile-light-bg);
   color: var(--tile-light-fg);
 }
-html[data-design="studio"] .row__title {
-  font-size: var(--font-body);
-  font-weight: 400;
-}
 html[data-design="studio"] .row__meta {
   margin-top: var(--space-1);
   font-size: var(--font-sm);
@@ -286,9 +282,6 @@ html[data-design="studio"] .today-tabs .tabs {
 html[data-design="studio"] .today-tabs .tabs__list {
   gap: var(--space-1) var(--space-3);
 }
-html[data-design="studio"] .today-tabs .tabs__link {
-  font-size: var(--font-sm);
-}
 html[data-design="studio"] .today-panel .task-focus {
   padding: var(--space-4);
 }
@@ -315,11 +308,6 @@ html[data-design="studio"] .task-focus .focus__title {
   font-size: var(--font-title);
   font-weight: 500;
   line-height: 1.3;
-}
-html[data-design="studio"] .task-focus .focus__access {
-  margin: 0 0 var(--space-1);
-  font-size: var(--font-xs);
-  color: var(--muted);
 }
 html[data-design="studio"] .task-focus .focus__meta {
   margin-top: var(--space-2);
@@ -360,10 +348,6 @@ html[data-design="studio"] .studio-label--waiting {
 html[data-design="studio"] .studio-label--open {
   background: var(--tile-ok-bg);
   color: var(--tile-ok-fg);
-}
-html[data-design="studio"] .studio-label--overdue {
-  background: var(--tile-danger-bg);
-  color: var(--tile-danger-fg);
 }
 html[data-design="studio"] .sheet:has(.task-quickline) .section__head {
   display: none;
@@ -489,9 +473,6 @@ html[data-design="studio"] .object-facts dd {
 html[data-design="studio"] .object-panel {
   padding: var(--space-3) var(--space-4)
     calc(var(--nav-height) + var(--space-6) + env(safe-area-inset-bottom));
-}
-html[data-design="studio"] .object-panel > .tabs {
-  margin-bottom: var(--space-4);
 }
 html[data-design="studio"] .object-panel .tabs__list {
   gap: var(--space-1) var(--space-3);

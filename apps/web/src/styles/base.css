@@ -76,11 +76,6 @@ html[data-design="studio"] {
   scrollbar-color: var(--border) var(--paper);
 }
 
-html[data-design="studio"] ::selection {
-  background: var(--fill-accent);
-  color: var(--on-accent);
-}
-
 html[data-design="studio"] :is(input, textarea) {
   caret-color: var(--accent);
 }

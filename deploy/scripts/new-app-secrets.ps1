@@ -123,7 +123,7 @@ if (-not (Test-Path $vapidFile)) {
     if (-not ($existingPublic -and $existingPrivate -and $existingSubject)) { throw 'Неполная пара VAPID в worker.env: требуется восстановление ключей.' }
     [void](Save-NewFile $vapidFile "VAPID_PUBLIC_KEY=$existingPublic`nVAPID_PRIVATE_KEY=$existingPrivate`nVAPID_SUBJECT=$existingSubject`n")
   } else {
-    $generator = Join-Path $script:RepoRoot 'tools/access-probe/scripts/generate-vapid.ts'
+    $generator = Join-Path $script:RepoRoot 'deploy/scripts/generate-vapid.ts'
     & node $generator $vapidFile 'mailto:push@homecrm.invalid' | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Не удалось создать ключи VAPID.' }
   }

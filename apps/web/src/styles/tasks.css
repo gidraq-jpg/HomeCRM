@@ -119,12 +119,6 @@
   width: 100%;
   margin: 0;
 }
-.task-quickline__hint {
-  font-size: var(--font-sm);
-}
-.task-quickline__title {
-  overflow-wrap: anywhere;
-}
 .task-quickline .task-chips:empty {
   display: none;
 }

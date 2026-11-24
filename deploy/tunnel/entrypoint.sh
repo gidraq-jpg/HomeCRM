@@ -8,7 +8,7 @@ set -u
 SSH_PORT="${SSH_PORT:-22}"
 SSH_USER="${SSH_USER:-homecrm-tunnel}"
 REMOTE_BIND="${REMOTE_BIND:-127.0.0.1:18300}"
-TARGET="${TARGET:-probe:8300}"
+TARGET="${TARGET:-app:8300}"
 KEY_SOURCE="${KEY_FILE:-/secrets/id_ed25519}"
 KNOWN_HOSTS="${KNOWN_HOSTS_FILE:-/secrets/known_hosts}"
 

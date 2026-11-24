@@ -19,7 +19,6 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 
 foreach ($dir in 'secrets', 'secrets\tunnel', 'secrets\rclone', 'backups', 'backups\restic', 'backups\status', 'import') {
   New-Item -ItemType Directory -Force -Path (Join-Path $DataDir $dir) | Out-Null
@@ -27,14 +26,8 @@ foreach ($dir in 'secrets', 'secrets\tunnel', 'secrets\rclone', 'backups', 'back
 Write-Host "Папка данных: $DataDir"
 
 $vapidFile = Join-Path $DataDir 'secrets\vapid.env'
-Push-Location (Join-Path $repo 'tools\access-probe')
-try {
-  node scripts/generate-vapid.ts $vapidFile $VapidSubject
-  if ($LASTEXITCODE -ne 0) { throw 'Не удалось создать ключи VAPID' }
-}
-finally {
-  Pop-Location
-}
+node (Join-Path $PSScriptRoot 'generate-vapid.ts') $vapidFile $VapidSubject
+if ($LASTEXITCODE -ne 0) { throw 'Не удалось создать ключи VAPID' }
 
 $tunnelKey = Join-Path $DataDir 'secrets\tunnel\id_ed25519'
 if (Test-Path $tunnelKey) {
