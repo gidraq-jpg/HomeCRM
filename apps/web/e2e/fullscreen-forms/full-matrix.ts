@@ -194,14 +194,22 @@ for (const percent of before ? [100] : [100, 200]) {
       if (name === 'task') {
         if (!before) {
           await expectNoHorizontalScroll(page);
-          const columns = await page
-            .locator('.object-facts > div')
-            .evaluateAll(
-              (facts) => new Set(facts.map((f) => Math.round(f.getBoundingClientRect().x))).size,
-            );
-          if (info.project.name === 'w360' || percent === 200)
-            expect(columns).toBeLessThanOrEqual(2);
-          if (info.project.name === 'w412' && percent === 100) expect(columns).toBe(3);
+          // Принятый дизайн карточки дела (UI-3/8/9, PR #106, compactCard в TaskScreen.tsx):
+          // факты — строки «название · значение» в блоке под шапкой, а не три колонки
+          // .object-facts, как в D18. Строки идут одна под другой на любой ширине и масштабе.
+          // Экран дела грузится отдельной частью (D53c): ждём его факты, а не мерим сразу.
+          await expect(page.locator('.approved-card-facts > div')).toHaveCount(4);
+          const facts = await page.locator('.approved-card-facts > div').evaluateAll((rows) =>
+            rows.map((row) => {
+              const box = row.getBoundingClientRect();
+              return { x: Math.round(box.x), y: box.y, height: box.height };
+            }),
+          );
+          expect(new Set(facts.map((f) => f.x)).size).toBe(1);
+          facts.slice(1).forEach((fact, i) => {
+            const prev = facts[i] as (typeof facts)[number];
+            expect(fact.y).toBeGreaterThanOrEqual(prev.y + prev.height - 1);
+          });
         }
         await capture(page, info, 'task', percent);
       }
@@ -243,7 +251,8 @@ test('UI-7: поля входа, быстрого добавления и фор
       .locator(selector)
       .evaluateAll((fields) => fields.map((f) => f.getBoundingClientRect().height));
     expect(heights.length).toBeGreaterThan(0);
-    for (const height of heights) expect(height).toBe(48);
+    // Имя проверяемой группы полей — в сообщении: проверок три, строка ошибки у них общая.
+    for (const height of heights) expect(height, selector).toBe(48);
   };
   await checkHeight('.auth-field input, .password-field');
   await signInAs(page, family, 'adult');
