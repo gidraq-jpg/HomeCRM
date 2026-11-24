@@ -2,6 +2,7 @@ import * as z from 'zod';
 import { LocalFailure, localMessage, offlineOwnerAvailable } from '../offline/identity.ts';
 import { durableMutation } from '../offline/queue.ts';
 import { snapshotPath, snapshotRequest } from '../offline/snapshots.ts';
+import { sessionMark, trackSessionChange } from './session-epoch.ts';
 
 export const Me = z.object({
   id: z.string(),
@@ -50,6 +51,8 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
   readonly retryAfter: number;
+  /** Поколение сессии в начале запроса (session-epoch.ts); null — запрос не через apiRequest. */
+  sessionMark: number | null = null;
   constructor(status: number, code = '', retryAfter = 0) {
     super('Request failed');
     this.status = status;
@@ -61,7 +64,23 @@ export class ApiError extends Error {
 export type ApiMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 /** Только cookie; тело и ответы не попадают в localStorage, Cache API или журнал. */
-export async function apiRequest<T>(
+export function apiRequest<T>(
+  method: ApiMethod,
+  path: string,
+  schema: z.ZodType<T>,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  const mark = sessionMark();
+  const work = send(method, path, schema, body, signal).catch((error: unknown) => {
+    if (error instanceof ApiError) error.sessionMark = mark;
+    throw error;
+  });
+  // Любое действие входа может заменить сессию: ответы 401 прежних запросов перепроверяются (D58).
+  return method !== 'GET' && path.startsWith('auth/') ? trackSessionChange(work) : work;
+}
+
+async function send<T>(
   method: ApiMethod,
   path: string,
   schema: z.ZodType<T>,

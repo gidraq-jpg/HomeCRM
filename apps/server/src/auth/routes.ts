@@ -90,9 +90,16 @@ export async function authRoutes(
         response.headers.forEach((value, key) => {
           if (key.toLowerCase() !== 'set-cookie') void reply.header(key, value);
         });
-        const cookies = response.headers.getSetCookie();
+        const payload = response.body ? Buffer.from(await response.arrayBuffer()) : null;
+        // «Сессии нет» на проверке входа не гасит cookie (ADR-0056, D58), как и в currentAccount:
+        // запоздавший ответ на старую сессию иначе стёр бы новую cookie после смены сессии.
+        const noSession =
+          url.pathname === '/api/auth/get-session' &&
+          response.status === 200 &&
+          payload?.toString('utf8').trim() === 'null';
+        const cookies = noSession ? [] : response.headers.getSetCookie();
         if (cookies.length > 0) void reply.header('set-cookie', cookies);
-        return reply.send(response.body ? Buffer.from(await response.arrayBuffer()) : null);
+        return reply.send(payload);
       },
     });
   });

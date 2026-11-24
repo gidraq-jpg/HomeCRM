@@ -29,9 +29,22 @@ import {
   ResetScreen,
 } from './screens.tsx';
 import { dropCacheOnAccountChange, ME_KEY } from './session-cache.ts';
+import { sessionMark, sessionSettled, staleSession } from './session-epoch.ts';
 import { TwoFactorSetup } from './TwoFactorSetup.tsx';
 
+/**
+ * «Кто я». Ответ «сессии нет» на запрос, начатый до смены сессии действием входа, мог прийти со
+ * старой cookie (D58): дожидаемся действия и спрашиваем ещё раз — уже с новой.
+ */
 async function currentMe(signal?: AbortSignal) {
+  const mark = sessionMark();
+  const me = await readMe(signal);
+  if (me || !staleSession(mark)) return me;
+  await sessionSettled();
+  return readMe(signal);
+}
+
+async function readMe(signal?: AbortSignal) {
   // Отсутствие сессии — штатный ответ 200/null, без ошибки ресурса в консоли браузера.
   const session = await api(
     'auth/get-session',
