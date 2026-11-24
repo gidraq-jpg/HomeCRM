@@ -52,6 +52,8 @@ const FILE_TABLES = [
   'profile_files',
 ] as const;
 const HISTORY_TABLES = [
+  'inbox_items',
+  'inbox_files',
   'documents',
   'notes',
   'note_items',

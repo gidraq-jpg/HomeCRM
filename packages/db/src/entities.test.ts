@@ -197,16 +197,7 @@ describe('паспорт сущности', () => {
         })
         .map((key) => `${passport.table}.${key}`),
     );
-    expect(gaps).toEqual([
-      'inbox_items_history.export',
-      'inbox_files_history.export',
-      'accounts.search',
-      'member_profiles.search',
-      'spaces.search',
-      'space_members.search',
-      'notification_settings.search',
-      'record_links.search',
-    ]);
+    expect(gaps).toEqual([]);
   });
 
   // Тест самого теста: временная таблица без паспорта и испорченная запись находятся.
