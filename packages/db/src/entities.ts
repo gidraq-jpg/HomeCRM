@@ -111,10 +111,6 @@ const RECORDS: EntityPassport[] = [
   record('inbox_files', { no: 'страницы и файлы входящих не индексируются', ref: 'ADR-0044' }),
 ];
 
-const INBOX_HISTORY_GAP = {
-  gap: 'история входящих не входит в HISTORY_TABLES архива, решения об этом нет — вопрос ведущему',
-} as const;
-
 const HISTORIES: EntityPassport[] = [
   history('notes'),
   history('note_items'),
@@ -135,11 +131,18 @@ const HISTORIES: EntityPassport[] = [
   history('meter_readings'),
   history('utility_charges'),
   history('utility_payments'),
-  history('inbox_items', INBOX_HISTORY_GAP),
-  history('inbox_files', INBOX_HISTORY_GAP),
+  history('inbox_items'),
+  history('inbox_files'),
 ];
 
-const SEARCH_GAP = { gap: 'решение о поиске не записано в PRD и ADR — вопрос владельцу' } as const;
+const PEOPLE_NOT_SEARCHED = {
+  no: 'людей в семье немного, они видны в списке участников; внешние люди ищутся через «Контакты»',
+  ref: 'ADR-0054',
+} as const;
+const SPACES_NOT_SEARCHED = {
+  no: 'пространств и участников единицы: их выбирают, а не ищут',
+  ref: 'ADR-0054',
+} as const;
 
 const OTHERS: EntityPassport[] = [
   {
@@ -151,7 +154,7 @@ const OTHERS: EntityPassport[] = [
     },
     policy: 'accounts_select',
     matrix: 'spaces-matrix.test.ts',
-    search: SEARCH_GAP,
+    search: PEOPLE_NOT_SEARCHED,
     export: { section: 'profile' },
     trash: { no: 'учётная запись не уходит в корзину: колонки deleted_at нет' },
   },
@@ -164,7 +167,7 @@ const OTHERS: EntityPassport[] = [
     },
     policy: 'member_profiles_select',
     matrix: 'household-matrix.test.ts',
-    search: SEARCH_GAP,
+    search: PEOPLE_NOT_SEARCHED,
     export: { section: 'profile' },
     trash: { no: 'поля профиля правят и очищают, сам профиль не удаляется', ref: 'SPACE-10' },
   },
@@ -190,7 +193,7 @@ const OTHERS: EntityPassport[] = [
     },
     policy: 'spaces_select',
     matrix: 'spaces-matrix.test.ts',
-    search: SEARCH_GAP,
+    search: SPACES_NOT_SEARCHED,
     export: { section: 'household' },
     trash: { no: 'пространство не удаляется: оно существует, пока есть учётная запись или дом' },
   },
@@ -203,7 +206,7 @@ const OTHERS: EntityPassport[] = [
     },
     policy: 'space_members_select',
     matrix: 'spaces-matrix.test.ts',
-    search: SEARCH_GAP,
+    search: SPACES_NOT_SEARCHED,
     export: { section: 'members' },
     trash: { no: 'уход из дома отмечается left_at', ref: 'SPACE-9' },
   },
@@ -216,7 +219,7 @@ const OTHERS: EntityPassport[] = [
     },
     policy: 'notification_settings_own_select',
     matrix: 'notifications-matrix.test.ts',
-    search: SEARCH_GAP,
+    search: { no: 'настройкам нечего искать: это переключатели владельца', ref: 'ADR-0054' },
     export: { section: 'notification_settings' },
     trash: { no: 'настройки не удаляются, только меняются' },
   },
@@ -229,7 +232,10 @@ const OTHERS: EntityPassport[] = [
     },
     policy: 'record_links_select',
     matrix: 'objects-matrix.test.ts',
-    search: SEARCH_GAP,
+    search: {
+      no: 'связь видна из найденной записи, отдельной выдачи в поиске нет',
+      ref: 'ADR-0054',
+    },
     export: { section: 'record_links' },
     trash: 'soft',
   },

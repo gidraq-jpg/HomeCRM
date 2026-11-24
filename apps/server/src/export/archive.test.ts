@@ -1059,3 +1059,73 @@ it('TASK-3/DATA-2: экспорт сохраняет повтор и ответ�
     await world.database.admin.query('DELETE FROM deadlines WHERE id=$1', [deadlineId]);
   }
 });
+
+it('INBOX-1: история входящих и их файлов — в личном архиве автора, не в чужом и не в архиве дома', async () => {
+  const item = randomUUID(),
+    file = randomUUID(),
+    key = randomUUID(),
+    sealed = cipher.seal(payload, key);
+  await storage.put(key, sealed.block);
+  const admin_ = world.database.admin;
+  await admin_.query(
+    `INSERT INTO inbox_items(id,space_id,space_kind,author_id,assignee_id,title,text,house_id)
+    VALUES($1,$2,'personal',$3,$3,'Вымышленное входящее экспорта','Вымышленный текст входящего',$4)`,
+    [item, world.boris.personalSpaceId, world.boris.id, world.houseId],
+  );
+  await admin_.query(
+    `INSERT INTO inbox_files(id,parent_id,space_id,space_kind,author_id,assignee_id,title,mime_type,size_bytes,storage_key,envelope)
+    VALUES($1,$2,$3,'personal',$4,$4,'Входящее.pdf','application/pdf',$5,$6,$7)`,
+    [file, item, world.boris.personalSpaceId, world.boris.id, payload.length, key, sealed.envelope],
+  );
+  // Личные записи сейчас историю не пишут (app.record_history), поэтому строки кладём напрямую:
+  // тест проверяет только правила области выгрузки.
+  for (const [table, record] of [
+    ['inbox_items', item],
+    ['inbox_files', file],
+  ])
+    await admin_.query(
+      `INSERT INTO ${table}_history(record_id,space_id,space_kind,actor_id,operation,changes)
+      VALUES($1,$2,'personal',$3,'update',$4)`,
+      [
+        record,
+        world.boris.personalSpaceId,
+        world.boris.id,
+        { title: { old: 'А', new: 'Б' }, storage_key: { new: key } },
+      ],
+    );
+  try {
+    const own = await unpack((await archive(adult, world.boris.password)).rawPayload);
+    const history = json(own, 'history');
+    expect(history).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ table: 'inbox_items', record_id: item }),
+        expect.objectContaining({ table: 'inbox_files', record_id: file }),
+      ]),
+    );
+    const text = JSON.stringify(
+      history.filter((row: { table: string }) => row.table.startsWith('inbox_')),
+    );
+    expect(text).not.toContain(key);
+    expect(text).not.toContain('envelope');
+    const foreignResponse = await archive(admin, world.anna.password);
+    expect(foreignResponse.statusCode, foreignResponse.body).toBe(200);
+    const foreign = await unpack(foreignResponse.rawPayload);
+    expect(JSON.stringify(json(foreign, 'history'))).not.toContain(item);
+    const kidResponse = await archive(child, world.vera.password);
+    expect(kidResponse.statusCode, kidResponse.body).toBe(200);
+    const kid = await unpack(kidResponse.rawPayload);
+    expect(JSON.stringify(json(kid, 'history'))).not.toContain(item);
+    const house = await unpack(
+      (
+        await archive(admin, world.anna.password, {
+          kind: 'household',
+          householdId: world.houseId,
+        })
+      ).rawPayload,
+    );
+    expect(JSON.stringify(json(house, 'history'))).not.toContain(item);
+  } finally {
+    await admin_.query('DELETE FROM inbox_files WHERE id=$1', [file]);
+    await admin_.query('DELETE FROM inbox_items WHERE id=$1', [item]);
+  }
+});
