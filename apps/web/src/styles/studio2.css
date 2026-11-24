@@ -965,7 +965,7 @@ html[data-design="studio"] .password-field input {
    по 12 px давали 48,5 px. Высоту нескольких строк ставит Quickline.tsx по scrollHeight. */
 html[data-design="studio"] .task-quickline textarea.textarea {
   min-height: var(--studio-field-height);
-  padding-block: calc((var(--studio-field-height) - 2px - 1.5em) / 2);
+  padding-block: calc((var(--studio-field-height) - 1.5em) / 2 - 1px);
   font-size: var(--font-body);
 }
 html[data-design="studio"] .ui7-form-heading {
