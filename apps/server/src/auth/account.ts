@@ -47,10 +47,12 @@ export function createAccountReader(module: AuthModule) {
       headers: fromNodeHeaders(request.headers),
       returnHeaders: true,
     });
+    const session = result.response;
+    // Сессии нет — cookie не гасим (ADR-0056, D58): запрос мог уйти со старой сессией, пока действие
+    // входа выдавало новую, и его запоздавший ответ стёр бы уже новую cookie. Гасят её выход и вход.
+    if (session === null) return fail(reply, 401, 'UNAUTHORIZED', 'Sign in required');
     const cookies = result.headers.getSetCookie();
     if (cookies.length > 0) void reply.header('set-cookie', cookies);
-    const session = result.response;
-    if (session === null) return fail(reply, 401, 'UNAUTHORIZED', 'Sign in required');
 
     const { user } = session;
     const viewer = await appDb.withAccount(user.id, (tx) => loadViewer(tx, user.id));

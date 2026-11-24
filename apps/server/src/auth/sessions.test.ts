@@ -255,6 +255,44 @@ describe('список устройств и выход (AUTH-6)', () => {
   });
 });
 
+describe('смена сессии не стирает новую cookie (AUTH-6, D58, ADR-0056)', () => {
+  it('ответ «сессии нет» на старую сессию не гасит cookie — ни данные, ни проверка входа', async () => {
+    const device = world.device();
+    await device.signIn('boris', world.boris.password);
+    // Так старую сессию удаляет смена сессии (второй фактор, пароль), пока браузер ждёт новую cookie.
+    await world.database.admin.query('DELETE FROM sessions WHERE token = $1', [
+      hashSessionToken(tokenOf(device)),
+    ]);
+    const me = await device.get('/api/me');
+    expect(me.status).toBe(401);
+    expect(me.setCookies).toEqual([]);
+    const session = await device.get('/api/auth/get-session');
+    expect(session.status).toBe(200);
+    expect(session.json()).toBeNull();
+    expect(session.setCookies).toEqual([]);
+  });
+
+  it('смена пароля выдаёт этому устройству новую сессию; старая получает 401 без гашения cookie', async () => {
+    const device = world.device();
+    await device.signIn('boris', world.boris.password);
+    const stale = world.device();
+    stale.cookies.set(
+      '__Secure-homecrm.session_token',
+      device.cookies.get('__Secure-homecrm.session_token') ?? '',
+    );
+    await device.post('/api/auth/change-password', {
+      currentPassword: world.boris.password,
+      newPassword: world.boris.password,
+      revokeOtherSessions: true,
+    });
+    expect(tokenOf(device)).not.toBe(tokenOf(stale));
+    const late = await stale.get('/api/me');
+    expect(late.status).toBe(401);
+    expect(late.setCookies).toEqual([]);
+    expect((await device.get('/api/me')).status).toBe(200);
+  });
+});
+
 describe('хэши токенов (R0.2b, PRD раздел 13)', () => {
   it('вход возвращает открытый токен, но вся строка базы содержит только h1:SHA-256', async () => {
     const device = world.device();

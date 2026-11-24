@@ -12,6 +12,7 @@ import {
 } from '@homecrm/shared';
 import type { z } from 'zod';
 import { Me } from '../auth/api.ts';
+import { sessionMark, staleSession } from '../auth/session-epoch.ts';
 import { parseCapturedInbox } from '../inbox/parse.ts';
 import {
   assertIdentity,
@@ -592,9 +593,12 @@ export async function resolveConflict(
   return replacement;
 }
 async function freshMe(expected: Identity) {
+  const mark = sessionMark();
   const response = await fetch('/api/me', { credentials: 'same-origin', cache: 'no-store' });
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) await blockIdentity();
+    // 401 со старой сессией во время действия входа (D58) не блокирует: отправка повторится.
+    if (response.status === 403 || (response.status === 401 && !staleSession(mark)))
+      await blockIdentity();
     return null;
   }
   const parsed = Me.safeParse(await response.json());
@@ -697,6 +701,7 @@ export async function synchronize(): Promise<void> {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 20000);
         let response: Response;
+        const mark = sessionMark();
         try {
           const blob = frozen.blobId ? await offlineDB.blobs.get(frozen.blobId) : null;
           if (frozen.blobId && !blob) throw new LocalFailure('LOCAL_STORAGE');
@@ -729,6 +734,8 @@ export async function synchronize(): Promise<void> {
         const json = await response.json().catch(() => null);
         if (!response.ok) {
           const code = typeof json?.code === 'string' ? json.code : 'HTTP_ERROR';
+          // Сервер отклонил запрос до выполнения: со старой сессией (D58) — просто повтор позже.
+          if (response.status === 401 && staleSession(mark)) throw new Error('STALE_SESSION');
           if (response.status === 401) {
             await blockIdentity();
             await offlineDB.outbox.update(row.id, {

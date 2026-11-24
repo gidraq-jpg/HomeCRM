@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './auth/api.ts';
 import { dropCacheOnAccountChange, ME_KEY } from './auth/session-cache.ts';
+import { sessionMark, trackSessionChange } from './auth/session-epoch.ts';
 import { prefetchSections } from './prefetch.ts';
 import { CACHE_GC_MS, CACHE_STALE_MS, createQueryClient } from './query-client.ts';
 
@@ -51,6 +52,29 @@ describe('кэш данных клиента (D48)', () => {
       .catch(() => undefined);
     expect(client.getQueryData(['objects', 'list', 'all', false])).toBeUndefined();
     expect(client.getQueryState([ME_KEY])?.isInvalidated).toBe(true);
+  });
+
+  it('401 запроса со старой сессией (идёт действие входа) данные не выбрасывает (D58)', async () => {
+    const client = createQueryClient();
+    filled(client);
+    let finish!: () => void;
+    const change = trackSessionChange(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const stale = new ApiError(401, 'UNAUTHORIZED');
+    stale.sessionMark = sessionMark();
+    await client
+      .fetchQuery({ queryKey: ['documents', 'list'], queryFn: () => Promise.reject(stale) })
+      .catch(() => undefined);
+    expect(client.getQueryData(['objects', 'list', 'all', false])).toBeDefined();
+    expect(client.getQueryState([ME_KEY])?.isInvalidated).toBe(false);
+    finish();
+    await change;
+    // После действия «кто я» перепроверяется: настоящий выход по-прежнему возможен.
+    await vi.waitFor(() => expect(client.getQueryState([ME_KEY])?.isInvalidated).toBe(true));
+    expect(client.getQueryData(['objects', 'list', 'all', false])).toBeDefined();
   });
 
   it('ответ 500 кэш не трогает', async () => {

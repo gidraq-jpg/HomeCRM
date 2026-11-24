@@ -1,5 +1,6 @@
 import { OfflineSnapshot } from '@homecrm/shared';
 import type { z } from 'zod';
+import { sessionMark, staleSession } from '../auth/session-epoch.ts';
 import { DraftEnvelope } from './draft-data.ts';
 import {
   accountChanged,
@@ -135,6 +136,7 @@ export async function snapshotRequest<T>(
   const expected = await requestTicket();
   if (!expected.owner) throw new LocalFailure('ACCOUNT_CHANGED');
   if (!navigator.onLine) return loadSnapshot(normalized, schema, expected);
+  const mark = sessionMark();
   const url = new URL(path, `${globalThis.location.origin}/api/`);
   url.searchParams.set('offline', 'true');
   const started = performance.now();
@@ -152,7 +154,9 @@ export async function snapshotRequest<T>(
   if (!response.ok) {
     // 401/403/404 нельзя заменять кэшем. Отзываем локальное чтение конкретного пути.
     await offlineDB.snapshots.delete(`${expected.owner}:${normalized}`);
-    if (response.status === 401 || response.status === 403) await blockIdentity();
+    // 401 со старой сессией во время действия входа (D58) — не выход: «кто я» перепроверит сессию.
+    if (response.status === 403 || (response.status === 401 && !staleSession(mark)))
+      await blockIdentity();
     const body = await response.json().catch(() => null);
     throw Object.assign(new Error('HTTP_ERROR'), {
       status: response.status,
