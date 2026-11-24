@@ -103,6 +103,10 @@ export async function createFamily() {
     appDb: createAppDatabase(database.app),
     secret: randomBytes(32).toString('base64url'),
     baseURL: origin,
+    // Пояс дома по умолчанию — тот же, что у браузера (timezoneId) и homeDate (D56). Иначе с
+    // 19:00 до 21:00 UTC «сегодня» сервера (Екатеринбург) уже завтра, и дела на сегодня
+    // уходили во вчерашние.
+    homeTimeZone: 'Europe/Moscow',
   });
   // Обработчик передачи ответственности нужен уходу из дома и исключению (docs/household-api.md).
   await mkdir(FILES_ROOT, { recursive: true });

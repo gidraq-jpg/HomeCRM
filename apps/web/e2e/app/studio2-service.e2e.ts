@@ -293,9 +293,10 @@ test('UI-6 D16b: администратор, приглашение, роль, �
       mask: [page.locator('.issued-link')],
     });
     await page.goto('#/more/house');
+    // Каждый проход меняет пояс: по умолчанию в сценариях — Москва (e2e/auth/support/family.ts).
     await page
       .getByLabel('Новый часовой пояс')
-      .selectOption(percent === 100 ? 'Europe/Moscow' : 'Asia/Yekaterinburg');
+      .selectOption(percent === 100 ? 'Asia/Yekaterinburg' : 'Europe/Moscow');
     await page.getByRole('button', { name: 'Сохранить часовой пояс' }).click();
     await expect(page.locator('.toast-region')).toContainText('Часовой пояс дома изменён');
     await page.goto('#/start/house');
